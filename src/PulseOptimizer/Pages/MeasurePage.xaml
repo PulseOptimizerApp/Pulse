@@ -1,0 +1,266 @@
+<UserControl x:Class="Pulse.Pages.MeasurePage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="clr-namespace:Pulse.Ui">
+    <UserControl.Resources>
+        <!-- Round step number used for 1, 2, 3 -->
+        <Style x:Key="StepNum" TargetType="Border">
+            <Setter Property="Width" Value="26"/>
+            <Setter Property="Height" Value="26"/>
+            <Setter Property="CornerRadius" Value="13"/>
+            <Setter Property="Background" Value="{StaticResource AccentGradient}"/>
+            <Setter Property="Margin" Value="0,0,10,0"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style x:Key="StepText" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="15"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+        </Style>
+        <Style x:Key="Tile" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="14"/>
+            <Setter Property="Padding" Value="18,16"/>
+        </Style>
+    </UserControl.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Margin="0,6,0,32">
+            <TextBlock Style="{StaticResource H1}" Text="Measure"/>
+            <TextBlock Style="{StaticResource Sub}" Margin="0,6,0,0" MaxWidth="700" HorizontalAlignment="Left"
+                       Text="Find out if a tweak really makes your game run better on this PC."/>
+
+            <!-- ═════════ Setup ═════════ -->
+            <Border x:Name="SetupCard" Style="{StaticResource Card}" Margin="0,22,0,0" Padding="24,22" ui:Anim.Reveal="True">
+                <StackPanel>
+                    <TextBlock x:Name="PresentMonMissing" Style="{StaticResource Body}" Foreground="{StaticResource WarnBrush}" Margin="0,0,0,14" Visibility="Collapsed"
+                               Text="The frame-time recorder (PresentMon) is missing. Download Pulse again from the official release so the tools folder is included."/>
+
+                    <Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="24"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+
+                        <!-- Step 1 -->
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <Border Style="{StaticResource StepNum}"><TextBlock Text="1" Foreground="White" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+                                <TextBlock Style="{StaticResource StepText}" Text="Choose a tweak"/>
+                            </StackPanel>
+                            <ListBox x:Name="TweakPick" Style="{StaticResource PickList}" Margin="0,14,0,0" SelectionChanged="Pick_Changed">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                            <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="1" Text="On" Margin="10,0,0,0" FontSize="11.5" FontWeight="SemiBold" Foreground="{StaticResource GoodBrush}" VerticalAlignment="Center"
+                                                       Visibility="{Binding IsOn, Converter={StaticResource BoolToVis}}"/>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </StackPanel>
+
+                        <!-- Step 2 -->
+                        <StackPanel Grid.Column="2">
+                            <StackPanel Orientation="Horizontal">
+                                <Border Style="{StaticResource StepNum}"><TextBlock Text="2" Foreground="White" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+                                <TextBlock Style="{StaticResource StepText}" Text="Start your game"/>
+                            </StackPanel>
+
+                            <!-- Waiting for a game -->
+                            <Border x:Name="WaitingBox" Margin="0,14,0,0" Padding="18,22" CornerRadius="12" BorderThickness="1" BorderBrush="{StaticResource BorderBrush}" Background="#0AFFFFFF">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <ui:Spinner Width="28" Height="28" Brush="{StaticResource AccentGradient}" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="Waiting for a game…" FontWeight="SemiBold" Margin="0,12,0,0" HorizontalAlignment="Center"/>
+                                    <TextBlock Style="{StaticResource Body}" TextAlignment="Center" Margin="0,4,0,0" MaxWidth="300"
+                                               Text="Start the game you want to test. Pulse will find it on its own."/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Games found -->
+                            <ListBox x:Name="GamePick" Style="{StaticResource PickList}" Margin="0,14,0,0" Visibility="Collapsed" SelectionChanged="Pick_Changed">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                            <Grid Width="32" Height="32" Margin="0,0,12,0">
+                                                <Border CornerRadius="8" Background="#14FFFFFF"/>
+                                                <Image Source="{Binding Icon}" Width="22" Height="22"/>
+                                            </Grid>
+                                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                                <TextBlock FontSize="11.5" Foreground="{StaticResource TextDimBrush}">
+                                                    <Run Text="{Binding Exe, Mode=OneWay}"/><Run Text="  ·  "/><Run Text="{Binding Why, Mode=OneWay}"/>
+                                                </TextBlock>
+                                            </StackPanel>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- Step 3 -->
+                    <Border Margin="0,20,0,0" Padding="0,18,0,0" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0">
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal">
+                                    <Border Style="{StaticResource StepNum}"><TextBlock Text="3" Foreground="White" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+                                    <TextBlock x:Name="PlanText" Style="{StaticResource StepText}"/>
+                                    <Button Style="{StaticResource LinkButton}" Content="Change" Margin="12,0,0,0" VerticalAlignment="Center" Click="ChangePlan_Click"/>
+                                </StackPanel>
+                                <TextBlock Style="{StaticResource Body}" Margin="36,6,0,0"
+                                           Text="Play the same part of the game each run, like a built-in benchmark. Pulse switches the tweak for you."/>
+                                <WrapPanel x:Name="PlanChips" Margin="36,12,0,0" Visibility="Collapsed">
+                                    <RadioButton x:Name="ModeQuick" Style="{StaticResource Chip}" GroupName="Mode" Content="Quick · 3 runs each" Checked="Mode_Checked"/>
+                                    <RadioButton x:Name="ModeStandard" Style="{StaticResource Chip}" GroupName="Mode" Content="Standard · 5 runs each" IsChecked="True" Checked="Mode_Checked"/>
+                                    <RadioButton x:Name="ModeThorough" Style="{StaticResource Chip}" GroupName="Mode" Content="Thorough · 7 runs each" Checked="Mode_Checked"/>
+                                </WrapPanel>
+                            </StackPanel>
+                            <Button x:Name="StartBtn" Grid.Column="1" Style="{StaticResource PrimaryButton}" VerticalAlignment="Top" IsEnabled="False" Click="Start_Click">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#xE768;" Style="{StaticResource IconText}" FontSize="13"/>
+                                    <TextBlock Text="Start test" Margin="8,0,0,0"/>
+                                </StackPanel>
+                            </Button>
+                        </Grid>
+                    </Border>
+                </StackPanel>
+            </Border>
+
+            <!-- ═════════ Running ═════════ -->
+            <Border x:Name="RunCard" Style="{StaticResource Card}" Margin="0,22,0,0" Padding="24,22" Visibility="Collapsed">
+                <StackPanel>
+                    <Grid>
+                        <StackPanel>
+                            <TextBlock x:Name="RunTitle" Style="{StaticResource H2}"/>
+                            <TextBlock x:Name="RunSubtitle" Style="{StaticResource Body}" Margin="0,4,0,0"/>
+                        </StackPanel>
+                        <Button Style="{StaticResource LinkButton}" HorizontalAlignment="Right" VerticalAlignment="Top" Content="Cancel test" Click="CancelTest_Click"/>
+                    </Grid>
+
+                    <Grid Margin="0,16,0,0">
+                        <Border Style="{StaticResource BarTrack}"/>
+                        <Border x:Name="RunProgressBar" Style="{StaticResource BarFill}"/>
+                    </Grid>
+
+                    <Border Margin="0,16,0,0" Padding="18,16" CornerRadius="12" Background="#0DFFFFFF">
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <Grid Width="64" Height="64" Margin="0,0,18,0">
+                                <ui:Ring x:Name="CountRing" Thickness="6" Brush="{StaticResource AccentGradient}"/>
+                                <TextBlock x:Name="CountText" Text="" FontSize="18" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Grid>
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                <TextBlock x:Name="StepTitle" Style="{StaticResource CardTitle}"/>
+                                <TextBlock x:Name="StepText" Style="{StaticResource Body}" Margin="0,4,0,0"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="16,0,0,0">
+                                <Button x:Name="RecordBtn" Style="{StaticResource PrimaryButton}" Click="Record_Click">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="&#xE7C8;" Style="{StaticResource IconText}" FontSize="13"/>
+                                        <TextBlock x:Name="RecordBtnText" Text="Record run" Margin="8,0,0,0"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button x:Name="RestartBtn" Style="{StaticResource PrimaryButton}" Visibility="Collapsed" Click="Restart_Click" Content="Restart PC now"/>
+                                <Button x:Name="FinishBtn" Style="{StaticResource PrimaryButton}" Visibility="Collapsed" Click="Finish_Click" Content="See results"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <ItemsControl x:Name="RunsList" Margin="0,16,0,0">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Margin="0,0,0,6">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="80"/><ColumnDefinition Width="110"/><ColumnDefinition Width="130"/><ColumnDefinition Width="140"/><ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="{Binding Label}" Foreground="{StaticResource TextDimBrush}"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding Side}" FontWeight="SemiBold"/>
+                                    <TextBlock Grid.Column="2" Text="{Binding Avg}"/>
+                                    <TextBlock Grid.Column="3" Text="{Binding Low}"/>
+                                    <TextBlock Grid.Column="4" Text="{Binding Latency}" Foreground="{StaticResource TextDimBrush}"/>
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+
+            <!-- ═════════ Result ═════════ -->
+            <Border x:Name="ResultCard" Style="{StaticResource Card}" Margin="0,22,0,0" Padding="24,22" Visibility="Collapsed">
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal">
+                        <Border x:Name="ResultPill" Style="{StaticResource Pill}">
+                            <TextBlock x:Name="ResultPillText" Style="{StaticResource PillText}"/>
+                        </Border>
+                        <TextBlock x:Name="ResultTitle" Style="{StaticResource H2}" VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <TextBlock x:Name="ResultNote" Style="{StaticResource Sub}" Margin="0,10,0,0" Foreground="{StaticResource TextBrush}"/>
+                    <ItemsControl x:Name="ResultList" Margin="0,16,0,0">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Margin="0,0,0,8" Padding="16,12" CornerRadius="10" Background="#0DFFFFFF">
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding Metric}" FontWeight="SemiBold"/>
+                                        <TextBlock Style="{StaticResource Body}" Text="{Binding Numbers}"/>
+                                        <TextBlock Style="{StaticResource Body}" Text="{Binding Explanation}"/>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                        <Button x:Name="KeepBtn" Style="{StaticResource PrimaryButton}" Content="Keep the tweak" Click="Keep_Click"/>
+                        <Button x:Name="UndoBtn" Style="{StaticResource GhostButton}" Margin="10,0,0,0" Content="Undo the tweak" Click="Undo_Click"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- ═════════ Quick checks ═════════ -->
+            <TextBlock Style="{StaticResource H2}" Text="Quick checks" Margin="0,30,0,4"/>
+            <TextBlock Style="{StaticResource Body}" Text="Short tests you can run any time. No game needed."/>
+            <UniformGrid Columns="4" Margin="0,14,0,0">
+                <Border Style="{StaticResource Tile}" Margin="0,0,12,0" ui:Anim.Reveal="True">
+                    <StackPanel>
+                        <TextBlock Text="&#xE7FC;" Style="{StaticResource IconText}" FontSize="20" Foreground="{StaticResource AccentBrush}" HorizontalAlignment="Left"/>
+                        <TextBlock Text="Controller" FontWeight="SemiBold" Margin="0,10,0,0"/>
+                        <TextBlock x:Name="PadResult" FontSize="24" FontWeight="Bold" Margin="0,6,0,0" Text="—"/>
+                        <TextBlock x:Name="PadDetail" Style="{StaticResource Body}" FontSize="12" Text="How often it sends input. Wiggle a stick during the test."/>
+                        <Button x:Name="PadBtn" Style="{StaticResource GhostButton}" HorizontalAlignment="Left" Margin="0,12,0,0" Padding="14,7" Content="Test" Click="Pad_Click"/>
+                    </StackPanel>
+                </Border>
+                <Border Style="{StaticResource Tile}" Margin="6,0,6,0" ui:Anim.Reveal="True">
+                    <StackPanel>
+                        <TextBlock Text="&#xE962;" Style="{StaticResource IconText}" FontSize="20" Foreground="{StaticResource AccentBrush}" HorizontalAlignment="Left"/>
+                        <TextBlock Text="Mouse" FontWeight="SemiBold" Margin="0,10,0,0"/>
+                        <TextBlock x:Name="MouseResult" FontSize="24" FontWeight="Bold" Margin="0,6,0,0" Text="—"/>
+                        <TextBlock x:Name="MouseDetail" Style="{StaticResource Body}" FontSize="12" Text="How often it reports movement. Move it in circles."/>
+                        <Button x:Name="MouseBtn" Style="{StaticResource GhostButton}" HorizontalAlignment="Left" Margin="0,12,0,0" Padding="14,7" Content="Test" Click="Mouse_Click"/>
+                    </StackPanel>
+                </Border>
+                <Border Style="{StaticResource Tile}" Margin="6,0,6,0" ui:Anim.Reveal="True">
+                    <StackPanel>
+                        <TextBlock Text="&#xE9D9;" Style="{StaticResource IconText}" FontSize="20" Foreground="{StaticResource AccentBrush}" HorizontalAlignment="Left"/>
+                        <TextBlock Text="Background CPU" FontWeight="SemiBold" Margin="0,10,0,0"/>
+                        <TextBlock x:Name="CpuResult" FontSize="24" FontWeight="Bold" Margin="0,6,0,0" Text="—"/>
+                        <TextBlock x:Name="CpuTop" Style="{StaticResource Body}" FontSize="12" Text="What your PC does at idle. Leave it alone for 60 seconds."/>
+                        <Button x:Name="CpuBtn" Style="{StaticResource GhostButton}" HorizontalAlignment="Left" Margin="0,12,0,0" Padding="14,7" Content="Test" Click="Cpu_Click"/>
+                    </StackPanel>
+                </Border>
+                <Border Style="{StaticResource Tile}" Margin="12,0,0,0" ui:Anim.Reveal="True">
+                    <StackPanel>
+                        <TextBlock Text="&#xE7E8;" Style="{StaticResource IconText}" FontSize="20" Foreground="{StaticResource AccentBrush}" HorizontalAlignment="Left"/>
+                        <TextBlock Text="Boot time" FontWeight="SemiBold" Margin="0,10,0,0"/>
+                        <TextBlock x:Name="BootResult" FontSize="24" FontWeight="Bold" Margin="0,6,0,0" Text="—"/>
+                        <TextBlock x:Name="BootList" Style="{StaticResource Body}" FontSize="12" Text="How long your last starts took, as Windows recorded them."/>
+                        <Button x:Name="BootBtn" Style="{StaticResource GhostButton}" HorizontalAlignment="Left" Margin="0,12,0,0" Padding="14,7" Content="Check" Click="Boot_Click"/>
+                    </StackPanel>
+                </Border>
+            </UniformGrid>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

@@ -1,0 +1,160 @@
+<UserControl x:Class="Pulse.Pages.TweaksPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="clr-namespace:Pulse.Ui">
+    <Grid Margin="0,6,0,0">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <Grid>
+            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+            <StackPanel>
+                <TextBlock Style="{StaticResource H1}" Text="Tweaks"/>
+                <TextBlock Style="{StaticResource Sub}" Margin="0,6,0,0" MaxWidth="720" HorizontalAlignment="Left"
+                           Text="Every tweak is backed up before it's applied and can be undone. Each one says what it changes, where the evidence comes from, and whether it actually helps this PC — no placebo."/>
+                <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                    <Grid Width="220" VerticalAlignment="Center">
+                        <Border Style="{StaticResource BarTrack}" Height="6"/>
+                        <Border x:Name="RecBar" Style="{StaticResource BarFill}" Height="6"/>
+                    </Grid>
+                    <TextBlock x:Name="CountText" Style="{StaticResource Body}" Margin="12,0,0,0" VerticalAlignment="Center"/>
+                </StackPanel>
+            </StackPanel>
+            <Button Grid.Column="1" Style="{StaticResource PrimaryButton}" VerticalAlignment="Top" Click="ApplyRecommended_Click">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="&#xE945;" Style="{StaticResource IconText}" FontSize="14"/>
+                    <TextBlock Text="Apply safe recommended" Margin="8,0,0,0"/>
+                </StackPanel>
+            </Button>
+        </Grid>
+
+        <Grid Grid.Row="1" Margin="0,18,0,8">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="240"/></Grid.ColumnDefinitions>
+            <WrapPanel x:Name="Chips">
+                <RadioButton Style="{StaticResource Chip}" GroupName="Cat" Tag="fit" Content="Fits this PC" IsChecked="True" Checked="Chip_Checked"/>
+                <RadioButton Style="{StaticResource Chip}" GroupName="Cat" Tag="all" Content="All" Checked="Chip_Checked"/>
+                <RadioButton Style="{StaticResource Chip}" GroupName="Cat" Tag="Gaming" Content="Gaming" Checked="Chip_Checked"/>
+                <RadioButton Style="{StaticResource Chip}" GroupName="Cat" Tag="Performance" Content="Performance" Checked="Chip_Checked"/>
+                <RadioButton Style="{StaticResource Chip}" GroupName="Cat" Tag="Network" Content="Network" Checked="Chip_Checked"/>
+                <RadioButton Style="{StaticResource Chip}" GroupName="Cat" Tag="Input" Content="Input &amp; controllers" Checked="Chip_Checked"/>
+                <RadioButton Style="{StaticResource Chip}" GroupName="Cat" Tag="Privacy" Content="Privacy &amp; security" Checked="Chip_Checked"/>
+                <RadioButton Style="{StaticResource Chip}" GroupName="Cat" Tag="Visual" Content="Visual" Checked="Chip_Checked"/>
+                <RadioButton Style="{StaticResource Chip}" GroupName="Cat" Tag="Storage" Content="Storage" Checked="Chip_Checked"/>
+            </WrapPanel>
+            <TextBox x:Name="Search" Grid.Column="1" Style="{StaticResource SearchBox}" Tag="Search tweaks…" VerticalAlignment="Top" TextChanged="Search_TextChanged"/>
+        </Grid>
+
+        <Grid Grid.Row="2">
+            <StackPanel x:Name="LoadingPanel" Orientation="Horizontal" VerticalAlignment="Top" Margin="0,20,0,0">
+                <ui:Spinner Width="22" Height="22" Brush="{StaticResource AccentGradient}"/>
+                <TextBlock Text="Checking which tweaks fit this PC…" Margin="12,0,0,0" VerticalAlignment="Center" Foreground="{StaticResource TextDimBrush}"/>
+            </StackPanel>
+
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <ItemsControl x:Name="TweakList" Margin="0,0,0,32">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Style="{StaticResource HoverCard}" Margin="0,0,0,10" ui:Anim.Reveal="True">
+                                <Grid>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                    <!-- Green edge while the tweak is on -->
+                                    <Border Width="3" CornerRadius="2" HorizontalAlignment="Left" Margin="-20,-4,0,-4" Background="{StaticResource GoodBrush}"
+                                            Visibility="{Binding IsOn, Converter={StaticResource BoolToVis}}"/>
+                                    <StackPanel Opacity="{Binding GateStatus.Met, Converter={StaticResource BoolToOpacity}}" Background="Transparent" Cursor="Hand"
+                                                MouseLeftButtonUp="Card_Click" ToolTip="Click for how it works">
+                                        <WrapPanel>
+                                            <TextBlock Style="{StaticResource CardTitle}" Text="{Binding Title}" Margin="0,0,10,4" VerticalAlignment="Center"/>
+                                            <Border Style="{StaticResource Pill}" Background="{Binding RiskBackground}" Margin="0,0,6,4">
+                                                <TextBlock Style="{StaticResource PillText}" Text="{Binding RiskText}" Foreground="{Binding RiskBrush}"/>
+                                            </Border>
+                                            <Border Style="{StaticResource Pill}" Background="{StaticResource InfoSoftBrush}" Margin="0,0,6,4">
+                                                <TextBlock Style="{StaticResource PillText}" Text="{Binding EvidenceText}" Foreground="{StaticResource InfoBrush}"/>
+                                            </Border>
+                                            <Border Style="{StaticResource Pill}" Background="{StaticResource GoodSoftBrush}" Margin="0,0,6,4"
+                                                    Visibility="{Binding StatusText, Converter={StaticResource HasValueToVis}}">
+                                                <TextBlock Style="{StaticResource PillText}" Text="{Binding StatusText}" Foreground="{StaticResource GoodBrush}"/>
+                                            </Border>
+                                            <Border Style="{StaticResource Pill}" Background="#14FFFFFF" Margin="0,0,6,4"
+                                                    Visibility="{Binding HasRestartNote, Converter={StaticResource BoolToVis}}">
+                                                <TextBlock Style="{StaticResource PillText}" Text="{Binding RestartNote}" Foreground="{StaticResource TextDimBrush}"/>
+                                            </Border>
+                                        </WrapPanel>
+                                        <TextBlock Style="{StaticResource Body}" Margin="0,4,0,0" Text="{Binding Summary}"/>
+
+                                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0"
+                                                    Visibility="{Binding GateStatus.Met, Converter={StaticResource InverseBoolToVis}}">
+                                            <TextBlock Text="&#xE7BA;" Style="{StaticResource IconText}" FontSize="12" Foreground="{StaticResource WarnBrush}" VerticalAlignment="Top" Margin="0,2,8,0"/>
+                                            <TextBlock Style="{StaticResource Body}" Foreground="{StaticResource WarnBrush}" Text="{Binding GateStatus.Why}" MaxWidth="640"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0"
+                                                    Visibility="{Binding HasMeasuredResult, Converter={StaticResource BoolToVis}}">
+                                            <TextBlock Text="&#xE9D2;" Style="{StaticResource IconText}" FontSize="12" Foreground="{StaticResource GoodBrush}" Margin="0,0,8,0"/>
+                                            <TextBlock Style="{StaticResource Body}" Foreground="{StaticResource GoodBrush}" Text="{Binding MeasuredResult, StringFormat='Measured: {0}'}"/>
+                                        </StackPanel>
+
+                                        <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                                            <ToggleButton x:Name="DetailsToggle" Style="{StaticResource LinkToggle}" Content="How it works"/>
+                                            <Button Style="{StaticResource LinkButton}" Margin="18,0,0,0" Content="Measure in my game" Click="Measure_Click"
+                                                    Visibility="{Binding MakesPerformanceClaim, Converter={StaticResource BoolToVis}}"/>
+                                        </StackPanel>
+
+                                        <Border x:Name="Details" Margin="0,12,0,0" Padding="16,14" CornerRadius="10" Background="#0DFFFFFF">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                    <Setter Property="Opacity" Value="0"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsChecked, ElementName=DetailsToggle}" Value="True">
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                            <DataTrigger.EnterActions>
+                                                                <BeginStoryboard><Storyboard>
+                                                                    <DoubleAnimation Storyboard.TargetProperty="Opacity" From="0" To="1" Duration="0:0:0.25"/>
+                                                                </Storyboard></BeginStoryboard>
+                                                            </DataTrigger.EnterActions>
+                                                            <DataTrigger.ExitActions>
+                                                                <BeginStoryboard><Storyboard>
+                                                                    <DoubleAnimation Storyboard.TargetProperty="Opacity" To="0" Duration="0:0:0.1"/>
+                                                                </Storyboard></BeginStoryboard>
+                                                            </DataTrigger.ExitActions>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                            <StackPanel>
+                                                <TextBlock Style="{StaticResource Label}" Text="WHAT IT DOES"/>
+                                                <TextBlock Style="{StaticResource Body}" Foreground="{StaticResource TextBrush}" Margin="0,4,0,12" Text="{Binding Explain}"/>
+                                                <TextBlock Style="{StaticResource Label}" Text="WHAT IT CHANGES"/>
+                                                <TextBlock Style="{StaticResource Mono}" Margin="0,4,0,12" Text="{Binding Changes}"/>
+                                                <TextBlock Style="{StaticResource Label}" Text="WHAT TO EXPECT"/>
+                                                <TextBlock Style="{StaticResource Body}" Foreground="{StaticResource TextBrush}" Margin="0,4,0,12" Text="{Binding Gain}"/>
+                                                <TextBlock Style="{StaticResource Label}" Text="DOWNSIDES"/>
+                                                <TextBlock Style="{StaticResource Body}" Foreground="{StaticResource TextBrush}" Margin="0,4,0,12" Text="{Binding Tradeoff}"/>
+                                                <StackPanel Visibility="{Binding HasSource, Converter={StaticResource BoolToVis}}">
+                                                    <TextBlock Style="{StaticResource Label}" Text="SOURCE"/>
+                                                    <Button Style="{StaticResource LinkButton}" HorizontalAlignment="Left" Margin="0,4,0,0" Tag="{Binding SourceUrl}" Click="Source_Click">
+                                                        <TextBlock Text="{Binding SourceName}" TextWrapping="Wrap"/>
+                                                    </Button>
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </Border>
+                                    </StackPanel>
+
+                                    <Grid Grid.Column="1" Margin="20,2,0,0" VerticalAlignment="Top" Width="46">
+                                        <CheckBox Style="{StaticResource Switch}" IsChecked="{Binding IsOn, Mode=OneWay}" Click="Switch_Click"
+                                                  Visibility="{Binding IsBusy, Converter={StaticResource InverseBoolToVis}}"
+                                                  ToolTip="Turn on or off. Turning off restores your previous setting."/>
+                                        <ui:Spinner Width="24" Height="24" Brush="{StaticResource AccentGradient}"
+                                                    Visibility="{Binding IsBusy, Converter={StaticResource BoolToVis}}"/>
+                                    </Grid>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </Grid>
+    </Grid>
+</UserControl>

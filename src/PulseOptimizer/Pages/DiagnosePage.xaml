@@ -1,0 +1,171 @@
+<UserControl x:Class="Pulse.Pages.DiagnosePage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="clr-namespace:Pulse.Ui">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Margin="0,6,0,32">
+            <TextBlock Style="{StaticResource H1}" Text="Diagnose"/>
+            <TextBlock Style="{StaticResource Sub}" Margin="0,6,0,0" MaxWidth="760" HorizontalAlignment="Left"
+                       Text="Pulse looks for real problems on this PC first — a monitor stuck at 60 Hz or RAM at its slow default speed is a bigger win than any tweak. Nothing changes until you choose to fix it."/>
+
+            <!-- Summary + live usage -->
+            <Grid Margin="0,24,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="320"/>
+                    <ColumnDefinition Width="16"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <Border Style="{StaticResource Card}" ui:Anim.Reveal="True">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource Label}" Text="CHECKUP"/>
+                        <Grid Width="150" Height="150" Margin="0,16,0,12">
+                            <ui:Ring x:Name="SummaryRing" Thickness="10" Brush="{StaticResource AccentGradient}"/>
+                            <ui:Spinner x:Name="SummarySpinner" Width="150" Height="150" Thickness="10" Brush="{StaticResource AccentGradient}" Visibility="Collapsed"/>
+                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                                <TextBlock x:Name="SummaryBig" Text="—" FontFamily="{StaticResource DisplayFont}" FontSize="28" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+                                <TextBlock x:Name="SummarySmall" Text="not run yet" FontSize="12" Foreground="{StaticResource TextDimBrush}" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </Grid>
+                        <TextBlock x:Name="SummaryText" Style="{StaticResource Body}" TextAlignment="Center"
+                                   Text="Run a checkup to see what's holding this PC back. It takes about a minute and includes a short CPU load test."/>
+                        <Button x:Name="RunBtn" Style="{StaticResource PrimaryButton}" Margin="0,16,0,0" Click="Run_Click" HorizontalAlignment="Stretch">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="&#xE9D9;" Style="{StaticResource IconText}" FontSize="14"/>
+                                <TextBlock x:Name="RunBtnText" Text="Run checkup" Margin="8,0,0,0"/>
+                            </StackPanel>
+                        </Button>
+                        <TextBlock x:Name="ProgressText" Style="{StaticResource Body}" Margin="0,10,0,0" TextAlignment="Center" FontSize="12" Visibility="Collapsed"/>
+                    </StackPanel>
+                </Border>
+
+                <StackPanel Grid.Column="2">
+                    <Border Style="{StaticResource Card}" ui:Anim.Reveal="True">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource Label}" Text="THIS PC"/>
+                            <UniformGrid x:Name="SpecGrid" Columns="2" Margin="0,10,0,0"/>
+                        </StackPanel>
+                    </Border>
+                    <Border Style="{StaticResource Card}" Margin="0,16,0,0" ui:Anim.Reveal="True">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource Label}" Text="RIGHT NOW"/>
+                            <Grid Margin="0,14,0,0">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/><ColumnDefinition Width="140"/></Grid.ColumnDefinitions>
+                                <TextBlock Text="CPU" Foreground="{StaticResource TextDimBrush}" VerticalAlignment="Center"/>
+                                <Grid Grid.Column="1" VerticalAlignment="Center">
+                                    <Border Style="{StaticResource BarTrack}"/>
+                                    <Border x:Name="CpuBar" Style="{StaticResource BarFill}"/>
+                                </Grid>
+                                <TextBlock x:Name="CpuText" Grid.Column="2" Text="—" HorizontalAlignment="Right" FontWeight="SemiBold"/>
+                            </Grid>
+                            <Grid Margin="0,14,0,0">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/><ColumnDefinition Width="140"/></Grid.ColumnDefinitions>
+                                <TextBlock Text="Memory" Foreground="{StaticResource TextDimBrush}" VerticalAlignment="Center"/>
+                                <Grid Grid.Column="1" VerticalAlignment="Center">
+                                    <Border Style="{StaticResource BarTrack}"/>
+                                    <Border x:Name="RamBar" Style="{StaticResource BarFill}"/>
+                                </Grid>
+                                <TextBlock x:Name="RamText" Grid.Column="2" Text="—" HorizontalAlignment="Right" FontWeight="SemiBold"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </Grid>
+
+            <!-- Findings -->
+            <TextBlock x:Name="FindingsHeader" Style="{StaticResource H2}" Text="What Pulse found" Margin="0,28,0,12" Visibility="Collapsed"/>
+            <ItemsControl x:Name="FindingsList">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border Style="{StaticResource HoverCard}" Margin="0,0,0,10" ui:Anim.Reveal="True">
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                <StackPanel>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Border x:Name="Pill" Style="{StaticResource Pill}" Background="{StaticResource GoodSoftBrush}">
+                                            <TextBlock x:Name="PillText" Style="{StaticResource PillText}" Text="{Binding SeverityText}" Foreground="{StaticResource GoodBrush}"/>
+                                        </Border>
+                                        <TextBlock Style="{StaticResource CardTitle}" Text="{Binding Title}" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                    <TextBlock Style="{StaticResource Body}" Margin="0,8,0,0" Text="{Binding Detail}"/>
+                                    <TextBlock Style="{StaticResource Body}" Margin="0,6,0,0" Foreground="{StaticResource TextBrush}" Text="{Binding Fix}"
+                                               Visibility="{Binding Fix, Converter={StaticResource HasValueToVis}}"/>
+
+                                    <ToggleButton x:Name="StepsToggle" Style="{StaticResource LinkToggle}" Content="How to fix it, step by step" Margin="0,10,0,0" HorizontalAlignment="Left"
+                                                  Visibility="{Binding HasSteps, Converter={StaticResource BoolToVis}}"/>
+                                    <Border Margin="0,10,0,0" Padding="16,14" CornerRadius="10" Background="#0DFFFFFF"
+                                            Visibility="{Binding IsChecked, ElementName=StepsToggle, Converter={StaticResource BoolToVis}}">
+                                        <StackPanel>
+                                            <ItemsControl ItemsSource="{Binding NumberedSteps}">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Grid Margin="0,0,0,10">
+                                                            <Grid.ColumnDefinitions><ColumnDefinition Width="30"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                                            <Border Width="22" Height="22" CornerRadius="11" Background="{StaticResource AccentGradient}" VerticalAlignment="Top" HorizontalAlignment="Left">
+                                                                <TextBlock Text="{Binding Number}" Foreground="White" FontSize="11.5" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                            </Border>
+                                                            <TextBlock Grid.Column="1" Text="{Binding Text}" Style="{StaticResource Body}" Foreground="{StaticResource TextBrush}" Margin="0,1,0,0"/>
+                                                        </Grid>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                            <StackPanel Orientation="Horizontal" Visibility="{Binding HasConfirm, Converter={StaticResource BoolToVis}}">
+                                                <TextBlock Text="&#xE73E;" Style="{StaticResource IconText}" FontSize="12" Foreground="{StaticResource GoodBrush}" VerticalAlignment="Top" Margin="4,3,12,0"/>
+                                                <TextBlock Style="{StaticResource Body}" MaxWidth="640" HorizontalAlignment="Left">
+                                                    <Run Text="How to tell it worked: " FontWeight="SemiBold" Foreground="{StaticResource GoodBrush}"/><Run Text="{Binding Confirm, Mode=OneWay}"/>
+                                                </TextBlock>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Border>
+                                </StackPanel>
+                                <Button Grid.Column="1" Style="{StaticResource GhostButton}" VerticalAlignment="Center" Margin="16,0,0,0"
+                                        Content="{Binding ActionText}" Tag="{Binding ActionKey}" Click="FindingAction_Click"
+                                        Visibility="{Binding HasAction, Converter={StaticResource BoolToVis}}"/>
+                            </Grid>
+                        </Border>
+                        <DataTemplate.Triggers>
+                            <DataTrigger Binding="{Binding Severity}" Value="Problem">
+                                <Setter TargetName="Pill" Property="Background" Value="{StaticResource BadSoftBrush}"/>
+                                <Setter TargetName="PillText" Property="Foreground" Value="{StaticResource BadBrush}"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding Severity}" Value="Check">
+                                <Setter TargetName="Pill" Property="Background" Value="{StaticResource WarnSoftBrush}"/>
+                                <Setter TargetName="PillText" Property="Foreground" Value="{StaticResource WarnBrush}"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding Severity}" Value="Unknown">
+                                <Setter TargetName="Pill" Property="Background" Value="{StaticResource InfoSoftBrush}"/>
+                                <Setter TargetName="PillText" Property="Foreground" Value="{StaticResource InfoBrush}"/>
+                            </DataTrigger>
+                        </DataTemplate.Triggers>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <!-- Next steps -->
+            <TextBlock Style="{StaticResource H2}" Text="Next steps" Margin="0,24,0,12"/>
+            <UniformGrid Columns="3">
+                <Button Style="{StaticResource GhostButton}" Margin="0,0,12,0" Padding="18,16" HorizontalContentAlignment="Stretch" Click="Recommended_Click">
+                    <StackPanel>
+                        <TextBlock Text="&#xE945;" Style="{StaticResource IconText}" FontSize="20" Foreground="{StaticResource AccentBrush}" HorizontalAlignment="Left"/>
+                        <TextBlock Text="Apply safe tweaks" FontSize="14" Margin="0,10,0,0"/>
+                        <TextBlock Style="{StaticResource Body}" FontWeight="Normal" FontSize="12" Margin="0,4,0,0" Text="Documented, reversible settings that fit this PC."/>
+                    </StackPanel>
+                </Button>
+                <Button Style="{StaticResource GhostButton}" Margin="6,0,6,0" Padding="18,16" HorizontalContentAlignment="Stretch" Click="Measure_Click">
+                    <StackPanel>
+                        <TextBlock Text="&#xE9D2;" Style="{StaticResource IconText}" FontSize="20" Foreground="{StaticResource AccentBrush}" HorizontalAlignment="Left"/>
+                        <TextBlock Text="Measure your game" FontSize="14" Margin="0,10,0,0"/>
+                        <TextBlock Style="{StaticResource Body}" FontWeight="Normal" FontSize="12" Margin="0,4,0,0" Text="Prove whether a tweak actually helps your FPS."/>
+                    </StackPanel>
+                </Button>
+                <Button Style="{StaticResource GhostButton}" Margin="12,0,0,0" Padding="18,16" HorizontalContentAlignment="Stretch" Click="Security_Click">
+                    <StackPanel>
+                        <TextBlock Text="&#xEA18;" Style="{StaticResource IconText}" FontSize="20" Foreground="{StaticResource AccentBrush}" HorizontalAlignment="Left"/>
+                        <TextBlock Text="Check for malware" FontSize="14" Margin="0,10,0,0"/>
+                        <TextBlock Style="{StaticResource Body}" FontWeight="Normal" FontSize="12" Margin="0,4,0,0" Text="Defender scan plus a check of everything that starts with Windows."/>
+                    </StackPanel>
+                </Button>
+            </UniformGrid>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

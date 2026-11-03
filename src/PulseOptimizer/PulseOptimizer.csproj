@@ -1,0 +1,45 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>app.ico</ApplicationIcon>
+    <AssemblyName>PulseOptimizer</AssemblyName>
+    <RootNamespace>Pulse</RootNamespace>
+    <Version>0.1.0</Version>
+    <Deterministic>true</Deterministic>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+    <DebugType>none</DebugType>
+
+    <!-- File properties shown in Windows (right-click > Properties > Details). -->
+    <Product>Pulse Optimizer</Product>
+    <AssemblyTitle>Pulse Optimizer</AssemblyTitle>
+    <Description>Open-source, evidence-based Windows optimizer. Not affiliated with Microsoft or Intel.</Description>
+    <Company>Pulse Optimizer (open source)</Company>
+    <Copyright>MIT License</Copyright>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Resource Include="app.ico" />
+    <Resource Include="Assets\logo-128.png" />
+    <!-- Game covers fetched by tools/get-game-art.py at build time (not committed). -->
+    <Resource Include="Assets\Games\*.jpg" />
+    <!-- Translations: English text → translated text, one file per language. -->
+    <EmbeddedResource Include="Lang\*.json" LogicalName="Lang.%(Filename).json" />
+    <Resource Include="Assets\Games\*.png" />
+    <!-- PresentMon (Intel, MIT) is downloaded here by the build and carried inside the exe, so the release is one file. -->
+    <EmbeddedResource Include="tools\PresentMon.exe" Condition="Exists('tools\PresentMon.exe')" LogicalName="PresentMon.exe" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="PulseOptimizer.Tests" />
+  </ItemGroup>
+
+</Project>

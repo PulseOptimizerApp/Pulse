@@ -1,0 +1,200 @@
+<UserControl x:Class="Pulse.Pages.DeclutterPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="clr-namespace:Pulse.Ui">
+    <UserControl.Resources>
+        <!-- A file the user reviews -->
+        <DataTemplate x:Key="FileRow">
+            <Grid Margin="0,0,0,2" Background="Transparent" Cursor="Hand" MouseLeftButtonUp="Row_Click">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="36"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                <CheckBox Style="{StaticResource Tick}" IsChecked="{Binding Selected, Mode=TwoWay}" IsHitTestVisible="False" VerticalAlignment="Center"/>
+                <StackPanel Grid.Column="1" Margin="0,6">
+                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                    <TextBlock FontSize="11.5" Foreground="{StaticResource TextFaintBrush}" TextTrimming="CharacterEllipsis">
+                        <Run Text="{Binding AgeText, Mode=OneWay}"/><Run Text="  ·  "/><Run Text="{Binding Folder, Mode=OneWay}"/>
+                    </TextBlock>
+                </StackPanel>
+                <TextBlock Grid.Column="2" Text="{Binding SizeText}" FontWeight="SemiBold" VerticalAlignment="Center" Margin="16,0"/>
+                <Button Grid.Column="3" Style="{StaticResource LinkButton}" Content="Show" Tag="{Binding Path}" Click="ShowFile_Click" VerticalAlignment="Center"/>
+            </Grid>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Margin="0,6,0,40">
+            <TextBlock Style="{StaticResource H1}" Text="Debloat"/>
+            <TextBlock Style="{StaticResource Sub}" Margin="0,6,0,0" MaxWidth="760" HorizontalAlignment="Left"
+                       Text="See where your space went and get it back. Your own files only ever go to the Recycle Bin, Windows' update files are cleaned with Microsoft's own tool, and you see everything before it goes."/>
+
+            <!-- Hero: storage map + the one big button -->
+            <Border Style="{StaticResource Card}" Margin="0,22,0,0" Padding="26,24" ui:Anim.Reveal="True">
+                <StackPanel>
+                    <Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <StackPanel>
+                            <TextBlock x:Name="DriveLabel" Style="{StaticResource Label}" Text="YOUR C: DRIVE"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                <TextBlock x:Name="FreeableBig" Text="—" FontFamily="{StaticResource DisplayFont}" FontSize="34" FontWeight="Bold" VerticalAlignment="Bottom"/>
+                                <TextBlock x:Name="FreeableSmall" Text="  scanning…" FontSize="15" Foreground="{StaticResource TextDimBrush}" VerticalAlignment="Bottom" Margin="0,0,0,6"/>
+                            </StackPanel>
+                            <TextBlock x:Name="DriveText" Style="{StaticResource Body}" Margin="0,2,0,0"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Button x:Name="RescanBtn" Style="{StaticResource GhostButton}" Content="Scan again" Click="Rescan_Click"/>
+                            <Button x:Name="FreeBtn" Style="{StaticResource PrimaryButton}" Margin="10,0,0,0" Padding="22,12" Click="Free_Click" IsEnabled="False">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#xE74D;" Style="{StaticResource IconText}" FontSize="14"/>
+                                    <TextBlock x:Name="FreeBtnText" Text="Free space" Margin="8,0,0,0" FontSize="14"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- Segmented bar; built in code -->
+                    <Border Height="14" CornerRadius="7" Background="#1E2230" Margin="0,22,0,0" ClipToBounds="True">
+                        <Grid x:Name="MapBar"/>
+                    </Border>
+                    <WrapPanel x:Name="MapLegend" Margin="0,12,0,0"/>
+                    <StackPanel x:Name="MapLoading" Orientation="Horizontal" Margin="0,12,0,0">
+                        <ui:Spinner Width="14" Height="14" Thickness="2" Brush="{StaticResource AccentGradient}"/>
+                        <TextBlock x:Name="MapStatus" Text="Measuring your drive…" FontSize="12" Foreground="{StaticResource TextDimBrush}" Margin="8,0,0,0"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- Quick clean -->
+            <TextBlock Style="{StaticResource H2}" Text="Quick clean" Margin="0,28,0,4"/>
+            <TextBlock Style="{StaticResource Body}" Text="Safe to remove. Ticked items are included when you press Free space." Margin="0,0,0,12"/>
+            <ItemsControl x:Name="QuickList">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border Style="{StaticResource HoverCard}" Margin="0,0,0,8" Padding="18,14" ui:Anim.Reveal="True" Cursor="Hand" MouseLeftButtonUp="Row_Click">
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="36"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                <CheckBox Style="{StaticResource Tick}" IsChecked="{Binding Selected, Mode=TwoWay}" IsEnabled="{Binding CanPick}" IsHitTestVisible="False" VerticalAlignment="Center"/>
+                                <Grid Grid.Column="1" Width="36" Height="36" Margin="2,0,14,0">
+                                    <Border CornerRadius="10" Background="#14FFFFFF"/>
+                                    <TextBlock Text="{Binding Glyph}" Style="{StaticResource IconText}" Foreground="{StaticResource AccentBrush}" HorizontalAlignment="Center"/>
+                                </Grid>
+                                <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                                    <TextBlock Style="{StaticResource CardTitle}" Text="{Binding Name}"/>
+                                    <TextBlock Style="{StaticResource Body}" FontSize="12.5" Margin="0,2,0,0" Text="{Binding Description}"/>
+                                    <TextBlock Style="{StaticResource Body}" FontSize="12" Margin="0,4,0,0" Foreground="{StaticResource WarnBrush}" Text="{Binding Warning}"
+                                               Visibility="{Binding Warning, Converter={StaticResource HasValueToVis}}"/>
+                                    <Button Style="{StaticResource LinkButton}" HorizontalAlignment="Left" Margin="0,6,0,0" Content="{Binding ActionText}" Tag="{Binding ActionKey}"
+                                            Click="Action_Click" Visibility="{Binding ActionText, Converter={StaticResource HasValueToVis}}"/>
+                                </StackPanel>
+                                <TextBlock Grid.Column="3" Text="{Binding SizeText}" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center" Margin="16,0,0,0"/>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <!-- Old installers -->
+            <Border x:Name="InstallersCard" Style="{StaticResource Card}" Margin="0,20,0,0" Visibility="Collapsed" ui:Anim.Reveal="True">
+                <StackPanel>
+                    <Grid>
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource H2}" Text="Old installers in Downloads"/>
+                            <TextBlock Style="{StaticResource Body}" Margin="0,4,0,10" Text="Setup files and archives you downloaded over a month ago. Once a program is installed, its installer is usually not needed. They go to the Recycle Bin."/>
+                        </StackPanel>
+                    </Grid>
+                    <ItemsControl x:Name="InstallerList" ItemTemplate="{StaticResource FileRow}"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Big old files -->
+            <Border x:Name="BigCard" Style="{StaticResource Card}" Margin="0,16,0,0" Visibility="Collapsed" ui:Anim.Reveal="True">
+                <StackPanel>
+                    <TextBlock Style="{StaticResource H2}" Text="Big files you haven't touched in 6 months"/>
+                    <TextBlock Style="{StaticResource Body}" Margin="0,4,0,10" Text="Files over 500 MB in your folders. Nothing here is ticked: these are yours, so tick only what you're sure about. Ticked files go to the Recycle Bin."/>
+                    <ItemsControl x:Name="BigList" ItemTemplate="{StaticResource FileRow}"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Apps -->
+            <Grid Margin="0,28,0,4">
+                <TextBlock Style="{StaticResource H2}" Text="Apps and games"/>
+                <TextBlock x:Name="AppsSummary" HorizontalAlignment="Right" VerticalAlignment="Bottom" FontSize="12" Foreground="{StaticResource TextDimBrush}"/>
+            </Grid>
+            <TextBlock Style="{StaticResource Body}" Margin="0,0,0,12" MaxWidth="760" HorizontalAlignment="Left"
+                       Text="Everything installed, biggest first. Tick what you don't use and remove it in one go. Store apps can be reinstalled from the Microsoft Store; programs and games run their own uninstaller. Drivers and shared runtimes aren't listed, so you can't break anything by accident."/>
+            <Grid Margin="0,0,0,10">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="260"/></Grid.ColumnDefinitions>
+                <WrapPanel x:Name="AppTabs" VerticalAlignment="Center">
+                    <RadioButton Style="{StaticResource Chip}" GroupName="AppTab" Tag="Suggested" Content="Suggested" IsChecked="True" Checked="AppTab_Checked"/>
+                    <RadioButton Style="{StaticResource Chip}" GroupName="AppTab" Tag="Game" Content="Games" Checked="AppTab_Checked"/>
+                    <RadioButton Style="{StaticResource Chip}" GroupName="AppTab" Tag="All" Content="All programs" Checked="AppTab_Checked"/>
+                </WrapPanel>
+                <TextBox x:Name="AppSearch" Grid.Column="1" Style="{StaticResource SearchBox}" Tag="Search apps" TextChanged="AppSearch_Changed" VerticalAlignment="Top"/>
+            </Grid>
+
+            <!-- Bulk bar -->
+            <Border x:Name="BulkBar" CornerRadius="12" Padding="16,10" Margin="0,0,0,10" Background="{StaticResource Surface2Brush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" Visibility="Collapsed">
+                <Grid>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock x:Name="BulkText" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        <Button Style="{StaticResource LinkButton}" Content="Clear" Margin="14,0,0,0" Click="BulkClear_Click" VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <Button x:Name="BulkBtn" Style="{StaticResource PrimaryButton}" HorizontalAlignment="Right" Click="BulkRemove_Click">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE74D;" Style="{StaticResource IconText}" FontSize="13"/>
+                            <TextBlock x:Name="BulkBtnText" Text="Remove selected" Margin="8,0,0,0"/>
+                        </StackPanel>
+                    </Button>
+                </Grid>
+            </Border>
+
+            <StackPanel x:Name="AppsLoading" Orientation="Horizontal">
+                <ui:Spinner Width="18" Height="18" Brush="{StaticResource AccentGradient}"/>
+                <TextBlock Text="Looking at your apps…" Margin="10,0,0,0" Foreground="{StaticResource TextDimBrush}" VerticalAlignment="Center"/>
+            </StackPanel>
+            <TextBlock x:Name="AppsEmpty" Style="{StaticResource Body}" Visibility="Collapsed" Text="Nothing here."/>
+            <ItemsControl x:Name="AppList" VirtualizingPanel.IsVirtualizing="True">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border Style="{StaticResource HoverCard}" Margin="0,0,0,6" Padding="14,10" ui:Anim.Reveal="True" Cursor="Hand" MouseLeftButtonUp="Row_Click"
+                                Opacity="{Binding Removed, Converter={StaticResource BoolToOpacity}, ConverterParameter=invert}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="34"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <CheckBox Style="{StaticResource Tick}" IsChecked="{Binding Selected, Mode=TwoWay}" IsEnabled="{Binding CanRemove}" IsHitTestVisible="False" VerticalAlignment="Center"/>
+                                <!-- The app's own icon; a quiet monogram if it has none -->
+                                <Grid Grid.Column="1" Width="34" Height="34" Margin="0,0,14,0">
+                                    <Border CornerRadius="8" Background="{StaticResource Surface2Brush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                                            Visibility="{Binding HasIcon, Converter={StaticResource InverseBoolToVis}}">
+                                        <TextBlock Text="{Binding Initial}" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource TextDimBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <Image Source="{Binding Icon}" Width="30" Height="30" RenderOptions.BitmapScalingMode="HighQuality"/>
+                                </Grid>
+                                <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="13.5" TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock Text="{Binding Detail}" FontSize="11.5" Foreground="{StaticResource TextDimBrush}" Margin="0,2,0,0" TextTrimming="CharacterEllipsis"
+                                               Visibility="{Binding Detail, Converter={StaticResource HasValueToVis}}"/>
+                                </StackPanel>
+                                <TextBlock Grid.Column="3" Text="{Binding SizeText}" FontWeight="SemiBold" VerticalAlignment="Center" Margin="12,0"/>
+                                <Border Grid.Column="4" Style="{StaticResource Pill}" Background="{Binding AdviceBackground}" Margin="0,0,12,0"
+                                        Visibility="{Binding HasAdvice, Converter={StaticResource BoolToVis}}">
+                                    <TextBlock Style="{StaticResource PillText}" Text="{Binding AdviceText}" Foreground="{Binding AdviceBrush}"/>
+                                </Border>
+                                <Grid Grid.Column="5" Width="92">
+                                    <Button Style="{StaticResource GhostButton}" Content="Remove" Click="RemoveApp_Click" Tag="{Binding}"
+                                            Visibility="{Binding CanRemove, Converter={StaticResource BoolToVis}}" IsEnabled="{Binding Busy, Converter={StaticResource InverseBool}}"/>
+                                    <TextBlock Text="Removed" Foreground="{StaticResource GoodBrush}" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                               Visibility="{Binding Removed, Converter={StaticResource BoolToVis}}"/>
+                                </Grid>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <Button x:Name="ShowMoreBtn" Style="{StaticResource GhostButton}" HorizontalAlignment="Center" Margin="0,8,0,0" Click="ShowMore_Click" Visibility="Collapsed"/>
+
+            <TextBlock Style="{StaticResource Body}" FontSize="12" Foreground="{StaticResource TextFaintBrush}" Margin="0,18,0,0" MaxWidth="760" HorizontalAlignment="Left"
+                       Text="Freeing space doesn't make a PC faster on its own, but a nearly full drive does slow Windows and game updates down. Pulse never touches the WinSxS folder by hand; Microsoft warns that can break Windows."/>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

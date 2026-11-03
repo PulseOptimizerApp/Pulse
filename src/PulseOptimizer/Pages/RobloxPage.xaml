@@ -1,0 +1,169 @@
+<UserControl x:Class="Pulse.Pages.RobloxPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="clr-namespace:Pulse.Ui">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Margin="0,6,0,40">
+            <TextBlock Style="{StaticResource H1}" Text="Roblox"/>
+            <TextBlock Style="{StaticResource Sub}" Margin="0,6,0,0" MaxWidth="780" HorizontalAlignment="Left"
+                       Text="Pulse's Roblox launcher. It sets Roblox's frame rate cap and the performance flags Roblox officially allows, and keeps them applied through every Roblox update. It never touches the running game, so there's nothing for Roblox's anti-cheat to flag."/>
+
+            <!-- Launch through Pulse -->
+            <Border CornerRadius="14" Padding="24,20" Margin="0,22,0,0" BorderThickness="1" ui:Anim.Reveal="True">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                        <GradientStop Color="#1F22D3EE" Offset="0"/>
+                        <GradientStop Color="#1F8B5CF6" Offset="1"/>
+                    </LinearGradientBrush>
+                </Border.Background>
+                <Border.BorderBrush>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                        <GradientStop Color="#6622D3EE" Offset="0"/>
+                        <GradientStop Color="#668B5CF6" Offset="1"/>
+                    </LinearGradientBrush>
+                </Border.BorderBrush>
+                <Grid>
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource H2}" Text="Launch Roblox through Pulse"/>
+                        <TextBlock x:Name="LaunchText" Style="{StaticResource Body}" Margin="0,6,0,0" MaxWidth="620" HorizontalAlignment="Left"
+                                   Text="When you press Play on roblox.com, Pulse applies your settings first, then starts Roblox exactly as Roblox would. After a Roblox update it applies them to the new version before it loads. Turn it off any time and the Play button goes straight to Roblox again."/>
+                        <TextBlock x:Name="StatusText" FontSize="12" Foreground="{StaticResource TextDimBrush}" Margin="0,10,0,0"/>
+                    </StackPanel>
+                    <CheckBox x:Name="LaunchSwitch" Grid.Column="1" Style="{StaticResource Switch}" VerticalAlignment="Center" Margin="20,0,0,0" Click="Launch_Click"/>
+                </Grid>
+            </Border>
+
+            <!-- Presets -->
+            <Grid Margin="0,28,0,10">
+                <TextBlock Style="{StaticResource H2}" Text="Settings"/>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <TextBlock Text="Start from:" Foreground="{StaticResource TextDimBrush}" VerticalAlignment="Center" Margin="0,0,10,8"/>
+                    <RadioButton x:Name="PresetMax" Style="{StaticResource Chip}" GroupName="Preset" Tag="maxfps" Content="Max FPS" Checked="Preset_Checked"/>
+                    <RadioButton x:Name="PresetBalanced" Style="{StaticResource Chip}" GroupName="Preset" Tag="balanced" Content="Balanced" Checked="Preset_Checked"/>
+                    <RadioButton x:Name="PresetDefault" Style="{StaticResource Chip}" GroupName="Preset" Tag="default" Content="Roblox default" Checked="Preset_Checked"/>
+                </StackPanel>
+            </Grid>
+
+            <ItemsControl x:Name="OptionList">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border Style="{StaticResource HoverCard}" Margin="0,0,0,8" Padding="18,14" ui:Anim.Reveal="True">
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                <StackPanel VerticalAlignment="Center" Margin="0,0,16,0">
+                                    <TextBlock Style="{StaticResource CardTitle}" Text="{Binding Title}"/>
+                                    <TextBlock Style="{StaticResource Body}" FontSize="12.5" Margin="0,3,0,0" Text="{Binding Detail}" MaxWidth="520" HorizontalAlignment="Left"/>
+                                </StackPanel>
+                                <ItemsControl Grid.Column="1" ItemsSource="{Binding Choices}" VerticalAlignment="Center">
+                                    <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel MaxWidth="420" HorizontalAlignment="Right"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <RadioButton Style="{StaticResource Chip}" Content="{Binding Label}" GroupName="{Binding Owner.Key}"
+                                                         IsChecked="{Binding IsSelected, Mode=TwoWay}" Margin="6,3,0,3" Click="Choice_Click"/>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <!-- NVIDIA profile, Roblox only -->
+            <Border x:Name="NvCard" Style="{StaticResource Card}" Margin="0,16,0,0" Padding="22,18" Visibility="Collapsed">
+                <StackPanel>
+                    <Grid>
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Style="{StaticResource H2}" Text="NVIDIA settings for Roblox only"/>
+                                <Border x:Name="NvOnPill" Style="{StaticResource Pill}" Background="{StaticResource GoodSoftBrush}" Margin="10,0,0,0" Visibility="Collapsed">
+                                    <TextBlock Style="{StaticResource PillText}" Text="Applied" Foreground="{StaticResource GoodBrush}"/>
+                                </Border>
+                            </StackPanel>
+                            <TextBlock Style="{StaticResource Body}" Margin="0,4,0,0" MaxWidth="660" HorizontalAlignment="Left"
+                                       Text="Pulse sets these in NVIDIA's own per-game profile for Roblox, the same place as NVIDIA Control Panel → Manage 3D settings → Program Settings. Your other games and global settings don't change."/>
+                        </StackPanel>
+                    </Grid>
+                    <StackPanel Margin="0,14,0,0">
+                        <Grid Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <TextBlock Style="{StaticResource Body}" Foreground="{StaticResource TextBrush}" VerticalAlignment="Center" Margin="0,0,16,0" Text="Low Latency Mode: On. Roblox has no NVIDIA Reflex, so this is the driver's best option."/>
+                            <CheckBox x:Name="NvLowLatency" Grid.Column="1" Style="{StaticResource Switch}" IsChecked="True"/>
+                        </Grid>
+                        <Grid Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <TextBlock Style="{StaticResource Body}" Foreground="{StaticResource TextBrush}" VerticalAlignment="Center" Margin="0,0,16,0" Text="Power management: Prefer maximum performance. Stops the card clocking down mid-game."/>
+                            <CheckBox x:Name="NvMaxPerf" Grid.Column="1" Style="{StaticResource Switch}" IsChecked="True"/>
+                        </Grid>
+                        <Grid Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <TextBlock Style="{StaticResource Body}" Foreground="{StaticResource TextBrush}" VerticalAlignment="Center" Margin="0,0,16,0" Text="Vertical sync: Force off. Lowest delay; you may see tearing without G-SYNC."/>
+                            <CheckBox x:Name="NvVsyncOff" Grid.Column="1" Style="{StaticResource Switch}" IsChecked="True"/>
+                        </Grid>
+                        <Grid Margin="0,0,0,4">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <TextBlock x:Name="NvCapText" Style="{StaticResource Body}" Foreground="{StaticResource TextBrush}" VerticalAlignment="Center" Margin="0,0,16,0"/>
+                            <CheckBox x:Name="NvCap" Grid.Column="1" Style="{StaticResource Switch}" IsChecked="False"/>
+                        </Grid>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
+                        <Button x:Name="NvUndoBtn" Style="{StaticResource GhostButton}" Content="Undo" Margin="0,0,10,0" Click="NvUndo_Click" Visibility="Collapsed"/>
+                        <Button Style="{StaticResource PrimaryButton}" Content="Apply NVIDIA settings" Click="NvApply_Click"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- Fast Flag editor -->
+            <Border Style="{StaticResource Card}" Margin="0,16,0,0" Padding="22,18">
+                <StackPanel>
+                    <Grid>
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource H2}" Text="Fast Flag editor"/>
+                            <TextBlock Style="{StaticResource Body}" Margin="0,4,0,0" MaxWidth="640" HorizontalAlignment="Left"
+                                       Text="For advanced users. Add any flag from Roblox's official allowlist; Pulse refuses flags Roblox would ignore and checks the value. The settings above already cover the useful ones."/>
+                        </StackPanel>
+                        <ToggleButton x:Name="EditorToggle" Style="{StaticResource LinkToggle}" Content="Show" HorizontalAlignment="Right" VerticalAlignment="Top" Click="EditorToggle_Click"/>
+                    </Grid>
+                    <StackPanel x:Name="EditorPanel" Visibility="Collapsed" Margin="0,14,0,0">
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="140"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <ComboBox x:Name="FlagName" IsEditable="True" Height="36" VerticalContentAlignment="Center"/>
+                            <TextBox x:Name="FlagValue" Grid.Column="1" Style="{StaticResource SearchBox}" Tag="Value" Margin="10,0,0,0"/>
+                            <Button Grid.Column="2" Style="{StaticResource PrimaryButton}" Content="Add" Margin="10,0,0,0" Click="AddFlag_Click"/>
+                        </Grid>
+                        <TextBlock x:Name="FlagError" Foreground="{StaticResource WarnBrush}" FontSize="12" Margin="0,6,0,0" Visibility="Collapsed"/>
+                        <ItemsControl x:Name="CustomList" Margin="0,10,0,0">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid Margin="0,4">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                        <TextBlock Text="{Binding Key}" Style="{StaticResource Mono}" Foreground="{StaticResource TextBrush}" VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="1" Text="{Binding Value}" Style="{StaticResource Mono}" Margin="16,0" VerticalAlignment="Center"/>
+                                        <Button Grid.Column="2" Style="{StaticResource LinkButton}" Content="Remove" Tag="{Binding Key}" Click="RemoveFlag_Click"/>
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- Apply -->
+            <Grid Margin="0,20,0,0">
+                <TextBlock x:Name="FlagSummary" Style="{StaticResource Body}" VerticalAlignment="Center" MaxWidth="560" HorizontalAlignment="Left"/>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button Style="{StaticResource GhostButton}" Content="Clear Roblox cache" Click="Cache_Click" Margin="0,0,10,0"/>
+                    <Button x:Name="ApplyBtn" Style="{StaticResource PrimaryButton}" Click="Apply_Click">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE73E;" Style="{StaticResource IconText}" FontSize="13"/>
+                            <TextBlock Text="Apply to Roblox" Margin="8,0,0,0"/>
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </Grid>
+            <TextBlock Style="{StaticResource Body}" FontSize="12" Foreground="{StaticResource TextFaintBrush}" Margin="0,16,0,0" MaxWidth="780" HorizontalAlignment="Left"
+                       Text="Since September 2025 Roblox only honors the Fast Flags on its official allowlist, so the old FPS-unlock and 'no lag' flag packs don't do anything any more. Pulse only writes allowlisted flags, into the settings file Roblox reads at startup. Use the Games page to check Roblox's delay before and after."/>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

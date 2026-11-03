@@ -1,0 +1,10 @@
+bin/
+obj/
+out/
+pkg/
+dist/
+*.user
+.vs/
+TestResults/
+src/PulseOptimizer/tools/
+src/PulseOptimizer/Assets/Games/

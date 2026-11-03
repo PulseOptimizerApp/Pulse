@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="tile" x1="0.15" y1="0" x2="0.85" y2="1"><stop offset="0" stop-color="#202A4C"/><stop offset="1" stop-color="#0B0F1A"/></linearGradient>
+    <linearGradient id="pFill" x1="0.1" y1="0.95" x2="0.9" y2="0.05"><stop offset="0" stop-color="#22D3EE"/><stop offset="0.5" stop-color="#5AA2FF"/><stop offset="1" stop-color="#B49CFF"/></linearGradient>
+  </defs>
+  <rect x="8" y="8" width="496" height="496" rx="112" fill="url(#tile)"/>
+  <!-- bigger P, chunkier counter and needle so it survives 16-32 px -->
+  <path d="M120 128 Q120 96 152 96 H290 A132 132 0 0 1 290 360 H206 V392 Q206 424 174 424 H152 Q120 424 120 392 Z M290 172 A56 56 0 1 0 290 284 A56 56 0 1 0 290 172 Z" fill="url(#pFill)" fill-rule="evenodd"/>
+  <path d="M290 228 L326 192" stroke="#FFFFFF" stroke-width="30" stroke-linecap="round"/>
+  <circle cx="290" cy="228" r="19" fill="#FFFFFF"/>
+</svg>

@@ -1,0 +1,139 @@
+<UserControl x:Class="Pulse.Pages.SecurityPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="clr-namespace:Pulse.Ui">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Margin="0,6,0,32">
+            <TextBlock Style="{StaticResource H1}" Text="Security"/>
+            <TextBlock Style="{StaticResource Sub}" Margin="0,6,0,0" MaxWidth="760" HorizontalAlignment="Left"
+                       Text="Pulse uses Microsoft Defender's engine to scan — it's updated several times a day and already on your PC — and adds a check of every place malware hides to start with Windows. No scanner catches 100% of malware, so the startup check also flags anything unusual for you to review."/>
+
+            <!-- Status -->
+            <Border Style="{StaticResource Card}" Margin="0,22,0,0" ui:Anim.Reveal="True">
+                <Grid>
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                    <Grid Width="64" Height="64" Margin="0,0,20,0" VerticalAlignment="Top">
+                        <Border x:Name="ShieldBg" CornerRadius="18" Background="{StaticResource InfoSoftBrush}"/>
+                        <TextBlock x:Name="ShieldIcon" Text="&#xEA18;" Style="{StaticResource IconText}" FontSize="28" HorizontalAlignment="Center" Foreground="{StaticResource InfoBrush}"/>
+                        <ui:Spinner x:Name="StatusSpinner" Width="64" Height="64" Brush="{StaticResource AccentGradient}"/>
+                    </Grid>
+                    <StackPanel Grid.Column="1">
+                        <TextBlock x:Name="StatusTitle" Style="{StaticResource H2}" Text="Checking protection…"/>
+                        <TextBlock x:Name="StatusDetail" Style="{StaticResource Body}" Margin="0,6,0,0"/>
+                    </StackPanel>
+                    <Button Grid.Column="2" Style="{StaticResource GhostButton}" VerticalAlignment="Top" Content="Refresh" Click="Refresh_Click"/>
+                </Grid>
+            </Border>
+
+            <!-- Scans -->
+            <Border Style="{StaticResource Card}" Margin="0,16,0,0" ui:Anim.Reveal="True">
+                <StackPanel>
+                    <TextBlock Style="{StaticResource H2}" Text="Scan with Microsoft Defender"/>
+                    <UniformGrid x:Name="ScanButtons" Columns="5" Margin="0,14,0,0">
+                        <Button Style="{StaticResource PrimaryButton}" Margin="0,0,8,0" Tag="quick" Click="Scan_Click" ToolTip="Checks the places malware usually lives. A few minutes.">
+                            <StackPanel><TextBlock Text="Quick scan" HorizontalAlignment="Center"/><TextBlock Text="a few minutes" FontSize="11" FontWeight="Normal" Opacity="0.8" HorizontalAlignment="Center"/></StackPanel>
+                        </Button>
+                        <Button Style="{StaticResource GhostButton}" Margin="0,0,8,0" Tag="full" Click="Scan_Click" ToolTip="Checks every file on every drive. Can take an hour or more.">
+                            <StackPanel><TextBlock Text="Full scan" HorizontalAlignment="Center"/><TextBlock Text="an hour or more" FontSize="11" FontWeight="Normal" Opacity="0.7" HorizontalAlignment="Center"/></StackPanel>
+                        </Button>
+                        <Button Style="{StaticResource GhostButton}" Margin="0,0,8,0" Tag="file" Click="Scan_Click">
+                            <StackPanel><TextBlock Text="Scan a file" HorizontalAlignment="Center"/><TextBlock Text="pick any file" FontSize="11" FontWeight="Normal" Opacity="0.7" HorizontalAlignment="Center"/></StackPanel>
+                        </Button>
+                        <Button Style="{StaticResource GhostButton}" Margin="0,0,8,0" Tag="update" Click="Scan_Click">
+                            <StackPanel><TextBlock Text="Update" HorizontalAlignment="Center"/><TextBlock Text="virus definitions" FontSize="11" FontWeight="Normal" Opacity="0.7" HorizontalAlignment="Center"/></StackPanel>
+                        </Button>
+                        <Button Style="{StaticResource GhostButton}" Tag="offline" Click="Scan_Click" ToolTip="Restarts into a scan that runs before Windows starts, to catch rootkits that hide while Windows runs.">
+                            <StackPanel><TextBlock Text="Offline scan" HorizontalAlignment="Center"/><TextBlock Text="restarts the PC" FontSize="11" FontWeight="Normal" Opacity="0.7" HorizontalAlignment="Center"/></StackPanel>
+                        </Button>
+                    </UniformGrid>
+                    <Border x:Name="ScanRunning" Margin="0,14,0,0" Padding="16,12" CornerRadius="10" Background="#0DFFFFFF" Visibility="Collapsed">
+                        <Grid>
+                            <StackPanel Orientation="Horizontal">
+                                <ui:Spinner Width="22" Height="22" Brush="{StaticResource AccentGradient}"/>
+                                <TextBlock x:Name="ScanStatus" Margin="12,0,0,0" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <Button Style="{StaticResource LinkButton}" HorizontalAlignment="Right" VerticalAlignment="Center" Content="Cancel" Click="CancelScan_Click"/>
+                        </Grid>
+                    </Border>
+                    <TextBlock x:Name="ScanResult" Style="{StaticResource Body}" Margin="0,12,0,0" Foreground="{StaticResource TextBrush}" Visibility="Collapsed"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Startup check -->
+            <Border Style="{StaticResource Card}" Margin="0,16,0,0" ui:Anim.Reveal="True">
+                <StackPanel>
+                    <Grid>
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource H2}" Text="Startup and hiding-place check"/>
+                            <TextBlock Style="{StaticResource Body}" Margin="0,6,0,0" MaxWidth="680" HorizontalAlignment="Left"
+                                       Text="Looks at every place programs use to start automatically — registry Run keys, Startup folders, scheduled tasks, services, Winlogon and WMI subscriptions — and flags unsigned files, files in temporary folders, hidden PowerShell and other tricks malware uses. Flagged doesn't mean infected; it means look closer."/>
+                        </StackPanel>
+                        <Button x:Name="AuditBtn" Style="{StaticResource PrimaryButton}" HorizontalAlignment="Right" VerticalAlignment="Top" Content="Run check" Click="Audit_Click"/>
+                    </Grid>
+                    <StackPanel x:Name="AuditRunning" Orientation="Horizontal" Margin="0,14,0,0" Visibility="Collapsed">
+                        <ui:Spinner Width="22" Height="22" Brush="{StaticResource AccentGradient}"/>
+                        <TextBlock Text="Checking startup locations and signatures… this can take a minute." Margin="12,0,0,0" VerticalAlignment="Center" Foreground="{StaticResource TextDimBrush}"/>
+                    </StackPanel>
+                    <TextBlock x:Name="AuditSummary" Style="{StaticResource CardTitle}" Margin="0,16,0,8" Visibility="Collapsed"/>
+                    <WrapPanel x:Name="AuditFilters" Visibility="Collapsed">
+                        <RadioButton Style="{StaticResource Chip}" GroupName="Audit" Tag="flagged" Content="Flagged only" IsChecked="True" Checked="AuditFilter_Checked"/>
+                        <RadioButton Style="{StaticResource Chip}" GroupName="Audit" Tag="all" Content="Everything checked" Checked="AuditFilter_Checked"/>
+                    </WrapPanel>
+                    <ItemsControl x:Name="AuditList">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Margin="0,0,0,8" Padding="16,12" CornerRadius="10" Background="#0DFFFFFF" ui:Anim.Reveal="True">
+                                    <StackPanel>
+                                        <WrapPanel>
+                                            <Border Style="{StaticResource Pill}" Background="{Binding LevelBackground}" Margin="0,0,8,4">
+                                                <TextBlock Style="{StaticResource PillText}" Text="{Binding LevelText}" Foreground="{Binding LevelBrush}"/>
+                                            </Border>
+                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,10,4"/>
+                                            <TextBlock VerticalAlignment="Center" Foreground="{StaticResource TextFaintBrush}" FontSize="12" Margin="0,0,0,4">
+                                                <Run Text="{Binding Type, Mode=OneWay}"/><Run Text=" · "/><Run Text="{Binding Technique, Mode=OneWay}"/><Run Text=" · "/><Run Text="{Binding SignerText, Mode=OneWay}"/>
+                                            </TextBlock>
+                                        </WrapPanel>
+                                        <TextBlock Style="{StaticResource Body}" Foreground="{StaticResource WarnBrush}" Text="{Binding FlagsText}"
+                                                   Visibility="{Binding FlagsText, Converter={StaticResource HasValueToVis}}"/>
+                                        <TextBlock Style="{StaticResource Mono}" FontSize="11" Margin="0,4,0,0" Text="{Binding Command}"/>
+                                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                            <Button Style="{StaticResource LinkButton}" Content="Scan with Defender" Click="ScanItem_Click"
+                                                    Visibility="{Binding Exists, Converter={StaticResource BoolToVis}}"/>
+                                            <Button Style="{StaticResource LinkButton}" Content="Look up on VirusTotal" Margin="16,0,0,0" Click="VirusTotal_Click"
+                                                    Visibility="{Binding HasHash, Converter={StaticResource BoolToVis}}"/>
+                                            <Button Style="{StaticResource LinkButton}" Content="Show file" Margin="16,0,0,0" Click="ShowItem_Click"
+                                                    Visibility="{Binding Exists, Converter={StaticResource BoolToVis}}"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+
+            <!-- Threat history -->
+            <Border Style="{StaticResource Card}" Margin="0,16,0,0" ui:Anim.Reveal="True">
+                <StackPanel>
+                    <TextBlock Style="{StaticResource H2}" Text="What Defender has found"/>
+                    <TextBlock x:Name="NoThreats" Style="{StaticResource Body}" Margin="0,8,0,0" Text="Nothing in Defender's history."/>
+                    <ItemsControl x:Name="ThreatList" Margin="0,10,0,0">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Margin="0,0,0,8" Padding="14,10" CornerRadius="10" Background="#0DFFFFFF">
+                                    <StackPanel>
+                                        <TextBlock FontWeight="SemiBold">
+                                            <Run Text="{Binding Name, Mode=OneWay}"/><Run Text="  ·  " Foreground="{StaticResource TextFaintBrush}"/><Run Text="{Binding Status, Mode=OneWay}" Foreground="{StaticResource TextDimBrush}"/>
+                                        </TextBlock>
+                                        <TextBlock Style="{StaticResource Body}" FontSize="12" Text="{Binding When}"/>
+                                        <TextBlock Style="{StaticResource Mono}" FontSize="11" Text="{Binding Files}"/>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

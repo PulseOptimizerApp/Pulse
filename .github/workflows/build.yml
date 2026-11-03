@@ -1,0 +1,89 @@
+name: Build and test
+
+# Builds PulseOptimizer.exe on GitHub's own Windows machines, straight from this public source code.
+# Every run publishes the SHA-256 of the .exe so anyone can confirm a download matches this code.
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  id-token: write       # needed for build attestations
+  attestations: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Run tests (measurement maths, exact undo, tweak list, safety checks)
+        run: dotnet test tests/PulseOptimizer.Tests/PulseOptimizer.Tests.csproj -c Release --logger "console;verbosity=normal"
+
+      - name: Get PresentMon (Intel, MIT license) to carry inside the exe
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: ./tools/get-presentmon.ps1 -Out src/PulseOptimizer/tools/PresentMon.exe
+
+      - name: Get game cover art from Steam's store (embedded; the app never goes online)
+        shell: pwsh
+        run: python tools/get-game-art.py src/PulseOptimizer/Assets/Games
+
+      - name: Build single-file exe
+        shell: pwsh
+        run: |
+          $version = if ($env:GITHUB_REF_TYPE -eq 'tag') { $env:GITHUB_REF_NAME.TrimStart('v') } else { '0.0.0' }
+          dotnet publish src/PulseOptimizer/PulseOptimizer.csproj -c Release -r win-x64 --self-contained true `
+            -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true -p:Version=$version -o out
+
+      # Code signing (optional, recommended): see "Signing" in README.md.
+
+      - name: Hashes
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Copy-Item out/PulseOptimizer.exe dist/PulseOptimizer.exe
+          $exe = (Get-FileHash dist/PulseOptimizer.exe -Algorithm SHA256).Hash.ToLower()
+          "$exe  PulseOptimizer.exe" | Out-File dist/SHA256SUMS.txt -Encoding ascii
+          Get-Content dist/SHA256SUMS.txt
+          "### SHA-256`n``````n$(Get-Content dist/SHA256SUMS.txt -Raw)``````" >> $env:GITHUB_STEP_SUMMARY
+
+      # Signed proof that these files were built by this workflow from this repo's public code.
+      # Anyone can check a download with:  gh attestation verify PulseOptimizer.exe --repo OWNER/REPO
+      - name: Attest build provenance
+        if: github.event_name != 'pull_request'
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-path: dist/PulseOptimizer.exe
+
+      # Uploaded unzipped, so the Actions page gives a plain PulseOptimizer.exe.
+      - uses: actions/upload-artifact@v7
+        with:
+          path: dist/PulseOptimizer.exe
+          archive: false
+
+      - name: Add hashes to release notes
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        run: |
+          $sums = Get-Content dist/SHA256SUMS.txt -Raw
+          (Get-Content .github/RELEASE_TEMPLATE.md -Raw).Replace('{{SHA256SUMS}}', $sums.Trim()).Replace('{{REPO}}', '${{ github.repository }}') | Set-Content .github/RELEASE_TEMPLATE.md
+
+      - name: Publish release (version tags only)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          body_path: .github/RELEASE_TEMPLATE.md
+          append_body: true
+          files: |
+            dist/PulseOptimizer.exe
+            dist/SHA256SUMS.txt
