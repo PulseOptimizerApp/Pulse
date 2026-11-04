@@ -35,6 +35,8 @@ public class AppState
     /// <summary>Tweak id → backups of everything it changed, in order.</summary>
     public Dictionary<string, List<ActionBackup>> Applied { get; set; } = new();
     public Dictionary<string, DateTime> AppliedAt { get; set; } = new();
+    /// <summary>One-time fixes already run on this PC (see TweakEngine.Migrate).</summary>
+    public List<string> Migrations { get; set; } = new();
     public List<LogEntry> Log { get; set; } = new();
     public DateTime? LastRestorePoint { get; set; }
     public AppSettings Settings { get; set; } = new();
@@ -112,6 +114,29 @@ public static class TweakEngine
     }
 
     public static bool AppliedByPulse(Tweak t) => State.Applied.ContainsKey(t.Id);
+
+    /// <summary>
+    /// One-time fixes for changes older versions made. Runs at start-up, once per PC.
+    /// "snip": the old background-apps tweak switched off all Store apps, which broke the Snipping Tool. It's undone
+    /// exactly, and the new version (which only switches off the listed extras) is applied in its place.
+    /// </summary>
+    public static void Migrate()
+    {
+        try
+        {
+            if (State.Migrations.Contains("snip")) return;
+            if (State.Applied.ContainsKey("background-apps"))
+            {
+                Revert(TweakCatalog.OldBackgroundApps);
+                AddLog("undo", "Turned Windows' all-apps background switch back on: it was stopping the Snipping Tool (Win+Shift+S)");
+                var replacement = TweakCatalog.All.FirstOrDefault(t => t.Id == "background-apps-2");
+                if (replacement != null) try { Apply(replacement); } catch { }
+            }
+            State.Migrations.Add("snip");
+            Save();
+        }
+        catch { }
+    }
 
     /// <summary>Reads the live system to see if a tweak is in effect.</summary>
     public static void Refresh(Tweak t)

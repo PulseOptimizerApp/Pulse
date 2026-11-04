@@ -41,19 +41,33 @@ public partial class App : Application
             return;
         }
         // One Pulse at a time: a second launch just brings the first one forward (two recorders would fight).
-        if (!ClaimSingleInstance(e.Args.Contains("--restarted", StringComparer.OrdinalIgnoreCase)))
+        // A different copy (a new version downloaded somewhere else, or the same file replaced) takes over: the old
+        // one, often hidden in the tray, closes so it no longer holds its file ("File In Use") or runs old code.
+        bool restarted = e.Args.Contains("--restarted", StringComparer.OrdinalIgnoreCase);
+        if (!ClaimSingleInstance(restarted))
         {
-            try { EventWaitHandle.OpenExisting(ShowEventName).Set(); } catch { }
-            Shutdown();
-            return;
+            if (RunningIsOtherCopy())
+            {
+                try { EventWaitHandle.OpenExisting(QuitEventName).Set(); } catch { }
+                if (!ClaimSingleInstance(true, 20_000)) { Shutdown(); return; }
+            }
+            else
+            {
+                try { EventWaitHandle.OpenExisting(ShowEventName).Set(); } catch { }
+                Shutdown();
+                return;
+            }
         }
+        WriteInstanceInfo();
         ShutdownMode = ShutdownMode.OnExplicitShutdown;
 
         try { Ui.Loc.Init(Core.TweakEngine.State.Settings.Language); } catch { }
+        Core.TweakEngine.Migrate();
         var window = new Pulse.MainWindow();
         Ui.TrayIcon.OpenRequested += window.ShowFromTray;
         Ui.TrayIcon.QuitRequested += window.QuitApp;
         ListenForShow(window);
+        ListenForQuit(window);
         SessionEnding += (_, _) => window.PrepareForExit();
         Ui.ClipsService.Init();
         Ui.GameSessionService.Init();
@@ -68,11 +82,49 @@ public partial class App : Application
     const string ShowEventName = @"Local\PulseOptimizer.Show";
     static Mutex _instance;
 
-    static bool ClaimSingleInstance(bool restarted)
+    const string QuitEventName = @"Local\PulseOptimizer.Quit";
+    static string InstanceFile => System.IO.Path.Combine(Core.TweakEngine.DataDir, "running.txt");
+
+    static bool ClaimSingleInstance(bool restarted, int waitMs = 10_000)
     {
-        _instance = new Mutex(false, MutexName);
-        try { return _instance.WaitOne(restarted ? 10_000 : 0); } // after a language restart, wait for the old one to exit
+        _instance ??= new Mutex(false, MutexName);
+        try { return _instance.WaitOne(restarted ? waitMs : 0); } // after a restart or a takeover, wait for the old one to exit
         catch (AbandonedMutexException) { return true; }
+    }
+
+    /// <summary>Which file and version the running Pulse is, so a different copy can take over from it.</summary>
+    static void WriteInstanceInfo()
+    {
+        try
+        {
+            System.IO.Directory.CreateDirectory(Core.TweakEngine.DataDir);
+            System.IO.File.WriteAllText(InstanceFile, Environment.ProcessPath + "\n" + Core.Updater.CurrentVersion + "\n" + System.IO.File.GetLastWriteTimeUtc(Environment.ProcessPath!).Ticks);
+        }
+        catch { }
+    }
+
+    static bool RunningIsOtherCopy()
+    {
+        try
+        {
+            var lines = System.IO.File.ReadAllLines(InstanceFile);
+            if (lines.Length < 3) return false;
+            return !string.Equals(lines[0], Environment.ProcessPath, StringComparison.OrdinalIgnoreCase)
+                || lines[1] != Core.Updater.CurrentVersion
+                || lines[2] != System.IO.File.GetLastWriteTimeUtc(Environment.ProcessPath!).Ticks.ToString();
+        }
+        catch { return false; }
+    }
+
+    void ListenForQuit(Pulse.MainWindow window)
+    {
+        var ev = new EventWaitHandle(false, EventResetMode.AutoReset, QuitEventName);
+        var t = new Thread(() =>
+        {
+            ev.WaitOne();
+            Dispatcher.BeginInvoke(() => { window.PrepareForExit(); window.QuitApp(); Shutdown(); });
+        }) { IsBackground = true, Name = "Pulse takeover listener" };
+        t.Start();
     }
 
     void ListenForShow(Pulse.MainWindow window)

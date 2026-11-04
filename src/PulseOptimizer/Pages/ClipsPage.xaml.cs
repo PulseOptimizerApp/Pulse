@@ -36,7 +36,7 @@ public class ClipVm : Observable
     public Brush CheckBrush => _selected ? new SolidColorBrush(Color.FromRgb(0x22, 0xD3, 0xEE)) : new SolidColorBrush(Color.FromArgb(0x66, 0, 0, 0));
 }
 
-public partial class ClipsPage : UserControl, IPage
+public partial class ClipsPage : UserControl, IPage, IReleasable
 {
     static ClipSettings S => TweakEngine.State.Clips ??= new ClipSettings();
 
@@ -51,15 +51,31 @@ public partial class ClipsPage : UserControl, IPage
         InitializeComponent();
         _usage.Tick += (_, _) => UpdateUsage();
         _playerTimer.Tick += (_, _) => PlayerTick();
-        ClipsService.Changed += () => Dispatcher.InvokeAsync(UpdateStatus);
-        ClipsService.Saved += _ => Dispatcher.InvokeAsync(LoadLibrary);
-        Unloaded += (_, _) => _usage.Stop();
+        ClipsService.Changed += OnClipsChanged;
+        ClipsService.Saved += OnClipSaved;
+        // Leaving the page stops the player too (it used to keep ticking, and playing, in the background).
+        Unloaded += (_, _) => { _usage.Stop(); if (PlayerLayer.Visibility == Visibility.Visible && _fs == null) ClosePlayer(); };
         _reload.Tick += (_, _) => { _reload.Stop(); LoadLibrary(); };
         _playerTimer.Interval = TimeSpan.FromMilliseconds(33);
         Timeline.Seek += Timeline_Seek;
         Timeline.SelectionChanged += UpdateTimes;
         Timeline.PreviewMouseLeftButtonUp += Timeline_MouseUp;
         PlayerLayer.PreviewKeyDown += Player_KeyDown;
+    }
+
+    void OnClipsChanged() => Dispatcher.InvokeAsync(UpdateStatus);
+    void OnClipSaved(string _) => Dispatcher.InvokeAsync(LoadLibrary);
+
+    /// <summary>Pulse dropped this screen (hidden in the tray): let go of everything that would keep it alive.</summary>
+    public void Release()
+    {
+        ClipsService.Changed -= OnClipsChanged;
+        ClipsService.Saved -= OnClipSaved;
+        try { ClosePlayer(); } catch { }
+        _usage.Stop(); _reload.Stop(); _fsIdle.Stop();
+        _watcher?.Dispose(); _watcher = null;
+        _allClips = new();
+        ClipGrid.ItemsSource = null;
     }
 
     public async void OnShown(object parameter)
@@ -231,11 +247,11 @@ public partial class ClipsPage : UserControl, IPage
         if (ClipsService.State != ClipsState.Recording) { UsageText.Text = Loc.T("Using nothing right now."); return; }
         var enc = ClipsService.Encoder;
         string encText = enc == null ? "" : enc.Hardware ? Loc.F("{0} graphics card encoder ({1})", enc.Vendor, CodecName(enc.Codec)) : Loc.T("processor encoder (no graphics card encoder found)");
-        UsageText.Text = ClipsService.OnDisk
-            ? Loc.F("{0} s of replay kept on your drive ({1}) · {2} of memory · FFmpeg CPU {3}% · {4}",
-                (int)ClipsService.BufferSeconds, Format.Bytes(ClipsService.BufferBytes), Format.Bytes(ClipsService.MemoryBytes), ClipsService.CpuPercent.ToString("0.0", CultureInfo.CurrentCulture), encText)
-            : Loc.F("Using {0} of memory for {1} s of replay · FFmpeg CPU {2}% · {3}",
-                Format.Bytes(ClipsService.MemoryBytes), (int)ClipsService.BufferSeconds, ClipsService.CpuPercent.ToString("0.0", CultureInfo.CurrentCulture), encText);
+        // The whole cost, as Task Manager counts it (Pulse + its recorder), so it can be compared with other clippers.
+        UsageText.Text = Loc.F(ClipsService.OnDisk
+                ? "{0} s of replay on your drive · Pulse + recorder use {1} of memory · recorder CPU {2}% · {3}"
+                : "{0} s of replay in memory · Pulse + recorder use {1} of memory · recorder CPU {2}% · {3}",
+            (int)ClipsService.BufferSeconds, Format.Bytes(ClipsService.TotalMemory), ClipsService.CpuPercent.ToString("0.0", CultureInfo.CurrentCulture), encText);
     }
 
     static string CodecName(string c) => c switch { "hevc" => "HEVC", "av1" => "AV1", _ => "H.264" };

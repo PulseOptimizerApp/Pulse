@@ -2000,5 +2000,11 @@
  "Print Screen is kept for Windows' Snipping Tool": "Print Screen fica reservado para a Ferramenta de Captura do Windows",
  "Keep the replay on your drive instead of in memory (Pulse uses almost no memory)": "Guardar o replay no seu disco em vez da memória (o Pulse quase não usa memória)",
  "{0} s of replay kept on your drive ({1}) · {2} of memory · FFmpeg CPU {3}% · {4}": "{0} s de replay no seu disco ({1}) · {2} de memória · CPU do FFmpeg {3}% · {4}",
- "Your {1} replay takes about {0} on your drive, so Pulse uses almost no memory for it.": "Seu replay de {1} ocupa cerca de {0} no seu disco, então o Pulse quase não usa memória para ele."
+ "Your {1} replay takes about {0} on your drive, so Pulse uses almost no memory for it.": "Seu replay de {1} ocupa cerca de {0} no seu disco, então o Pulse quase não usa memória para ele.",
+ "{0} s of replay on your drive · Pulse + recorder use {1} of memory · recorder CPU {2}% · {3}": "{0} s de replay no seu disco · Pulse + gravador usam {1} de memória · CPU do gravador {2}% · {3}",
+ "{0} s of replay in memory · Pulse + recorder use {1} of memory · recorder CPU {2}% · {3}": "{0} s de replay na memória · Pulse + gravador usam {1} de memória · CPU do gravador {2}% · {3}",
+ "Weather, News, Maps, Tips and other extras stop refreshing in the background for your account.": "Clima, Notícias, Mapas, Dicas e outros extras param de atualizar em segundo plano na sua conta.",
+ "Only these apps are switched off, one by one, the same as Settings → Apps → the app → Background permissions. Windows' all-apps switch isn't used: it also stops the Snipping Tool (Win+Shift+S). Pulse makes no speed claim for this.": "Só esses apps são desligados, um por um, igual a Configurações → Aplicativos → o app → Permissões em segundo plano. A chave de todos os apps do Windows não é usada: ela também para a Ferramenta de Captura (Win+Shift+S). O Pulse não promete mais velocidade com isso.",
+ "HKCU\\…\\BackgroundAccessApplications\\<app> → Disabled = 1, DisabledByUser = 1 (Weather, News, Maps, Tips, Get Help, Movies & TV, People, Solitaire, Feedback Hub, Microsoft 365 hub)": "HKCU\\…\\BackgroundAccessApplications\\<app> → Disabled = 1, DisabledByUser = 1 (Clima, Notícias, Mapas, Dicas, Obter Ajuda, Filmes e TV, Pessoas, Paciência, Hub de Feedback, Microsoft 365)",
+ "Those apps refresh when you open them. Everything else, including the Snipping Tool, is untouched.": "Esses apps atualizam quando você os abre. Todo o resto, incluindo a Ferramenta de Captura, fica intocado."
 }

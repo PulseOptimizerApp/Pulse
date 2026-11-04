@@ -79,9 +79,12 @@ public static class Updater
             using (var f = File.OpenRead(staged)) actual = Convert.ToHexString(SHA256.HashData(f)).ToLowerInvariant();
             if (actual != expected) return "The download didn't match the release's checksum, so it wasn't installed.";
 
-            // Swap after this process exits: wait, move the new file over the old one, start it.
-            var cmd = $"/c ping 127.0.0.1 -n 3 >nul & move /y \"{staged}\" \"{exe}\" >nul & start \"\" \"{exe}\" --restarted";
-            Process.Start(new ProcessStartInfo(Shell.CmdExe, cmd) { UseShellExecute = false, CreateNoWindow = true, WorkingDirectory = dir });
+            // Swap after this process exits: keep trying to move the new file over the old one (Pulse can take a few
+            // seconds to finish a recording and close), then start it. It used to try once after 2 seconds, and when
+            // Pulse was still closing, the old version simply started again.
+            var script = Path.Combine(dir, "pulse-update.cmd");
+            File.WriteAllText(script, UpdateScript(staged, exe));
+            Process.Start(new ProcessStartInfo(Shell.CmdExe, $"/c \"{script}\"") { UseShellExecute = false, CreateNoWindow = true, WorkingDirectory = dir });
             TweakEngine.AddLog("update", $"Updating Pulse to {version}");
             return null;
         }
@@ -90,4 +93,14 @@ public static class Updater
     }
 
     public static string CurrentVersion => Ffmpeg.AppVersion;
+
+    /// <summary>The swap script: up to a minute of retries, then start whichever version is in place.</summary>
+    internal static string UpdateScript(string staged, string exe) =>
+        "@echo off\r\n" +
+        "for /l %%i in (1,1,60) do (\r\n" +
+        $"  move /y \"{staged}\" \"{exe}\" >nul 2>&1 && goto started\r\n" +
+        "  ping 127.0.0.1 -n 2 >nul\r\n" +
+        ")\r\n" +
+        ":started\r\n" +
+        $"start \"\" \"{exe}\" --restarted\r\n";
 }

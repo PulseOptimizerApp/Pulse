@@ -67,3 +67,27 @@ public class CatalogTests
         Assert.DoesNotMatch(new Regex("\"" + Regex.Escape(valueName) + "\""), code);
     }
 }
+
+public class SnippingToolSafetyTests
+{
+    [Fact]
+    public void No_tweak_uses_the_all_apps_background_switch()
+    {
+        foreach (var t in Pulse.Core.TweakCatalog.All)
+            foreach (var a in t.Actions.OfType<Pulse.Core.RegAction>())
+                Assert.False(a.Name == "GlobalUserDisabled", $"{t.Id} switches off every Store app, which stops the Snipping Tool");
+    }
+
+    [Fact]
+    public void Snipping_tool_keeps_running_in_the_background() =>
+        Assert.DoesNotContain(Pulse.Core.TweakCatalog.BackgroundExtras, a => a.StartsWith("Microsoft.ScreenSketch", StringComparison.OrdinalIgnoreCase));
+
+    [Fact]
+    public void Update_swap_retries_until_pulse_has_closed()
+    {
+        var s = Pulse.Core.Updater.UpdateScript(@"C:\P\PulseOptimizer.update.exe", @"C:\P\PulseOptimizer.exe");
+        Assert.Contains("for /l %%i in (1,1,60)", s);
+        Assert.Contains("goto started", s);
+        Assert.Contains("--restarted", s);
+    }
+}

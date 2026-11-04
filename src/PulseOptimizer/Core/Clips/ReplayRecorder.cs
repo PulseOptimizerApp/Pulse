@@ -80,6 +80,8 @@ public sealed class ReplayRecorder : IDisposable
     /// <summary>What the replay takes in Pulse's memory (small when it's kept on disk).</summary>
     public long MemoryBytes => _ring.MemoryBytes;
     public bool OnDisk => _ring.OnDisk;
+    /// <summary>What FFmpeg (the recorder) takes, as Task Manager shows it.</summary>
+    public long RecorderMemory => Native.TaskManagerMemory(_ffmpeg);
     /// <summary>True once any picture has arrived (false means the video path never worked on this PC).</summary>
     public bool HadVideo => _ring.SecondsSinceVideo(Now) >= 0;
     /// <summary>
@@ -170,7 +172,7 @@ public sealed class ReplayRecorder : IDisposable
         int gameIn = -1, micIn = -1;
         int offset = Math.Clamp(s.AudioOffsetMs, -500, 500);
         string shift = offset == 0 ? "" : $"-itsoffset {(offset / 1000.0).ToString("0.###", CultureInfo.InvariantCulture)} ";
-        string Raw(string pipe) => $"-thread_queue_size 4096 {shift}-f f32le -ar {AudioCapture.Rate} -ac 2 -i {pipe}";
+        string Raw(string pipe) => $"-thread_queue_size 512 {shift}-f f32le -ar {AudioCapture.Rate} -ac 2 -i {pipe}";
         if (gamePipe != null) { a.Add(Raw(gamePipe)); gameIn = next++; }
         if (micPipe != null) { a.Add(Raw(micPipe)); micIn = next++; }
 

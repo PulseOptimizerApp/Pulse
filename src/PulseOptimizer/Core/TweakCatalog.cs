@@ -18,6 +18,36 @@ public static class TweakCatalog
     static RegAction CU(string path, string name, object value, RegistryValueKind kind = RegistryValueKind.DWord, object def = null) =>
         new(RegistryHive.CurrentUser, path, name, value, kind, def);
 
+    const string BackgroundAccess = @"Software\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications";
+
+    /// <summary>Store extras that don't need to run in the background (never the Snipping Tool, Phone Link or chat apps).</summary>
+    internal static readonly string[] BackgroundExtras =
+    {
+        "Microsoft.BingWeather_8wekyb3d8bbwe", "Microsoft.BingNews_8wekyb3d8bbwe", "Microsoft.WindowsMaps_8wekyb3d8bbwe",
+        "Microsoft.Getstarted_8wekyb3d8bbwe", "Microsoft.GetHelp_8wekyb3d8bbwe", "Microsoft.ZuneVideo_8wekyb3d8bbwe",
+        "Microsoft.People_8wekyb3d8bbwe", "Microsoft.MicrosoftSolitaireCollection_8wekyb3d8bbwe",
+        "Microsoft.WindowsFeedbackHub_8wekyb3d8bbwe", "Microsoft.MicrosoftOfficeHub_8wekyb3d8bbwe",
+    };
+
+    static List<TweakAction> BackgroundAppsOff() => BackgroundExtras
+        .SelectMany(app => new TweakAction[] { CU($@"{BackgroundAccess}\{app}", "Disabled", 1), CU($@"{BackgroundAccess}\{app}", "DisabledByUser", 1) })
+        .ToList();
+
+    /// <summary>
+    /// The first version of "Stop Store apps running in the background" (before 0.3.4). It used Windows' all-apps
+    /// switch, which also stops the Snipping Tool (Win+Shift+S shows "ms-screenclip" errors). Kept only so it can be
+    /// undone exactly on PCs where it was applied.
+    /// </summary>
+    internal static Tweak OldBackgroundApps => new()
+    {
+        Id = "background-apps", Title = "Stop Store apps running in the background (old version)",
+        Actions =
+        {
+            CU(BackgroundAccess, "GlobalUserDisabled", 1, def: 0),
+            CU(@"Software\Microsoft\Windows\CurrentVersion\Search", "BackgroundAppGlobalToggle", 0, def: 1),
+        },
+    };
+
     static RegAction LM(string path, string name, object value, RegistryValueKind kind = RegistryValueKind.DWord, object def = null) =>
         new(RegistryHive.LocalMachine, path, name, value, kind, def);
 
@@ -295,18 +325,16 @@ public static class TweakCatalog
 
         new Tweak
         {
-            Id = "background-apps", Category = TweakCategory.Privacy, Risk = Risk.Safe, Evidence = Evidence.NoPerformanceClaim,
+            Id = "background-apps-2", Category = TweakCategory.Privacy, Risk = Risk.Safe, Evidence = Evidence.NoPerformanceClaim,
             Title = "Stop Store apps running in the background",
-            Summary = "Store apps like Weather and News stop refreshing in the background for your account.",
-            Explain = "These values aren't documented by Microsoft, so Pulse makes no speed claim until a trace proves Windows reads them on your version.",
-            Changes = "HKCU\\…\\BackgroundAccessApplications → GlobalUserDisabled = 1\nHKCU\\…\\Search → BackgroundAppGlobalToggle = 0",
+            Summary = "Weather, News, Maps, Tips and other extras stop refreshing in the background for your account.",
+            Explain = "Only these apps are switched off, one by one, the same as Settings → Apps → the app → Background permissions. " +
+                      "Windows' all-apps switch isn't used: it also stops the Snipping Tool (Win+Shift+S). " +
+                      "Pulse makes no speed claim for this.",
+            Changes = "HKCU\\…\\BackgroundAccessApplications\\<app> → Disabled = 1, DisabledByUser = 1 (Weather, News, Maps, Tips, Get Help, Movies & TV, People, Solitaire, Feedback Hub, Microsoft 365 hub)",
             Gain = "Fewer apps waking up in the background.",
-            Tradeoff = "Store apps like Phone Link may not notify you until opened. Desktop apps aren't affected.",
-            Actions =
-            {
-                CU(@"Software\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications", "GlobalUserDisabled", 1, def: 0),
-                CU(@"Software\Microsoft\Windows\CurrentVersion\Search", "BackgroundAppGlobalToggle", 0, def: 1),
-            }
+            Tradeoff = "Those apps refresh when you open them. Everything else, including the Snipping Tool, is untouched.",
+            Actions = BackgroundAppsOff(),
         },
         new Tweak
         {

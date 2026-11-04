@@ -17,6 +17,12 @@ public interface IPage
     void OnShown(object parameter);
 }
 
+/// <summary>A screen that holds things outside itself (event subscriptions, players, watchers) and lets go of them when Pulse drops it.</summary>
+public interface IReleasable
+{
+    void Release();
+}
+
 public enum ToastKind { Success, Info, Warning }
 
 public partial class MainWindow : Window
@@ -39,7 +45,7 @@ public partial class MainWindow : Window
         ClipsService.Changed += () => Dispatcher.InvokeAsync(ShowClipsPill);
         // Clipped in a game? The next time you switch to Pulse it opens on your clips.
         ClipsService.Saved += _ => Dispatcher.InvokeAsync(() => { if (!IsActive) _clippedWhileAway = true; });
-        Activated += (_, _) => OpenClipsIfClipped();
+        Activated += (_, _) => { LeaveLean(); OpenClipsIfClipped(); };
         SourceInitialized += (_, _) => Native.StyleWindow(new WindowInteropHelper(this).Handle);
         StateChanged += (_, _) =>
         {
@@ -398,12 +404,7 @@ public partial class MainWindow : Window
             e.Cancel = true;
             Hide();
             Ui.TrayIcon.Show();
-            // Hidden in the tray next to a game: hand back the memory the screens were using.
-            Dispatcher.BeginInvoke(() =>
-            {
-                System.Runtime.GCSettings.LargeObjectHeapCompactionMode = System.Runtime.GCLargeObjectHeapCompactionMode.CompactOnce;
-                GC.Collect(2, GCCollectionMode.Aggressive, true, true);
-            }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+            GoLean(dropScreens: true);
             if (!_trayHintShown)
             {
                 _trayHintShown = true;
@@ -430,8 +431,54 @@ public partial class MainWindow : Window
         Navigate("clips", "newest");
     }
 
+    // ───────── Lean mode: hidden or minimized next to a game, Pulse should cost (almost) nothing ─────────
+
+    bool _lean;
+
+    /// <summary>
+    /// Stops everything only the window needs (live stats, animations) and hands memory back to Windows. With
+    /// <paramref name="dropScreens"/> (hidden in the tray) the screens themselves are let go too and rebuilt when Pulse opens.
+    /// </summary>
+    void GoLean(bool dropScreens)
+    {
+        _lean = true;
+        LiveStats.Updated -= UpdateMini;
+        LiveStats.Stop();
+        Glow.BeginAnimation(OpacityProperty, null);
+        if (dropScreens && Overlay.Visibility != Visibility.Visible) // nothing running in a dialog
+        {
+            PageHost.Content = null;
+            foreach (var p in _pages.Values) if (p is IReleasable r) try { r.Release(); } catch { }
+            _pages.Clear();
+        }
+        Dispatcher.BeginInvoke(Native.GiveBackMemory, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+    }
+
+    void LeaveLean()
+    {
+        if (!_lean) return;
+        _lean = false;
+        LiveStats.Updated += UpdateMini;
+        LiveStats.Start();
+        Glow.BeginAnimation(OpacityProperty, new DoubleAnimation(0.45, 0.7, TimeSpan.FromSeconds(5))
+        { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever, EasingFunction = new SineEase() });
+        if (PageHost.Content == null)
+        {
+            var key = NavPanel.Children.OfType<RadioButton>().FirstOrDefault(r => r.IsChecked == true)?.Tag as string ?? "home";
+            Dispatcher.BeginInvoke(() => { if (PageHost.Content == null) ShowPage(key); }, System.Windows.Threading.DispatcherPriority.Loaded);
+        }
+    }
+
+    protected override void OnStateChanged(EventArgs e)
+    {
+        base.OnStateChanged(e);
+        if (WindowState == WindowState.Minimized) GoLean(dropScreens: false);
+        else if (IsVisible) LeaveLean();
+    }
+
     public void ShowFromTray()
     {
+        LeaveLean();
         Show();
         if (WindowState == WindowState.Minimized) WindowState = WindowState.Normal;
         Activate();

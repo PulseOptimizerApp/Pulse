@@ -71,7 +71,7 @@ public partial class HomePage : UserControl, IPage
     void UpdateLive()
     {
         ClipsUse.Text = ClipsService.State == ClipsState.Recording
-            ? Loc.F("Clips is using {0}% CPU and {1}", ClipsService.CpuPercent.ToString("0.0", System.Globalization.CultureInfo.CurrentCulture), Format.Bytes(ClipsService.OnDisk ? ClipsService.MemoryBytes : ClipsService.BufferBytes))
+            ? Loc.F("Clips is using {0}% CPU and {1}", ClipsService.CpuPercent.ToString("0.0", System.Globalization.CultureInfo.CurrentCulture), Format.Bytes(ClipsService.TotalMemory))
             : Loc.T(TweakEngine.State.Clips is { Enabled: true } ? "Clips is waiting for a game · it uses nothing until then" : "Clips is off · it uses nothing until you turn it on");
         if (LiveStats.Cpu.Count == 0) return;
         CpuText.Text = $"{LiveStats.CpuNow * 100:0}%";

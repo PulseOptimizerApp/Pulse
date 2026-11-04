@@ -78,6 +78,13 @@ public static class LiveStats
     static GpuMeter _gpu;
     static bool _sampling;
 
+    /// <summary>Stops sampling (Pulse is hidden or minimized; nothing shows the numbers).</summary>
+    public static void Stop()
+    {
+        _timer?.Stop();
+        _timer = null;
+    }
+
     public static void Start()
     {
         if (_timer != null) return;

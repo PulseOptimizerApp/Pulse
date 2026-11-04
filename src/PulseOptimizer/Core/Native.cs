@@ -9,6 +9,50 @@ namespace Pulse.Core;
 
 public static class Native
 {
+    [DllImport("kernel32.dll")] static extern bool SetProcessWorkingSetSize(IntPtr process, IntPtr min, IntPtr max);
+
+    /// <summary>
+    /// Pulse's own memory back to Windows: a full, compacting collection, then the working set trimmed (pages Pulse
+    /// isn't touching go back to the system; they come back by themselves if needed). Only Pulse's own process.
+    /// </summary>
+    [StructLayout(LayoutKind.Sequential)]
+    struct PROCESS_MEMORY_COUNTERS_EX2
+    {
+        public uint cb, PageFaultCount;
+        public UIntPtr PeakWorkingSetSize, WorkingSetSize, QuotaPeakPagedPoolUsage, QuotaPagedPoolUsage,
+            QuotaPeakNonPagedPoolUsage, QuotaNonPagedPoolUsage, PagefileUsage, PeakPagefileUsage, PrivateUsage,
+            PrivateWorkingSetSize;
+        public ulong SharedCommitUsage;
+    }
+    [DllImport("psapi.dll", EntryPoint = "GetProcessMemoryInfo")] static extern bool GetProcessMemoryInfo(IntPtr process, ref PROCESS_MEMORY_COUNTERS_EX2 c, uint size);
+
+    /// <summary>The memory Task Manager shows for a process (its private working set), or 0.</summary>
+    public static long TaskManagerMemory(System.Diagnostics.Process p)
+    {
+        try
+        {
+            if (p == null || p.HasExited) return 0;
+            var c = new PROCESS_MEMORY_COUNTERS_EX2 { cb = (uint)Marshal.SizeOf<PROCESS_MEMORY_COUNTERS_EX2>() };
+            if (GetProcessMemoryInfo(p.Handle, ref c, c.cb) && c.PrivateWorkingSetSize != UIntPtr.Zero) return (long)c.PrivateWorkingSetSize;
+            p.Refresh();
+            return p.WorkingSet64;
+        }
+        catch { return 0; }
+    }
+
+    public static void GiveBackMemory()
+    {
+        try
+        {
+            System.Runtime.GCSettings.LargeObjectHeapCompactionMode = System.Runtime.GCLargeObjectHeapCompactionMode.CompactOnce;
+            GC.Collect(2, GCCollectionMode.Aggressive, true, true);
+            GC.WaitForPendingFinalizers();
+            using var me = System.Diagnostics.Process.GetCurrentProcess();
+            SetProcessWorkingSetSize(me.Handle, (IntPtr)(-1), (IntPtr)(-1));
+        }
+        catch { }
+    }
+
     [DllImport("kernel32.dll", SetLastError = true)]
     public static extern bool GetSystemTimes(out long idle, out long kernel, out long user);
 
