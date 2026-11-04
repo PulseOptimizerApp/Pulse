@@ -602,7 +602,8 @@ public partial class ClipsPage : UserControl, IPage
             case Key.I: Timeline.Start = Math.Min(Timeline.Position, Timeline.End - Timeline.MinLength); UpdateTimes(); Timeline.InvalidateVisual(); break;
             case Key.O: Timeline.End = Math.Max(Timeline.Position, Timeline.Start + Timeline.MinLength); UpdateTimes(); Timeline.InvalidateVisual(); break;
             case Key.Delete: Delete_Click(sender, e); break;
-            case Key.Escape: ClosePlayer(); break;
+            case Key.F: ToggleFullscreen(); break;
+            case Key.Escape: if (_fs != null) ExitFullscreen(); else ClosePlayer(); break;
             default: return;
         }
         e.Handled = true;
@@ -620,8 +621,117 @@ public partial class ClipsPage : UserControl, IPage
 
     void PlayerClose_Click(object sender, RoutedEventArgs e) => ClosePlayer();
 
+    // ───────── Full screen ─────────
+    // A borderless window on the same monitor borrows the video and the controls; the controls fade out while
+    // the clip plays and come back when the mouse moves.
+
+    Window _fs;
+    Grid _cardGrid;
+    Border _fsOverlay;
+    readonly DispatcherTimer _fsIdle = new() { Interval = TimeSpan.FromSeconds(2.5) };
+
+    void Full_Click(object sender, RoutedEventArgs e) => ToggleFullscreen();
+
+    void Video_MouseDown(object sender, MouseButtonEventArgs e)
+    {
+        // Double-click: full screen. (Each click's release also toggles play, so two clicks leave it as it was.)
+        if (e.ClickCount == 2) ToggleFullscreen();
+    }
+
+    void ToggleFullscreen() { if (_fs == null) EnterFullscreen(); else ExitFullscreen(); }
+
+    void EnterFullscreen()
+    {
+        if (_fs != null || PlayerLayer.Visibility != Visibility.Visible) return;
+        var owner = Window.GetWindow(this);
+        _cardGrid ??= (Grid)PlayerControls.Parent;
+
+        Player.UnloadedBehavior = MediaState.Manual; // keep playing while it moves windows
+        VideoBox.Child = null;
+        _cardGrid.Children.Remove(Timeline);
+        _cardGrid.Children.Remove(PlayerControls);
+
+        var stack = new StackPanel { MaxWidth = 1400 };
+        stack.Children.Add(Timeline);
+        stack.Children.Add(PlayerControls);
+        _fsOverlay = new Border
+        {
+            VerticalAlignment = VerticalAlignment.Bottom,
+            Padding = new Thickness(32, 60, 32, 24),
+            Background = new LinearGradientBrush(Color.FromArgb(0, 0, 0, 0), Color.FromArgb(0xD9, 0x08, 0x0A, 0x0F), 90),
+            Child = stack,
+        };
+        var root = new Grid { Background = Brushes.Black };
+        root.Children.Add(Player);
+        root.Children.Add(_fsOverlay);
+
+        _fs = new Window
+        {
+            Title = PlayerTitle.Text, Content = root, Background = Brushes.Black,
+            WindowStyle = WindowStyle.None, ResizeMode = ResizeMode.NoResize, ShowInTaskbar = false, Owner = owner,
+            WindowStartupLocation = WindowStartupLocation.Manual,
+            // Start inside the Pulse window so maximizing fills the monitor Pulse is on.
+            Left = (owner?.Left ?? 0) + 40, Top = (owner?.Top ?? 0) + 40, Width = 640, Height = 360,
+        };
+        _fs.SourceInitialized += (_, _) => _fs.WindowState = WindowState.Maximized;
+        _fs.PreviewKeyDown += (s, e) =>
+        {
+            if (e.Key is Key.Escape or Key.F) { ExitFullscreen(); e.Handled = true; return; }
+            Player_KeyDown(s, e);
+            ShowFsControls();
+        };
+        _fs.MouseMove += (_, _) => ShowFsControls();
+        _fs.Closed += (_, _) => ExitFullscreen();
+        _fsIdle.Tick -= FsIdle_Tick;
+        _fsIdle.Tick += FsIdle_Tick;
+
+        FullGlyph.Text = "\uE73F";
+        FullBtn.ToolTip = Loc.T("Exit full screen (Esc)");
+        _fs.Show();
+        _fs.Activate();
+        Keyboard.Focus(_fs);
+        ShowFsControls();
+    }
+
+    void ShowFsControls()
+    {
+        if (_fs == null) return;
+        _fs.Cursor = null;
+        _fsOverlay.BeginAnimation(OpacityProperty, new DoubleAnimation(1, TimeSpan.FromMilliseconds(120)));
+        _fsIdle.Stop();
+        _fsIdle.Start();
+    }
+
+    void FsIdle_Tick(object sender, EventArgs e)
+    {
+        _fsIdle.Stop();
+        if (_fs == null || !_playing || _scrubbing || _fsOverlay.IsMouseOver) return;
+        _fsOverlay.BeginAnimation(OpacityProperty, new DoubleAnimation(0, TimeSpan.FromMilliseconds(320)));
+        _fs.Cursor = Cursors.None;
+    }
+
+    void ExitFullscreen()
+    {
+        if (_fs == null) return;
+        var fs = _fs;
+        _fs = null;
+        _fsIdle.Stop();
+        if (fs.Content is Grid root) root.Children.Clear();
+        if (_fsOverlay?.Child is StackPanel stack) stack.Children.Clear();
+        VideoBox.Child = Player;
+        _cardGrid.Children.Add(Timeline);
+        _cardGrid.Children.Add(PlayerControls);
+        Player.UnloadedBehavior = MediaState.Close;
+        FullGlyph.Text = "\uE740";
+        FullBtn.ToolTip = Loc.T("Full screen (F)");
+        try { fs.Close(); } catch (InvalidOperationException) { /* already closing */ }
+        Window.GetWindow(this)?.Activate();
+        Keyboard.Focus(PlayerLayer);
+    }
+
     void ClosePlayer()
     {
+        ExitFullscreen();
         _playerTimer.Stop();
         Player.Stop();
         Player.Close();

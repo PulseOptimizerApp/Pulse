@@ -1713,5 +1713,8 @@
  "Records only the game's window, on whichever screen it's on. Discord and other windows on top stay out of your clips. If a game can't be recorded this way, Pulse records the whole screen instead.": "Graba solo la ventana del juego, en la pantalla en la que esté. Discord y otras ventanas encima no salen en tus clips. Si un juego no se puede grabar así, Pulse graba toda la pantalla.",
  "Recording just the game's window needs Windows 11. On Windows 10, Pulse records the whole screen.": "Grabar solo la ventana del juego necesita Windows 11. En Windows 10, Pulse graba toda la pantalla.",
  "Records everything on the display picked below, including windows on top of the game.": "Graba todo lo que hay en la pantalla elegida abajo, incluidas las ventanas encima del juego.",
- "Windows stopped giving Pulse the game's picture. Set the game to borderless or windowed fullscreen in its video settings, then turn Clips off and on.": "Windows dejó de darle a Pulse la imagen del juego. Pon el juego en pantalla completa sin bordes o en ventana en sus ajustes de vídeo y luego apaga y enciende Clips."
+ "Windows stopped giving Pulse the game's picture. Set the game to borderless or windowed fullscreen in its video settings, then turn Clips off and on.": "Windows dejó de darle a Pulse la imagen del juego. Pon el juego en pantalla completa sin bordes o en ventana en sus ajustes de vídeo y luego apaga y enciende Clips.",
+ "Space play · ← → step · Shift ← → 1 s · I / O set start and end · F full screen": "Espacio reproducir · ← → paso · Mayús ← → 1 s · I / O inicio y fin · F pantalla completa",
+ "Full screen (F)": "Pantalla completa (F)",
+ "Exit full screen (Esc)": "Salir de pantalla completa (Esc)"
 }

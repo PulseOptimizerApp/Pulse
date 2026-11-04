@@ -351,14 +351,14 @@
                         <TextBlock x:Name="PlayerTitle" Style="{StaticResource H2}" TextTrimming="CharacterEllipsis" Margin="0,0,40,0"/>
                         <Button Style="{StaticResource GhostButton}" Content="Close" HorizontalAlignment="Right" Click="PlayerClose_Click"/>
                     </Grid>
-                    <Border Grid.Row="1" Background="Black" CornerRadius="8" ClipToBounds="True">
+                    <Border x:Name="VideoBox" Grid.Row="1" Background="Black" CornerRadius="8" ClipToBounds="True">
                         <MediaElement x:Name="Player" LoadedBehavior="Manual" UnloadedBehavior="Close" ScrubbingEnabled="True"
-                                      MediaOpened="Player_Opened" MediaEnded="Player_Ended" MouseLeftButtonUp="PlayPause_Click"/>
+                                      MediaOpened="Player_Opened" MediaEnded="Player_Ended" MouseLeftButtonUp="PlayPause_Click" MouseLeftButtonDown="Video_MouseDown"/>
                     </Border>
                     <!-- Timeline: drag the gradient handles to trim, drag anywhere else to scrub -->
                     <ui:ClipTimeline x:Name="Timeline" Grid.Row="2" Margin="0,14,0,0"/>
-                    <Grid Grid.Row="3" Margin="0,12,0,0">
-                        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                    <Grid x:Name="PlayerControls" Grid.Row="3" Margin="0,12,0,0">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                         <Button x:Name="PlayBtn" Style="{StaticResource GhostButton}" Width="44" Padding="0,8" Click="PlayPause_Click" ToolTip="Play or pause (Space)">
                             <TextBlock x:Name="PlayGlyph" Text="&#xE769;" Style="{StaticResource IconText}" FontSize="13"/>
                         </Button>
@@ -372,6 +372,9 @@
                             <ToggleButton x:Name="GameTrack" Style="{StaticResource TrackToggle}" Content="Game" IsChecked="True" Click="Track_Click"/>
                             <ToggleButton x:Name="MicTrack" Style="{StaticResource TrackToggle}" Content="Microphone" IsChecked="True" Click="Track_Click" Margin="6,0,0,0"/>
                         </StackPanel>
+                        <Button x:Name="FullBtn" Grid.Column="4" Style="{StaticResource GhostButton}" Width="44" Padding="0,8" Margin="12,0,0,0" Click="Full_Click" ToolTip="Full screen (F)">
+                            <TextBlock x:Name="FullGlyph" Text="&#xE740;" Style="{StaticResource IconText}" FontSize="13"/>
+                        </Button>
                     </Grid>
                     <Grid Grid.Row="4" Margin="0,16,0,0">
                         <StackPanel Orientation="Horizontal">
@@ -379,7 +382,7 @@
                             <Button Style="{StaticResource GhostButton}" Content="Show in folder" Click="Reveal_Click" Margin="0,0,8,0"/>
                             <Button Style="{StaticResource GhostButton}" Content="Delete" Click="Delete_Click" ToolTip="Delete (Del)"/>
                             <TextBlock Style="{StaticResource Body}" FontSize="12" Foreground="{StaticResource TextFaintBrush}" VerticalAlignment="Center" Margin="16,0,0,0"
-                                       Text="Space play · ← → step · Shift ← → 1 s · I / O set start and end"/>
+                                       Text="Space play · ← → step · Shift ← → 1 s · I / O set start and end · F full screen"/>
                         </StackPanel>
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                             <Button Style="{StaticResource GhostButton}" Content="Save trimmed copy" Click="Trim_Click" Margin="0,0,8,0"/>
