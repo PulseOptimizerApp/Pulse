@@ -428,6 +428,7 @@ public static class ClipsService
         MarkOk = !(S.Enabled && S.BookmarkHotkey) || RegisterHotKey(_hotkeyWindow.Handle, MarkId, S.BookmarkModifiers | MOD_NOREPEAT, S.BookmarkKey);
         _hotkeyOk = S.Enabled && RegisterHotKey(_hotkeyWindow.Handle, HotkeyId, S.HotkeyModifiers | MOD_NOREPEAT, S.HotkeyKey);
         QuickOk = !(S.Enabled && S.QuickClip) || RegisterHotKey(_hotkeyWindow.Handle, QuickId, S.QuickModifiers | MOD_NOREPEAT, S.QuickKey);
+        if (S.ScreenshotKey == 0x2C) { S.ScreenshotKey = 0x76; S.ScreenshotModifiers = 1; } // never take Print Screen from the Snipping Tool (back to Alt+F7)
         ShotOk = !(S.Enabled && S.Screenshot) || RegisterHotKey(_hotkeyWindow.Handle, ShotId, S.ScreenshotModifiers | MOD_NOREPEAT, S.ScreenshotKey);
     }
 

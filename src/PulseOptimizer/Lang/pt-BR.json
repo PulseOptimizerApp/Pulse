@@ -1996,5 +1996,6 @@
  "Windows couldn't back up the entry, so it wasn't removed.": "O Windows não conseguiu fazer backup da entrada, então ela não foi removida.",
  "  scanning…": "  analisando…",
  "How to tell it worked: ": "Como saber se funcionou: ",
- "Open Clips when you come back to Pulse after clipping": "Abrir os Clips ao voltar ao Pulse depois de clipar"
+ "Open Clips when you come back to Pulse after clipping": "Abrir os Clips ao voltar ao Pulse depois de clipar",
+ "Print Screen is kept for Windows' Snipping Tool": "Print Screen fica reservado para a Ferramenta de Captura do Windows"
 }

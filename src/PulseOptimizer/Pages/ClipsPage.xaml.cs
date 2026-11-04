@@ -473,6 +473,8 @@ public partial class ClipsPage : UserControl, IPage
         if ((Keyboard.Modifiers & ModifierKeys.Alt) != 0) mods |= 1;
         if ((Keyboard.Modifiers & ModifierKeys.Control) != 0) mods |= 2;
         if ((Keyboard.Modifiers & ModifierKeys.Shift) != 0) mods |= 4;
+        // Print Screen (alone or with Alt/Ctrl/Shift) belongs to Windows' Snipping Tool; taking it would break Win's screenshots.
+        if (key == Key.PrintScreen) { HotkeyButton(_hotkeyTarget).Content = Loc.T("Print Screen is kept for Windows' Snipping Tool"); return; }
         bool fKey = key >= Key.F1 && key <= Key.F24;
         if (mods == 0 && !fKey) { HotkeyButton(_hotkeyTarget).Content = Loc.T("Add Ctrl, Alt or Shift (or use an F key)"); return; }
         int vk = KeyInterop.VirtualKeyFromKey(key);
