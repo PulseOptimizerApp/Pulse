@@ -43,7 +43,7 @@ public static class Updater
     /// Downloads the new exe next to this one, checks its SHA-256 against the release's SHA256SUMS, then restarts into
     /// it. Returns an error message, or null if Pulse is about to restart.
     /// </summary>
-    public static async Task<string> Install(string version, IProgress<double> progress, CancellationToken ct = default)
+    public static async Task<string> Install(string version, IProgress<(long Got, long Total)> progress, CancellationToken ct = default)
     {
         var exe = Environment.ProcessPath;
         if (exe == null) return "Couldn't find Pulse's own file.";
@@ -72,7 +72,7 @@ public static class Updater
                 {
                     await dst.WriteAsync(buf.AsMemory(0, n), ct);
                     got += n;
-                    if (total > 0) progress?.Report(got / (double)total);
+                    progress?.Report((got, total));
                 }
             }
             string actual;
@@ -82,6 +82,9 @@ public static class Updater
             // Swap after this process exits: keep trying to move the new file over the old one (Pulse can take a few
             // seconds to finish a recording and close), then start it. It used to try once after 2 seconds, and when
             // Pulse was still closing, the old version simply started again.
+            // Remember the verified download: if the swap still doesn't happen (something held the file), the next start
+            // finishes it instead of asking the user to download again.
+            File.WriteAllText(MarkerFor(dir), $"{version}\n{expected}\n0");
             var script = Path.Combine(dir, "pulse-update.cmd");
             File.WriteAllText(script, UpdateScript(staged, exe));
             Process.Start(new ProcessStartInfo(Shell.CmdExe, $"/c \"{script}\"") { UseShellExecute = false, CreateNoWindow = true, WorkingDirectory = dir });
@@ -93,6 +96,49 @@ public static class Updater
     }
 
     public static string CurrentVersion => Ffmpeg.AppVersion;
+
+    static string MarkerFor(string dir) => Path.Combine(dir, "PulseOptimizer.update.txt");
+
+    /// <summary>Set at start-up when this run is the version an update just installed.</summary>
+    public static string JustUpdatedTo { get; private set; }
+
+    /// <summary>
+    /// At start-up: if a verified update is waiting next to Pulse but the swap didn't happen, starts the swap again
+    /// (at most twice) and returns true (Pulse should exit). If this run is the updated version, notes it for a
+    /// "you're up to date" message. Returns false normally.
+    /// </summary>
+    public static bool ResumeSwap()
+    {
+        try
+        {
+            var exe = Environment.ProcessPath;
+            if (exe == null) return false;
+            var dir = Path.GetDirectoryName(exe)!;
+            var marker = MarkerFor(dir);
+            if (!File.Exists(marker)) return false;
+            var parts = File.ReadAllText(marker).Split('\n', StringSplitOptions.TrimEntries);
+            if (parts.Length < 3 || parts[0].Length == 0) return false;
+            if (!IsNewer(parts[0], CurrentVersion))
+            {
+                if (parts[0] == CurrentVersion) JustUpdatedTo = parts[0];
+                File.WriteAllText(marker, ""); // done
+                return false;
+            }
+            var staged = Path.Combine(dir, "PulseOptimizer.update.exe");
+            int tries = int.TryParse(parts[2], out var t) ? t : 0;
+            if (tries >= 2 || !File.Exists(staged)) { File.WriteAllText(marker, ""); return false; }
+            string actual;
+            using (var f = File.OpenRead(staged)) actual = Convert.ToHexString(SHA256.HashData(f)).ToLowerInvariant();
+            if (actual != parts[1]) { File.WriteAllText(marker, ""); return false; }
+            File.WriteAllText(marker, $"{parts[0]}\n{parts[1]}\n{tries + 1}");
+            var script = Path.Combine(dir, "pulse-update.cmd");
+            File.WriteAllText(script, UpdateScript(staged, exe));
+            Process.Start(new ProcessStartInfo(Shell.CmdExe, $"/c \"{script}\"") { UseShellExecute = false, CreateNoWindow = true, WorkingDirectory = dir });
+            TweakEngine.AddLog("update", $"Finishing the update to {parts[0]}");
+            return true;
+        }
+        catch { return false; }
+    }
 
     /// <summary>The swap script: up to a minute of retries, then start whichever version is in place.</summary>
     internal static string UpdateScript(string staged, string exe) =>

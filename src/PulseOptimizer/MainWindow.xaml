@@ -166,13 +166,14 @@
                 <TextBlock x:Name="UpdateTitle" Style="{StaticResource CardTitle}"/>
                 <TextBlock x:Name="UpdateText" Style="{StaticResource Body}" FontSize="13" Margin="0,4,0,0" TextWrapping="Wrap"
                            Text="Your settings and clips stay as they are. Pulse restarts by itself in a few seconds."/>
-                <Grid x:Name="UpdateProgress" Height="6" Margin="0,10,0,0" Visibility="Collapsed">
-                    <Border Style="{StaticResource BarTrack}" Height="6"/>
-                    <Border x:Name="UpdateFill" Style="{StaticResource BarFill}" Height="6" HorizontalAlignment="Left" Width="0"/>
+                <Grid x:Name="UpdateProgress" Height="8" Margin="0,12,0,0" Visibility="Collapsed">
+                    <Border Style="{StaticResource BarTrack}" Height="8"/>
+                    <Border x:Name="UpdateFill" Style="{StaticResource BarFill}" Height="8" HorizontalAlignment="Left" Width="0"/>
                 </Grid>
                 <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
                     <Button x:Name="UpdateBtn" Style="{StaticResource PrimaryButton}" Content="Install now" Click="Update_Click"/>
                     <Button x:Name="UpdateLaterBtn" Style="{StaticResource GhostButton}" Content="Later" Margin="10,0,0,0" Click="UpdateLater_Click"/>
+                    <Button x:Name="UpdateCancelBtn" Style="{StaticResource GhostButton}" Content="Cancel" Margin="10,0,0,0" Click="UpdateCancel_Click" Visibility="Collapsed"/>
                     <Button x:Name="UpdateSkipBtn" Style="{StaticResource LinkButton}" Content="Skip this version" Margin="14,0,0,0" VerticalAlignment="Center" Click="UpdateSkip_Click"/>
                 </StackPanel>
             </StackPanel>

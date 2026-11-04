@@ -91,3 +91,9 @@ public class SnippingToolSafetyTests
         Assert.Contains("--restarted", s);
     }
 }
+
+public class UpdateResumeTests
+{
+    [Fact]
+    public void Nothing_waiting_means_a_normal_start() => Assert.False(Pulse.Core.Updater.ResumeSwap());
+}

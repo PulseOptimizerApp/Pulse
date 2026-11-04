@@ -2008,5 +2008,9 @@
  "HKCU\\…\\BackgroundAccessApplications\\<app> → Disabled = 1, DisabledByUser = 1 (Weather, News, Maps, Tips, Get Help, Movies & TV, People, Solitaire, Feedback Hub, Microsoft 365 hub)": "HKCU\\…\\BackgroundAccessApplications\\<app> → Disabled = 1, DisabledByUser = 1 (Clima, Notícias, Mapas, Dicas, Obter Ajuda, Filmes e TV, Pessoas, Paciência, Hub de Feedback, Microsoft 365)",
  "Those apps refresh when you open them. Everything else, including the Snipping Tool, is untouched.": "Esses apps atualizam quando você os abre. Todo o resto, incluindo a Ferramenta de Captura, fica intocado.",
  "Lowered to {0} so clips stay smooth on this PC. Pick a quality again to try higher.": "Reduzido para {0} para os clipes ficarem fluidos neste PC. Escolha uma qualidade de novo para tentar mais alto.",
- "full size": "tamanho total"
+ "full size": "tamanho total",
+ "Downloading…": "Baixando…",
+ "Downloading… {0}%": "Baixando… {0}%",
+ "{0} of {1}": "{0} de {1}",
+ "Updated to Pulse {0}.": "Atualizado para o Pulse {0}."
 }

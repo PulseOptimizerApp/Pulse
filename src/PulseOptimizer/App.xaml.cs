@@ -58,6 +58,8 @@ public partial class App : Application
                 return;
             }
         }
+        // An update was downloaded and checked but the file swap didn't happen: finish it now (no second download).
+        if (Core.Updater.ResumeSwap()) { Shutdown(); return; }
         WriteInstanceInfo();
         ShutdownMode = ShutdownMode.OnExplicitShutdown;
 

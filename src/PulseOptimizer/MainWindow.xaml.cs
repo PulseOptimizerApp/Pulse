@@ -57,6 +57,7 @@ public partial class MainWindow : Window
 
     void OnLoaded(object sender, RoutedEventArgs e)
     {
+        if (Updater.JustUpdatedTo is string v) Dispatcher.BeginInvoke(() => Toast(Loc.F("Updated to Pulse {0}.", v)), System.Windows.Threading.DispatcherPriority.ApplicationIdle);
         // Intro: fade and settle in.
         var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
         Root.Opacity = 0;
@@ -543,16 +544,26 @@ public partial class MainWindow : Window
 
     async void Update_Click(object sender, RoutedEventArgs e)
     {
-        if (_newVersion == null) return;
-        if (_updateCancel != null) { _updateCancel.Cancel(); return; } // the button cancels while downloading
+        // Pressing it again does nothing while it downloads (it used to cancel, so a second press undid the first).
+        if (_newVersion == null || _updateCancel != null) return;
         _updateCancel = new CancellationTokenSource();
-        UpdateBtn.Content = Loc.T("Cancel");
-        UpdateLaterBtn.IsEnabled = UpdateSkipBtn.IsEnabled = false;
+        UpdateBtn.IsEnabled = false;
+        UpdateBtn.Content = Loc.T("Downloading…");
+        UpdateLaterBtn.Visibility = UpdateSkipBtn.Visibility = Visibility.Collapsed;
+        UpdateCancelBtn.Visibility = Visibility.Visible;
         UpdateProgress.Visibility = Visibility.Visible;
         UpdateText.Text = Loc.T("Downloading the update…");
-        var progress = new Progress<double>(f => UpdateFill.Width = ((FrameworkElement)UpdateFill.Parent).ActualWidth * f);
+        var progress = new Progress<(long Got, long Total)>(p =>
+        {
+            if (p.Total > 0) UpdateFill.Width = ((FrameworkElement)UpdateFill.Parent).ActualWidth * p.Got / p.Total;
+            UpdateBtn.Content = p.Total > 0 ? Loc.F("Downloading… {0}%", (int)(p.Got * 100 / p.Total)) : Loc.T("Downloading…");
+            UpdateText.Text = p.Total > 0 ? Loc.F("{0} of {1}", Format.Bytes(p.Got), Format.Bytes(p.Total)) : Format.Bytes(p.Got);
+        });
         var error = await Updater.Install(_newVersion, progress, _updateCancel.Token);
         _updateCancel = null;
+        UpdateCancelBtn.Visibility = Visibility.Collapsed;
+        UpdateLaterBtn.Visibility = UpdateSkipBtn.Visibility = Visibility.Visible;
+        UpdateBtn.IsEnabled = true;
         if (error == null)
         {
             UpdateText.Text = Loc.T("Restarting into the new version…");
@@ -568,6 +579,8 @@ public partial class MainWindow : Window
     }
 
     void UpdateLater_Click(object sender, RoutedEventArgs e) => UpdateBar.Visibility = Visibility.Collapsed;
+
+    void UpdateCancel_Click(object sender, RoutedEventArgs e) => _updateCancel?.Cancel();
 
     void UpdateSkip_Click(object sender, RoutedEventArgs e)
     {
