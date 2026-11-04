@@ -52,6 +52,16 @@ public class ClipSettings
     public int ScreenshotModifiers { get; set; } = 1; // Alt
     public int ScreenshotKey { get; set; } = 0x76;    // F7 → Alt+F7
 
+    /// <summary>Start/stop a long recording of the whole session (written to disk as it goes).</summary>
+    public bool SessionHotkey { get; set; } = true;
+    public int SessionModifiers { get; set; } = 1; // Alt
+    public int SessionKey { get; set; } = 0x78;    // F9 → Alt+F9
+
+    /// <summary>Bookmark the moment: clips and recordings that include it show a marker on the timeline.</summary>
+    public bool BookmarkHotkey { get; set; } = true;
+    public int BookmarkModifiers { get; set; } = 1; // Alt
+    public int BookmarkKey { get; set; } = 0x7B;    // F12 → Alt+F12
+
     /// <summary>Only keep a replay while a game is running (saves memory and GPU work the rest of the time).</summary>
     public bool OnlyWhileGaming { get; set; } = true;
     /// <summary>Keep clipping when the Pulse window is closed (Pulse stays in the tray).</summary>

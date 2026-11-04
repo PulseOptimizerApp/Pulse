@@ -74,6 +74,39 @@ public static class ClipLibrary
 
     internal static int CountAudio(string ffmpegOutput) => Regex.Matches(ffmpegOutput ?? "", @"Stream #\d+:\d+[^:]*: Audio:").Count;
 
+    // ───────── Bookmarks (a small file next to the clip) ─────────
+
+    static string MarksFor(string clip) => System.IO.Path.ChangeExtension(clip, ".marks.json");
+
+    public static void SaveMarks(string clip, List<double> marks)
+    {
+        if (marks == null || marks.Count == 0) return;
+        try { File.WriteAllText(MarksFor(clip), System.Text.Json.JsonSerializer.Serialize(marks)); } catch { }
+    }
+
+    /// <summary>Bookmarked moments in a clip, in seconds from its start.</summary>
+    public static List<double> LoadMarks(string clip)
+    {
+        try { return File.Exists(MarksFor(clip)) ? System.Text.Json.JsonSerializer.Deserialize<List<double>>(File.ReadAllText(MarksFor(clip))) ?? new() : new(); }
+        catch { return new(); }
+    }
+
+    /// <summary>Renames a clip (and its picture and bookmarks). Returns the new path.</summary>
+    public static string Rename(string clip, string newName)
+    {
+        foreach (var c in System.IO.Path.GetInvalidFileNameChars()) newName = newName.Replace(c, ' ');
+        newName = newName.Trim();
+        if (newName.Length == 0) throw new InvalidOperationException("Type a name.");
+        var dest = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(clip)!, newName + System.IO.Path.GetExtension(clip));
+        if (dest.Equals(clip, StringComparison.OrdinalIgnoreCase)) return clip;
+        if (File.Exists(dest)) throw new InvalidOperationException("A clip with that name already exists.");
+        File.Move(clip, dest);
+        try { if (File.Exists(ThumbFor(clip))) File.Move(ThumbFor(clip), ThumbFor(dest), true); } catch { }
+        try { if (File.Exists(MarksFor(clip))) File.Move(MarksFor(clip), MarksFor(dest), true); } catch { }
+        try { if (File.Exists(StripFor(clip))) File.Move(StripFor(clip), StripFor(dest), true); } catch { }
+        return dest;
+    }
+
     /// <summary>The name of each sound track, in order. Clips from before tracks had names get "All sound", "Game", "Microphone".</summary>
     public static async Task<List<string>> AudioTrackNames(string clip)
     {
@@ -164,6 +197,7 @@ public static class ClipLibrary
         File.Delete(clip);
         try { File.Delete(ThumbFor(clip)); } catch { }
         try { File.Delete(StripFor(clip)); } catch { }
+        try { File.Delete(MarksFor(clip)); } catch { }
     }
 
     /// <summary>

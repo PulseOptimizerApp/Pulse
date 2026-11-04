@@ -124,6 +124,52 @@ public class ClipsTests
     }
 
     [Fact]
+    public void A_long_recording_starts_at_a_keyframe_and_gets_everything_after()
+    {
+        var ring = new TsRing { KeepSeconds = 2 };
+        ring.Write(Pat(), 0);
+        ring.Write(Packet(0x1000, start: true), 0);
+        ring.Write(Packet(TsRing.VideoPid, true, true, fill: 1), 0);
+        using var disk = new MemoryStream();
+        ring.StartTap(disk);
+        ring.Write(Packet(TsRing.VideoPid, fill: 2), 1);                 // mid-group: skipped until a keyframe
+        for (int t = 2; t < 50; t++) ring.Write(Packet(TsRing.VideoPid, true, true, fill: 3), t);
+        Assert.Same(disk, ring.StopTap());
+        var packets = disk.ToArray().Chunk(TsRing.PacketSize).ToList();
+        Assert.Equal(2 + 48, packets.Count);                              // tables + every keyframe, far beyond the 2 s replay
+        Assert.DoesNotContain(packets, p => p[12] == 2);
+    }
+
+    [Fact]
+    public void Clip_start_time_matches_the_keyframe_the_clip_starts_on()
+    {
+        var ring = new TsRing { KeepSeconds = 100 };
+        ring.Write(Pat(), 0);
+        ring.Write(Packet(0x1000, start: true), 0);
+        for (int t = 0; t <= 20; t += 2) ring.Write(Packet(TsRing.VideoPid, true, true), t);
+        Assert.Equal(14, ring.StartTimeFor(5, 20));
+    }
+
+    [Fact]
+    public void Renaming_moves_the_bookmarks_with_the_clip()
+    {
+        var dir = Directory.CreateTempSubdirectory("pulse-clips-").FullName;
+        try
+        {
+            var clip = Path.Combine(dir, "VALORANT 2026-11-04 01-30-22.mp4");
+            File.WriteAllText(clip, "x");
+            ClipLibrary.SaveMarks(clip, new List<double> { 3.5, 12 });
+            var renamed = ClipLibrary.Rename(clip, "ace clutch");
+            Assert.Equal(Path.Combine(dir, "ace clutch.mp4"), renamed);
+            Assert.False(File.Exists(clip));
+            Assert.Equal(new[] { 3.5, 12.0 }, ClipLibrary.LoadMarks(renamed));
+            ClipLibrary.Delete(renamed);
+            Assert.Empty(ClipLibrary.LoadMarks(renamed));
+        }
+        finally { Directory.Delete(dir, true); }
+    }
+
+    [Fact]
     public void Nothing_to_save_before_the_first_keyframe()
     {
         var ring = new TsRing();

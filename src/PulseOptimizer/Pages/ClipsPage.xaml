@@ -135,6 +135,9 @@
                                 <TextBlock x:Name="HotkeyHint" Style="{StaticResource Body}" VerticalAlignment="Center" Margin="12,0,0,0"/>
                             </StackPanel>
                             <TextBlock x:Name="UsageText" FontSize="12" Foreground="{StaticResource TextDimBrush}" Margin="0,14,0,0" TextWrapping="Wrap"/>
+                            <Border x:Name="CostBox" Visibility="Collapsed" Margin="0,14,0,0" Background="{StaticResource Surface2Brush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="10" Padding="14,10">
+                                <TextBlock x:Name="CostText" Style="{StaticResource Body}" TextWrapping="Wrap"/>
+                            </Border>
                         </StackPanel>
                         <StackPanel Grid.Column="1" VerticalAlignment="Top">
                             <Button x:Name="SaveNowBtn" Style="{StaticResource PrimaryButton}" Click="SaveNow_Click">
@@ -143,6 +146,14 @@
                                     <TextBlock Text="Save clip now" Margin="8,0,0,0"/>
                                 </StackPanel>
                             </Button>
+                            <Button x:Name="SessionNowBtn" Style="{StaticResource GhostButton}" Margin="0,10,0,0" HorizontalAlignment="Stretch" Click="SessionNow_Click">
+                                <StackPanel Orientation="Horizontal">
+                                    <Ellipse x:Name="RecDot" Width="9" Height="9" Fill="{StaticResource BadBrush}" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="SessionNowText" Text="Start recording" Margin="8,0,0,0"/>
+                                </StackPanel>
+                            </Button>
+                            <Button x:Name="CostBtn" Style="{StaticResource GhostButton}" Margin="0,10,0,0" HorizontalAlignment="Stretch" Content="Test what Clips costs" Click="Cost_Click"
+                                    ToolTip="Measures your game's FPS with Clips off and on (about 2 minutes, keep playing)"/>
                             <Button Style="{StaticResource LinkButton}" Content="Turn Clips off" HorizontalAlignment="Right" Margin="0,12,0,0" Click="Disable_Click"/>
                         </StackPanel>
                     </Grid>
@@ -206,6 +217,26 @@
                                 <TextBlock x:Name="ExtraWarn" Foreground="{StaticResource WarnBrush}" FontSize="12" VerticalAlignment="Center" Margin="12,0,0,0" TextWrapping="Wrap" MaxWidth="360"/>
                             </StackPanel>
                             <CheckBox x:Name="ShotSwitch" Grid.Column="2" Style="{StaticResource Switch}" Click="Setting_Click"/>
+                        </Grid>
+                        <Grid Style="{StaticResource Row}">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="200"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <TextBlock Style="{StaticResource RowLabel}" Text="Record a session"/>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                <Button x:Name="SessionBtn" Style="{StaticResource GhostButton}" MinWidth="140" Tag="session" Click="Hotkey_Click" PreviewKeyDown="Hotkey_KeyDown"/>
+                                <TextBlock Style="{StaticResource Body}" FontSize="12" Foreground="{StaticResource TextDimBrush}" VerticalAlignment="Center" Margin="12,0,0,0" TextWrapping="Wrap" MaxWidth="360"
+                                           Text="Press once to start recording everything, again to stop. Saved straight to disk, so it can run for hours."/>
+                            </StackPanel>
+                            <CheckBox x:Name="SessionSwitch" Grid.Column="2" Style="{StaticResource Switch}" Click="Setting_Click"/>
+                        </Grid>
+                        <Grid Style="{StaticResource Row}">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="200"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <TextBlock Style="{StaticResource RowLabel}" Text="Bookmark hotkey"/>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                <Button x:Name="MarkBtn" Style="{StaticResource GhostButton}" MinWidth="140" Tag="mark" Click="Hotkey_Click" PreviewKeyDown="Hotkey_KeyDown"/>
+                                <TextBlock Style="{StaticResource Body}" FontSize="12" Foreground="{StaticResource TextDimBrush}" VerticalAlignment="Center" Margin="12,0,0,0" TextWrapping="Wrap" MaxWidth="360"
+                                           Text="Marks a moment. Clips and recordings that include it show a marker you can jump to."/>
+                            </StackPanel>
+                            <CheckBox x:Name="MarkSwitch" Grid.Column="2" Style="{StaticResource Switch}" Click="Setting_Click"/>
                         </Grid>
 
                         <!-- More settings -->
@@ -314,7 +345,11 @@
                         <TextBlock Style="{StaticResource H2}" Text="Your clips"/>
                         <TextBlock x:Name="LibrarySummary" Foreground="{StaticResource TextDimBrush}" FontSize="13" VerticalAlignment="Bottom" Margin="12,0,0,2"/>
                     </StackPanel>
-                    <Button Style="{StaticResource LinkButton}" Content="Open folder" HorizontalAlignment="Right" Click="OpenFolder_Click"/>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button x:Name="DeleteSelectedBtn" Style="{StaticResource GhostButton}" Visibility="Collapsed" Margin="0,0,10,0" Click="DeleteSelected_Click"/>
+                        <ToggleButton x:Name="SelectToggle" Style="{StaticResource LinkToggle}" Content="Select" Margin="0,0,16,0" VerticalAlignment="Center" Click="Select_Click"/>
+                        <Button Style="{StaticResource LinkButton}" Content="Open folder" VerticalAlignment="Center" Click="OpenFolder_Click"/>
+                    </StackPanel>
                 </Grid>
                 <!-- Find clips: search, game, favorites, order -->
                 <Grid x:Name="LibraryTools" Margin="0,0,0,14" Visibility="Collapsed">
@@ -336,6 +371,10 @@
                                     <Grid Height="140" Background="#0B0C10">
                                         <Image Source="{Binding Image}" Stretch="UniformToFill"/>
                                         <TextBlock Text="&#xE768;" Style="{StaticResource IconText}" FontSize="28" Foreground="#CCFFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        <Border HorizontalAlignment="Right" VerticalAlignment="Top" Margin="8" Width="22" Height="22" CornerRadius="11" BorderThickness="2" BorderBrush="White"
+                                                Background="{Binding CheckBrush}" Visibility="{Binding SelectVisibility}">
+                                            <TextBlock Text="&#xE73E;" Style="{StaticResource IconText}" FontSize="11" Foreground="#0B0C10" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="{Binding CheckVisibility}"/>
+                                        </Border>
                                         <Border HorizontalAlignment="Left" VerticalAlignment="Top" Margin="8" CornerRadius="6" Padding="6,2" Background="#CC0B0C10"
                                                 Visibility="{Binding Clip.Favorite, Converter={StaticResource BoolToVis}}">
                                             <TextBlock Text="&#xE735;" Style="{StaticResource IconText}" FontSize="11" Foreground="#FBBF24"/>
@@ -362,6 +401,7 @@
                     <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                     <Grid Margin="0,0,0,12">
                         <TextBlock x:Name="PlayerTitle" Style="{StaticResource H2}" TextTrimming="CharacterEllipsis" Margin="0,0,40,0"/>
+                        <TextBox x:Name="RenameBox" Style="{StaticResource SearchBox}" Visibility="Collapsed" Margin="0,0,120,0" KeyDown="RenameBox_KeyDown" LostKeyboardFocus="RenameBox_LostFocus"/>
                         <Button Style="{StaticResource GhostButton}" Content="Close" HorizontalAlignment="Right" Click="PlayerClose_Click"/>
                     </Grid>
                     <Border x:Name="VideoBox" Grid.Row="1" Background="Black" CornerRadius="8" ClipToBounds="True">
@@ -391,6 +431,7 @@
                     <Grid Grid.Row="4" Margin="0,16,0,0">
                         <StackPanel Orientation="Horizontal">
                             <Button x:Name="FavBtn" Style="{StaticResource GhostButton}" Click="Fav_Click" Margin="0,0,8,0"/>
+                            <Button Style="{StaticResource GhostButton}" Content="Rename" Click="Rename_Click" Margin="0,0,8,0"/>
                             <Button Style="{StaticResource GhostButton}" Content="Show in folder" Click="Reveal_Click" Margin="0,0,8,0"/>
                             <Button Style="{StaticResource GhostButton}" Content="Delete" Click="Delete_Click" ToolTip="Delete (Del)"/>
                             <TextBlock Style="{StaticResource Body}" FontSize="12" Foreground="{StaticResource TextFaintBrush}" VerticalAlignment="Center" Margin="16,0,0,0"

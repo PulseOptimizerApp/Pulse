@@ -29,6 +29,10 @@ public class ClipTimeline : FrameworkElement
     public double Position { get => (double)GetValue(PositionProperty); set => SetValue(PositionProperty, value); }
     public ImageSource Strip { get => (ImageSource)GetValue(StripProperty); set => SetValue(StripProperty, value); }
 
+    List<double> _markers = new();
+    /// <summary>Bookmarked moments (seconds), drawn as small markers on the ruler. Click near one to jump there.</summary>
+    public List<double> Markers { get => _markers; set { _markers = value ?? new(); InvalidateVisual(); } }
+
     /// <summary>The user scrubbed to a time (seconds).</summary>
     public event Action<double> Seek;
     /// <summary>The user moved a trim handle.</summary>
@@ -94,6 +98,23 @@ public class ClipTimeline : FrameworkElement
         DrawHandle(dc, xs - HandleW / 2, accent);
         DrawHandle(dc, xe - HandleW / 2, accent);
 
+        // Bookmarks: small amber diamonds on the ruler.
+        var amber = new SolidColorBrush(Color.FromRgb(0xFB, 0xBF, 0x24)); amber.Freeze();
+        foreach (var m in _markers.Where(m => m >= 0 && m <= Duration))
+        {
+            double xm = X(m);
+            var g = new StreamGeometry();
+            using (var c = g.Open())
+            {
+                c.BeginFigure(new Point(xm, RulerH - 10), true, true);
+                c.LineTo(new Point(xm + 5, RulerH - 5), true, false);
+                c.LineTo(new Point(xm, RulerH), true, false);
+                c.LineTo(new Point(xm - 5, RulerH - 5), true, false);
+            }
+            g.Freeze();
+            dc.DrawGeometry(amber, null, g);
+        }
+
         // Playhead: white, so it stands out against the gradient frame.
         double xp = X(Position);
         var head = new Pen(Brushes.White, 2); head.Freeze();
@@ -120,6 +141,12 @@ public class ClipTimeline : FrameworkElement
         else if (onStrip && Math.Abs(p.X - X(End)) <= HandleW) _drag = Drag.End;
         else _drag = Drag.Playhead;
         CaptureMouse();
+        // A click on the ruler next to a bookmark jumps exactly to it.
+        if (!onStrip && _markers.Count > 0)
+        {
+            var near = _markers.OrderBy(m => Math.Abs(X(m) - p.X)).First();
+            if (Math.Abs(X(near) - p.X) <= 8) { Apply(X(near)); e.Handled = true; return; }
+        }
         Apply(p.X);
         e.Handled = true;
     }

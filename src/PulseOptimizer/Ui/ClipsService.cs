@@ -87,7 +87,7 @@ public static class ClipsService
         StopRecorder();
         if (_hotkeyWindow != null)
         {
-            foreach (var id in new[] { HotkeyId, QuickId, ShotId }) UnregisterHotKey(_hotkeyWindow.Handle, id);
+            foreach (var id in new[] { HotkeyId, QuickId, ShotId, SessionId, MarkId }) UnregisterHotKey(_hotkeyWindow.Handle, id);
             _hotkeyWindow.Dispose();
             _hotkeyWindow = null;
         }
@@ -102,6 +102,9 @@ public static class ClipsService
     }
 
     static bool _ticking;
+    static bool _paused;
+    /// <summary>Stops recording until set back to false (used by the cost test). Takes effect right away.</summary>
+    public static bool Paused { get => _paused; set { _paused = value; Tick(); } }
     static int _stalls;
     static IntPtr _screenOnly; // a game window that couldn't be recorded directly
 
@@ -128,6 +131,7 @@ public static class ClipsService
     {
         if (!S.Enabled) { StopRecorder(); Set(ClipsState.Off); return; }
         if (!Ffmpeg.Installed) { StopRecorder(); Set(ClipsState.NeedsSetup); return; }
+        if (Paused) { StopRecorder(); return; } // the "what Clips costs" test is measuring without it
 
         var game = await Task.Run(GameDetector.RunningGame);
         _game = game;
@@ -246,6 +250,61 @@ public static class ClipsService
         finally { _saving = false; }
     }
 
+    public static bool SessionOk { get; private set; } = true;
+    public static bool MarkOk { get; private set; } = true;
+    public static bool SessionActive => _rec?.SessionActive == true;
+    public static double SessionSeconds => _rec?.SessionSeconds ?? 0;
+
+    /// <summary>Starts or stops a long recording (hotkey, or the button on the Clips page).</summary>
+    public static async Task<string> ToggleSession()
+    {
+        if (_rec == null || !_rec.Running)
+        {
+            if (S.Enabled) ClipToast.Show(Loc.T("Nothing to record yet"), Loc.T(S.OnlyWhileGaming ? "Clips records while a game is running." : "The replay is starting."), false);
+            return null;
+        }
+        if (!_rec.SessionActive)
+        {
+            try
+            {
+                _rec.StartSession(S.ClipsFolder, _game ?? "Recording");
+                ClipToast.Show(Loc.T("Recording started"), Loc.F("Press {0} again to stop.", HotkeyText(S.SessionModifiers, S.SessionKey)), true);
+                TweakEngine.AddLog("clips", "Started a long recording");
+                Changed?.Invoke();
+            }
+            catch (Exception ex) { ClipToast.Show(Loc.T("Couldn't start recording"), Loc.T(ex.Message), false); }
+            return null;
+        }
+        ClipToast.Show(Loc.T("Finishing the recording…"), "", true);
+        try
+        {
+            var path = await _rec.StopSession(S.ClipsFolder);
+            Feedback.Saved(S, 0, Loc.T("Recording saved"));
+            TweakEngine.AddLog("clips", $"Saved a recording: {Path.GetFileName(path)}");
+            _ = Task.Run(async () =>
+            {
+                try { await ClipLibrary.MakeThumbnail(path); } catch { }
+                Application.Current?.Dispatcher.Invoke(() => Saved?.Invoke(path));
+            });
+            Changed?.Invoke();
+            return path;
+        }
+        catch (Exception ex)
+        {
+            ClipToast.Show(Loc.T("Couldn't save the recording"), Loc.T(ex.Message), false);
+            return null;
+        }
+    }
+
+    /// <summary>Marks this moment in the replay (and any long recording).</summary>
+    public static void Bookmark()
+    {
+        if (_rec == null || !_rec.Running) return;
+        _rec.AddBookmark();
+        if (S.PlaySound) try { System.Media.SystemSounds.Asterisk.Play(); } catch { }
+        if (S.ShowSavedPopup) ClipToast.Show(Loc.T("Bookmarked"), Loc.T("It shows as a marker when you open the clip."), true);
+    }
+
     static bool _shooting;
 
     /// <summary>Saves the current game frame as a PNG.</summary>
@@ -275,7 +334,7 @@ public static class ClipsService
 
     // ───────── Hotkey ─────────
 
-    const int HotkeyId = 0x5011, QuickId = 0x5012, ShotId = 0x5013;
+    const int HotkeyId = 0x5011, QuickId = 0x5012, ShotId = 0x5013, SessionId = 0x5014, MarkId = 0x5015;
     const int WM_HOTKEY = 0x0312;
     const int MOD_NOREPEAT = 0x4000;
 
@@ -296,11 +355,15 @@ public static class ClipsService
                     if (id == HotkeyId) { handled = true; _ = SaveClip(); }
                     else if (id == QuickId) { handled = true; _ = SaveClip(S.QuickSeconds); }
                     else if (id == ShotId) { handled = true; _ = SaveScreenshot(); }
+                    else if (id == SessionId) { handled = true; _ = ToggleSession(); }
+                    else if (id == MarkId) { handled = true; Bookmark(); }
                 }
                 return IntPtr.Zero;
             });
         }
-        foreach (var id in new[] { HotkeyId, QuickId, ShotId }) UnregisterHotKey(_hotkeyWindow.Handle, id);
+        foreach (var id in new[] { HotkeyId, QuickId, ShotId, SessionId, MarkId }) UnregisterHotKey(_hotkeyWindow.Handle, id);
+        SessionOk = !(S.Enabled && S.SessionHotkey) || RegisterHotKey(_hotkeyWindow.Handle, SessionId, S.SessionModifiers | MOD_NOREPEAT, S.SessionKey);
+        MarkOk = !(S.Enabled && S.BookmarkHotkey) || RegisterHotKey(_hotkeyWindow.Handle, MarkId, S.BookmarkModifiers | MOD_NOREPEAT, S.BookmarkKey);
         _hotkeyOk = S.Enabled && RegisterHotKey(_hotkeyWindow.Handle, HotkeyId, S.HotkeyModifiers | MOD_NOREPEAT, S.HotkeyKey);
         QuickOk = !(S.Enabled && S.QuickClip) || RegisterHotKey(_hotkeyWindow.Handle, QuickId, S.QuickModifiers | MOD_NOREPEAT, S.QuickKey);
         ShotOk = !(S.Enabled && S.Screenshot) || RegisterHotKey(_hotkeyWindow.Handle, ShotId, S.ScreenshotModifiers | MOD_NOREPEAT, S.ScreenshotKey);
@@ -338,10 +401,10 @@ static class Feedback
 {
     static byte[] _blip;
 
-    public static void Saved(ClipSettings s, int seconds)
+    public static void Saved(ClipSettings s, int seconds, string title = null)
     {
         if (s.PlaySound) Play();
-        if (s.ShowSavedPopup) ClipToast.Show(Loc.T("Clip saved"), Loc.F("Last {0} seconds", seconds), true);
+        if (s.ShowSavedPopup) ClipToast.Show(title ?? Loc.T("Clip saved"), seconds > 0 ? Loc.F("Last {0} seconds", seconds) : "", true);
     }
 
     public static void Screenshot(ClipSettings s)

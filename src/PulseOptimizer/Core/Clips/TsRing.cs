@@ -26,6 +26,41 @@ public sealed class TsRing
     long _bytes;
     Group _current;
     double _lastVideo = -1, _lastKeyframe = -1;
+    Stream _tap;          // a long recording being written to disk as it happens
+    bool _tapWaitsForKey; // it starts at the next keyframe so the file plays from its first frame
+
+    /// <summary>
+    /// Also writes everything from the next keyframe on to <paramref name="output"/> (a long recording), until
+    /// <see cref="StopTap"/>. Writes go straight to the file, so memory use doesn't grow with the recording's length.
+    /// </summary>
+    public void StartTap(Stream output)
+    {
+        lock (_gate)
+        {
+            _tap = output;
+            _tapWaitsForKey = true;
+            if (_pat != null) output.Write(_pat);
+            if (_pmt != null) output.Write(_pmt);
+        }
+    }
+
+    /// <summary>Stops the long recording and returns its stream (the caller closes it).</summary>
+    public Stream StopTap()
+    {
+        lock (_gate) { var t = _tap; _tap = null; return t; }
+    }
+
+    /// <summary>The ring-clock time where the clip <see cref="SaveTo"/> would start (its first keyframe), or -1.</summary>
+    public double StartTimeFor(double seconds, double now)
+    {
+        lock (_gate)
+        {
+            if (_groups.Count == 0) return -1;
+            double start = _groups.First.Value.Time;
+            foreach (var g in _groups) if (now - g.Time >= seconds) start = g.Time;
+            return start;
+        }
+    }
 
     /// <summary>Seconds of replay kept (a little more is kept so a full-length clip always starts on a keyframe).</summary>
     public double KeepSeconds { get; set; } = 60;
@@ -86,10 +121,17 @@ public sealed class TsRing
         int pid = ((p[1] & 0x1F) << 8) | p[2];
         if (pid == PatPid) { _pat = p.ToArray(); _pmtPid = PmtPidFromPat(p); return; }
         if (pid == _pmtPid) { _pmt = p.ToArray(); return; }
+        bool key = false;
         if (pid == VideoPid)
         {
             _lastVideo = now;
-            if (IsKeyframeStart(p)) { _lastKeyframe = now; _groups.AddLast(_current = new Group { Time = now }); }
+            if (IsKeyframeStart(p)) { key = true; _lastKeyframe = now; _groups.AddLast(_current = new Group { Time = now }); }
+        }
+        if (_tap != null)
+        {
+            if (key) _tapWaitsForKey = false;
+            if (!_tapWaitsForKey || pid == PatPid || pid == _pmtPid)
+                try { _tap.Write(p); } catch { _tap = null; } // disk full or removed: the replay keeps working
         }
         if (_current == null) return; // nothing useful before the first keyframe
         // No keyframe for a long time means the picture stopped: don't keep piling sound onto the last frame,

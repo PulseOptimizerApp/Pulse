@@ -10,16 +10,29 @@ using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using Pulse.Core;
 using Pulse.Core.Clips;
+using Pulse.Core.Measurement;
 using Pulse.Ui;
 
 namespace Pulse.Pages;
 
 /// <summary>One card in the clip library.</summary>
-public class ClipVm
+public class ClipVm : Observable
 {
     public ClipFile Clip { get; init; }
     public ImageSource Image { get; set; }
     public string Info { get; init; }
+
+    bool _selecting, _selected;
+    /// <summary>The library is in "select" mode (cards show a check circle).</summary>
+    public bool Selecting { get => _selecting; set { if (Set(ref _selecting, value)) Raise(nameof(SelectVisibility)); } }
+    public bool Selected
+    {
+        get => _selected;
+        set { if (Set(ref _selected, value)) { Raise(nameof(CheckVisibility)); Raise(nameof(CheckBrush)); } }
+    }
+    public Visibility SelectVisibility => _selecting ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility CheckVisibility => _selected ? Visibility.Visible : Visibility.Collapsed;
+    public Brush CheckBrush => _selected ? new SolidColorBrush(Color.FromRgb(0x22, 0xD3, 0xEE)) : new SolidColorBrush(Color.FromArgb(0x66, 0, 0, 0));
 }
 
 public partial class ClipsPage : UserControl, IPage
@@ -166,13 +179,18 @@ public partial class ClipsPage : UserControl, IPage
         StatusDot.Fill = dot;
         SaveNowBtn.IsEnabled = ClipsService.State == ClipsState.Recording;
         HotkeyWarn.Text = ClipsService.HotkeyWorks ? "" : Loc.T("Another app already uses this hotkey (often NVIDIA's overlay or Medal). Pick a different one.");
-        ExtraWarn.Text = ClipsService.QuickOk && ClipsService.ShotOk ? "" : Loc.T("Another app already uses one of these hotkeys. Pick a different one.");
+        ExtraWarn.Text = ClipsService.QuickOk && ClipsService.ShotOk && ClipsService.SessionOk && ClipsService.MarkOk ? "" : Loc.T("Another app already uses one of these hotkeys. Pick a different one.");
         UpdateUsage();
     }
 
     void UpdateUsage()
     {
         if (StatusCard.Visibility != Visibility.Visible) return;
+        SessionNowText.Text = ClipsService.SessionActive
+            ? Loc.F("Stop recording ({0})", TimeSpan.FromSeconds(ClipsService.SessionSeconds).ToString(@"h\:mm\:ss", CultureInfo.InvariantCulture))
+            : Loc.T("Start recording");
+        SessionNowBtn.IsEnabled = ClipsService.State == ClipsState.Recording;
+        CostBtn.IsEnabled = ClipsService.State == ClipsState.Recording && !_costRunning;
         if (ClipsService.State != ClipsState.Recording) { UsageText.Text = Loc.T("Using nothing right now."); return; }
         var enc = ClipsService.Encoder;
         string encText = enc == null ? "" : enc.Hardware ? Loc.F("{0} graphics card encoder ({1})", enc.Vendor, CodecName(enc.Codec)) : Loc.T("processor encoder (no graphics card encoder found)");
@@ -277,6 +295,10 @@ public partial class ClipsPage : UserControl, IPage
         HotkeyBtn.Content = ClipsService.HotkeyText(S.HotkeyModifiers, S.HotkeyKey);
         QuickBtn.Content = ClipsService.HotkeyText(S.QuickModifiers, S.QuickKey);
         ShotBtn.Content = ClipsService.HotkeyText(S.ScreenshotModifiers, S.ScreenshotKey);
+        SessionBtn.Content = ClipsService.HotkeyText(S.SessionModifiers, S.SessionKey);
+        MarkBtn.Content = ClipsService.HotkeyText(S.BookmarkModifiers, S.BookmarkKey);
+        SessionSwitch.IsChecked = S.SessionHotkey;
+        MarkSwitch.IsChecked = S.BookmarkHotkey;
         QuickSwitch.IsChecked = S.QuickClip;
         ShotSwitch.IsChecked = S.Screenshot;
         Mark(QuickLenChips, S.QuickSeconds.ToString(CultureInfo.InvariantCulture));
@@ -322,6 +344,8 @@ public partial class ClipsPage : UserControl, IPage
         S.ShowSavedPopup = PopupSwitch.IsChecked == true;
         S.QuickClip = QuickSwitch.IsChecked == true;
         S.Screenshot = ShotSwitch.IsChecked == true;
+        S.SessionHotkey = SessionSwitch.IsChecked == true;
+        S.BookmarkHotkey = MarkSwitch.IsChecked == true;
         Changed(restart: sender != TraySwitch && sender != SoundSwitch && sender != PopupSwitch);
     }
 
@@ -372,7 +396,7 @@ public partial class ClipsPage : UserControl, IPage
     // Hotkeys: click a button, then press the keys.
     string _hotkeyTarget;
 
-    Button HotkeyButton(string target) => target switch { "quick" => QuickBtn, "shot" => ShotBtn, _ => HotkeyBtn };
+    Button HotkeyButton(string target) => target switch { "quick" => QuickBtn, "shot" => ShotBtn, "session" => SessionBtn, "mark" => MarkBtn, _ => HotkeyBtn };
 
     void Hotkey_Click(object sender, RoutedEventArgs e)
     {
@@ -398,18 +422,22 @@ public partial class ClipsPage : UserControl, IPage
         if (mods == 0 && !fKey) { HotkeyButton(_hotkeyTarget).Content = Loc.T("Add Ctrl, Alt or Shift (or use an F key)"); return; }
         int vk = KeyInterop.VirtualKeyFromKey(key);
         // One key combination does one thing.
-        bool taken = _hotkeyTarget switch
+        // One key combination does one thing.
+        var others = new List<(string Target, int Mods, int Key, bool On)>
         {
-            "quick" => (mods == S.HotkeyModifiers && vk == S.HotkeyKey) || (mods == S.ScreenshotModifiers && vk == S.ScreenshotKey),
-            "shot" => (mods == S.HotkeyModifiers && vk == S.HotkeyKey) || (mods == S.QuickModifiers && vk == S.QuickKey),
-            _ => (mods == S.QuickModifiers && vk == S.QuickKey && S.QuickClip) || (mods == S.ScreenshotModifiers && vk == S.ScreenshotKey && S.Screenshot),
+            ("main", S.HotkeyModifiers, S.HotkeyKey, true), ("quick", S.QuickModifiers, S.QuickKey, S.QuickClip),
+            ("shot", S.ScreenshotModifiers, S.ScreenshotKey, S.Screenshot), ("session", S.SessionModifiers, S.SessionKey, S.SessionHotkey),
+            ("mark", S.BookmarkModifiers, S.BookmarkKey, S.BookmarkHotkey),
         };
+        bool taken = others.Any(o => o.Target != _hotkeyTarget && o.On && o.Mods == mods && o.Key == vk);
         if (taken) { HotkeyButton(_hotkeyTarget).Content = Loc.T("Already used by another Pulse hotkey"); return; }
         _capturingHotkey = false;
         switch (_hotkeyTarget)
         {
             case "quick": S.QuickModifiers = mods; S.QuickKey = vk; S.QuickClip = true; break;
             case "shot": S.ScreenshotModifiers = mods; S.ScreenshotKey = vk; S.Screenshot = true; break;
+            case "session": S.SessionModifiers = mods; S.SessionKey = vk; S.SessionHotkey = true; break;
+            case "mark": S.BookmarkModifiers = mods; S.BookmarkKey = vk; S.BookmarkHotkey = true; break;
             default: S.HotkeyModifiers = mods; S.HotkeyKey = vk; break;
         }
         Changed(restart: true);
@@ -440,6 +468,8 @@ public partial class ClipsPage : UserControl, IPage
             Image = LoadImage(c.Thumbnail),
             Info = $"{c.Created.ToString("g", CultureInfo.CurrentCulture)} · {Format.Bytes(c.Size)}",
         }).ToList();
+        bool selecting = SelectToggle.IsChecked == true;
+        foreach (var v in vms) v.Selecting = selecting;
         _allClips = vms;
         LibraryTools.Visibility = clips.Count > 1 ? Visibility.Visible : Visibility.Collapsed;
         BuildLibraryFilters();
@@ -533,7 +563,9 @@ public partial class ClipsPage : UserControl, IPage
     async void Clip_Click(object sender, MouseButtonEventArgs e)
     {
         if ((sender as FrameworkElement)?.Tag is not ClipVm vm) return;
+        if (SelectToggle.IsChecked == true) { vm.Selected = !vm.Selected; UpdateSelection(); return; }
         _open = vm;
+        Timeline.Markers = ClipLibrary.LoadMarks(vm.Clip.Path);
         PlayerTitle.Text = vm.Clip.Name;
         FavBtn.Content = Loc.T(vm.Clip.Favorite ? "Unfavorite" : "Favorite");
         Timeline.Strip = null;
@@ -867,6 +899,146 @@ public partial class ClipsPage : UserControl, IPage
             steps[0].Skip(Loc.T("Didn't finish"));
             await MainWindow.Instance.FinishSteps("The Discord copy didn't work", ex.Message, ok: false);
         }
+    }
+
+    // ───────── Long recording ─────────
+
+    async void SessionNow_Click(object sender, RoutedEventArgs e)
+    {
+        SessionNowBtn.IsEnabled = false;
+        await ClipsService.ToggleSession();
+        UpdateUsage();
+    }
+
+    // ───────── What Clips costs ─────────
+
+    bool _costRunning;
+
+    async void Cost_Click(object sender, RoutedEventArgs e)
+    {
+        var pid = GameDetector.GamePid;
+        string exe = null;
+        try { if (pid > 0) using (var p = Process.GetProcessById(pid)) exe = p.ProcessName; } catch { }
+        if (exe == null) { await MainWindow.Instance.Alert("Start a game first", "The test measures the game you're playing, with Clips off and on."); return; }
+        if (!await MainWindow.Instance.Confirm("Test what Clips costs",
+                Loc.F("Pulse measures {0} for about 2 minutes: three times with Clips off and three times with it on, taking turns. Keep playing something steady (the same map or a replay) so the runs are comparable.", ClipsService.Game ?? exe), "Start"))
+            return;
+        _costRunning = true;
+        CostBtn.IsEnabled = false;
+        CostBox.Visibility = Visibility.Visible;
+        var off = new List<RunSummary>();
+        var on = new List<RunSummary>();
+        try
+        {
+            for (int i = 0; i < 6; i++)
+            {
+                bool clipsOn = i % 2 == 1;
+                CostText.Text = Loc.F("Run {0} of 6: Clips {1}. Keep playing…", i + 1, Loc.T(clipsOn ? "on" : "off"));
+                ClipsService.Paused = !clipsOn;
+                await Task.Delay(clipsOn ? 6000 : 3000); // give recording time to start (or stop) before measuring
+                var r = await Task.Run(() => PresentMonCapture.Capture(exe, 18));
+                if (!r.Ok) throw new InvalidOperationException(r.Error);
+                (clipsOn ? on : off).Add(Stats.Summarize(r.FrameTimesMs, r.LatenciesMs));
+            }
+            double offFps = Stats.Median(off.Select(x => x.AvgFps)), onFps = Stats.Median(on.Select(x => x.AvgFps));
+            double offLow = Stats.Median(off.Select(x => x.Low1Fps)), onLow = Stats.Median(on.Select(x => x.Low1Fps));
+            double cost = offFps > 0 ? (offFps - onFps) / offFps * 100 : 0;
+            CostText.Text = Loc.F("Clips off: {0} FPS (1% low {1}) · Clips on: {2} FPS (1% low {3}).", Math.Round(offFps), Math.Round(offLow), Math.Round(onFps), Math.Round(onLow)) + " " +
+                (Math.Abs(cost) < 1.5 ? Loc.T("No difference bigger than normal run-to-run noise.") : cost > 0 ? Loc.F("Clips costs about {0}% FPS here.", cost.ToString("0.#", CultureInfo.CurrentCulture)) : Loc.T("No measurable cost."));
+            TweakEngine.AddLog("clips", $"Clips cost test: off {offFps:0} FPS, on {onFps:0} FPS");
+        }
+        catch (Exception ex) { CostText.Text = Loc.T("The test stopped: ") + Loc.T(ex.Message); }
+        finally
+        {
+            ClipsService.Paused = false;
+            _costRunning = false;
+            UpdateUsage();
+        }
+    }
+
+    // ───────── Selecting several clips ─────────
+
+    void Select_Click(object sender, RoutedEventArgs e)
+    {
+        bool on = SelectToggle.IsChecked == true;
+        SelectToggle.Content = Loc.T(on ? "Done" : "Select");
+        foreach (var v in _allClips) { v.Selecting = on; if (!on) v.Selected = false; }
+        UpdateSelection();
+    }
+
+    void UpdateSelection()
+    {
+        int n = _allClips.Count(v => v.Selected);
+        DeleteSelectedBtn.Visibility = n > 0 ? Visibility.Visible : Visibility.Collapsed;
+        DeleteSelectedBtn.Content = Loc.F("Delete {0}", n);
+    }
+
+    async void DeleteSelected_Click(object sender, RoutedEventArgs e)
+    {
+        var picked = _allClips.Where(v => v.Selected).ToList();
+        if (picked.Count == 0) return;
+        if (!await MainWindow.Instance.Confirm(Loc.F("Delete {0} clips?", picked.Count), Loc.F("{0} will be freed. Favorites are deleted too if selected.", Format.Bytes(picked.Sum(v => v.Clip.Size))), "Delete")) return;
+        int failed = 0;
+        foreach (var v in picked)
+        {
+            try
+            {
+                ClipLibrary.Delete(v.Clip.Path);
+                S.Favorites.RemoveAll(f => f.Equals(Path.GetFileName(v.Clip.Path), StringComparison.OrdinalIgnoreCase));
+            }
+            catch { failed++; }
+        }
+        TweakEngine.Save();
+        TweakEngine.AddLog("clips", $"Deleted {picked.Count - failed} clips");
+        SelectToggle.IsChecked = false;
+        Select_Click(SelectToggle, e);
+        LoadLibrary();
+        if (failed > 0) await MainWindow.Instance.Alert("Some clips weren't deleted", Loc.F("{0} are open in another app.", failed));
+    }
+
+    // ───────── Rename ─────────
+
+    void Rename_Click(object sender, RoutedEventArgs e)
+    {
+        if (_open == null) return;
+        RenameBox.Text = _open.Clip.Name;
+        RenameBox.Visibility = Visibility.Visible;
+        PlayerTitle.Visibility = Visibility.Hidden;
+        RenameBox.Focus();
+        RenameBox.SelectAll();
+    }
+
+    void RenameBox_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Enter) { e.Handled = true; _ = FinishRename(true); }
+        else if (e.Key == Key.Escape) { e.Handled = true; _ = FinishRename(false); }
+    }
+
+    void RenameBox_LostFocus(object sender, KeyboardFocusChangedEventArgs e) => _ = FinishRename(true);
+
+    bool _renaming;
+
+    async Task FinishRename(bool save)
+    {
+        if (_renaming || RenameBox.Visibility != Visibility.Visible) return;
+        _renaming = true;
+        RenameBox.Visibility = Visibility.Collapsed;
+        PlayerTitle.Visibility = Visibility.Visible;
+        try
+        {
+            if (!save || _open == null || RenameBox.Text.Trim() == _open.Clip.Name) return;
+            var old = _open.Clip.Path;
+            ClosePlayer(); // the player holds the file open
+            await Task.Delay(150);
+            var dest = ClipLibrary.Rename(old, RenameBox.Text);
+            var oldName = Path.GetFileName(old);
+            if (S.Favorites.RemoveAll(f => f.Equals(oldName, StringComparison.OrdinalIgnoreCase)) > 0) S.Favorites.Add(Path.GetFileName(dest));
+            TweakEngine.Save();
+            MainWindow.Instance.Toast(Loc.T("Renamed"));
+            LoadLibrary();
+        }
+        catch (Exception ex) { await MainWindow.Instance.Alert("Couldn't rename the clip", ex.Message); }
+        finally { _renaming = false; }
     }
 
     void Fav_Click(object sender, RoutedEventArgs e)

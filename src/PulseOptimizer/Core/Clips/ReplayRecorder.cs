@@ -253,6 +253,7 @@ public sealed class ReplayRecorder : IDisposable
         try
         {
             long n;
+            double clipStart = _ring.StartTimeFor(seconds, Now);
             await using (var f = File.Create(ts)) n = _ring.SaveTo(f, seconds, Now);
             if (n == 0) throw new InvalidOperationException("There's nothing in the replay yet. It fills up a few seconds after a game starts.");
             var mp4 = UniquePath(folder, name);
@@ -260,6 +261,7 @@ public sealed class ReplayRecorder : IDisposable
             string len = (seconds + 1.5).ToString("0.###", CultureInfo.InvariantCulture);
             var (code, err) = await Ffmpeg.Run($"-hide_banner -loglevel error -y -i \"{ts}\" -map 0 -c copy -t {len}{TitleArgs(TrackTitles)} -movflags +faststart \"{mp4}\"", ct, 120_000);
             if (code != 0 || !File.Exists(mp4)) throw new InvalidOperationException("FFmpeg couldn't save the clip: " + err.Trim());
+            ClipLibrary.SaveMarks(mp4, MarksBetween(clipStart, Now));
             return mp4;
         }
         finally { try { File.Delete(ts); } catch { } }
@@ -281,6 +283,65 @@ public sealed class ReplayRecorder : IDisposable
             return png;
         }
         finally { try { File.Delete(ts); } catch { } }
+    }
+
+    // ───────── Bookmarks and long recordings ─────────
+
+    readonly List<double> _marks = new();   // bookmark times on the recorder's clock
+    FileStream _session;
+    string _sessionTs, _sessionName;
+    double _sessionStart;
+
+    /// <summary>A long recording is being written (start/stop hotkey).</summary>
+    public bool SessionActive => _session != null;
+    public double SessionSeconds => _session != null ? Now - _sessionStart : 0;
+
+    /// <summary>Marks this moment. Saved clips and long recordings that include it show a marker on the timeline.</summary>
+    public void AddBookmark()
+    {
+        lock (_marks)
+        {
+            _marks.Add(Now);
+            _marks.RemoveAll(m => Now - m > Math.Max(_s.ReplaySeconds, 600) + 60 && (_session == null || m < _sessionStart));
+        }
+    }
+
+    List<double> MarksBetween(double from, double to)
+    {
+        lock (_marks) return _marks.Where(m => m >= from && m <= to).Select(m => Math.Round(m - from, 2)).ToList();
+    }
+
+    /// <summary>Starts writing everything to a file until <see cref="StopSession"/> (memory use stays the same).</summary>
+    public void StartSession(string folder, string name)
+    {
+        if (_session != null) return;
+        Directory.CreateDirectory(folder);
+        _sessionTs = Path.Combine(folder, $".recording-{Guid.NewGuid():N}.ts");
+        _sessionName = name;
+        _session = new FileStream(_sessionTs, FileMode.Create, FileAccess.Write, FileShare.Read, 1 << 20);
+        _sessionStart = Now;
+        _ring.StartTap(_session);
+    }
+
+    /// <summary>Finishes the long recording as an MP4 next to the clips. Returns its path.</summary>
+    public async Task<string> StopSession(string folder)
+    {
+        var f = _session;
+        if (f == null) return null;
+        _session = null;
+        var tapped = _ring.StopTap();
+        var marks = MarksBetween(_sessionStart, Now);
+        try { await f.FlushAsync(); } catch { }
+        f.Dispose();
+        try
+        {
+            var mp4 = UniquePath(folder, _sessionName + " session");
+            var (code, err) = await Ffmpeg.Run($"-hide_banner -loglevel error -y -i \"{_sessionTs}\" -map 0 -c copy{TitleArgs(TrackTitles)} -movflags +faststart \"{mp4}\"", default, 30 * 60_000);
+            if (code != 0 || !File.Exists(mp4)) throw new InvalidOperationException("FFmpeg couldn't finish the recording: " + err.Trim());
+            ClipLibrary.SaveMarks(mp4, marks);
+            return mp4;
+        }
+        finally { try { File.Delete(_sessionTs); } catch { } }
     }
 
     /// <summary>Names each sound track in the MP4 so the trimmer can show them (MPEG-TS can't carry names).</summary>
@@ -308,6 +369,8 @@ public sealed class ReplayRecorder : IDisposable
 
     public void Dispose()
     {
+        // A long recording still running is finished first, so nothing recorded is lost.
+        if (_session != null) try { StopSession(Path.GetDirectoryName(_sessionTs)).Wait(TimeSpan.FromMinutes(5)); } catch { }
         _stop.Cancel();
         try
         {
