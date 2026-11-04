@@ -165,7 +165,8 @@ public partial class DeclutterPage : UserControl, IPage
         long total = SelectedBytes;
         bool any = total > 0 || _quick.Any(q => q.Selected && q.Kind == "dism");
         FreeableBig.Text = total > 0 ? Format.Bytes(total) : "0 GB";
-        FreeableSmall.Text = "  ready to free";
+        long inUse = _quick.Where(q => q.Kind == "category").Sum(q => q.Category.InUseSize);
+        FreeableSmall.Text = "  " + Loc.T("ready to free") + (inUse > 1 << 20 ? "  ·  " + Loc.F("{0} in use by open apps (frees after a restart)", Format.Bytes(inUse)) : "");
         FreeBtnText.Text = total > 0 ? $"Free {Format.Bytes(total)}" : "Free space";
         FreeBtn.IsEnabled = any && !_busy;
     }
@@ -210,10 +211,13 @@ public partial class DeclutterPage : UserControl, IPage
         MapBar.ColumnDefinitions.Clear();
         MapLegend.Children.Clear();
         var parts = map.Slices.Where(s => s.Bytes > 0).Append(new StorageSlice("Free", map.Free, "#2A2F3D")).ToList();
+        double all = Math.Max(parts.Sum(p => (double)p.Bytes), 1);
         int i = 0;
         foreach (var s in parts)
         {
-            MapBar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(Math.Max(s.Bytes, 1), GridUnitType.Star) });
+            // Widths as tenths of a percent: raw byte counts (hundreds of billions) are too large for the layout,
+            // which drew only the first part. Every part keeps at least a sliver so its colour shows.
+            MapBar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(Math.Max(s.Bytes / all * 1000, 4), GridUnitType.Star) });
             var brush = (Brush)new BrushConverter().ConvertFromString(s.Color);
             var seg = new Border { Background = brush, Margin = new Thickness(0, 0, i < parts.Count - 1 ? 2 : 0, 0), RenderTransformOrigin = new Point(0, 0.5) };
             var scale = new ScaleTransform(0, 1);
@@ -264,10 +268,14 @@ public partial class DeclutterPage : UserControl, IPage
         long freed = 0, inUse = 0, recycled = 0;
         string dismNote = "";
         foreach (var c in cats)
-            steps.Add((new ProgressStep(c.Name), async st =>
+            steps.Add((new ProgressStep(c.Name) { Weight = 0.5 + c.Category.Count / 3000.0 + c.Size / 300e6 }, async st =>
             {
                 long size = c.Size;
-                long got = await Task.Run(() => Cleaner.Clean(c.Category));
+                long got = await Task.Run(() => Cleaner.Clean(c.Category, f => Dispatcher.InvokeAsync(() =>
+                {
+                    st.Fraction = size > 0 ? (double)f / size : 0;
+                    st.Detail = Loc.F("{0} of {1}", Format.Bytes(f), Format.Bytes(size));
+                })));
                 freed += got;
                 long left = Math.Max(size - got, 0);
                 inUse += left;
@@ -276,13 +284,13 @@ public partial class DeclutterPage : UserControl, IPage
                 else st.Finish(Loc.F("{0} freed", Format.Bytes(got)));
             }));
         if (files.Count > 0)
-            steps.Add((new ProgressStep("Move files to the Recycle Bin"), async st =>
+            steps.Add((new ProgressStep("Move files to the Recycle Bin") { Weight = 1 + files.Count * 0.15 }, async st =>
             {
                 recycled = await DeclutterEngine.RecycleAsync(files);
                 st.Finish(Loc.F("{0} moved", Format.Bytes(recycled)));
             }));
         if (hib != null)
-            steps.Add((new ProgressStep("Turn off hibernation"), async st =>
+            steps.Add((new ProgressStep("Turn off hibernation") { Weight = 3 }, async st =>
             {
                 // The tweak has its own confirmation; step aside for it, then come back.
                 MainWindow.Instance.HideOverlay();
@@ -293,11 +301,20 @@ public partial class DeclutterPage : UserControl, IPage
                 else st.Skip(Loc.T("Not changed"));
             }));
         if (dism != null)
-            steps.Add((new ProgressStep("Clean old Windows update files"), async st =>
+            steps.Add((new ProgressStep("Clean old Windows update files") { Weight = 600 }, async st =>
             {
                 st.Detail = Loc.T("5 to 20 minutes…");
                 long before = SystemInfo.SystemDrive.AvailableFreeSpace;
-                var (ok, _, msg) = await Task.Run(DeclutterEngine.CleanWindowsUpdateFiles);
+                // Windows' tool doesn't say how far it is: move the bar with the time it usually takes (about 10 minutes).
+                var clock = Stopwatch.StartNew();
+                var work = Task.Run(DeclutterEngine.CleanWindowsUpdateFiles);
+                while (!work.IsCompleted)
+                {
+                    await Task.WhenAny(work, Task.Delay(1000));
+                    st.Fraction = Math.Min(clock.Elapsed.TotalMinutes / 10, 0.95);
+                    st.Detail = Loc.F("{0} so far · usually 5 to 20 minutes", clock.Elapsed.ToString(@"m\:ss"));
+                }
+                var (ok, _, msg) = await work;
                 long got = Math.Max(SystemInfo.SystemDrive.AvailableFreeSpace - before, 0);
                 freed += got;
                 if (ok) st.Finish(got > 0 ? Loc.F("{0} freed", Format.Bytes(got)) : Loc.T("Done"));
@@ -582,11 +599,29 @@ public partial class DeclutterPage : UserControl, IPage
         long before = FreeNow;
         GoalFreeBtn.IsEnabled = false;
         GoalPlanBtn.IsEnabled = false;
-        GoalCancelBtn.Visibility = Visibility.Visible;
-        var progress = new Progress<string>(t => GoalStatus.Text = Loc.F("Removing: {0}…", t));
         try
         {
-            var (done, failed, cancelled) = await SpaceGoal.Free(picked, progress, _goalCancel.Token);
+            // The same progress screen as Free space: one line per item, percent done and time left, and a way to stop.
+            var order = SpaceGoal.InOrder(picked);
+            var steps = order.Select(i => new ProgressStep(i.Title)
+            {
+                Weight = i.Kind == GoalKind.Program ? 30 : i.Category != null ? 0.5 + i.Bytes / 300e6 : 1 + i.Bytes / 2e9,
+            }).ToList();
+            MainWindow.Instance.ShowSteps("Freeing space", "You can keep using your PC while this runs.", steps);
+            MainWindow.Instance.AllowStepStop(() => _goalCancel?.Cancel());
+            int done = 0, failed = 0;
+            bool cancelled = false;
+            for (int k = 0; k < order.Count; k++)
+            {
+                if (_goalCancel.IsCancellationRequested) { cancelled = true; foreach (var rest in steps.Skip(k)) rest.Skip(Loc.T("Stopped")); break; }
+                var st = steps[k];
+                st.Start();
+                if (order[k].Kind == GoalKind.Program) st.Detail = Loc.T("Follow the uninstaller's window");
+                bool ok;
+                try { ok = (await Task.WhenAll(SpaceGoal.FreeOne(order[k]), Task.Delay(350).ContinueWith(_ => true)))[0]; }
+                catch { ok = false; }
+                if (ok) { done++; st.Finish(Loc.T("Done")); } else { failed++; st.Skip(Loc.T("In use or blocked")); }
+            }
             long freed = Math.Max(0, FreeNow - before);
             TweakEngine.AddLog("clean", $"Free up to a goal: {done} items, {Format.Bytes(freed)} freed");
             long needed = SpaceGoal.Needed(GoalBytes, FreeNow);
@@ -594,6 +629,8 @@ public partial class DeclutterPage : UserControl, IPage
                 Loc.F("Freed {0}. You now have {1} free.", Format.Bytes(freed), Format.Bytes(FreeNow)) + " " +
                 (needed == 0 ? Loc.T("Goal reached.") : Loc.F("{0} to go.", Format.Bytes(needed))) +
                 (failed > 0 ? " " + Loc.F("{0} items couldn't be removed (in use or blocked).", failed) : "");
+            await MainWindow.Instance.FinishSteps(freed > 0 ? Loc.F("Freed {0}", Format.Bytes(freed)) : Loc.T("Nothing could be removed right now"),
+                GoalStatus.Text, ok: freed > 0 || failed == 0);
             _goalItems.RemoveAll(i => picked.Contains(i) && i.Kind != GoalKind.Program);
             foreach (var i in _goalItems) i.Selected = false;
             ShowGoalList();

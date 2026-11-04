@@ -29,6 +29,13 @@ public class ProgressStep : Observable
     /// <summary>Shown at the right of the line, e.g. "32.6 MB freed". Already translated by the caller.</summary>
     public string Detail { get => _detail; set => Set(ref _detail, value ?? ""); }
 
+    /// <summary>How long this step is expected to take compared with the others (seconds, roughly). Drives the overall bar and time left.</summary>
+    public double Weight { get; set; } = 1;
+
+    double _fraction;
+    /// <summary>How far this step is (0 to 1) while it runs, when it can tell.</summary>
+    public double Fraction { get => _fraction; set => Set(ref _fraction, Math.Clamp(value, 0, 1)); }
+
     public void Start() { State = StepState.Active; Detail = Loc.T("Working…"); }
     public void Finish(string detail) { Detail = detail; State = StepState.Done; }
     public void Skip(string detail) { Detail = detail; State = StepState.Skipped; }

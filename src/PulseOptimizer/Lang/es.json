@@ -2012,5 +2012,19 @@
  "Downloading…": "Descargando…",
  "Downloading… {0}%": "Descargando… {0}%",
  "{0} of {1}": "{0} de {1}",
- "Updated to Pulse {0}.": "Actualizado a Pulse {0}."
+ "Updated to Pulse {0}.": "Actualizado a Pulse {0}.",
+ "Working · {0}": "Trabajando · {0}",
+ "estimating time left…": "calculando el tiempo restante…",
+ "a few seconds left": "quedan unos segundos",
+ "about {0} seconds left": "quedan unos {0} segundos",
+ "about {0} min left": "quedan unos {0} min",
+ "Took {0}": "Tardó {0}",
+ "Stop after this item": "Parar después de este elemento",
+ "Stopping after this item…": "Parando después de este elemento…",
+ "{0} so far · usually 5 to 20 minutes": "{0} hasta ahora · suele tardar de 5 a 20 minutos",
+ "{0} in use by open apps (frees after a restart)": "{0} en uso por apps abiertas (se libera al reiniciar)",
+ "Freeing space": "Liberando espacio",
+ "Follow the uninstaller's window": "Sigue la ventana del desinstalador",
+ "In use or blocked": "En uso o bloqueado",
+ "Stopped": "Detenido"
 }

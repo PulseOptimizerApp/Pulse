@@ -117,3 +117,27 @@ public class LeftoverAppTests
         Assert.False(Pulse.Core.Declutter.DeclutterEngine.UninstallerMissing("steam://uninstall/730"));
     }
 }
+
+public class CleanInUseTests
+{
+    [Fact]
+    public void A_file_an_app_holds_open_isnt_counted_as_ready_to_free_again()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "pulse-inuse-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        File.WriteAllBytes(Path.Combine(dir, "free.tmp"), new byte[1000]);
+        var held = Path.Combine(dir, "held.tmp");
+        File.WriteAllBytes(held, new byte[5000]);
+        var cat = new Pulse.Core.CleanCategory { Id = "t", Name = "t", Targets = () => new[] { new Pulse.Core.CleanTarget(dir, "*.tmp", false) } };
+        using (new FileStream(held, FileMode.Open, FileAccess.Read, FileShare.None)) // an app has it open
+        {
+            long progressSeen = -1;
+            long freed = Pulse.Core.Cleaner.Clean(cat, b => progressSeen = b);
+            Assert.Equal(1000, freed);
+            Assert.Equal(1000, progressSeen);
+            Pulse.Core.Cleaner.Scan(cat);
+            Assert.Equal(0, cat.Size);          // nothing left that can be freed right now…
+            Assert.Equal(5000, cat.InUseSize);  // …and the held file is shown as in use instead
+        }
+    }
+}

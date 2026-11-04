@@ -217,8 +217,54 @@ public partial class MainWindow : Window
     /// Shows a screen with a big spinning icon, a progress bar and one line per step, so people can see work is
     /// really happening. Update the steps (Start / Finish / Skip) as you go, then call <see cref="FinishSteps"/>.
     /// </summary>
+    DateTime _stepsStarted;
+    readonly System.Windows.Threading.DispatcherTimer _etaTimer = new() { Interval = TimeSpan.FromMilliseconds(500) };
+    Action _stepStop;
+
+    /// <summary>Overall progress of the steps on screen (0 to 1), weighted by how long each is expected to take.</summary>
+    double StepProgress()
+    {
+        if (_steps == null || _steps.Count == 0) return 0;
+        double total = _steps.Sum(s => Math.Max(s.Weight, 0.01));
+        double done = _steps.Sum(s => Math.Max(s.Weight, 0.01) * (s.IsDone || s.IsSkipped ? 1 : s.IsActive ? Math.Max(s.Fraction, 0.05) : 0));
+        return Math.Clamp(done / total, 0, 1);
+    }
+
+    void UpdateEta()
+    {
+        if (_steps == null) { _etaTimer.Stop(); return; }
+        double p = StepProgress();
+        var elapsed = DateTime.UtcNow - _stepsStarted;
+        DialogStepPct.Text = $"{(int)(p * 100)}%";
+        if (p < 0.03 || elapsed.TotalSeconds < 2) { DialogStepEta.Text = Ui.Loc.F("Working · {0}", Clock(elapsed)) + " · " + Ui.Loc.T("estimating time left…"); return; }
+        var left = TimeSpan.FromSeconds(elapsed.TotalSeconds * (1 - p) / p);
+        string leftText = left.TotalSeconds < 10 ? Ui.Loc.T("a few seconds left")
+            : left.TotalSeconds < 60 ? Ui.Loc.F("about {0} seconds left", (int)Math.Ceiling(left.TotalSeconds / 5) * 5)
+            : Ui.Loc.F("about {0} min left", (int)Math.Ceiling(left.TotalMinutes));
+        DialogStepEta.Text = Ui.Loc.F("Working · {0}", Clock(elapsed)) + " · " + leftText;
+    }
+
+    static string Clock(TimeSpan t) => t.TotalHours >= 1 ? t.ToString(@"h\:mm\:ss") : t.ToString(@"m\:ss");
+
+    /// <summary>Shows a "Stop after this item" link on the progress screen; <paramref name="stop"/> runs when it's pressed.</summary>
+    public void AllowStepStop(Action stop)
+    {
+        _stepStop = stop;
+        DialogStepStop.Content = Ui.Loc.T("Stop after this item");
+        DialogStepStop.IsEnabled = true;
+        DialogStepStop.Visibility = stop == null ? Visibility.Collapsed : Visibility.Visible;
+    }
+
+    void DialogStepStop_Click(object sender, RoutedEventArgs e)
+    {
+        _stepStop?.Invoke();
+        DialogStepStop.IsEnabled = false;
+        DialogStepStop.Content = Ui.Loc.T("Stopping after this item…");
+    }
+
     public void ShowSteps(string title, string text, List<Ui.ProgressStep> steps, string glyph = "\uE74D")
     {
+        bool fresh = _steps == null;
         if (_steps != null) foreach (var st in _steps) st.PropertyChanged -= Step_Changed;
         _steps = steps;
         foreach (var st in steps) st.PropertyChanged += Step_Changed;
@@ -232,26 +278,34 @@ public partial class MainWindow : Window
         DialogStepList.ItemsSource = steps;
         DialogButtons.Visibility = Visibility.Collapsed;
         DialogBusyRow.Visibility = Visibility.Collapsed;
+        if (fresh) { _stepsStarted = DateTime.UtcNow; AllowStepStop(null); }
+        DialogStepEta.Visibility = DialogStepPct.Visibility = Visibility.Visible;
+        if (_etaTimer.Tag == null) { _etaTimer.Tick += (_, _) => UpdateEta(); _etaTimer.Tag = true; }
+        _etaTimer.Start();
+        UpdateEta();
         UpdateStepBar();
         ShowOverlay();
     }
 
     void Step_Changed(object sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(Ui.ProgressStep.State)) Dispatcher.Invoke(UpdateStepBar);
+        if (e.PropertyName is nameof(Ui.ProgressStep.State) or nameof(Ui.ProgressStep.Fraction)) Dispatcher.InvokeAsync(UpdateStepBar);
     }
 
     void UpdateStepBar()
     {
         if (_steps == null || _steps.Count == 0) return;
-        double done = _steps.Count(st => st.IsDone || st.IsSkipped) + _steps.Count(st => st.IsActive) * 0.5;
-        double width = Math.Max(DialogSteps.ActualWidth, 420) * done / _steps.Count;
-        DialogStepBar.BeginAnimation(WidthProperty, new DoubleAnimation(width, TimeSpan.FromMilliseconds(350)) { EasingFunction = new QuadraticEase() });
+        double width = Math.Max(DialogSteps.ActualWidth, 420) * StepProgress();
+        DialogStepBar.BeginAnimation(WidthProperty, new DoubleAnimation(width, TimeSpan.FromMilliseconds(250)) { EasingFunction = new QuadraticEase() });
     }
 
     /// <summary>Turns the progress screen into the result: a check mark, the outcome and an OK button.</summary>
     public Task FinishSteps(string title, string text, bool ok = true)
     {
+        _etaTimer.Stop();
+        DialogStepPct.Text = "100%";
+        DialogStepEta.Text = Ui.Loc.F("Took {0}", Clock(DateTime.UtcNow - _stepsStarted));
+        AllowStepStop(null);
         DialogTitle.Text = Ui.Loc.T(title);
         DialogText.Text = Ui.Loc.T(text);
         DialogText.Visibility = string.IsNullOrEmpty(text) ? Visibility.Collapsed : Visibility.Visible;
@@ -269,6 +323,7 @@ public partial class MainWindow : Window
 
     void HideSteps()
     {
+        _etaTimer.Stop();
         DialogStepIcon.Visibility = DialogSteps.Visibility = Visibility.Collapsed;
         if (_steps != null) foreach (var st in _steps) st.PropertyChanged -= Step_Changed;
         _steps = null;

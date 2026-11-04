@@ -118,24 +118,28 @@ public static class SpaceGoal
     /// Frees the picked items: safe items and your files first, programs next, the Recycle Bin last. Stops between
     /// items when cancelled. Returns what was done.
     /// </summary>
+    /// <summary>The order things are removed in: quick safe clean-ups first, then your files, then programs.</summary>
+    public static List<GoalItem> InOrder(IReadOnlyList<GoalItem> picked) =>
+        picked.OrderBy(i => i.Kind switch { GoalKind.Safe => 0, GoalKind.YourFiles => 1, GoalKind.Program => 2, _ => 3 }).ToList();
+
+    /// <summary>Removes one item. True when it went.</summary>
+    public static async Task<bool> FreeOne(GoalItem i)
+    {
+        if (i.Category != null) return await Task.Run(() => Cleaner.Clean(i.Category)) > 0 || i.Bytes == 0;
+        if (i.File != null) return await DeclutterEngine.RecycleAsync(new[] { i.File }) > 0;
+        if (i.App != null)
+            return (i.App.IsStoreApp ? await Task.Run(() => DeclutterEngine.RemoveStoreApp(i.App)) : await Task.Run(() => DeclutterEngine.StartUninstaller(i.App))).ok;
+        return false;
+    }
+
     public static async Task<(int Done, int Failed, bool Cancelled)> Free(IReadOnlyList<GoalItem> picked, IProgress<string> progress, CancellationToken cancel)
     {
         int done = 0, failed = 0;
-        var order = picked.OrderBy(i => i.Kind switch { GoalKind.Safe => 0, GoalKind.YourFiles => 1, GoalKind.Program => 2, _ => 3 }).ToList();
-        foreach (var i in order)
+        foreach (var i in InOrder(picked))
         {
             if (cancel.IsCancellationRequested) return (done, failed, true);
             progress?.Report(i.Title);
-            try
-            {
-                bool ok;
-                if (i.Category != null) { await Task.Run(() => Cleaner.Clean(i.Category)); ok = true; }
-                else if (i.File != null) ok = await DeclutterEngine.RecycleAsync(new[] { i.File }) > 0;
-                else if (i.App != null)
-                    ok = (i.App.IsStoreApp ? await Task.Run(() => DeclutterEngine.RemoveStoreApp(i.App)) : await Task.Run(() => DeclutterEngine.StartUninstaller(i.App))).ok;
-                else ok = false;
-                if (ok) done++; else failed++;
-            }
+            try { if (await FreeOne(i)) done++; else failed++; }
             catch { failed++; }
         }
         return (done, failed, false);

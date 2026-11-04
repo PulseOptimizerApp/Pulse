@@ -201,6 +201,11 @@
                             <Border Style="{StaticResource BarTrack}" Height="6"/>
                             <Border x:Name="DialogStepBar" Style="{StaticResource BarFill}" Height="6" HorizontalAlignment="Left" Width="0"/>
                         </Grid>
+                        <!-- Percent done and time left, so a long step never looks frozen -->
+                        <Grid Margin="0,8,0,0">
+                            <TextBlock x:Name="DialogStepEta" Style="{StaticResource Sub}" FontSize="12"/>
+                            <TextBlock x:Name="DialogStepPct" Style="{StaticResource Sub}" FontSize="12" HorizontalAlignment="Right" FontWeight="SemiBold"/>
+                        </Grid>
                         <ItemsControl x:Name="DialogStepList" Margin="0,12,0,0">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
@@ -224,6 +229,7 @@
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
+                        <Button x:Name="DialogStepStop" Style="{StaticResource LinkButton}" Content="Stop after this item" HorizontalAlignment="Left" Margin="0,10,0,0" Visibility="Collapsed" Click="DialogStepStop_Click"/>
                     </StackPanel>
                     <StackPanel x:Name="DialogBusyRow" Orientation="Horizontal" Margin="0,20,0,0" Visibility="Collapsed">
                         <ui:Spinner Width="22" Height="22" Brush="{StaticResource AccentGradient}"/>

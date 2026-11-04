@@ -15,6 +15,8 @@ public class CleanCategory : Observable
     public TimeSpan MinAge { get; init; } = TimeSpan.Zero;
     public Func<IEnumerable<CleanTarget>> Targets { get; init; }
     public bool IsRecycleBin { get; init; }
+    /// <summary>Bytes found that open apps are using (couldn't be deleted last time). Not counted in <see cref="Size"/>.</summary>
+    public long InUseSize { get; set; }
 
     bool _selected;
     public bool Selected { get => _selected; set => Set(ref _selected, value); }
@@ -215,20 +217,38 @@ public static class Cleaner
             c.Size = size; c.Count = (int)items;
             return;
         }
-        long total = 0; int n = 0;
+        long total = 0, inUse = 0; int n = 0;
         try
         {
             foreach (var f in Files(c))
             {
-                try { total += f.Length; n++; } catch { }
+                try
+                {
+                    // Files that couldn't be deleted a moment ago are still in use: counting them as "ready to free"
+                    // made Free look like it did nothing (the same size came straight back after cleaning).
+                    if (StillInUse(f.FullName)) { inUse += f.Length; continue; }
+                    total += f.Length; n++;
+                }
+                catch { }
             }
         }
         catch { }
-        c.Size = total; c.Count = n;
+        c.Size = total; c.Count = n; c.InUseSize = inUse;
     }
 
     /// <summary>Deletes the files in a category. Returns bytes freed. Files in use are skipped.</summary>
-    public static long Clean(CleanCategory c)
+    // Files an app had open when Pulse tried to delete them, and when. Forgotten after 30 minutes (apps close).
+    static readonly System.Collections.Concurrent.ConcurrentDictionary<string, DateTime> InUse = new(StringComparer.OrdinalIgnoreCase);
+
+    internal static bool StillInUse(string path) =>
+        InUse.TryGetValue(path, out var at) && (DateTime.UtcNow - at < TimeSpan.FromMinutes(30) || !InUse.TryRemove(path, out _));
+
+    /// <param name="progress">Called now and then with the bytes freed so far (for the progress screen).</param>
+    public static long Clean(CleanCategory c, Action<long> progress) => CleanCore(c, progress);
+
+    public static long Clean(CleanCategory c) => CleanCore(c, null);
+
+    static long CleanCore(CleanCategory c, Action<long> progress)
     {
         if (c.IsRecycleBin)
         {
@@ -236,6 +256,7 @@ public static class Cleaner
             return Native.EmptyRecycleBin() ? size : 0;
         }
         long freed = 0;
+        var tick = System.Diagnostics.Stopwatch.StartNew();
         foreach (var f in Files(c).ToList())
         {
             try
@@ -244,9 +265,12 @@ public static class Cleaner
                 if (f.IsReadOnly) f.IsReadOnly = false;
                 f.Delete();
                 freed += len;
+                InUse.TryRemove(f.FullName, out _);
             }
-            catch { /* in use or protected — skip */ }
+            catch { InUse[f.FullName] = DateTime.UtcNow; } // in use or protected: skipped, and not counted again for a while
+            if (progress != null && tick.ElapsedMilliseconds > 150) { progress(freed); tick.Restart(); }
         }
+        progress?.Invoke(freed);
         // Remove folders that are now empty (never the target folder itself).
         foreach (var t in c.Targets().Where(t => t.Recursive && Directory.Exists(t.Dir)))
         {
