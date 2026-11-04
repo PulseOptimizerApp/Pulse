@@ -20,6 +20,10 @@ public class RobloxSettings
     public DateTime? LastLaunch { get; set; }
     /// <summary>NVIDIA driver settings Pulse set for Roblox, with what was there before (for Undo).</summary>
     public List<NvBackup> NvidiaBackups { get; set; } = new();
+    /// <summary>NVIDIA row → chosen value on the Roblox page ("" = don't change).</summary>
+    public Dictionary<string, string> NvidiaChoices { get; set; } = new();
+    /// <summary>Advanced NVIDIA settings by hex ID → value, like NVIDIA Profile Inspector.</summary>
+    public Dictionary<string, string> NvidiaCustom { get; set; } = new();
 }
 
 /// <summary>One setting on the Roblox page, shown as a row of choices.</summary>
@@ -157,19 +161,111 @@ public static class RobloxBoost
 
     // ───────── Roblox install ─────────
 
-    static string RobloxDir => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Roblox");
+    /// <summary>The player's Roblox folder (settings XML, logs). Always under the player's own AppData, not Pulse's.</summary>
+    static string RobloxDir => Path.Combine(RobloxUser.LocalAppData, "Roblox");
 
-    /// <summary>Every installed Roblox player version folder, newest first.</summary>
+    /// <summary>Launchers that replace Roblox's own (they keep their own copy of Roblox in LocalAppData\Name\Versions).</summary>
+    internal static readonly string[] Strappers = { "Bloxstrap", "Fishstrap", "Voidstrap", "Froststrap", "Lunastrap", "Plexity" };
+
+    /// <summary>
+    /// Every folder that can hold Roblox version folders, Roblox's own first. Roblox installs per user into
+    /// AppData\Local\Roblox, but an install started from an administrator prompt goes to Program Files (x86), and a
+    /// third-party launcher keeps its own copy. The Play button's registered command and Roblox's uninstall entry say
+    /// exactly where the player is, so those are checked too.
+    /// </summary>
+    internal static List<string> VersionRoots()
+    {
+        var roots = new List<string>
+        {
+            Path.Combine(RobloxDir, "Versions"),
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "Roblox", "Versions"),
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Roblox", "Versions"),
+        };
+        var (hive, prefix) = RobloxUser.UserRoot;
+        foreach (var where in new[] { (hive, prefix), (RegistryHive.LocalMachine, "") })
+        {
+            if (Reg.Get(where.Item1, where.Item2 + @"Software\Microsoft\Windows\CurrentVersion\Uninstall\roblox-player", "InstallLocation") is string loc
+                && loc.Length > 0)
+                roots.Add(Path.GetDirectoryName(loc.TrimEnd('\\', '/')) ?? loc);
+        }
+        foreach (var cmd in HandlerCommands().Append(Settings.OriginalHandlers.GetValueOrDefault("roblox-player")))
+            if (ExeOf(cmd) is string exe && exe.EndsWith("RobloxPlayerBeta.exe", StringComparison.OrdinalIgnoreCase))
+                roots.Add(Path.GetDirectoryName(Path.GetDirectoryName(exe)) ?? "");
+        foreach (var name in Strappers) roots.Add(Path.Combine(RobloxUser.LocalAppData, name, "Versions"));
+        return roots.Where(r => r.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+    }
+
+    /// <summary>Every installed Roblox player version folder: Roblox's own install first, newest first within each place.</summary>
     public static List<string> PlayerVersions()
     {
-        var versions = Path.Combine(RobloxDir, "Versions");
-        if (!Directory.Exists(versions)) return new();
-        return Directory.GetDirectories(versions)
-            .Where(d => File.Exists(Path.Combine(d, "RobloxPlayerBeta.exe")))
-            .OrderByDescending(d => File.GetLastWriteTime(Path.Combine(d, "RobloxPlayerBeta.exe"))).ToList();
+        var found = new List<string>();
+        foreach (var root in VersionRoots())
+        {
+            try
+            {
+                if (!Directory.Exists(root)) continue;
+                found.AddRange(Directory.GetDirectories(root)
+                    .Where(d => File.Exists(Path.Combine(d, "RobloxPlayerBeta.exe")))
+                    .OrderByDescending(d => File.GetLastWriteTime(Path.Combine(d, "RobloxPlayerBeta.exe"))));
+            }
+            catch { /* a folder Pulse can't read: try the next place */ }
+        }
+        return found.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
     }
 
     public static bool Installed => PlayerVersions().Count > 0;
+
+    /// <summary>The Microsoft Store version of Roblox is installed (its files are locked by Windows).</summary>
+    public static bool StoreVersion()
+    {
+        var (hive, prefix) = RobloxUser.UserRoot;
+        return Reg.SubKeys(hive, prefix + @"Software\Classes\Local Settings\Software\Microsoft\Windows\CurrentVersion\AppModel\Repository\Packages")
+            .Any(k => k.StartsWith("ROBLOXCORPORATION.ROBLOX", StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>The third-party launcher (Bloxstrap and the like) that Roblox's Play button opens right now, if any.</summary>
+    public static string ForeignLauncher()
+    {
+        foreach (var cmd in HandlerCommands())
+        {
+            if (cmd.Contains("--roblox", StringComparison.Ordinal)) continue;
+            var hit = Strappers.FirstOrDefault(n => cmd.Contains(n, StringComparison.OrdinalIgnoreCase));
+            if (hit != null) return hit;
+        }
+        return null;
+    }
+
+    /// <summary>Why Pulse can't find Roblox, in words the player can act on.</summary>
+    public static string WhyNotFound()
+    {
+        if (StoreVersion())
+            return "You have the Microsoft Store version of Roblox. Windows locks its files, so Pulse can't apply settings to it. Install Roblox from roblox.com (it can sit next to the Store version), press Play once, then turn this on.";
+        if (RobloxUser.IsDifferentAccount)
+            return "Pulse couldn't find Roblox for the Windows account that's logged in. Pulse is running as a different administrator account, so it looked in your account's folders, but Roblox isn't there. Open roblox.com on this account, press Play once so Roblox finishes installing, then try again.";
+        return "Pulse couldn't find RobloxPlayerBeta.exe in any Roblox folder for this Windows account. Open roblox.com, press Play once so Roblox finishes installing, then try again.";
+    }
+
+    /// <summary>The Play button's current commands: the player's own registration, then the machine-wide one.</summary>
+    static IEnumerable<string> HandlerCommands()
+    {
+        var (hive, prefix) = RobloxUser.UserRoot;
+        foreach (var p in Protocols)
+        {
+            if (Reg.Get(hive, prefix + CommandKey(p), "") is string mine && mine.Length > 0) yield return mine;
+            if (Reg.Get(RegistryHive.LocalMachine, CommandKey(p), "") is string machine && machine.Length > 0) yield return machine;
+        }
+    }
+
+    /// <summary>The program a registered command runs ("C:\...\x.exe" %1 or C:\...\x.exe %1).</summary>
+    internal static string ExeOf(string cmd)
+    {
+        if (string.IsNullOrWhiteSpace(cmd)) return null;
+        cmd = cmd.Trim();
+        var m = Regex.Match(cmd, "^\"([^\"]+)\"");
+        if (m.Success) return m.Groups[1].Value;
+        var i = cmd.IndexOf(".exe", StringComparison.OrdinalIgnoreCase);
+        return i > 0 ? cmd[..(i + 4)] : null;
+    }
 
     /// <summary>Writes the flags file into a version folder. An empty set removes Pulse's file so Roblox runs untouched.</summary>
     public static void WriteFlags(string versionDir, Dictionary<string, string> flags)
@@ -233,106 +329,158 @@ public static class RobloxBoost
         return n;
     }
 
+    // ───────── Settings the Play button reads ─────────
+
+    /// <summary>
+    /// A copy of the Roblox settings in the player's own AppData. The Play button runs Pulse as the player, without
+    /// admin rights; when the Pulse window runs under a different administrator account its state file isn't the
+    /// player's, so the Play button reads this copy instead.
+    /// </summary>
+    static string LaunchFile => Path.Combine(RobloxUser.LocalAppData, "PulseOptimizer", "roblox-launch.json");
+
+    /// <summary>Saves Pulse's state and the copy the Play button reads. Use this instead of TweakEngine.Save for Roblox changes.</summary>
+    public static void Save()
+    {
+        TweakEngine.Save();
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(LaunchFile)!);
+            File.WriteAllText(LaunchFile, JsonSerializer.Serialize(Settings));
+        }
+        catch { }
+    }
+
+    static RobloxSettings LaunchSettings()
+    {
+        try
+        {
+            if (File.Exists(LaunchFile) && JsonSerializer.Deserialize<RobloxSettings>(File.ReadAllText(LaunchFile)) is RobloxSettings s) return s;
+        }
+        catch { }
+        return Settings;
+    }
+
     // ───────── Launch through Pulse ─────────
 
     static readonly string[] Protocols = { "roblox-player", "roblox" };
     static string CommandKey(string protocol) => $@"Software\Classes\{protocol}\shell\open\command";
     static string PulseCommand => $"\"{Environment.ProcessPath}\" --roblox \"%1\"";
 
+    /// <summary>The player's own registry key (HKCU for them, even when Pulse runs as another administrator).</summary>
+    static string UserKey(string protocol) => RobloxUser.UserRoot.Prefix + CommandKey(protocol);
+
     public static bool HandlerIsPulse() =>
-        Reg.Get(RegistryHive.CurrentUser, CommandKey("roblox-player"), "") is string cmd && cmd.Contains("--roblox", StringComparison.Ordinal)
+        Reg.Get(RobloxUser.UserRoot.Hive, UserKey("roblox-player"), "") is string cmd && cmd.Contains("--roblox", StringComparison.Ordinal)
         && cmd.Contains(Path.GetFileName(Environment.ProcessPath ?? "PulseOptimizer.exe"), StringComparison.OrdinalIgnoreCase);
 
     /// <summary>Makes Roblox's Play button go through Pulse (remembering Roblox's own command to put back later).</summary>
     public static void EnableLaunch()
     {
-        RegisterKeys();
+        RegisterKeys(Settings);
         Settings.LaunchThroughPulse = true;
         TweakEngine.AddLog("roblox", "Roblox now launches through Pulse");
     }
 
-    static void RegisterKeys()
+    static void RegisterKeys(RobloxSettings settings)
     {
+        var (hive, prefix) = RobloxUser.UserRoot;
         foreach (var p in Protocols)
         {
-            var current = Reg.Get(RegistryHive.CurrentUser, CommandKey(p), "") as string;
+            // What the Play button opens now: the player's own registration, else the machine-wide one.
+            var current = Reg.Get(hive, UserKey(p), "") as string;
+            if (string.IsNullOrEmpty(current)) current = Reg.Get(RegistryHive.LocalMachine, CommandKey(p), "") as string;
             if (!string.IsNullOrEmpty(current) && !current.Contains("--roblox", StringComparison.Ordinal))
-                Settings.OriginalHandlers[p] = current;
-            Reg.Set(RegistryHive.CurrentUser, CommandKey(p), "", PulseCommand, RegistryValueKind.String);
-            if (Reg.Get(RegistryHive.CurrentUser, $@"Software\Classes\{p}", "URL Protocol") == null)
+                settings.OriginalHandlers[p] = current;
+            var cls = $@"{prefix}Software\Classes\{p}";
+            if (Reg.Get(hive, cls, "URL Protocol") == null)
             {
-                Reg.Set(RegistryHive.CurrentUser, $@"Software\Classes\{p}", "", "URL: Roblox Protocol", RegistryValueKind.String);
-                Reg.Set(RegistryHive.CurrentUser, $@"Software\Classes\{p}", "URL Protocol", "", RegistryValueKind.String);
+                Reg.Set(hive, cls, "", "URL: Roblox Protocol", RegistryValueKind.String);
+                Reg.Set(hive, cls, "URL Protocol", "", RegistryValueKind.String);
             }
+            Reg.Set(hive, UserKey(p), "", PulseCommand, RegistryValueKind.String);
         }
     }
 
-    /// <summary>Gives the Play button back to Roblox.</summary>
+    /// <summary>Gives the Play button back to Roblox (or to the launcher that had it before).</summary>
     public static void DisableLaunch()
     {
         var newest = PlayerVersions().FirstOrDefault();
+        var hive = RobloxUser.UserRoot.Hive;
         foreach (var p in Protocols)
         {
             var original = Settings.OriginalHandlers.GetValueOrDefault(p);
             if (string.IsNullOrEmpty(original) || !OriginalExeExists(original))
                 original = newest != null ? $"\"{Path.Combine(newest, "RobloxPlayerBeta.exe")}\" %1" : null;
-            if (original != null) Reg.Set(RegistryHive.CurrentUser, CommandKey(p), "", original, RegistryValueKind.String);
+            if (original != null) Reg.Set(hive, UserKey(p), "", original, RegistryValueKind.String);
         }
         Settings.LaunchThroughPulse = false;
         TweakEngine.AddLog("roblox", "Roblox launches on its own again");
     }
 
-    static bool OriginalExeExists(string cmd)
-    {
-        var m = Regex.Match(cmd, "^\"([^\"]+)\"");
-        return m.Success && File.Exists(m.Groups[1].Value);
-    }
+    static bool OriginalExeExists(string cmd) => ExeOf(cmd) is string exe && File.Exists(exe);
 
     /// <summary>
     /// Runs when Roblox's Play button is clicked with Launch-through-Pulse on. No window: write the flags into every
     /// version folder, start Roblox exactly as Roblox would, and if Roblox updates itself (new version folder),
     /// write the flags there too before the new client reads them. Then take the Play button back if the update reset it.
+    /// If Pulse can't find a Roblox to start, it hands the click to whatever had the Play button before, so pressing
+    /// Play never silently does nothing.
     /// </summary>
     public static void HandleLaunch(string uri)
     {
         // This runs as a separate, short-lived process while Pulse itself may be open, so it never saves Pulse's
         // state file (that would overwrite changes made in the open window). It only reads the saved choices.
+        var settings = LaunchSettings();
         var options = CreateOptions();
-        foreach (var o in options) o.Value = Settings.Choices.GetValueOrDefault(o.Key, "");
-        var flags = BuildFlags(options, Settings.CustomFlags);
-        var known = new HashSet<string>(PlayerVersions(), StringComparer.OrdinalIgnoreCase);
-        foreach (var v in known) { try { WriteFlags(v, flags); } catch { } }
+        foreach (var o in options) o.Value = settings.Choices.GetValueOrDefault(o.Key, "");
+        var flags = BuildFlags(options, settings.CustomFlags);
+        var ordered = PlayerVersions();
+        var known = new HashSet<string>(ordered, StringComparer.OrdinalIgnoreCase);
+        foreach (var v in ordered) { try { WriteFlags(v, flags); } catch { } }
         try { WriteFpsCap(options.First(o => o.Key == "fps").Value); } catch { }
 
-        var exe = known.Select(v => Path.Combine(v, "RobloxPlayerBeta.exe")).FirstOrDefault();
-        var original = Settings.OriginalHandlers.GetValueOrDefault("roblox-player");
-        if (exe == null && original != null && OriginalExeExists(original))
-            exe = Regex.Match(original, "^\"([^\"]+)\"").Groups[1].Value;
-        if (exe == null) return;
+        var exe = ordered.Select(v => Path.Combine(v, "RobloxPlayerBeta.exe")).FirstOrDefault();
+        if (exe == null)
+        {
+            // Nothing Pulse can start: run the original command (Roblox's, Bloxstrap's...) so Play still works.
+            var original = settings.OriginalHandlers.GetValueOrDefault("roblox-player");
+            if (ExeOf(original) is string origExe && File.Exists(origExe) && !origExe.Equals(Environment.ProcessPath, StringComparison.OrdinalIgnoreCase))
+            {
+                var cmd = original.Trim();
+                var args = cmd[(cmd.StartsWith('"') ? origExe.Length + 2 : origExe.Length)..].Replace("%1", uri).Trim();
+                Process.Start(new ProcessStartInfo(origExe, args) { UseShellExecute = false, WorkingDirectory = Path.GetDirectoryName(origExe) });
+            }
+            return;
+        }
 
         Process.Start(new ProcessStartInfo(exe, $"\"{uri}\"") { UseShellExecute = false, WorkingDirectory = Path.GetDirectoryName(exe) });
 
         // Watch for a Roblox update for up to two minutes.
-        var versions = Path.Combine(RobloxDir, "Versions");
+        var roots = VersionRoots().Where(Directory.Exists).ToList();
         var until = DateTime.Now.AddMinutes(2);
-        while (DateTime.Now < until && Directory.Exists(versions))
+        while (DateTime.Now < until && roots.Count > 0)
         {
-            foreach (var d in Directory.GetDirectories(versions).Where(d => !known.Contains(d)))
+            foreach (var root in roots)
             {
-                if (File.Exists(Path.Combine(d, "RobloxPlayerBeta.exe")))
+                try
                 {
-                    try { WriteFlags(d, flags); known.Add(d); } catch { }
+                    foreach (var d in Directory.GetDirectories(root).Where(d => !known.Contains(d)))
+                        if (File.Exists(Path.Combine(d, "RobloxPlayerBeta.exe")))
+                        {
+                            try { WriteFlags(d, flags); known.Add(d); } catch { }
+                        }
                 }
+                catch { }
             }
             Thread.Sleep(400);
         }
-        try { if (Settings.LaunchThroughPulse && !HandlerIsPulse()) RegisterKeys(); } catch { }
+        try { if (settings.LaunchThroughPulse && !HandlerIsPulse()) RegisterKeys(settings); } catch { }
     }
 
     /// <summary>On Pulse start: if Roblox updated and took the Play button back, quietly take it again and re-apply.</summary>
     public static void Maintain()
     {
         if (!Settings.LaunchThroughPulse) return;
-        try { if (!HandlerIsPulse()) EnableLaunch(); ApplyAll(); TweakEngine.Save(); } catch { }
+        try { if (!HandlerIsPulse()) EnableLaunch(); ApplyAll(); Save(); } catch { }
     }
 }

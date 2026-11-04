@@ -38,10 +38,12 @@ public partial class RobloxPage : UserControl, IPage
     void UpdateStatus()
     {
         var versions = RobloxBoost.PlayerVersions();
+        var other = RobloxBoost.ForeignLauncher();
         StatusText.Text = versions.Count == 0
-            ? "Roblox isn't installed for this Windows account. Install it from roblox.com, then come back."
+            ? Pulse.Ui.Loc.T(RobloxBoost.WhyNotFound())
             : (S.LaunchThroughPulse ? "On" : "Off") + $" · Roblox {Path.GetFileName(versions[0]).Replace("version-", "")}"
-              + (S.LastLaunch is DateTime t ? $" · last launched {Format.Ago(t)}" : "");
+              + (S.LastLaunch is DateTime t ? $" · last launched {Format.Ago(t)}" : "")
+              + (!S.LaunchThroughPulse && other != null ? Pulse.Ui.Loc.F(" · Play currently opens {0}", other) : "");
         var flags = RobloxBoost.BuildFlags(_options, S.CustomFlags);
         var fps = _options.First(o => o.Key == "fps").Value;
         var fpsText = fps == RobloxBoost.UncappedValue ? " and an uncapped frame rate (Roblox's settings file stays locked, so in-game settings changes won't save)"
@@ -61,7 +63,7 @@ public partial class RobloxPage : UserControl, IPage
     void SaveChoices()
     {
         S.Choices = _options.ToDictionary(o => o.Key, o => o.Value);
-        TweakEngine.Save();
+        RobloxBoost.Save();
         UpdateStatus();
     }
 
@@ -86,16 +88,24 @@ public partial class RobloxPage : UserControl, IPage
     async void Launch_Click(object sender, RoutedEventArgs e)
     {
         bool on = LaunchSwitch.IsChecked == true;
-        if (on && !RobloxBoost.Installed)
+        if (on && !await Task.Run(() => RobloxBoost.Installed))
         {
             LaunchSwitch.IsChecked = false;
-            await MainWindow.Instance.Alert("Roblox isn't installed", "Install Roblox from roblox.com and play once, then turn this on.");
+            await MainWindow.Instance.Alert("Pulse can't find Roblox", RobloxBoost.WhyNotFound());
+            UpdateStatus();
+            return;
+        }
+        var other = on ? RobloxBoost.ForeignLauncher() : null;
+        if (other != null && !await MainWindow.Instance.Confirm(Pulse.Ui.Loc.F("{0} has Roblox's Play button", other),
+                Pulse.Ui.Loc.F("{0} rewrites Roblox's settings every time it starts Roblox, so Pulse's settings can't work alongside it. Pulse can take over the Play button and start Roblox itself; turning this off later gives the Play button back to {0}.", other), "Use Pulse"))
+        {
+            LaunchSwitch.IsChecked = false;
             return;
         }
         try
         {
             await Task.Run(() => { if (on) { RobloxBoost.EnableLaunch(); RobloxBoost.ApplyAll(); } else RobloxBoost.DisableLaunch(); });
-            TweakEngine.Save();
+            RobloxBoost.Save();
             MainWindow.Instance.Toast(on ? "Roblox now launches through Pulse. Press Play on roblox.com as usual." : "Roblox launches on its own again.");
         }
         catch (Exception ex)
@@ -123,6 +133,9 @@ public partial class RobloxPage : UserControl, IPage
 
     // ───────── NVIDIA profile (Roblox only) ─────────
 
+    List<NvOption> _nv = new();
+    bool _nvLoading;
+
     async Task ShowNvidia()
     {
         var (ok, hz) = await Task.Run(() =>
@@ -133,30 +146,88 @@ public partial class RobloxPage : UserControl, IPage
         });
         _hz = hz;
         NvCard.Visibility = ok ? Visibility.Visible : Visibility.Collapsed;
-        NvCapText.Text = hz >= 100
-            ? $"Max Frame Rate: {Math.Min(hz - 3, 237)} FPS (just under your {hz} Hz, keeps G-SYNC/FreeSync in range; leave off if you don't use it)"
-            : "Max Frame Rate (only useful with a 100 Hz+ monitor and G-SYNC)";
-        NvCap.IsEnabled = hz >= 100;
+        if (!ok) return;
+
+        _nvLoading = true;
+        _nv = NvidiaCatalog.CreateOptions(hz);
+        if (S.NvidiaChoices.Count == 0 && S.NvidiaBackups.Count == 0) S.NvidiaChoices = new(NvidiaCatalog.Presets["lowlatency"]);
+        foreach (var o in _nv) o.Value = S.NvidiaChoices.GetValueOrDefault(o.Key, "");
+        NvList.ItemsSource = _nv;
+        MarkNvPreset();
+        _nvLoading = false;
+        ShowNvCustom();
+
+        try
+        {
+            var ids = _nv.Select(o => o.Id).ToList();
+            var current = await Task.Run(() => NvidiaProfile.ReadCurrent(ids));
+            NvidiaCatalog.ShowCurrent(_nv, current);
+            NvReadError.Visibility = Visibility.Collapsed;
+        }
+        catch (Exception ex)
+        {
+            NvReadError.Text = Pulse.Ui.Loc.T("Couldn't read Roblox's NVIDIA profile:") + " " + ex.Message;
+            NvReadError.Visibility = Visibility.Visible;
+        }
         bool applied = S.NvidiaBackups.Count > 0;
         NvOnPill.Visibility = NvUndoBtn.Visibility = applied ? Visibility.Visible : Visibility.Collapsed;
+        UpdateNvSummary();
+    }
+
+    void MarkNvPreset()
+    {
+        var mine = _nv.Where(o => o.Value.Length > 0).ToDictionary(o => o.Key, o => o.Value);
+        string match = NvidiaCatalog.Presets.FirstOrDefault(p => p.Value.Count == mine.Count && p.Value.All(kv => mine.GetValueOrDefault(kv.Key) == kv.Value)).Key;
+        NvPresetLow.IsChecked = match == "lowlatency";
+        NvPresetNone.IsChecked = match == "none";
+    }
+
+    void UpdateNvSummary()
+    {
+        int n = NvidiaCatalog.Build(_nv, S.NvidiaCustom).Count;
+        NvSummary.Text = n == 0 ? Pulse.Ui.Loc.T("Nothing will change in Roblox's NVIDIA profile.")
+            : n == 1 ? Pulse.Ui.Loc.T("1 driver setting will be set for Roblox.")
+            : Pulse.Ui.Loc.F("{0} driver settings will be set for Roblox.", n);
+    }
+
+    void SaveNvChoices()
+    {
+        S.NvidiaChoices = _nv.ToDictionary(o => o.Key, o => o.Value);
+        RobloxBoost.Save();
+        UpdateNvSummary();
+    }
+
+    void NvPreset_Checked(object sender, RoutedEventArgs e)
+    {
+        if (_nvLoading || (sender as FrameworkElement)?.Tag is not string key) return;
+        _nvLoading = true;
+        foreach (var o in _nv) o.Value = NvidiaCatalog.Presets[key].GetValueOrDefault(o.Key, "");
+        _nvLoading = false;
+        SaveNvChoices();
+    }
+
+    void NvChoice_Click(object sender, RoutedEventArgs e)
+    {
+        SaveNvChoices();
+        _nvLoading = true;
+        MarkNvPreset();
+        _nvLoading = false;
     }
 
     async void NvApply_Click(object sender, RoutedEventArgs e)
     {
-        var list = new List<NvSetting>();
-        if (NvLowLatency.IsChecked == true) list.Add(new(NvidiaProfile.PRERENDERLIMIT_ID, "Low Latency Mode", 1, "On"));
-        if (NvMaxPerf.IsChecked == true) list.Add(new(NvidiaProfile.PREFERRED_PSTATE_ID, "Power management mode", 1, "Prefer maximum performance"));
-        if (NvVsyncOff.IsChecked == true) list.Add(new(NvidiaProfile.VSYNCMODE_ID, "Vertical sync", NvidiaProfile.VSYNCMODE_FORCEOFF, "Force off"));
-        if (NvCap.IsChecked == true && _hz >= 100) list.Add(new(NvidiaProfile.FRL_FPS_ID, "Max Frame Rate", (uint)Math.Min(_hz - 3, 237), $"{Math.Min(_hz - 3, 237)} FPS"));
-        if (list.Count == 0) return;
+        var list = NvidiaCatalog.Build(_nv, S.NvidiaCustom);
+        if (list.Count == 0 && S.NvidiaBackups.Count == 0) { MainWindow.Instance.Toast("Pick at least one NVIDIA setting first."); return; }
 
-        var lines = string.Join("\n", list.Select(x => $"•  {x.Name}: {x.ValueText}"));
+        var lines = list.Count == 0 ? "•  Nothing: Pulse's earlier changes are put back."
+            : string.Join("\n", list.Where(x => !x.Name.StartsWith("Ultra Low") && !x.Name.StartsWith("Max pre-rendered")).Select(x => $"•  {x.Name}: {x.ValueText}"));
         if (!await MainWindow.Instance.Confirm("Change NVIDIA settings for Roblox?",
                 lines + "\n\nOnly Roblox's profile changes; your other games and global settings stay as they are. Undo puts the old values back. Takes effect the next time Roblox starts.", "Apply")) return;
         try
         {
-            if (S.NvidiaBackups.Count > 0) await Task.Run(() => NvidiaProfile.Undo(S.NvidiaBackups));
-            S.NvidiaBackups = await Task.Run(() => NvidiaProfile.Apply(list));
+            if (S.NvidiaBackups.Count > 0) { await Task.Run(() => NvidiaProfile.Undo(S.NvidiaBackups)); S.NvidiaBackups.Clear(); }
+            if (list.Count > 0) S.NvidiaBackups = await Task.Run(() => NvidiaProfile.Apply(list));
+            RobloxBoost.Save();
             TweakEngine.AddLog("roblox", $"Applied {list.Count} NVIDIA settings to Roblox's profile");
             MainWindow.Instance.Toast("NVIDIA settings applied to Roblox. Restart Roblox if it's open.");
         }
@@ -170,11 +241,46 @@ public partial class RobloxPage : UserControl, IPage
         {
             await Task.Run(() => NvidiaProfile.Undo(S.NvidiaBackups));
             S.NvidiaBackups.Clear();
+            RobloxBoost.Save();
             TweakEngine.AddLog("undo", "Restored Roblox's NVIDIA settings");
             MainWindow.Instance.Toast("Roblox's NVIDIA settings are back to how they were.");
         }
         catch (Exception ex) { await MainWindow.Instance.Alert("Couldn't restore", ex.Message); }
         await ShowNvidia();
+    }
+
+    void NvAdvToggle_Click(object sender, RoutedEventArgs e)
+    {
+        bool show = NvAdvToggle.IsChecked == true;
+        NvAdvPanel.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+        NvAdvToggle.Content = show ? "Hide" : "Show";
+    }
+
+    void ShowNvCustom() => NvCustomList.ItemsSource = S.NvidiaCustom.OrderBy(kv => kv.Key).ToList();
+
+    void NvAddCustom_Click(object sender, RoutedEventArgs e)
+    {
+        if (!NvidiaCatalog.TryParseCustom(NvCustomId.Text, NvCustomValue.Text, out var id, out var value, out var why))
+        {
+            NvCustomError.Text = Pulse.Ui.Loc.T(why);
+            NvCustomError.Visibility = Visibility.Visible;
+            return;
+        }
+        NvCustomError.Visibility = Visibility.Collapsed;
+        S.NvidiaCustom[$"0x{id:X8}"] = $"0x{value:X8}";
+        RobloxBoost.Save();
+        NvCustomId.Text = ""; NvCustomValue.Text = "";
+        ShowNvCustom();
+        UpdateNvSummary();
+    }
+
+    void NvRemoveCustom_Click(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.Tag is not string key) return;
+        S.NvidiaCustom.Remove(key);
+        RobloxBoost.Save();
+        ShowNvCustom();
+        UpdateNvSummary();
     }
 
     // ───────── Fast Flag editor ─────────
@@ -205,7 +311,7 @@ public partial class RobloxPage : UserControl, IPage
         }
         FlagError.Visibility = Visibility.Collapsed;
         S.CustomFlags[name] = value;
-        TweakEngine.Save();
+        RobloxBoost.Save();
         FlagName.Text = ""; FlagValue.Text = "";
         ShowCustom();
         UpdateStatus();
@@ -215,7 +321,7 @@ public partial class RobloxPage : UserControl, IPage
     {
         if ((sender as FrameworkElement)?.Tag is not string key) return;
         S.CustomFlags.Remove(key);
-        TweakEngine.Save();
+        RobloxBoost.Save();
         ShowCustom();
         UpdateStatus();
     }

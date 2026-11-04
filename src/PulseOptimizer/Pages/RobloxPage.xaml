@@ -70,11 +70,11 @@
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
 
-            <!-- NVIDIA profile, Roblox only -->
+            <!-- NVIDIA profile, Roblox only (a small NVIDIA Profile Inspector for Roblox's profile) -->
             <Border x:Name="NvCard" Style="{StaticResource Card}" Margin="0,16,0,0" Padding="22,18" Visibility="Collapsed">
                 <StackPanel>
                     <Grid>
-                        <StackPanel>
+                        <StackPanel Margin="0,0,200,0">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Style="{StaticResource H2}" Text="NVIDIA settings for Roblox only"/>
                                 <Border x:Name="NvOnPill" Style="{StaticResource Pill}" Background="{StaticResource GoodSoftBrush}" Margin="10,0,0,0" Visibility="Collapsed">
@@ -82,35 +82,79 @@
                                 </Border>
                             </StackPanel>
                             <TextBlock Style="{StaticResource Body}" Margin="0,4,0,0" MaxWidth="660" HorizontalAlignment="Left"
-                                       Text="Pulse sets these in NVIDIA's own per-game profile for Roblox, the same place as NVIDIA Control Panel → Manage 3D settings → Program Settings. Your other games and global settings don't change."/>
+                                       Text="Pulse edits NVIDIA's own per-game profile for Roblox, the same one NVIDIA Control Panel and NVIDIA Profile Inspector edit. Each row shows what the driver has for Roblox now. Your other games and global settings don't change, and Undo puts every old value back."/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top">
+                            <RadioButton x:Name="NvPresetLow" Style="{StaticResource Chip}" GroupName="NvPreset" Tag="lowlatency" Content="Lowest delay" Checked="NvPreset_Checked"/>
+                            <RadioButton x:Name="NvPresetNone" Style="{StaticResource Chip}" GroupName="NvPreset" Tag="none" Content="Change nothing" Checked="NvPreset_Checked"/>
                         </StackPanel>
                     </Grid>
-                    <StackPanel Margin="0,14,0,0">
-                        <Grid Margin="0,0,0,10">
-                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                            <TextBlock Style="{StaticResource Body}" Foreground="{StaticResource TextBrush}" VerticalAlignment="Center" Margin="0,0,16,0" Text="Low Latency Mode: On. Roblox has no NVIDIA Reflex, so this is the driver's best option."/>
-                            <CheckBox x:Name="NvLowLatency" Grid.Column="1" Style="{StaticResource Switch}" IsChecked="True"/>
+                    <TextBlock x:Name="NvReadError" Foreground="{StaticResource WarnBrush}" FontSize="12" Margin="0,8,0,0" Visibility="Collapsed" TextWrapping="Wrap"/>
+
+                    <ItemsControl x:Name="NvList" Margin="0,14,0,0">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1" Padding="0,10">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                        <StackPanel VerticalAlignment="Center" Margin="0,0,16,0">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Style="{StaticResource CardTitle}" Text="{Binding Title}"/>
+                                                <TextBlock Text="{Binding Current}" FontSize="12" Foreground="{StaticResource TextDimBrush}" Margin="10,1,0,0" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                            <TextBlock Style="{StaticResource Body}" FontSize="12.5" Margin="0,3,0,0" Text="{Binding Detail}" MaxWidth="520" HorizontalAlignment="Left"/>
+                                        </StackPanel>
+                                        <ItemsControl Grid.Column="1" ItemsSource="{Binding Choices}" VerticalAlignment="Center">
+                                            <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel MaxWidth="440" HorizontalAlignment="Right"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <RadioButton Style="{StaticResource Chip}" Content="{Binding Label}" GroupName="{Binding Owner.Key}"
+                                                                 IsChecked="{Binding IsSelected, Mode=TwoWay}" Margin="6,3,0,3" Click="NvChoice_Click"/>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <!-- Advanced: any driver setting by ID -->
+                    <Grid Margin="0,14,0,0">
+                        <TextBlock Style="{StaticResource CardTitle}" Text="Advanced: any setting by ID" VerticalAlignment="Center"/>
+                        <ToggleButton x:Name="NvAdvToggle" Style="{StaticResource LinkToggle}" Content="Show" HorizontalAlignment="Right" Click="NvAdvToggle_Click"/>
+                    </Grid>
+                    <StackPanel x:Name="NvAdvPanel" Visibility="Collapsed" Margin="0,8,0,0">
+                        <TextBlock Style="{StaticResource Body}" FontSize="12.5" MaxWidth="660" HorizontalAlignment="Left"
+                                   Text="For people who know NVIDIA Profile Inspector: type a setting's hex ID and a value (hex like 0x00000001, or a whole number). Pulse writes it to Roblox's profile only and backs up the old value. A wrong value can make Roblox look odd or crash; Undo fixes it."/>
+                        <Grid Margin="0,10,0,0">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="160"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <TextBox x:Name="NvCustomId" Style="{StaticResource SearchBox}" Tag="Setting ID, e.g. 0x10835002"/>
+                            <TextBox x:Name="NvCustomValue" Grid.Column="1" Style="{StaticResource SearchBox}" Tag="Value" Margin="10,0,0,0"/>
+                            <Button Grid.Column="2" Style="{StaticResource PrimaryButton}" Content="Add" Margin="10,0,0,0" Click="NvAddCustom_Click"/>
                         </Grid>
-                        <Grid Margin="0,0,0,10">
-                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                            <TextBlock Style="{StaticResource Body}" Foreground="{StaticResource TextBrush}" VerticalAlignment="Center" Margin="0,0,16,0" Text="Power management: Prefer maximum performance. Stops the card clocking down mid-game."/>
-                            <CheckBox x:Name="NvMaxPerf" Grid.Column="1" Style="{StaticResource Switch}" IsChecked="True"/>
-                        </Grid>
-                        <Grid Margin="0,0,0,10">
-                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                            <TextBlock Style="{StaticResource Body}" Foreground="{StaticResource TextBrush}" VerticalAlignment="Center" Margin="0,0,16,0" Text="Vertical sync: Force off. Lowest delay; you may see tearing without G-SYNC."/>
-                            <CheckBox x:Name="NvVsyncOff" Grid.Column="1" Style="{StaticResource Switch}" IsChecked="True"/>
-                        </Grid>
-                        <Grid Margin="0,0,0,4">
-                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                            <TextBlock x:Name="NvCapText" Style="{StaticResource Body}" Foreground="{StaticResource TextBrush}" VerticalAlignment="Center" Margin="0,0,16,0"/>
-                            <CheckBox x:Name="NvCap" Grid.Column="1" Style="{StaticResource Switch}" IsChecked="False"/>
-                        </Grid>
+                        <TextBlock x:Name="NvCustomError" Foreground="{StaticResource WarnBrush}" FontSize="12" Margin="0,6,0,0" Visibility="Collapsed"/>
+                        <ItemsControl x:Name="NvCustomList" Margin="0,10,0,0">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid Margin="0,4">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                        <TextBlock Text="{Binding Key}" Style="{StaticResource Mono}" Foreground="{StaticResource TextBrush}" VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="1" Text="{Binding Value}" Style="{StaticResource Mono}" Margin="16,0" VerticalAlignment="Center"/>
+                                        <Button Grid.Column="2" Style="{StaticResource LinkButton}" Content="Remove" Tag="{Binding Key}" Click="NvRemoveCustom_Click"/>
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
                     </StackPanel>
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
-                        <Button x:Name="NvUndoBtn" Style="{StaticResource GhostButton}" Content="Undo" Margin="0,0,10,0" Click="NvUndo_Click" Visibility="Collapsed"/>
-                        <Button Style="{StaticResource PrimaryButton}" Content="Apply NVIDIA settings" Click="NvApply_Click"/>
-                    </StackPanel>
+
+                    <Grid Margin="0,12,0,0">
+                        <TextBlock x:Name="NvSummary" Style="{StaticResource Body}" VerticalAlignment="Center" MaxWidth="480" HorizontalAlignment="Left"/>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                            <Button x:Name="NvUndoBtn" Style="{StaticResource GhostButton}" Content="Undo" Margin="0,0,10,0" Click="NvUndo_Click" Visibility="Collapsed"/>
+                            <Button Style="{StaticResource PrimaryButton}" Content="Apply NVIDIA settings" Click="NvApply_Click"/>
+                        </StackPanel>
+                    </Grid>
                 </StackPanel>
             </Border>
 
