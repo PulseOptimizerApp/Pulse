@@ -41,7 +41,7 @@
                     <Image Source="/Assets/logo-128.png" Width="42" Height="42" RenderOptions.BitmapScalingMode="HighQuality"/>
                     <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
                         <TextBlock Text="Pulse" FontFamily="{StaticResource DisplayFont}" FontSize="20" FontWeight="Bold"/>
-                        <TextBlock Text="EVIDENCE-BASED OPTIMIZER" FontSize="9.5" FontWeight="SemiBold" Foreground="{StaticResource TextFaintBrush}"/>
+                        <TextBlock Text="EVIDENCE-BASED OPTIMIZER" FontSize="10" FontWeight="SemiBold" Foreground="{StaticResource TextFaintBrush}"/>
                     </StackPanel>
                 </StackPanel>
 
@@ -71,18 +71,18 @@
                 <Border Grid.Row="2" Style="{StaticResource Card}" Padding="14,12" Background="{StaticResource SurfaceBrush}">
                     <StackPanel>
                         <Grid Margin="0,0,0,8">
-                            <TextBlock Text="CPU" FontSize="11.5" Foreground="{StaticResource TextDimBrush}"/>
-                            <TextBlock x:Name="MiniCpu" Text="—" FontSize="11.5" FontWeight="SemiBold" HorizontalAlignment="Right"/>
+                            <TextBlock Text="CPU" FontSize="12" Foreground="{StaticResource TextDimBrush}"/>
+                            <TextBlock x:Name="MiniCpu" Text="—" FontSize="12" FontWeight="SemiBold" HorizontalAlignment="Right"/>
                         </Grid>
                         <Grid Height="4"><Border Style="{StaticResource BarTrack}" Height="4"/><Border x:Name="MiniCpuBar" Style="{StaticResource BarFill}" Height="4"/></Grid>
                         <Grid Margin="0,10,0,8">
-                            <TextBlock Text="GPU" FontSize="11.5" Foreground="{StaticResource TextDimBrush}"/>
-                            <TextBlock x:Name="MiniGpu" Text="—" FontSize="11.5" FontWeight="SemiBold" HorizontalAlignment="Right"/>
+                            <TextBlock Text="GPU" FontSize="12" Foreground="{StaticResource TextDimBrush}"/>
+                            <TextBlock x:Name="MiniGpu" Text="—" FontSize="12" FontWeight="SemiBold" HorizontalAlignment="Right"/>
                         </Grid>
                         <Grid Height="4"><Border Style="{StaticResource BarTrack}" Height="4"/><Border x:Name="MiniGpuBar" Style="{StaticResource BarFill}" Height="4"/></Grid>
                         <Grid Margin="0,10,0,8">
-                            <TextBlock Text="Memory" FontSize="11.5" Foreground="{StaticResource TextDimBrush}"/>
-                            <TextBlock x:Name="MiniRam" Text="—" FontSize="11.5" FontWeight="SemiBold" HorizontalAlignment="Right"/>
+                            <TextBlock Text="Memory" FontSize="12" Foreground="{StaticResource TextDimBrush}"/>
+                            <TextBlock x:Name="MiniRam" Text="—" FontSize="12" FontWeight="SemiBold" HorizontalAlignment="Right"/>
                         </Grid>
                         <Grid Height="4"><Border Style="{StaticResource BarTrack}" Height="4"/><Border x:Name="MiniRamBar" Style="{StaticResource BarFill}" Height="4"/></Grid>
                     </StackPanel>
@@ -93,7 +93,7 @@
         <!-- ═════════ Top bar chip ═════════ -->
         <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,4,156,0">
         <Grid Margin="0,0,8,0">
-            <Button x:Name="LangBtn" Style="{StaticResource GhostButton}" Padding="10,4,10,5" FontSize="11.5" Click="Lang_Click"
+            <Button x:Name="LangBtn" Style="{StaticResource GhostButton}" Padding="10,4,10,5" FontSize="12" Click="Lang_Click"
                     WindowChrome.IsHitTestVisibleInChrome="True" ToolTip="Language">
                 <StackPanel Orientation="Horizontal">
                     <TextBlock Text="&#xE774;" Style="{StaticResource IconText}" FontSize="11" VerticalAlignment="Center"/>
@@ -110,7 +110,7 @@
                 Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" ToolTip="{Binding Text, ElementName=SidebarStatus}">
             <StackPanel Orientation="Horizontal">
                 <TextBlock Text="&#xE73E;" Style="{StaticResource IconText}" FontSize="11" Foreground="{StaticResource GoodBrush}"/>
-                <TextBlock Text="Every change can be undone" Margin="7,0,0,0" FontSize="11.5" Foreground="{StaticResource TextDimBrush}"/>
+                <TextBlock Text="Every change can be undone" Margin="7,0,0,0" FontSize="12" Foreground="{StaticResource TextDimBrush}"/>
                 <TextBlock x:Name="SidebarStatus" Visibility="Collapsed"/>
             </StackPanel>
         </Border>

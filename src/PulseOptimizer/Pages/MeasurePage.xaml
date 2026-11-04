@@ -28,13 +28,13 @@
     </UserControl.Resources>
 
     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-        <StackPanel Margin="0,6,0,32">
+        <StackPanel Margin="0,6,0,40">
             <TextBlock Style="{StaticResource H1}" Text="Measure"/>
-            <TextBlock Style="{StaticResource Sub}" Margin="0,6,0,0" MaxWidth="700" HorizontalAlignment="Left"
+            <TextBlock Style="{StaticResource Sub}" Margin="0,6,0,0" MaxWidth="760" HorizontalAlignment="Left"
                        Text="Find out if a tweak really makes your game run better on this PC."/>
 
             <!-- ═════════ Setup ═════════ -->
-            <Border x:Name="SetupCard" Style="{StaticResource Card}" Margin="0,22,0,0" Padding="24,22" ui:Anim.Reveal="True">
+            <Border x:Name="SetupCard" Style="{StaticResource Card}" Margin="0,22,0,0" Padding="24,20" ui:Anim.Reveal="True">
                 <StackPanel>
                     <TextBlock x:Name="PresentMonMissing" Style="{StaticResource Body}" Foreground="{StaticResource WarnBrush}" Margin="0,0,0,14" Visibility="Collapsed"
                                Text="The frame-time recorder (PresentMon) is missing. Download Pulse again from the official release so the tools folder is included."/>
@@ -54,7 +54,7 @@
                                         <Grid>
                                             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                                             <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
-                                            <TextBlock Grid.Column="1" Text="On" Margin="10,0,0,0" FontSize="11.5" FontWeight="SemiBold" Foreground="{StaticResource GoodBrush}" VerticalAlignment="Center"
+                                            <TextBlock Grid.Column="1" Text="On" Margin="10,0,0,0" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource GoodBrush}" VerticalAlignment="Center"
                                                        Visibility="{Binding IsOn, Converter={StaticResource BoolToVis}}"/>
                                         </Grid>
                                     </DataTemplate>
@@ -91,7 +91,7 @@
                                             </Grid>
                                             <StackPanel Grid.Column="1" VerticalAlignment="Center">
                                                 <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
-                                                <TextBlock FontSize="11.5" Foreground="{StaticResource TextDimBrush}">
+                                                <TextBlock FontSize="12" Foreground="{StaticResource TextDimBrush}">
                                                     <Run Text="{Binding Exe, Mode=OneWay}"/><Run Text="  ·  "/><Run Text="{Binding Why, Mode=OneWay}"/>
                                                 </TextBlock>
                                             </StackPanel>
@@ -132,7 +132,7 @@
             </Border>
 
             <!-- ═════════ Running ═════════ -->
-            <Border x:Name="RunCard" Style="{StaticResource Card}" Margin="0,22,0,0" Padding="24,22" Visibility="Collapsed">
+            <Border x:Name="RunCard" Style="{StaticResource Card}" Margin="0,22,0,0" Padding="24,20" Visibility="Collapsed">
                 <StackPanel>
                     <Grid>
                         <StackPanel>
@@ -191,7 +191,7 @@
             </Border>
 
             <!-- ═════════ Result ═════════ -->
-            <Border x:Name="ResultCard" Style="{StaticResource Card}" Margin="0,22,0,0" Padding="24,22" Visibility="Collapsed">
+            <Border x:Name="ResultCard" Style="{StaticResource Card}" Margin="0,22,0,0" Padding="24,20" Visibility="Collapsed">
                 <StackPanel>
                     <StackPanel Orientation="Horizontal">
                         <Border x:Name="ResultPill" Style="{StaticResource Pill}">
@@ -221,7 +221,7 @@
             </Border>
 
             <!-- ═════════ Quick checks ═════════ -->
-            <TextBlock Style="{StaticResource H2}" Text="Quick checks" Margin="0,30,0,4"/>
+            <TextBlock Style="{StaticResource H2}" Text="Quick checks" Margin="0,28,0,12"/>
             <TextBlock Style="{StaticResource Body}" Text="Short tests you can run any time. No game needed."/>
             <UniformGrid Columns="4" Margin="0,14,0,0">
                 <Border Style="{StaticResource Tile}" Margin="0,0,12,0" ui:Anim.Reveal="True">

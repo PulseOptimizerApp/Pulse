@@ -13,9 +13,9 @@
             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
             <StackPanel>
                 <TextBlock Style="{StaticResource H1}" Text="Tweaks"/>
-                <TextBlock Style="{StaticResource Sub}" Margin="0,6,0,0" MaxWidth="720" HorizontalAlignment="Left"
+                <TextBlock Style="{StaticResource Sub}" Margin="0,6,0,0" MaxWidth="760" HorizontalAlignment="Left"
                            Text="Every tweak is backed up before it's applied and can be undone. Each one says what it changes, where the evidence comes from, and whether it actually helps this PC — no placebo."/>
-                <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                <StackPanel Orientation="Horizontal" Margin="0,22,0,0">
                     <Grid Width="220" VerticalAlignment="Center">
                         <Border Style="{StaticResource BarTrack}" Height="6"/>
                         <Border x:Name="RecBar" Style="{StaticResource BarFill}" Height="6"/>

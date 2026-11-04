@@ -35,6 +35,8 @@ public static class ClipsService
     public static string Game => _game;
     public static Core.Clips.Encoder Encoder => _rec?.Encoder;
     public static bool HotkeyWorks => _hotkeyOk;
+    public static bool QuickOk { get; private set; } = true;
+    public static bool ShotOk { get; private set; } = true;
     public static long BufferBytes => _rec?.BufferBytes ?? 0;
     public static double BufferSeconds => _rec?.BufferSeconds ?? 0;
     /// <summary>FFmpeg's share of all CPU time since the last call (0..100).</summary>
@@ -81,7 +83,12 @@ public static class ClipsService
     {
         _timer?.Stop();
         StopRecorder();
-        if (_hotkeyWindow != null) { UnregisterHotKey(_hotkeyWindow.Handle, HotkeyId); _hotkeyWindow.Dispose(); _hotkeyWindow = null; }
+        if (_hotkeyWindow != null)
+        {
+            foreach (var id in new[] { HotkeyId, QuickId, ShotId }) UnregisterHotKey(_hotkeyWindow.Handle, id);
+            _hotkeyWindow.Dispose();
+            _hotkeyWindow = null;
+        }
     }
 
     static void Set(ClipsState s, string problem = "")
@@ -162,7 +169,9 @@ public static class ClipsService
     }
 
     /// <summary>Saves the instant replay as a clip. Safe to call from anywhere (hotkey, tray, button).</summary>
-    public static async Task<string> SaveClip()
+    public static Task<string> SaveClip() => SaveClip(S.ReplaySeconds);
+
+    public static async Task<string> SaveClip(int seconds)
     {
         if (_saving) return null;
         if (_rec == null || !_rec.Running)
@@ -173,8 +182,8 @@ public static class ClipsService
         _saving = true;
         try
         {
-            var path = await _rec.Save(S.ClipsFolder, _game ?? "Clip", S.ReplaySeconds);
-            Feedback.Saved(S);
+            var path = await _rec.Save(S.ClipsFolder, _game ?? "Clip", seconds);
+            Feedback.Saved(S, seconds);
             _ = Task.Run(async () =>
             {
                 try { await ClipLibrary.MakeThumbnail(path); } catch { }
@@ -192,9 +201,36 @@ public static class ClipsService
         finally { _saving = false; }
     }
 
+    static bool _shooting;
+
+    /// <summary>Saves the current game frame as a PNG.</summary>
+    public static async Task<string> SaveScreenshot()
+    {
+        if (_shooting) return null;
+        if (_rec == null || !_rec.Running)
+        {
+            if (S.Enabled) ClipToast.Show(Loc.T("Nothing to save yet"), Loc.T(S.OnlyWhileGaming ? "Clips records while a game is running." : "The replay is starting."), false);
+            return null;
+        }
+        _shooting = true;
+        try
+        {
+            var path = await _rec.SaveScreenshot(S.ScreenshotsFolder, _game ?? "Screenshot");
+            Feedback.Screenshot(S);
+            TweakEngine.AddLog("clips", $"Saved a screenshot: {Path.GetFileName(path)}");
+            return path;
+        }
+        catch (Exception ex)
+        {
+            ClipToast.Show(Loc.T("Couldn't save the screenshot"), Loc.T(ex.Message), false);
+            return null;
+        }
+        finally { _shooting = false; }
+    }
+
     // ───────── Hotkey ─────────
 
-    const int HotkeyId = 0x5011;
+    const int HotkeyId = 0x5011, QuickId = 0x5012, ShotId = 0x5013;
     const int WM_HOTKEY = 0x0312;
     const int MOD_NOREPEAT = 0x4000;
 
@@ -209,12 +245,20 @@ public static class ClipsService
             _hotkeyWindow = new HwndSource(new HwndSourceParameters("Pulse clips hotkey") { ParentWindow = new IntPtr(-3), WindowStyle = 0 });
             _hotkeyWindow.AddHook((IntPtr hwnd, int msg, IntPtr w, IntPtr l, ref bool handled) =>
             {
-                if (msg == WM_HOTKEY && w.ToInt32() == HotkeyId) { handled = true; _ = SaveClip(); }
+                if (msg == WM_HOTKEY)
+                {
+                    int id = w.ToInt32();
+                    if (id == HotkeyId) { handled = true; _ = SaveClip(); }
+                    else if (id == QuickId) { handled = true; _ = SaveClip(S.QuickSeconds); }
+                    else if (id == ShotId) { handled = true; _ = SaveScreenshot(); }
+                }
                 return IntPtr.Zero;
             });
         }
-        UnregisterHotKey(_hotkeyWindow.Handle, HotkeyId);
+        foreach (var id in new[] { HotkeyId, QuickId, ShotId }) UnregisterHotKey(_hotkeyWindow.Handle, id);
         _hotkeyOk = S.Enabled && RegisterHotKey(_hotkeyWindow.Handle, HotkeyId, S.HotkeyModifiers | MOD_NOREPEAT, S.HotkeyKey);
+        QuickOk = !(S.Enabled && S.QuickClip) || RegisterHotKey(_hotkeyWindow.Handle, QuickId, S.QuickModifiers | MOD_NOREPEAT, S.QuickKey);
+        ShotOk = !(S.Enabled && S.Screenshot) || RegisterHotKey(_hotkeyWindow.Handle, ShotId, S.ScreenshotModifiers | MOD_NOREPEAT, S.ScreenshotKey);
     }
 
     /// <summary>"Alt+F10" for the current hotkey.</summary>
@@ -249,10 +293,16 @@ static class Feedback
 {
     static byte[] _blip;
 
-    public static void Saved(ClipSettings s)
+    public static void Saved(ClipSettings s, int seconds)
     {
         if (s.PlaySound) Play();
-        if (s.ShowSavedPopup) ClipToast.Show(Loc.T("Clip saved"), Loc.F("Last {0} seconds", s.ReplaySeconds), true);
+        if (s.ShowSavedPopup) ClipToast.Show(Loc.T("Clip saved"), Loc.F("Last {0} seconds", seconds), true);
+    }
+
+    public static void Screenshot(ClipSettings s)
+    {
+        if (s.PlaySound) Play();
+        if (s.ShowSavedPopup) ClipToast.Show(Loc.T("Screenshot saved"), Loc.T("In your clips folder, under Screenshots"), true);
     }
 
     static void Play()

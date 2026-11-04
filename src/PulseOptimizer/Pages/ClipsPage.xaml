@@ -3,6 +3,31 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:ui="clr-namespace:Pulse.Ui">
     <UserControl.Resources>
+        <Style x:Key="TrackToggle" TargetType="ToggleButton">
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Foreground" Value="{StaticResource TextDimBrush}"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Grid>
+                            <Border x:Name="Bd" CornerRadius="16" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"/>
+                            <Border x:Name="On" CornerRadius="16" Background="{StaticResource AccentGradient}" Opacity="0"/>
+                            <ContentPresenter Margin="14,6" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="On" Property="Opacity" Value="1"/>
+                                <Setter Property="Foreground" Value="White"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Bd" Property="Background" Value="{StaticResource SurfaceHoverBrush}"/></Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
         <Style x:Key="Row" TargetType="Grid">
             <Setter Property="Margin" Value="0,0,0,14"/>
         </Style>
@@ -43,32 +68,32 @@
                         <TextBlock Style="{StaticResource Body}" Margin="0,8,0,0" MaxWidth="640" HorizontalAlignment="Left" FontSize="14"
                                    Text="Pulse keeps the last moments of your game ready. One key saves them as a clip, in full quality, without the ads, accounts and background apps other clippers bring."/>
                         <UniformGrid Columns="2" Margin="0,22,0,0">
-                            <Border Style="{StaticResource Card}" Margin="0,0,8,8" Padding="16,14">
+                            <Border Style="{StaticResource Card}" Margin="0,0,8,8" Padding="18,14">
                                 <StackPanel>
                                     <TextBlock Text="&#xE9D9;" Style="{StaticResource IconText}" FontSize="18" Foreground="{StaticResource AccentBrush}" HorizontalAlignment="Left"/>
                                     <TextBlock Style="{StaticResource CardTitle}" Margin="0,10,0,0" Text="Your graphics card does the work"/>
-                                    <TextBlock Style="{StaticResource Body}" FontSize="12.5" Margin="0,3,0,0" Text="Recording uses the video chip built into your graphics card (NVIDIA, AMD or Intel), not the part that runs your game. Pulse shows exactly what it uses."/>
+                                    <TextBlock Style="{StaticResource Body}" FontSize="13" Margin="0,3,0,0" Text="Recording uses the video chip built into your graphics card (NVIDIA, AMD or Intel), not the part that runs your game. Pulse shows exactly what it uses."/>
                                 </StackPanel>
                             </Border>
-                            <Border Style="{StaticResource Card}" Margin="8,0,0,8" Padding="16,14">
+                            <Border Style="{StaticResource Card}" Margin="8,0,0,8" Padding="18,14">
                                 <StackPanel>
                                     <TextBlock Text="&#xEDA2;" Style="{StaticResource IconText}" FontSize="18" Foreground="{StaticResource AccentBrush}" HorizontalAlignment="Left"/>
                                     <TextBlock Style="{StaticResource CardTitle}" Margin="0,10,0,0" Text="Easy on your SSD"/>
-                                    <TextBlock Style="{StaticResource Body}" FontSize="12.5" Margin="0,3,0,0" Text="The replay waits in memory. Only the clips you save are written to your drive, so nothing writes to your SSD nonstop."/>
+                                    <TextBlock Style="{StaticResource Body}" FontSize="13" Margin="0,3,0,0" Text="The replay waits in memory. Only the clips you save are written to your drive, so nothing writes to your SSD nonstop."/>
                                 </StackPanel>
                             </Border>
-                            <Border Style="{StaticResource Card}" Margin="0,8,8,0" Padding="16,14">
+                            <Border Style="{StaticResource Card}" Margin="0,8,8,0" Padding="18,14">
                                 <StackPanel>
                                     <TextBlock Text="&#xE72E;" Style="{StaticResource IconText}" FontSize="18" Foreground="{StaticResource AccentBrush}" HorizontalAlignment="Left"/>
                                     <TextBlock Style="{StaticResource CardTitle}" Margin="0,10,0,0" Text="No account, no ads, no feed"/>
-                                    <TextBlock Style="{StaticResource Body}" FontSize="12.5" Margin="0,3,0,0" Text="Clips stay on your PC in one folder. Pulse only runs the replay while a game is open, and it's fully off the rest of the time."/>
+                                    <TextBlock Style="{StaticResource Body}" FontSize="13" Margin="0,3,0,0" Text="Clips stay on your PC in one folder. Pulse only runs the replay while a game is open, and it's fully off the rest of the time."/>
                                 </StackPanel>
                             </Border>
-                            <Border Style="{StaticResource Card}" Margin="8,8,0,0" Padding="16,14">
+                            <Border Style="{StaticResource Card}" Margin="8,8,0,0" Padding="18,14">
                                 <StackPanel>
                                     <TextBlock Text="&#xE8C8;" Style="{StaticResource IconText}" FontSize="18" Foreground="{StaticResource AccentBrush}" HorizontalAlignment="Left"/>
                                     <TextBlock Style="{StaticResource CardTitle}" Margin="0,10,0,0" Text="Trim it, send it"/>
-                                    <TextBlock Style="{StaticResource Body}" FontSize="12.5" Margin="0,3,0,0" Text="Cut to the moment, then make a copy that fits a free Discord upload in one click."/>
+                                    <TextBlock Style="{StaticResource Body}" FontSize="13" Margin="0,3,0,0" Text="Cut to the moment, then make a copy that fits a free Discord upload in one click."/>
                                 </StackPanel>
                             </Border>
                         </UniformGrid>
@@ -88,7 +113,7 @@
                                 <Border Style="{StaticResource BarTrack}" Height="6"/>
                                 <Border x:Name="SetupBar" Style="{StaticResource BarFill}" Height="6" HorizontalAlignment="Left" Width="0"/>
                             </Grid>
-                            <TextBlock x:Name="SetupText" Style="{StaticResource Body}" FontSize="12.5" Margin="0,8,0,0"/>
+                            <TextBlock x:Name="SetupText" Style="{StaticResource Body}" FontSize="13" Margin="0,8,0,0"/>
                         </StackPanel>
                     </StackPanel>
                 </Border>
@@ -160,9 +185,27 @@
                             <Grid.ColumnDefinitions><ColumnDefinition Width="200"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                             <TextBlock Style="{StaticResource RowLabel}" Text="Save hotkey"/>
                             <StackPanel Grid.Column="1" Orientation="Horizontal">
-                                <Button x:Name="HotkeyBtn" Style="{StaticResource GhostButton}" MinWidth="140" Click="Hotkey_Click" PreviewKeyDown="Hotkey_KeyDown"/>
+                                <Button x:Name="HotkeyBtn" Style="{StaticResource GhostButton}" MinWidth="140" Tag="main" Click="Hotkey_Click" PreviewKeyDown="Hotkey_KeyDown"/>
                                 <TextBlock x:Name="HotkeyWarn" Foreground="{StaticResource WarnBrush}" FontSize="12" VerticalAlignment="Center" Margin="12,0,0,0" TextWrapping="Wrap" MaxWidth="360"/>
                             </StackPanel>
+                        </Grid>
+                        <Grid Style="{StaticResource Row}">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="200"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <TextBlock Style="{StaticResource RowLabel}" Text="Quick clip hotkey"/>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                <Button x:Name="QuickBtn" Style="{StaticResource GhostButton}" MinWidth="140" Tag="quick" Click="Hotkey_Click" PreviewKeyDown="Hotkey_KeyDown"/>
+                                <WrapPanel x:Name="QuickLenChips" Margin="12,0,0,0" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <CheckBox x:Name="QuickSwitch" Grid.Column="2" Style="{StaticResource Switch}" Click="Setting_Click"/>
+                        </Grid>
+                        <Grid Style="{StaticResource Row}">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="200"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <TextBlock Style="{StaticResource RowLabel}" Text="Screenshot hotkey"/>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                <Button x:Name="ShotBtn" Style="{StaticResource GhostButton}" MinWidth="140" Tag="shot" Click="Hotkey_Click" PreviewKeyDown="Hotkey_KeyDown"/>
+                                <TextBlock x:Name="ExtraWarn" Foreground="{StaticResource WarnBrush}" FontSize="12" VerticalAlignment="Center" Margin="12,0,0,0" TextWrapping="Wrap" MaxWidth="360"/>
+                            </StackPanel>
+                            <CheckBox x:Name="ShotSwitch" Grid.Column="2" Style="{StaticResource Switch}" Click="Setting_Click"/>
                         </Grid>
 
                         <!-- More settings -->
@@ -229,7 +272,7 @@
                             </Grid>
                             <Grid Style="{StaticResource Row}">
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                                <TextBlock Style="{StaticResource RowLabel}" Text="Put the microphone on its own second track too (for editing)"/>
+                                <TextBlock Style="{StaticResource RowLabel}" Text="Also save game sound and microphone on their own tracks, so either can be muted when trimming"/>
                                 <CheckBox x:Name="SeparateMicSwitch" Grid.Column="1" Style="{StaticResource Switch}" Click="Setting_Click"/>
                             </Grid>
                             <Grid Style="{StaticResource Row}">
@@ -255,7 +298,7 @@
                 <Grid x:Name="LibraryHeader" Margin="0,28,0,12" Visibility="Collapsed">
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Style="{StaticResource H2}" Text="Your clips"/>
-                        <TextBlock x:Name="LibrarySummary" Foreground="{StaticResource TextDimBrush}" FontSize="12.5" VerticalAlignment="Bottom" Margin="12,0,0,2"/>
+                        <TextBlock x:Name="LibrarySummary" Foreground="{StaticResource TextDimBrush}" FontSize="13" VerticalAlignment="Bottom" Margin="12,0,0,2"/>
                     </StackPanel>
                     <Button Style="{StaticResource LinkButton}" Content="Open folder" HorizontalAlignment="Right" Click="OpenFolder_Click"/>
                 </Grid>
@@ -285,7 +328,7 @@
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
-                <TextBlock Style="{StaticResource Body}" FontSize="11.5" Foreground="{StaticResource TextFaintBrush}" Margin="0,20,0,0" MaxWidth="760" HorizontalAlignment="Left" TextWrapping="Wrap"
+                <TextBlock Style="{StaticResource Body}" FontSize="12" Foreground="{StaticResource TextFaintBrush}" Margin="0,20,0,0" MaxWidth="760" HorizontalAlignment="Left" TextWrapping="Wrap"
                            Text="Clips records with FFmpeg (ffmpeg.org, GPL), downloaded on demand and run as a separate program. Recording uses Windows' own screen capture, so it never touches a game and anti-cheat has nothing to flag."/>
             </StackPanel>
         </ScrollViewer>
@@ -303,41 +346,41 @@
                         <MediaElement x:Name="Player" LoadedBehavior="Manual" UnloadedBehavior="Close" ScrubbingEnabled="True"
                                       MediaOpened="Player_Opened" MediaEnded="Player_Ended" MouseLeftButtonUp="PlayPause_Click"/>
                     </Border>
-                    <Grid Grid.Row="2" Margin="0,12,0,0">
-                        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                        <Button x:Name="PlayBtn" Style="{StaticResource GhostButton}" Width="44" Padding="0,8" Click="PlayPause_Click">
+                    <!-- Timeline: drag the gradient handles to trim, drag anywhere else to scrub -->
+                    <ui:ClipTimeline x:Name="Timeline" Grid.Row="2" Margin="0,14,0,0"/>
+                    <Grid Grid.Row="3" Margin="0,12,0,0">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <Button x:Name="PlayBtn" Style="{StaticResource GhostButton}" Width="44" Padding="0,8" Click="PlayPause_Click" ToolTip="Play or pause (Space)">
                             <TextBlock x:Name="PlayGlyph" Text="&#xE769;" Style="{StaticResource IconText}" FontSize="13"/>
                         </Button>
-                        <Slider x:Name="Position" Grid.Column="1" Style="{StaticResource Seek}" Margin="12,0" VerticalAlignment="Center"
-                                ValueChanged="Position_Changed" PreviewMouseLeftButtonDown="Position_Down" PreviewMouseLeftButtonUp="Position_Up"/>
-                        <TextBlock x:Name="TimeText" Grid.Column="2" Style="{StaticResource Mono}" VerticalAlignment="Center" MinWidth="96" TextAlignment="Right"/>
-                    </Grid>
-                    <Grid Grid.Row="3" Margin="0,14,0,0">
-                        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                        <TextBlock Style="{StaticResource RowLabel}" Text="Trim"/>
-                        <StackPanel Grid.Column="1" Orientation="Horizontal">
-                            <Button Style="{StaticResource GhostButton}" Click="SetStart_Click" Margin="0,0,8,0">
-                                <TextBlock x:Name="StartText"/>
-                            </Button>
-                            <Button Style="{StaticResource GhostButton}" Click="SetEnd_Click">
-                                <TextBlock x:Name="EndText"/>
-                            </Button>
-                            <TextBlock Style="{StaticResource Body}" FontSize="12" VerticalAlignment="Center" Margin="12,0,0,0" Text="Move to a moment, then set the start or end there."/>
+                        <StackPanel Grid.Column="1" Margin="14,0,0,0" VerticalAlignment="Center">
+                            <TextBlock x:Name="TimeText" FontFamily="{StaticResource MonoFont}" FontSize="13"/>
+                            <TextBlock x:Name="SelText" FontSize="12" Foreground="{StaticResource TextDimBrush}" Margin="0,2,0,0"/>
                         </StackPanel>
-                        <Button Grid.Column="2" Style="{StaticResource GhostButton}" Content="Save trimmed copy" Click="Trim_Click"/>
+                        <!-- Sound to keep in the exported copy -->
+                        <StackPanel x:Name="AudioPanel" Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="&#xE767;" Style="{StaticResource IconText}" FontSize="14" Foreground="{StaticResource TextDimBrush}" Margin="0,0,10,0"/>
+                            <ToggleButton x:Name="GameTrack" Style="{StaticResource TrackToggle}" Content="Game" IsChecked="True" Click="Track_Click"/>
+                            <ToggleButton x:Name="MicTrack" Style="{StaticResource TrackToggle}" Content="Microphone" IsChecked="True" Click="Track_Click" Margin="6,0,0,0"/>
+                        </StackPanel>
                     </Grid>
-                    <Grid Grid.Row="4" Margin="0,14,0,0">
+                    <Grid Grid.Row="4" Margin="0,16,0,0">
                         <StackPanel Orientation="Horizontal">
                             <Button x:Name="FavBtn" Style="{StaticResource GhostButton}" Click="Fav_Click" Margin="0,0,8,0"/>
                             <Button Style="{StaticResource GhostButton}" Content="Show in folder" Click="Reveal_Click" Margin="0,0,8,0"/>
-                            <Button Style="{StaticResource GhostButton}" Content="Delete" Click="Delete_Click"/>
+                            <Button Style="{StaticResource GhostButton}" Content="Delete" Click="Delete_Click" ToolTip="Delete (Del)"/>
+                            <TextBlock Style="{StaticResource Body}" FontSize="12" Foreground="{StaticResource TextFaintBrush}" VerticalAlignment="Center" Margin="16,0,0,0"
+                                       Text="Space play · ← → step · Shift ← → 1 s · I / O set start and end"/>
                         </StackPanel>
-                        <Button x:Name="DiscordBtn" Style="{StaticResource PrimaryButton}" HorizontalAlignment="Right" Click="Discord_Click">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="&#xE72D;" Style="{StaticResource IconText}" FontSize="13"/>
-                                <TextBlock Text="Make a Discord copy (under 10 MB)" Margin="8,0,0,0"/>
-                            </StackPanel>
-                        </Button>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                            <Button Style="{StaticResource GhostButton}" Content="Save trimmed copy" Click="Trim_Click" Margin="0,0,8,0"/>
+                            <Button x:Name="DiscordBtn" Style="{StaticResource PrimaryButton}" Click="Discord_Click">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#xE72D;" Style="{StaticResource IconText}" FontSize="13"/>
+                                    <TextBlock Text="Discord copy (under 10 MB)" Margin="8,0,0,0"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
                     </Grid>
                 </Grid>
             </Border>

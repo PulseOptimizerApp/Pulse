@@ -101,9 +101,11 @@ public sealed class ReplayRecorder : IDisposable
         {
             if (s.SeparateMicTrack)
             {
+                // Track 1 is the mix (what Discord and players play), then game only and mic only for the trimmer.
+                filters.Add($"[{gameIn}:a]asplit=2[g1][g2]");
                 filters.Add($"[{micIn}:a]asplit=2[m1][m2]");
-                filters.Add($"[{gameIn}:a][m1]amix=inputs=2:duration=longest:dropout_transition=0:normalize=0[mix]");
-                maps.AddRange(new[] { "-map", "[mix]", "-map", "[m2]" });
+                filters.Add("[g1][m1]amix=inputs=2:duration=longest:dropout_transition=0:normalize=0[mix]");
+                maps.AddRange(new[] { "-map", "[mix]", "-map", "[g2]", "-map", "[m2]" });
             }
             else
             {
@@ -195,6 +197,24 @@ public sealed class ReplayRecorder : IDisposable
             var (code, err) = await Ffmpeg.Run($"-hide_banner -loglevel error -y -i \"{ts}\" -map 0 -c copy -movflags +faststart \"{mp4}\"", ct, 120_000);
             if (code != 0 || !File.Exists(mp4)) throw new InvalidOperationException("FFmpeg couldn't save the clip: " + err.Trim());
             return mp4;
+        }
+        finally { try { File.Delete(ts); } catch { } }
+    }
+
+    /// <summary>Saves the newest frame of the replay as a PNG (the last half second is decoded; the last frame wins).</summary>
+    public async Task<string> SaveScreenshot(string folder, string name, CancellationToken ct = default)
+    {
+        Directory.CreateDirectory(folder);
+        var ts = Path.Combine(Path.GetTempPath(), $"pulse-shot-{Guid.NewGuid():N}.ts");
+        try
+        {
+            long n;
+            await using (var f = File.Create(ts)) n = _ring.SaveTo(f, 0.5, Now);
+            if (n == 0) throw new InvalidOperationException("There's nothing in the replay yet. It fills up a few seconds after a game starts.");
+            var png = Path.ChangeExtension(UniquePath(folder, name), ".png");
+            var (code, err) = await Ffmpeg.Run($"-hide_banner -loglevel error -y -i \"{ts}\" -an -update 1 \"{png}\"", ct, 60_000);
+            if (code != 0 || !File.Exists(png)) throw new InvalidOperationException("FFmpeg couldn't save the screenshot: " + err.Trim());
+            return png;
         }
         finally { try { File.Delete(ts); } catch { } }
     }

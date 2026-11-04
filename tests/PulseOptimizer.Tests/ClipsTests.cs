@@ -130,7 +130,7 @@ public class ClipsTests
         var s = new ClipSettings { Microphone = true, SeparateMicTrack = true };
         var a = ReplayRecorder.Arguments(s, Nvenc, "G", "M");
         Assert.Contains("asplit=2[m1][m2]", a);
-        Assert.Contains("-map [mix] -map [m2]", a);
+        Assert.Contains("-map [mix] -map [g2] -map [m2]", a);
     }
 
     [Fact]
@@ -262,5 +262,22 @@ public class ClipsTests
         var r = new AudioCapture.Resampler(48000);
         var outp = r.Convert(new[] { 0.1f, 0.2f }, new[] { -0.1f, -0.2f });
         Assert.Equal(new[] { 0.1f, -0.1f, 0.2f, -0.2f }, outp);
+    }
+
+    [Fact]
+    public void Counts_a_clips_audio_tracks()
+    {
+        const string one = "  Stream #0:0[0x1](und): Video: h264\n  Stream #0:1[0x2](und): Audio: aac (LC)";
+        const string three = one + "\n  Stream #0:2[0x3](und): Audio: aac\n  Stream #0:3[0x4](und): Audio: aac";
+        Assert.Equal(1, ClipLibrary.CountAudio(one));
+        Assert.Equal(3, ClipLibrary.CountAudio(three));
+        Assert.Equal(0, ClipLibrary.CountAudio("Stream #0:0: Video: h264"));
+    }
+
+    [Fact]
+    public void Exports_keep_the_chosen_sound()
+    {
+        Assert.Equal("-an", ClipLibrary.AudioArgs(-1));
+        Assert.Contains("-map 0:a:2?", ClipLibrary.AudioArgs(2));
     }
 }

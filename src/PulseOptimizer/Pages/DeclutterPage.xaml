@@ -10,7 +10,7 @@
                 <CheckBox Style="{StaticResource Tick}" IsChecked="{Binding Selected, Mode=TwoWay}" IsHitTestVisible="False" VerticalAlignment="Center"/>
                 <StackPanel Grid.Column="1" Margin="0,6">
                     <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
-                    <TextBlock FontSize="11.5" Foreground="{StaticResource TextFaintBrush}" TextTrimming="CharacterEllipsis">
+                    <TextBlock FontSize="12" Foreground="{StaticResource TextFaintBrush}" TextTrimming="CharacterEllipsis">
                         <Run Text="{Binding AgeText, Mode=OneWay}"/><Run Text="  ·  "/><Run Text="{Binding Folder, Mode=OneWay}"/>
                     </TextBlock>
                 </StackPanel>
@@ -51,7 +51,7 @@
                     </Grid>
 
                     <!-- Segmented bar; built in code -->
-                    <Border Height="14" CornerRadius="7" Background="#1E2230" Margin="0,22,0,0" ClipToBounds="True">
+                    <Border Height="14" CornerRadius="8" Background="#1E2230" Margin="0,22,0,0" ClipToBounds="True">
                         <Grid x:Name="MapBar"/>
                     </Border>
                     <WrapPanel x:Name="MapLegend" Margin="0,12,0,0"/>
@@ -63,7 +63,7 @@
             </Border>
 
             <!-- Quick clean -->
-            <TextBlock Style="{StaticResource H2}" Text="Quick clean" Margin="0,28,0,4"/>
+            <TextBlock Style="{StaticResource H2}" Text="Quick clean" Margin="0,28,0,12"/>
             <TextBlock Style="{StaticResource Body}" Text="Safe to remove. Ticked items are included when you press Free space." Margin="0,0,0,12"/>
             <ItemsControl x:Name="QuickList">
                 <ItemsControl.ItemTemplate>
@@ -78,7 +78,7 @@
                                 </Grid>
                                 <StackPanel Grid.Column="2" VerticalAlignment="Center">
                                     <TextBlock Style="{StaticResource CardTitle}" Text="{Binding Name}"/>
-                                    <TextBlock Style="{StaticResource Body}" FontSize="12.5" Margin="0,2,0,0" Text="{Binding Description}"/>
+                                    <TextBlock Style="{StaticResource Body}" FontSize="13" Margin="0,2,0,0" Text="{Binding Description}"/>
                                     <TextBlock Style="{StaticResource Body}" FontSize="12" Margin="0,4,0,0" Foreground="{StaticResource WarnBrush}" Text="{Binding Warning}"
                                                Visibility="{Binding Warning, Converter={StaticResource HasValueToVis}}"/>
                                     <Button Style="{StaticResource LinkButton}" HorizontalAlignment="Left" Margin="0,6,0,0" Content="{Binding ActionText}" Tag="{Binding ActionKey}"
@@ -171,8 +171,8 @@
                                     <Image Source="{Binding Icon}" Width="30" Height="30" RenderOptions.BitmapScalingMode="HighQuality"/>
                                 </Grid>
                                 <StackPanel Grid.Column="2" VerticalAlignment="Center">
-                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="13.5" TextTrimming="CharacterEllipsis"/>
-                                    <TextBlock Text="{Binding Detail}" FontSize="11.5" Foreground="{StaticResource TextDimBrush}" Margin="0,2,0,0" TextTrimming="CharacterEllipsis"
+                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="14" TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock Text="{Binding Detail}" FontSize="12" Foreground="{StaticResource TextDimBrush}" Margin="0,2,0,0" TextTrimming="CharacterEllipsis"
                                                Visibility="{Binding Detail, Converter={StaticResource HasValueToVis}}"/>
                                 </StackPanel>
                                 <TextBlock Grid.Column="3" Text="{Binding SizeText}" FontWeight="SemiBold" VerticalAlignment="Center" Margin="12,0"/>
