@@ -34,6 +34,19 @@
                 </Grid>
             </Border>
 
+            <!-- Graphics card -->
+            <Border Style="{StaticResource Card}" Margin="0,14,0,0" Padding="24,18" ui:Anim.Reveal="True">
+                <Grid>
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource CardTitle}" Text="Run Roblox on the graphics card"/>
+                        <TextBlock Style="{StaticResource Body}" Margin="0,6,0,0" MaxWidth="620" HorizontalAlignment="Left"
+                                   Text="For PCs with two graphics chips, like most gaming laptops: Windows sometimes runs Roblox on the weaker built-in one. This sets Windows' own High performance option for Roblox, and keeps it set after updates. On a PC with one graphics card it changes nothing."/>
+                    </StackPanel>
+                    <CheckBox x:Name="GpuSwitch" Grid.Column="1" Style="{StaticResource Switch}" VerticalAlignment="Center" Margin="20,0,0,0" Click="Gpu_Click"/>
+                </Grid>
+            </Border>
+
             <!-- Presets -->
             <Grid Margin="0,28,0,10">
                 <TextBlock Style="{StaticResource H2}" Text="Settings"/>

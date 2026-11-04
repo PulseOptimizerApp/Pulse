@@ -26,6 +26,8 @@ public class RobloxSettings
     public Dictionary<string, string> NvidiaCustom { get; set; } = new();
     /// <summary>An NVIDIA Profile Inspector file (.nip) the user imported for Roblox, if any.</summary>
     public NvImport NvidiaImport { get; set; }
+    /// <summary>Ask Windows to run Roblox on the dedicated graphics card (PCs with two graphics chips, like most gaming laptops).</summary>
+    public bool HighPerformanceGpu { get; set; }
 }
 
 /// <summary>One setting on the Roblox page, shown as a row of choices.</summary>
@@ -328,7 +330,38 @@ public static class RobloxBoost
         int n = 0;
         foreach (var v in PlayerVersions()) { try { WriteFlags(v, flags); n++; } catch { } }
         try { WriteFpsCap(options.First(o => o.Key == "fps").Value); } catch { }
+        try { ApplyGpuPreference(Settings.HighPerformanceGpu, PlayerVersions()); } catch { }
         return n;
+    }
+
+    // ───────── Graphics card preference ─────────
+
+    // Windows' own per-app setting (Settings → System → Display → Graphics), stored per exe path. Roblox puts each
+    // version in a new folder, so Pulse sets it for every version and again after updates.
+    const string GpuPrefKey = @"Software\Microsoft\DirectX\UserGpuPreferences";
+    const string HighPerformance = "GpuPreference=2;";
+
+    /// <summary>
+    /// Sets (or removes) "High performance" graphics for each Roblox version's exe. Removing only clears values
+    /// Pulse would have set, so a choice the user made in Windows' Settings is kept.
+    /// </summary>
+    public static void ApplyGpuPreference(bool on, IEnumerable<string> versions)
+    {
+        var (hive, prefix) = RobloxUser.UserRoot;
+        var key = prefix + GpuPrefKey;
+        if (on)
+        {
+            foreach (var v in versions)
+            {
+                var exe = Path.Combine(v, "RobloxPlayerBeta.exe");
+                if (Reg.Get(hive, key, exe) is string cur && cur == HighPerformance) continue;
+                Reg.Set(hive, key, exe, HighPerformance, Microsoft.Win32.RegistryValueKind.String);
+            }
+            return;
+        }
+        foreach (var name in Reg.ValueNames(hive, key))
+            if (name.EndsWith("RobloxPlayerBeta.exe", StringComparison.OrdinalIgnoreCase) && Reg.Get(hive, key, name) as string == HighPerformance)
+                Reg.Delete(hive, key, name);
     }
 
     // ───────── Settings the Play button reads ─────────
@@ -440,6 +473,7 @@ public static class RobloxBoost
         var known = new HashSet<string>(ordered, StringComparer.OrdinalIgnoreCase);
         foreach (var v in ordered) { try { WriteFlags(v, flags); } catch { } }
         try { WriteFpsCap(options.First(o => o.Key == "fps").Value); } catch { }
+        if (settings.HighPerformanceGpu) try { ApplyGpuPreference(true, ordered); } catch { }
 
         var exe = ordered.Select(v => Path.Combine(v, "RobloxPlayerBeta.exe")).FirstOrDefault();
         if (exe == null)
@@ -470,6 +504,7 @@ public static class RobloxBoost
                         if (File.Exists(Path.Combine(d, "RobloxPlayerBeta.exe")))
                         {
                             try { WriteFlags(d, flags); known.Add(d); } catch { }
+                            if (settings.HighPerformanceGpu) try { ApplyGpuPreference(true, new[] { d }); } catch { }
                         }
                 }
                 catch { }

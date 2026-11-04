@@ -30,6 +30,7 @@ public partial class RobloxPage : UserControl, IPage
         foreach (var o in _options) o.Value = S.Choices.GetValueOrDefault(o.Key, "");
         MarkPreset();
         LaunchSwitch.IsChecked = S.LaunchThroughPulse && RobloxBoost.HandlerIsPulse();
+        GpuSwitch.IsChecked = S.HighPerformanceGpu;
         _loading = false;
         ShowCustom();
         UpdateStatus();
@@ -127,6 +128,25 @@ public partial class RobloxPage : UserControl, IPage
         MainWindow.Instance.Toast(S.LaunchThroughPulse
             ? "Applied. They'll stay applied after Roblox updates."
             : "Applied. Turn on Launch through Pulse so they survive Roblox updates.");
+    }
+
+    async void Gpu_Click(object sender, RoutedEventArgs e)
+    {
+        bool on = GpuSwitch.IsChecked == true;
+        S.HighPerformanceGpu = on;
+        try
+        {
+            await Task.Run(() => RobloxBoost.ApplyGpuPreference(on, RobloxBoost.PlayerVersions()));
+            RobloxBoost.Save();
+            TweakEngine.AddLog("roblox", on ? "Set Roblox to use the high-performance graphics card" : "Removed Roblox's graphics card preference");
+            MainWindow.Instance.Toast(on ? "Roblox will use the graphics card from its next launch." : "Windows picks Roblox's graphics chip again.");
+        }
+        catch (Exception ex)
+        {
+            S.HighPerformanceGpu = !on;
+            GpuSwitch.IsChecked = !on;
+            await MainWindow.Instance.Alert("That didn't work", ex.Message);
+        }
     }
 
     void Cache_Click(object sender, RoutedEventArgs e) => MainWindow.Instance.Navigate("cleanup");

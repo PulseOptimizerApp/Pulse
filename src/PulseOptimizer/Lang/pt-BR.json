@@ -1722,5 +1722,11 @@
  "Favorites": "Favoritos",
  "Newest": "Mais recentes",
  "Oldest": "Mais antigos",
- "Largest": "Maiores"
+ "Largest": "Maiores",
+ "Run Roblox on the graphics card": "Rodar o Roblox na placa de vídeo",
+ "For PCs with two graphics chips, like most gaming laptops: Windows sometimes runs Roblox on the weaker built-in one. This sets Windows' own High performance option for Roblox, and keeps it set after updates. On a PC with one graphics card it changes nothing.": "Para PCs com dois chips gráficos, como a maioria dos notebooks gamer: às vezes o Windows roda o Roblox no integrado, que é mais fraco. Isso ativa a opção Alto desempenho do próprio Windows para o Roblox e a mantém depois das atualizações. Num PC com uma placa de vídeo só, não muda nada.",
+ "Set Roblox to use the high-performance graphics card": "Roblox configurado para usar a placa de vídeo de alto desempenho",
+ "Removed Roblox's graphics card preference": "Preferência de placa de vídeo do Roblox removida",
+ "Roblox will use the graphics card from its next launch.": "O Roblox vai usar a placa de vídeo a partir da próxima vez que abrir.",
+ "Windows picks Roblox's graphics chip again.": "O Windows volta a escolher o chip gráfico do Roblox."
 }
