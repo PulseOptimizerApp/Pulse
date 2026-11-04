@@ -368,5 +368,8 @@
  "Use {0}?": "Usar {0}?",
  "Using {0}: {1} settings from NVIDIA Profile Inspector.": "Usando {0}: {1} configurações do NVIDIA Profile Inspector.",
  "Removed. Press Apply to put Roblox's old NVIDIA values back.": "Removido. Clique em Aplicar para voltar os valores antigos da NVIDIA no Roblox.",
- "NVIDIA settings applied to Roblox. Restart Roblox if it's open.": "Configurações da NVIDIA aplicadas ao Roblox. Reinicie o Roblox se estiver aberto."
+ "NVIDIA settings applied to Roblox. Restart Roblox if it's open.": "Configurações da NVIDIA aplicadas ao Roblox. Reinicie o Roblox se estiver aberto.",
+ "NVIDIA only": "Só NVIDIA",
+ "Only works with NVIDIA graphics cards. AMD and Intel graphics aren't supported here.": "Só funciona com placas de vídeo NVIDIA. Gráficos AMD e Intel não são compatíveis aqui.",
+ "Pulse didn't find an NVIDIA graphics card on this PC, so this section is turned off. Everything else on this page still works.": "O Pulse não encontrou uma placa de vídeo NVIDIA neste PC, então esta seção está desativada. Todo o resto desta página continua funcionando."
 }

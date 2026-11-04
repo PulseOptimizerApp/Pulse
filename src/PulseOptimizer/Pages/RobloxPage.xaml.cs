@@ -145,7 +145,9 @@ public partial class RobloxPage : UserControl, IPage
             return (NvidiaProfile.Available, h);
         });
         _hz = hz;
-        NvCard.Visibility = ok ? Visibility.Visible : Visibility.Collapsed;
+        // Always show the card, so people without an NVIDIA card see why it does nothing for them.
+        NvBody.Visibility = NvPresets.Visibility = ok ? Visibility.Visible : Visibility.Collapsed;
+        NvNoCard.Visibility = ok ? Visibility.Collapsed : Visibility.Visible;
         if (!ok) return;
 
         _nvLoading = true;
