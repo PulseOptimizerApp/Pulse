@@ -1,0 +1,292 @@
+using System.Diagnostics;
+using System.Runtime.InteropServices;
+using System.Windows;
+using System.Windows.Interop;
+using System.Windows.Threading;
+using Pulse.Core;
+using Pulse.Core.Clips;
+using Pulse.Core.Measurement;
+
+namespace Pulse.Ui;
+
+public enum ClipsState { Off, NeedsSetup, WaitingForGame, Recording, Problem }
+
+/// <summary>
+/// Runs Clips while Pulse is open (or in the tray): starts the instant replay when a game is playing and stops it when
+/// the game closes, listens for the save hotkey, saves clips and keeps the folder under its size limit.
+/// </summary>
+public static class ClipsService
+{
+    static ClipSettings S => TweakEngine.State.Clips ??= new ClipSettings();
+
+    static DispatcherTimer _timer;
+    static ReplayRecorder _rec;
+    static HwndSource _hotkeyWindow;
+    static bool _hotkeyOk;
+    static int _failures;
+    static DateTime _retryAfter;
+    static string _game;
+    static bool _saving;
+    static TimeSpan _lastCpu;
+    static DateTime _lastCpuAt;
+
+    public static ClipsState State { get; private set; } = ClipsState.Off;
+    public static string Problem { get; private set; } = "";
+    public static string Game => _game;
+    public static Core.Clips.Encoder Encoder => _rec?.Encoder;
+    public static bool HotkeyWorks => _hotkeyOk;
+    public static long BufferBytes => _rec?.BufferBytes ?? 0;
+    public static double BufferSeconds => _rec?.BufferSeconds ?? 0;
+    /// <summary>FFmpeg's share of all CPU time since the last call (0..100).</summary>
+    public static double CpuPercent
+    {
+        get
+        {
+            if (_rec == null) return 0;
+            var cpu = _rec.CpuTime;
+            var now = DateTime.UtcNow;
+            double pct = _lastCpuAt == default ? 0 : (cpu - _lastCpu).TotalMilliseconds / Math.Max((now - _lastCpuAt).TotalMilliseconds, 1) / Environment.ProcessorCount * 100;
+            _lastCpu = cpu; _lastCpuAt = now;
+            return Math.Max(0, pct);
+        }
+    }
+
+    /// <summary>Raised on the UI thread whenever the state changes.</summary>
+    public static event Action Changed;
+    /// <summary>Raised on the UI thread when a clip is saved (its path).</summary>
+    public static event Action<string> Saved;
+
+    /// <summary>Call once on the UI thread when Pulse starts.</summary>
+    public static void Init()
+    {
+        if (_timer != null) return;
+        _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
+        _timer.Tick += (_, _) => Tick();
+        _timer.Start();
+        RegisterHotkey();
+        Tick();
+    }
+
+    /// <summary>Settings changed: restart the recording with them.</summary>
+    public static void Restart()
+    {
+        StopRecorder();
+        _failures = 0;
+        _retryAfter = default;
+        RegisterHotkey();
+        Tick();
+    }
+
+    public static void Shutdown()
+    {
+        _timer?.Stop();
+        StopRecorder();
+        if (_hotkeyWindow != null) { UnregisterHotKey(_hotkeyWindow.Handle, HotkeyId); _hotkeyWindow.Dispose(); _hotkeyWindow = null; }
+    }
+
+    static void Set(ClipsState s, string problem = "")
+    {
+        if (State == s && Problem == problem) return;
+        State = s;
+        Problem = problem;
+        Changed?.Invoke();
+    }
+
+    static bool _ticking;
+
+    static async void Tick()
+    {
+        // The timer fires every 3 s; the first start can take longer (FFmpeg tests the encoders), so never overlap.
+        if (_ticking) return;
+        _ticking = true;
+        try { await TickCore(); }
+        finally { _ticking = false; }
+    }
+
+    static async Task TickCore()
+    {
+        if (!S.Enabled) { StopRecorder(); Set(ClipsState.Off); return; }
+        if (!Ffmpeg.Installed) { StopRecorder(); Set(ClipsState.NeedsSetup); return; }
+
+        var game = await Task.Run(GameDetector.RunningGame);
+        _game = game;
+        bool want = !S.OnlyWhileGaming || game != null;
+
+        if (!want) { StopRecorder(); Set(ClipsState.WaitingForGame); return; }
+        if (_rec != null && _rec.Running) { Set(ClipsState.Recording); return; }
+
+        if (_rec != null)
+        {
+            // FFmpeg stopped on its own (display mode change, driver reset, device lost): try again a few times.
+            var why = _rec.LastError;
+            StopRecorder();
+            _failures++;
+            _retryAfter = DateTime.Now.AddSeconds(Math.Min(5 * _failures, 30));
+            if (_failures >= 4) { Set(ClipsState.Problem, Explain(why)); return; }
+        }
+        if (DateTime.Now < _retryAfter) return;
+
+        try
+        {
+            var encoders = await Encoders.Available();
+            var enc = Encoders.Pick(encoders, S.Codec);
+            if (enc == null) { Set(ClipsState.Problem, "FFmpeg didn't find a video encoder that works on this PC."); return; }
+            _rec = new ReplayRecorder(S, enc);
+            _rec.Start();
+            Set(ClipsState.Recording);
+        }
+        catch (Exception ex)
+        {
+            StopRecorder();
+            _failures++;
+            Set(ClipsState.Problem, ex.Message);
+        }
+    }
+
+    static string Explain(string ffmpegError)
+    {
+        var e = ffmpegError ?? "";
+        if (e.Contains("DuplicateOutput", StringComparison.OrdinalIgnoreCase) || e.Contains("ddagrab", StringComparison.OrdinalIgnoreCase))
+            return "Windows wouldn't share the screen for recording. Another recorder may be using it, or the display picked in settings isn't connected.";
+        if (e.Contains("nvenc", StringComparison.OrdinalIgnoreCase) || e.Contains("amf", StringComparison.OrdinalIgnoreCase) || e.Contains("qsv", StringComparison.OrdinalIgnoreCase))
+            return "The graphics card's encoder refused to start. Updating the graphics driver usually fixes this; or try H.264 in the settings.";
+        return e.Length > 0 ? "Recording stopped: " + e : "Recording stopped unexpectedly.";
+    }
+
+    static void StopRecorder()
+    {
+        var r = _rec;
+        _rec = null;
+        _lastCpuAt = default;
+        if (r != null) Task.Run(r.Dispose);
+    }
+
+    /// <summary>Saves the instant replay as a clip. Safe to call from anywhere (hotkey, tray, button).</summary>
+    public static async Task<string> SaveClip()
+    {
+        if (_saving) return null;
+        if (_rec == null || !_rec.Running)
+        {
+            if (S.Enabled) ClipToast.Show(Loc.T("Nothing to save yet"), Loc.T(S.OnlyWhileGaming ? "Clips records while a game is running." : "The replay is starting."), false);
+            return null;
+        }
+        _saving = true;
+        try
+        {
+            var path = await _rec.Save(S.ClipsFolder, _game ?? "Clip", S.ReplaySeconds);
+            Feedback.Saved(S);
+            _ = Task.Run(async () =>
+            {
+                try { await ClipLibrary.MakeThumbnail(path); } catch { }
+                try { ClipLibrary.EnforceLimit(S); } catch { }
+                Application.Current?.Dispatcher.Invoke(() => Saved?.Invoke(path));
+            });
+            TweakEngine.AddLog("clips", $"Saved a clip: {Path.GetFileName(path)}");
+            return path;
+        }
+        catch (Exception ex)
+        {
+            ClipToast.Show(Loc.T("Couldn't save the clip"), Loc.T(ex.Message), false);
+            return null;
+        }
+        finally { _saving = false; }
+    }
+
+    // ───────── Hotkey ─────────
+
+    const int HotkeyId = 0x5011;
+    const int WM_HOTKEY = 0x0312;
+    const int MOD_NOREPEAT = 0x4000;
+
+    [DllImport("user32.dll", SetLastError = true)] static extern bool RegisterHotKey(IntPtr hWnd, int id, int fsModifiers, int vk);
+    [DllImport("user32.dll")] static extern bool UnregisterHotKey(IntPtr hWnd, int id);
+
+    static void RegisterHotkey()
+    {
+        if (_hotkeyWindow == null)
+        {
+            // A message-only window: invisible, never activated, exists only to receive the hotkey.
+            _hotkeyWindow = new HwndSource(new HwndSourceParameters("Pulse clips hotkey") { ParentWindow = new IntPtr(-3), WindowStyle = 0 });
+            _hotkeyWindow.AddHook((IntPtr hwnd, int msg, IntPtr w, IntPtr l, ref bool handled) =>
+            {
+                if (msg == WM_HOTKEY && w.ToInt32() == HotkeyId) { handled = true; _ = SaveClip(); }
+                return IntPtr.Zero;
+            });
+        }
+        UnregisterHotKey(_hotkeyWindow.Handle, HotkeyId);
+        _hotkeyOk = S.Enabled && RegisterHotKey(_hotkeyWindow.Handle, HotkeyId, S.HotkeyModifiers | MOD_NOREPEAT, S.HotkeyKey);
+    }
+
+    /// <summary>"Alt+F10" for the current hotkey.</summary>
+    public static string HotkeyText(int mods, int key)
+    {
+        var parts = new List<string>();
+        if ((mods & 2) != 0) parts.Add("Ctrl");
+        if ((mods & 1) != 0) parts.Add("Alt");
+        if ((mods & 4) != 0) parts.Add("Shift");
+        parts.Add(System.Windows.Input.KeyInterop.KeyFromVirtualKey(key).ToString());
+        return string.Join("+", parts);
+    }
+
+    // ───────── Start with Windows ─────────
+
+    const string TaskName = "Pulse Optimizer clips";
+
+    /// <summary>Starts Pulse in the tray at sign-in (with the admin rights it already has, so no prompt).</summary>
+    public static bool SetStartWithWindows(bool on)
+    {
+        var schtasks = Path.Combine(Environment.SystemDirectory, "schtasks.exe");
+        var exe = Environment.ProcessPath;
+        var r = on
+            ? Shell.Run(schtasks, $"/Create /F /TN \"{TaskName}\" /TR \"\\\"{exe}\\\" --tray\" /SC ONLOGON /RL HIGHEST /DELAY 0000:30")
+            : Shell.Run(schtasks, $"/Delete /F /TN \"{TaskName}\"");
+        return r.Code == 0 || !on;
+    }
+}
+
+/// <summary>The short sound and the small popup that confirm a clip was saved, without taking focus from the game.</summary>
+static class Feedback
+{
+    static byte[] _blip;
+
+    public static void Saved(ClipSettings s)
+    {
+        if (s.PlaySound) Play();
+        if (s.ShowSavedPopup) ClipToast.Show(Loc.T("Clip saved"), Loc.F("Last {0} seconds", s.ReplaySeconds), true);
+    }
+
+    static void Play()
+    {
+        try
+        {
+            _blip ??= Blip();
+            var player = new System.Media.SoundPlayer(new MemoryStream(_blip));
+            player.Play();
+        }
+        catch { }
+    }
+
+    /// <summary>A soft two-note chime, made in code so there's no sound file to ship.</summary>
+    internal static byte[] Blip()
+    {
+        const int rate = 44100;
+        var samples = new List<short>();
+        foreach (var (freq, ms) in new[] { (880.0, 70), (1320.0, 110) })
+        {
+            int n = rate * ms / 1000;
+            for (int i = 0; i < n; i++)
+            {
+                double env = Math.Min(1, i / (rate * 0.005)) * Math.Exp(-3.0 * i / n);
+                samples.Add((short)(Math.Sin(2 * Math.PI * freq * i / rate) * env * 9000));
+            }
+        }
+        using var ms2 = new MemoryStream();
+        using var w = new BinaryWriter(ms2);
+        int bytes = samples.Count * 2;
+        w.Write("RIFF"u8); w.Write(36 + bytes); w.Write("WAVE"u8);
+        w.Write("fmt "u8); w.Write(16); w.Write((short)1); w.Write((short)1); w.Write(rate); w.Write(rate * 2); w.Write((short)2); w.Write((short)16);
+        w.Write("data"u8); w.Write(bytes);
+        foreach (var x in samples) w.Write(x);
+        return ms2.ToArray();
+    }
+}

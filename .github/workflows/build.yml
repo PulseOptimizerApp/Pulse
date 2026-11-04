@@ -34,6 +34,12 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: ./tools/get-presentmon.ps1 -Out src/PulseOptimizer/tools/PresentMon.exe
 
+      - name: Package FFmpeg for Clips (downloaded by Pulse only when a user turns Clips on)
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: ./tools/get-ffmpeg.ps1 -Zip dist/ffmpeg-win64.zip -HashOut src/PulseOptimizer/tools/ffmpeg.sha256
+
       - name: Get game cover art from Steam's store (embedded; the app never goes online)
         shell: pwsh
         run: python tools/get-game-art.py src/PulseOptimizer/Assets/Games
@@ -53,7 +59,8 @@ jobs:
           New-Item -ItemType Directory -Force dist | Out-Null
           Copy-Item out/PulseOptimizer.exe dist/PulseOptimizer.exe
           $exe = (Get-FileHash dist/PulseOptimizer.exe -Algorithm SHA256).Hash.ToLower()
-          "$exe  PulseOptimizer.exe" | Out-File dist/SHA256SUMS.txt -Encoding ascii
+          $ff = (Get-FileHash dist/ffmpeg-win64.zip -Algorithm SHA256).Hash.ToLower()
+          "$exe  PulseOptimizer.exe`n$ff  ffmpeg-win64.zip" | Out-File dist/SHA256SUMS.txt -Encoding ascii
           Get-Content dist/SHA256SUMS.txt
           "### SHA-256`n``````n$(Get-Content dist/SHA256SUMS.txt -Raw)``````" >> $env:GITHUB_STEP_SUMMARY
 
@@ -87,3 +94,4 @@ jobs:
           files: |
             dist/PulseOptimizer.exe
             dist/SHA256SUMS.txt
+            dist/ffmpeg-win64.zip

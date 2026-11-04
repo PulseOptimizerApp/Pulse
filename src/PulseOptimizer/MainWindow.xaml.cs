@@ -138,6 +138,7 @@ public partial class MainWindow : Window
                 "diagnose" => new DiagnosePage(),
                 "fresh" => new FreshPage(),
                 "roblox" => new RobloxPage(),
+                "clips" => new ClipsPage(),
                 "tweaks" => new TweaksPage(),
                 "measure" => new MeasurePage(),
                 "games" => new GamesPage(),
@@ -364,10 +365,10 @@ public partial class MainWindow : Window
             try
             {
                 var exe = Environment.ProcessPath;
-                if (exe != null) Process.Start(new ProcessStartInfo(exe) { UseShellExecute = true });
+                if (exe != null) Process.Start(new ProcessStartInfo(exe, "--restarted") { UseShellExecute = true });
             }
             catch { return; }
-            Application.Current.Shutdown();
+            QuitApp();
         }
     }
 
@@ -376,4 +377,48 @@ public partial class MainWindow : Window
     void Min_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
     void Max_Click(object sender, RoutedEventArgs e) => WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
     void Close_Click(object sender, RoutedEventArgs e) => Close();
+
+    // ───────── Tray (Clips keeps running with the window closed) ─────────
+
+    bool _quitting, _trayHintShown;
+
+    protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
+    {
+        var clips = TweakEngine.State.Clips;
+        if (!_quitting && clips is { Enabled: true, KeepRunningInTray: true })
+        {
+            e.Cancel = true;
+            Hide();
+            Ui.TrayIcon.Show();
+            if (!_trayHintShown)
+            {
+                _trayHintShown = true;
+                Ui.ClipToast.Show(Ui.Loc.T("Pulse is still clipping"), Ui.Loc.T("It's by the clock. Right-click it to quit."), true);
+            }
+            return;
+        }
+        base.OnClosing(e);
+        Ui.ClipsService.Shutdown();
+        Ui.TrayIcon.Hide();
+        Application.Current.Shutdown();
+    }
+
+    /// <summary>Brings the window back from the tray (or from a second launch of Pulse).</summary>
+    public void ShowFromTray()
+    {
+        Show();
+        if (WindowState == WindowState.Minimized) WindowState = WindowState.Normal;
+        Activate();
+        Ui.TrayIcon.Hide();
+    }
+
+    /// <summary>Windows is signing out or shutting down: let the window close instead of hiding in the tray.</summary>
+    public void PrepareForExit() => _quitting = true;
+
+    /// <summary>Closes Pulse for real, including Clips.</summary>
+    public void QuitApp()
+    {
+        _quitting = true;
+        Close();
+    }
 }

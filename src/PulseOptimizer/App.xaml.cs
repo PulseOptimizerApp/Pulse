@@ -40,8 +40,60 @@ public partial class App : Application
             Shutdown();
             return;
         }
+        // One Pulse at a time: a second launch just brings the first one forward (two recorders would fight).
+        if (!ClaimSingleInstance(e.Args.Contains("--restarted", StringComparer.OrdinalIgnoreCase)))
+        {
+            try { EventWaitHandle.OpenExisting(ShowEventName).Set(); } catch { }
+            Shutdown();
+            return;
+        }
+        ShutdownMode = ShutdownMode.OnExplicitShutdown;
+
         try { Ui.Loc.Init(Core.TweakEngine.State.Settings.Language); } catch { }
-        new Pulse.MainWindow().Show();
+        var window = new Pulse.MainWindow();
+        Ui.TrayIcon.OpenRequested += window.ShowFromTray;
+        Ui.TrayIcon.QuitRequested += window.QuitApp;
+        ListenForShow(window);
+        SessionEnding += (_, _) => window.PrepareForExit();
+        Ui.ClipsService.Init();
+
+        // Started at sign-in for Clips: stay in the tray until the user opens Pulse.
+        bool tray = e.Args.Contains("--tray", StringComparer.OrdinalIgnoreCase) && Core.TweakEngine.State.Clips is { Enabled: true };
+        if (tray) Ui.TrayIcon.Show();
+        else window.Show();
+    }
+
+    const string MutexName = @"Local\PulseOptimizer.SingleInstance";
+    const string ShowEventName = @"Local\PulseOptimizer.Show";
+    static Mutex _instance;
+
+    static bool ClaimSingleInstance(bool restarted)
+    {
+        _instance = new Mutex(false, MutexName);
+        try { return _instance.WaitOne(restarted ? 10_000 : 0); } // after a language restart, wait for the old one to exit
+        catch (AbandonedMutexException) { return true; }
+    }
+
+    void ListenForShow(Pulse.MainWindow window)
+    {
+        var ev = new EventWaitHandle(false, EventResetMode.AutoReset, ShowEventName);
+        var t = new Thread(() =>
+        {
+            while (true)
+            {
+                ev.WaitOne();
+                Dispatcher.BeginInvoke(window.ShowFromTray);
+            }
+        }) { IsBackground = true, Name = "Pulse show listener" };
+        t.Start();
+    }
+
+    protected override void OnExit(ExitEventArgs e)
+    {
+        try { Ui.ClipsService.Shutdown(); } catch { }
+        try { Ui.TrayIcon.Hide(); } catch { }
+        try { _instance?.ReleaseMutex(); } catch { }
+        base.OnExit(e);
     }
 
     static bool IsAdmin()

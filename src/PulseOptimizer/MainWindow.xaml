@@ -53,6 +53,7 @@
                     <StackPanel x:Name="NavPanel">
                         <RadioButton Style="{StaticResource NavButton}" Tag="home" ui:Icon.Glyph="&#xE80F;" Content="Home" IsChecked="True" Checked="Nav_Checked" Click="Nav_Click"/>
                         <RadioButton Style="{StaticResource NavButton}" Tag="games" ui:Icon.Glyph="&#xE7FC;" Content="Games" Checked="Nav_Checked" Click="Nav_Click"/>
+                        <RadioButton Style="{StaticResource NavButton}" Tag="clips" ui:Icon.Glyph="&#xE714;" Content="Clips" Checked="Nav_Checked" Click="Nav_Click"/>
                         <RadioButton Style="{StaticResource NavButton}" Tag="roblox" ui:Icon.Glyph="&#xE768;" Content="Roblox" Checked="Nav_Checked" Click="Nav_Click"/>
                         <RadioButton Style="{StaticResource NavButton}" Tag="diagnose" ui:Icon.Glyph="&#xE9D9;" Content="Diagnose" Checked="Nav_Checked" Click="Nav_Click"/>
                         <RadioButton Style="{StaticResource NavButton}" Tag="tweaks" ui:Icon.Glyph="&#xE945;" Content="Tweaks" Checked="Nav_Checked" Click="Nav_Click"/>

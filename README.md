@@ -17,9 +17,11 @@ Pulse is an open-source, evidence-based Windows optimizer. It finds what's actua
 
 **Clean up**, **Startup apps** (the same switch as Task Manager, with advice per app), **Security** (Microsoft Defender scans plus a check of every place malware hides to start with Windows, mapped to MITRE ATT&CK), and **Undo & restore** (restore points, undo per tweak or everything, activity log).
 
+**Clips** (opt-in) is an instant replay: press a hotkey to save the last moments of your game. The replay waits in memory, recording uses your graphics card's own encoder (NVIDIA NVENC, AMD AMF or Intel Quick Sync) and Windows' screen capture, and clips stay in one folder on your PC. Turning Clips on downloads [FFmpeg](https://ffmpeg.org) (GPL) once from this repository's release page, checked against the SHA-256 built into Pulse; it runs as a separate program. That's the only download Pulse ever makes.
+
 ## What it never does
 - Never changes a setting without saving the exact previous value first.
-- Never uploads or downloads anything itself.
+- Never uploads anything, and never downloads anything unless you turn on Clips (below).
 - Never reads, writes or injects into games or other processes.
 - Never turns off your antivirus or adds exclusions.
 - Never applies tweaks that Microsoft documents as unused, or undocumented ones as speed boosts.
