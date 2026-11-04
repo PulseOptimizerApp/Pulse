@@ -75,7 +75,7 @@
                                 </StackPanel>
                             </Button>
                             <TextBlock Style="{StaticResource Body}" FontSize="12" Foreground="{StaticResource TextFaintBrush}" VerticalAlignment="Center" Margin="18,0,0,0" MaxWidth="440" TextWrapping="Wrap"
-                                       Text="Pulse downloads FFmpeg, the open-source video engine, once (about 80 MB) from its own GitHub release and checks it before use. That's the only time Clips goes online."/>
+                                       Text="Pulse downloads FFmpeg, the open-source video engine, once (about 65 MB) from its own GitHub release and checks it before use. That's the only time Clips goes online."/>
                         </StackPanel>
                         <!-- Download progress -->
                         <StackPanel x:Name="SetupPanel" Margin="0,18,0,0" Visibility="Collapsed">

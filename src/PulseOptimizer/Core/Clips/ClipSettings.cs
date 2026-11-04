@@ -27,7 +27,7 @@ public class ClipSettings
 
     /// <summary>Hotkey to save the replay: modifier flags (MOD_ALT=1, MOD_CONTROL=2, MOD_SHIFT=4) and a virtual-key code.</summary>
     public int HotkeyModifiers { get; set; } = 1;   // Alt
-    public int HotkeyKey { get; set; } = 0x79;      // F10 → Alt+F10 is taken by ShadowPlay on many PCs, so the page warns
+    public int HotkeyKey { get; set; } = 0x77;      // F8 → Alt+F8 (Alt+F10 belongs to NVIDIA's instant replay, F8 alone to Medal)
     public bool HotkeyTakenWarned { get; set; }
 
     /// <summary>Only keep a replay while a game is running (saves memory and GPU work the rest of the time).</summary>

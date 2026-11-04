@@ -114,7 +114,7 @@ public partial class ClipsPage : UserControl, IPage
         TweakEngine.AddLog("clips", "Turned off Clips");
         UpdateStatus();
         if (await MainWindow.Instance.Confirm("Remove the recording engine too?",
-                "Clips is off. Your clips stay where they are. You can also delete the FFmpeg download (about 80 MB); Pulse downloads it again if you turn Clips back on.",
+                "Clips is off. Your clips stay where they are. You can also delete the FFmpeg download (about 65 MB); Pulse downloads it again if you turn Clips back on.",
                 "Remove it", "Keep it"))
         {
             Ffmpeg.Uninstall();

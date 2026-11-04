@@ -1617,7 +1617,6 @@
  "Play a sound when a clip is saved": "Tocar um som ao salvar um clipe",
  "Press the keys…": "Aperte as teclas…",
  "Pulse Optimizer: Clips is on": "Pulse Optimizer: Clipes ativados",
- "Pulse downloads FFmpeg, the open-source video engine, once (about 80 MB) from its own GitHub release and checks it before use. That's the only time Clips goes online.": "O Pulse baixa uma vez o FFmpeg, o motor de vídeo de código aberto (cerca de 80 MB), da própria versão no GitHub e verifica antes de usar. É a única vez que os Clipes acessam a internet.",
  "Pulse is still clipping": "O Pulse continua gravando clipes",
  "Pulse keeps the last moments of your game ready. One key saves them as a clip, in full quality, without the ads, accounts and background apps other clippers bring.": "O Pulse deixa prontos os últimos momentos da sua partida. Uma tecla salva como clipe, em qualidade total, sem os anúncios, contas e apps em segundo plano de outros programas de clipes.",
  "Put the microphone on its own second track too (for editing)": "Colocar também o microfone numa segunda faixa separada (para editar)",
@@ -1683,10 +1682,11 @@
  "Open Pulse": "Abrir o Pulse",
  "Quit Pulse": "Sair do Pulse",
  "Remove it": "Remover",
- "Clips is off. Your clips stay where they are. You can also delete the FFmpeg download (about 80 MB); Pulse downloads it again if you turn Clips back on.": "Os Clipes estão desativados. Seus clipes ficam onde estão. Você também pode apagar o download do FFmpeg (cerca de 80 MB); o Pulse baixa de novo se você reativar os Clipes.",
  "Windows wouldn't share the screen for recording. Another recorder may be using it, or the display picked in settings isn't connected.": "O Windows não compartilhou a tela para gravar. Outro gravador pode estar usando, ou a tela escolhida nas configurações não está conectada.",
  "The graphics card's encoder refused to start. Updating the graphics driver usually fixes this; or try H.264 in the settings.": "O codificador da placa de vídeo não quis iniciar. Atualizar o driver de vídeo costuma resolver; ou tente H.264 nas configurações.",
  "Recording stopped unexpectedly.": "A gravação parou inesperadamente.",
  "Recording stopped:": "A gravação parou:",
- "Couldn't download FFmpeg (HTTP {0}). Check your internet connection and try again.": "Não foi possível baixar o FFmpeg (HTTP {0}). Confira sua conexão de internet e tente de novo."
+ "Couldn't download FFmpeg (HTTP {0}). Check your internet connection and try again.": "Não foi possível baixar o FFmpeg (HTTP {0}). Confira sua conexão de internet e tente de novo.",
+ "Pulse downloads FFmpeg, the open-source video engine, once (about 65 MB) from its own GitHub release and checks it before use. That's the only time Clips goes online.": "O Pulse baixa uma vez o FFmpeg, o motor de vídeo de código aberto (cerca de 65 MB), da própria versão no GitHub e verifica antes de usar. É a única vez que os Clipes acessam a internet.",
+ "Clips is off. Your clips stay where they are. You can also delete the FFmpeg download (about 65 MB); Pulse downloads it again if you turn Clips back on.": "Os Clipes estão desativados. Seus clipes ficam onde estão. Você também pode apagar o download do FFmpeg (cerca de 65 MB); o Pulse baixa de novo se você reativar os Clipes."
 }

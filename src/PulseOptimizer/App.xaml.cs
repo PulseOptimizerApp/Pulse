@@ -54,6 +54,7 @@ public partial class App : Application
         Ui.TrayIcon.OpenRequested += window.ShowFromTray;
         Ui.TrayIcon.QuitRequested += window.QuitApp;
         ListenForShow(window);
+        SessionEnding += (_, _) => window.PrepareForExit();
         Ui.ClipsService.Init();
 
         // Started at sign-in for Clips: stay in the tray until the user opens Pulse.

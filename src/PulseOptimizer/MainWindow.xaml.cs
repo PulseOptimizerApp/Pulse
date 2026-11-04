@@ -412,6 +412,9 @@ public partial class MainWindow : Window
         Ui.TrayIcon.Hide();
     }
 
+    /// <summary>Windows is signing out or shutting down: let the window close instead of hiding in the tray.</summary>
+    public void PrepareForExit() => _quitting = true;
+
     /// <summary>Closes Pulse for real, including Clips.</summary>
     public void QuitApp()
     {

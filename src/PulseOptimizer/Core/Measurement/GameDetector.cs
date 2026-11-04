@@ -89,12 +89,16 @@ public static class GameDetector
             if (NotGames.Contains(p.ProcessName)) return null;
             string path = null;
             try { path = p.MainModule?.FileName; } catch { }
-            bool isGame = (path != null && LibraryMarkers.Any(m => path.Contains(m, StringComparison.OrdinalIgnoreCase))) || IsFullscreen(hwnd);
+            // Games Pulse knows by name count even in a window (Roblox lives in AppData, not a game library).
+            var known = Pulse.Core.Games.GameCatalog.All.FirstOrDefault(g =>
+                g.Exes.Any(e => Path.GetFileNameWithoutExtension(e).Equals(p.ProcessName, StringComparison.OrdinalIgnoreCase)));
+            bool isGame = known != null
+                || (path != null && LibraryMarkers.Any(m => path.Contains(m, StringComparison.OrdinalIgnoreCase)))
+                || IsFullscreen(hwnd);
             if (!isGame) return null;
-            string name = null;
-            try { name = p.MainModule?.FileVersionInfo.ProductName; } catch { }
+            string name = known?.Name;
+            if (name == null) try { name = p.MainModule?.FileVersionInfo.ProductName; } catch { }
             if (string.IsNullOrWhiteSpace(name)) name = string.IsNullOrWhiteSpace(p.MainWindowTitle) ? p.ProcessName : p.MainWindowTitle;
-            if (p.ProcessName.Equals("RobloxPlayerBeta", StringComparison.OrdinalIgnoreCase)) name = "Roblox";
             _lastGamePid = p.Id;
             _lastGameName = name.Trim();
             return _lastGameName;

@@ -92,7 +92,18 @@ public static class ClipsService
         Changed?.Invoke();
     }
 
+    static bool _ticking;
+
     static async void Tick()
+    {
+        // The timer fires every 3 s; the first start can take longer (FFmpeg tests the encoders), so never overlap.
+        if (_ticking) return;
+        _ticking = true;
+        try { await TickCore(); }
+        finally { _ticking = false; }
+    }
+
+    static async Task TickCore()
     {
         if (!S.Enabled) { StopRecorder(); Set(ClipsState.Off); return; }
         if (!Ffmpeg.Installed) { StopRecorder(); Set(ClipsState.NeedsSetup); return; }
