@@ -22,8 +22,9 @@ public static class GameDetector
         "chrome", "msedge", "msedgewebview2", "firefox", "opera", "brave", "vivaldi", "Discord", "Telegram", "WhatsApp",
         "Signal", "Teams", "ms-teams", "Zoom", "Slack", "Claude",
         // Launchers (the games they start are detected on their own)
-        "steam", "steamwebhelper", "EpicGamesLauncher", "EADesktop", "Origin", "Battle.net", "RiotClientServices",
-        "RiotClientUx", "GalaxyClient", "UbisoftConnect", "upc", "XboxPcApp", "GameBar", "Overwolf", "Playnite.DesktopApp",
+        "steam", "steamwebhelper", "EpicGamesLauncher", "EpicWebHelper", "EADesktop", "EABackgroundService", "Origin", "Battle.net",
+        "Agent", "RiotClientServices", "RiotClientUx", "RiotClientUxRender", "Riot Client", "LeagueClient", "LeagueClientUx",
+        "LeagueClientUxRender", "vgtray", "GalaxyClient", "UplayWebCore", "RockstarService", "Launcher", "RobloxStudioBeta", "UbisoftConnect", "upc", "XboxPcApp", "GameBar", "Overwolf", "Playnite.DesktopApp",
         // Overlays, capture, hardware and audio tools
         "NVIDIA Overlay", "NVIDIA Share", "NVIDIA app", "nvcontainer", "RadeonSoftware", "AMDRSServ", "NZXT CAM", "CAM",
         "obs64", "obs32", "Medal", "MedalEncoder", "SteelSeriesGG", "SteelSeriesEngine", "lghub", "iCUE", "RazerAppEngine",
@@ -62,6 +63,26 @@ public static class GameDetector
     static int _lastGamePid;
     static string _lastGameName;
     static IntPtr _lastGameWindow;
+    static bool _lastKnown;
+
+    /// <summary>A running game from Pulse's catalog (by exe name), or null. One process list read, not one per game.</summary>
+    static Process KnownRunning()
+    {
+        var exes = new HashSet<string>(Pulse.Core.Games.GameCatalog.All.SelectMany(g => g.Exes).Select(Path.GetFileNameWithoutExtension), StringComparer.OrdinalIgnoreCase);
+        Process match = null;
+        foreach (var p in Process.GetProcesses())
+        {
+            if (match == null && exes.Contains(p.ProcessName)) { match = p; continue; }
+            p.Dispose();
+        }
+        return match;
+    }
+
+    static bool NoKnownRunning()
+    {
+        using var p = KnownRunning();
+        return p == null;
+    }
     [DllImport("user32.dll")] static extern bool IsWindow(IntPtr hWnd);
 
     /// <summary>The process of the game <see cref="RunningGame"/> last found (0 if none).</summary>
@@ -94,10 +115,22 @@ public static class GameDetector
                 try
                 {
                     using var last = Process.GetProcessById(_lastGamePid);
-                    if (!last.HasExited) return _lastGameName;
+                    // A game Pulse knows by name wins over a guess (for example a launcher that was in front first).
+                    if (!last.HasExited && (_lastKnown || NoKnownRunning())) return _lastGameName;
                 }
                 catch { }
                 _lastGamePid = 0; _lastGameName = null; _lastGameWindow = IntPtr.Zero;
+            }
+            // A game from Pulse's catalog that's running counts even when it isn't in front (alt-tabbed, or a launcher
+            // like Riot Client was in front when recording started).
+            using (var kp = KnownRunning())
+            {
+                if (kp != null && kp.MainWindowHandle != IntPtr.Zero)
+                {
+                    var g = Pulse.Core.Games.GameCatalog.All.First(x => x.Exes.Any(e => Path.GetFileNameWithoutExtension(e).Equals(kp.ProcessName, StringComparison.OrdinalIgnoreCase)));
+                    _lastGamePid = kp.Id; _lastGameName = g.Name; _lastGameWindow = kp.MainWindowHandle; _lastKnown = true;
+                    return _lastGameName;
+                }
             }
             var hwnd = GetForegroundWindow();
             if (hwnd == IntPtr.Zero) return null;
@@ -120,6 +153,7 @@ public static class GameDetector
             _lastGamePid = p.Id;
             _lastGameName = name.Trim();
             _lastGameWindow = hwnd;
+            _lastKnown = known != null;
             return _lastGameName;
         }
         catch { return null; }

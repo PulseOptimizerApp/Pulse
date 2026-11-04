@@ -81,9 +81,9 @@ public class InputOverlayTests
         var burn = new InputBurn("dir", "list.txt");
         Assert.Contains("-f concat -safe 0 -i \"list.txt\"", ClipLibrary.OverlayInput(burn));
         var v = ClipLibrary.VideoArgs(burn, 720);
-        Assert.Contains("[0:v:0][1:v]overlay=", v);
+        Assert.Contains("[0:v:0]" + ClipLibrary.SquarePixels + "[base];[base][1:v]overlay=", v);
         Assert.Contains(",scale=-2:720,format=yuv420p[vout]", v);
-        Assert.Equal("-map 0:v:0 -vf scale=-2:720", ClipLibrary.VideoArgs(null, 720));
+        Assert.Equal("-map 0:v:0 -vf " + ClipLibrary.SquarePixels + ",scale=-2:720", ClipLibrary.VideoArgs(null, 720));
     }
 
     [Fact]

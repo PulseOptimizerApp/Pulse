@@ -1981,5 +1981,11 @@
  "Clips is waiting for a game · it uses nothing until then": "Clips espera un juego · no usa nada hasta entonces",
  "Your screen": "Tu pantalla",
  "Clips is using {0}% CPU and {1}": "Clips usa {0}% de CPU y {1}",
- "Big win": "Gran mejora"
+ "Big win": "Gran mejora",
+ "Stretched resolution: play clips stretched to your screen, like in game (for example 1440×1080 on a 16:9 monitor), instead of in a box": "Resolución estirada: reproducir los clips estirados a tu pantalla, como en el juego (por ejemplo 1440×1080 en un monitor 16:9), en vez de en un recuadro",
+ "Give the game and every app in your volume mixer (Discord, Spotify, browsers…) its own track, so you can mute any of them in a clip": "Dar una pista propia al juego y a cada app de tu mezclador de volumen (Discord, Spotify, navegadores…), para poder silenciar cualquiera en un clip",
+ "Mute any sound in this clip": "Silencia cualquier sonido de este clip",
+ "Audio": "Audio",
+ "Click a sound to mute it": "Haz clic en un sonido para silenciarlo",
+ "Audio ({0} muted)": "Audio ({0} silenciados)"
 }

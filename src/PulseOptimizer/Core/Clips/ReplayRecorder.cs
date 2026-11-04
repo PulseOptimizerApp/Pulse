@@ -60,6 +60,17 @@ public sealed class ReplayRecorder : IDisposable
     public Encoder Encoder => _encoder;
     /// <summary>The game window being recorded, or Zero for the whole display.</summary>
     public IntPtr Window => _window;
+    /// <summary>The screen's shape (width / height, from its native resolution), for stretched resolutions. 0 = unknown.</summary>
+    public double ScreenAspect { get; set; }
+
+    /// <summary>Stream-copy options that make a stretched-resolution recording play stretched, or "".</summary>
+    async Task<string> StretchFor(string ts)
+    {
+        if (!_s.StretchToScreen || ScreenAspect <= 0) return "";
+        var (w, h) = await ClipLibrary.VideoSize(ts);
+        return ClipLibrary.StretchCopyArgs(_encoder.Codec, ClipLibrary.StretchSar(w, h, ScreenAspect));
+    }
+
     /// <summary>Names of the sound tracks being recorded, in order (track 1 is always all sound).</summary>
     public List<string> TrackTitles { get; } = new();
     public long BufferBytes => _ring.Bytes;
@@ -171,7 +182,8 @@ public sealed class ReplayRecorder : IDisposable
             string g = gameIn + ":a", m = micIn + ":a";
             if (gameTrack) { filters.Add($"[{gameIn}:a]asplit=2[g1][g2]"); g = "g1"; }
             if (micTrack) { filters.Add($"[{micIn}:a]asplit=2[m1][m2]"); m = "m1"; }
-            filters.Add($"[{g}][{m}]amix=inputs=2:duration=longest:dropout_transition=0:normalize=0[mix]");
+            // A gentle limiter: game and voice added together can go over full scale, which crackles in the clip.
+            filters.Add($"[{g}][{m}]amix=inputs=2:duration=longest:dropout_transition=0:normalize=0,alimiter=limit=0.97:level=0[mix]");
             maps.AddRange(new[] { "-map", "[mix]" });
         }
         else if (gameIn >= 0) maps.AddRange(new[] { "-map", $"{gameIn}:a" });
@@ -187,7 +199,8 @@ public sealed class ReplayRecorder : IDisposable
         // Pixel rate decides how hard the encoder can work: native is assumed 1440p when not known.
         int outH = h > 0 ? h : 1440;
         a.Add(Encoders.Options(e, Math.Clamp(s.BitrateMbps, 2, 150), fps, (long)outH * outH * 16 / 9 * fps));
-        if (gameIn >= 0 || micIn >= 0) a.Add("-c:a aac -b:a 192k");
+        // 256 kb/s per track: clean at any volume. Each extra app track is a copy of part of the sound.
+        if (gameIn >= 0 || micIn >= 0) a.Add("-c:a aac -b:a 256k");
         a.Add("-f mpegts -mpegts_start_pid 0x100 -mpegts_flags +initial_discontinuity pipe:1");
         return string.Join(" ", a);
     }
@@ -265,7 +278,7 @@ public sealed class ReplayRecorder : IDisposable
             var mp4 = UniquePath(folder, name);
             // -t caps the length even if keyframes were far apart (the clip starts at a keyframe, so it's never shorter).
             string len = (seconds + 1.5).ToString("0.###", CultureInfo.InvariantCulture);
-            var (code, err) = await Ffmpeg.Run($"-hide_banner -loglevel error -y -i \"{ts}\" -map 0 -c copy -t {len}{TitleArgs(TrackTitles)} -movflags +faststart \"{mp4}\"", ct, 120_000);
+            var (code, err) = await Ffmpeg.Run($"-hide_banner -loglevel error -y -i \"{ts}\" -map 0 -c copy{await StretchFor(ts)} -t {len}{TitleArgs(TrackTitles)} -movflags +faststart \"{mp4}\"", ct, 120_000);
             if (code != 0 || !File.Exists(mp4)) throw new InvalidOperationException("FFmpeg couldn't save the clip: " + err.Trim());
             ClipLibrary.SaveMarks(mp4, MarksBetween(clipStart, Now));
             LastRange = (_startAbs + clipStart, _startAbs + Now);
@@ -344,7 +357,7 @@ public sealed class ReplayRecorder : IDisposable
         try
         {
             var mp4 = UniquePath(folder, _sessionName + " session");
-            var (code, err) = await Ffmpeg.Run($"-hide_banner -loglevel error -y -i \"{_sessionTs}\" -map 0 -c copy{TitleArgs(TrackTitles)} -movflags +faststart \"{mp4}\"", default, 30 * 60_000);
+            var (code, err) = await Ffmpeg.Run($"-hide_banner -loglevel error -y -i \"{_sessionTs}\" -map 0 -c copy{await StretchFor(_sessionTs)}{TitleArgs(TrackTitles)} -movflags +faststart \"{mp4}\"", default, 30 * 60_000);
             if (code != 0 || !File.Exists(mp4)) throw new InvalidOperationException("FFmpeg couldn't finish the recording: " + err.Trim());
             ClipLibrary.SaveMarks(mp4, marks);
             return mp4;

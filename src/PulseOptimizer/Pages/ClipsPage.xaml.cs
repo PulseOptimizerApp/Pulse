@@ -307,6 +307,7 @@ public partial class ClipsPage : UserControl, IPage
         SeparateMicSwitch.IsChecked = S.SeparateMicTrack;
         AppTracksSwitch.IsChecked = S.AppTracks;
         InputSwitch.IsChecked = S.InputOverlay;
+        StretchSwitch.IsChecked = S.StretchToScreen;
         VoiceSwitch.IsChecked = S.VoiceClip;
         VoicePhraseBox.Text = string.IsNullOrWhiteSpace(S.VoicePhrase) ? VoiceClip.DefaultPhrase : S.VoicePhrase;
         AppTracksRow.Visibility = AudioCapture.AppCaptureSupported ? Visibility.Visible : Visibility.Collapsed;
@@ -363,6 +364,7 @@ public partial class ClipsPage : UserControl, IPage
         S.SeparateMicTrack = SeparateMicSwitch.IsChecked == true;
         S.AppTracks = AppTracksSwitch.IsChecked == true;
         S.InputOverlay = InputSwitch.IsChecked == true;
+        S.StretchToScreen = StretchSwitch.IsChecked == true;
         S.VoiceClip = VoiceSwitch.IsChecked == true;
         S.RecordCursor = CursorSwitch.IsChecked == true;
         S.PlaySound = SoundSwitch.IsChecked == true;
@@ -609,6 +611,7 @@ public partial class ClipsPage : UserControl, IPage
         // Which sounds can be chosen, and the filmstrip, load while the clip starts playing.
         _trackNames = await ClipLibrary.AudioTrackNames(vm.Clip.Path);
         BuildTrackToggles();
+        _ = LoadParts(vm.Clip.Path);
     }
 
     async void Player_Opened(object sender, RoutedEventArgs e)
@@ -649,6 +652,7 @@ public partial class ClipsPage : UserControl, IPage
     {
         if (PlayerLayer.Visibility != Visibility.Visible) return;
         if (_inputs != null && _inputMode != "off") InputView.Frame = _inputs.At(Timeline.Position);
+        SyncParts();
         // Scrubbing: seek at most once per tick, to where the pointer is now, so the picture keeps up smoothly.
         if (_pendingSeek >= 0)
         {
@@ -723,58 +727,105 @@ public partial class ClipsPage : UserControl, IPage
         e.Handled = true;
     }
 
-    /// <summary>One toggle per sound in the clip (Game, Discord, Spotify, Microphone...). Off = left out of copies.</summary>
+    // ───────── Audio mixer ─────────
+    // Track 1 is everything mixed; the others are its parts (Game, Discord, Spotify, Microphone...). With every part
+    // on you hear (and copies keep) the original mix; with some muted, the parts left on are played (and mixed) instead.
+
+    List<bool> _trackOn = new();
+    List<MediaPlayer> _parts = new();
+    string _partsDir;
+    bool _partsPlaying;
+
     void BuildTrackToggles()
     {
-        TrackToggles.Children.Clear();
-        AudioPanel.Visibility = _trackNames.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
-        // Track 1 is everything mixed; the others are its parts. With only one track, that one is the toggle.
         var parts = _trackNames.Count >= 2 ? _trackNames.Skip(1).ToList() : _trackNames.Select(_ => "Sound").ToList();
-        foreach (var name in parts)
+        _trackOn = parts.Select(_ => true).ToList();
+        AudioPanel.Visibility = parts.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        AudioRows.Children.Clear();
+        for (int i = 0; i < parts.Count; i++)
         {
-            var t = new System.Windows.Controls.Primitives.ToggleButton
+            int index = i;
+            var icon = new TextBlock { Style = (Style)FindResource("IconText"), FontSize = 14, Width = 22 };
+            var label = new TextBlock { Text = Loc.T(parts[i]), FontWeight = FontWeights.SemiBold, Margin = new Thickness(10, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
+            var row = new Button { Style = (Style)FindResource("GhostButton"), HorizontalContentAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 0, 0, 4), BorderThickness = new Thickness(0) };
+            row.Content = new StackPanel { Orientation = Orientation.Horizontal, Children = { icon, label } };
+            void Show()
             {
-                Style = (Style)FindResource("TrackToggle"), Content = Loc.T(name), IsChecked = true,
-                Margin = new Thickness(TrackToggles.Children.Count == 0 ? 0 : 6, 0, 0, 0),
-            };
-            t.Click += Track_Click;
-            TrackToggles.Children.Add(t);
+                icon.Text = _trackOn[index] ? "\uE767" : "\uE74F";
+                icon.Foreground = _trackOn[index] ? (Brush)FindResource("TextBrush") : (Brush)FindResource("BadBrush");
+                label.Foreground = _trackOn[index] ? (Brush)FindResource("TextBrush") : (Brush)FindResource("TextDimBrush");
+                label.TextDecorations = _trackOn[index] ? null : TextDecorations.Strikethrough;
+            }
+            row.Click += (_, _) => { _trackOn[index] = !_trackOn[index]; Show(); ApplyAudio(); };
+            Show();
+            AudioRows.Children.Add(row);
         }
-        UpdateMute();
+        ApplyAudio();
     }
 
     /// <summary>Which tracks the exported copy keeps: all of them (track 1, the full mix), some parts mixed, or none.</summary>
-    List<int> ChosenTracks()
+    List<int> ChosenTracks() => ClipLibrary.ChooseTracks(_trackNames.Count, _trackOn);
+
+    void AudioBtn_Click(object sender, RoutedEventArgs e) => AudioPopup.IsOpen = !AudioPopup.IsOpen;
+
+    /// <summary>Plays what the copy will keep: the original mix, the parts left on, or nothing.</summary>
+    void ApplyAudio()
     {
-        var on = TrackToggles.Children.OfType<System.Windows.Controls.Primitives.ToggleButton>().Select(t => t.IsChecked == true).ToList();
-        return ClipLibrary.ChooseTracks(_trackNames.Count, on);
+        var chosen = ChosenTracks();
+        int muted = _trackOn.Count(x => !x);
+        AudioBtnText.Text = muted == 0 ? Loc.T("Audio") : Loc.F("Audio ({0} muted)", muted);
+        AudioGlyph.Text = chosen.Count == 0 ? "\uE74F" : "\uE767";
+        bool useParts = chosen.Count > 0 && !(chosen.Count == 1 && chosen[0] == 0) && _parts.Count > 0;
+        Player.IsMuted = chosen.Count == 0 || useParts;
+        for (int i = 0; i < _parts.Count; i++) _parts[i].Volume = useParts && i < _trackOn.Count && _trackOn[i] ? 1 : 0;
     }
 
+    /// <summary>Each part as its own sound file, so it can be muted while you watch. Loads in the background.</summary>
+    async Task LoadParts(string clip)
+    {
+        StopParts();
+        if (_trackNames.Count < 2) return;
+        var (dir, files) = await ClipLibrary.ExtractParts(clip, _trackNames.Count - 1);
+        if (_open?.Clip.Path != clip || files.Count == 0) { ClipLibrary.CleanParts(dir); return; }
+        _partsDir = dir;
+        foreach (var f in files)
+        {
+            var mp = new MediaPlayer { Volume = 0 };
+            mp.Open(new Uri(f));
+            _parts.Add(mp);
+        }
+        _partsPlaying = false;
+        ApplyAudio();
+    }
+
+    void StopParts()
+    {
+        foreach (var p in _parts) { try { p.Stop(); p.Close(); } catch { } }
+        _parts.Clear();
+        _partsPlaying = false;
+        if (_partsDir != null) { var d = _partsDir; _partsDir = null; _ = Task.Delay(300).ContinueWith(_ => ClipLibrary.CleanParts(d)); }
+    }
+
+    /// <summary>Keeps the separate sounds in step with the video (called by the player's timer).</summary>
+    void SyncParts()
+    {
+        if (_parts.Count == 0) return;
+        var pos = Player.Position;
+        if (_playing && !_scrubbing)
+        {
+            if (!_partsPlaying) { foreach (var p in _parts) { p.Position = pos; p.Play(); } _partsPlaying = true; }
+            foreach (var p in _parts)
+                if (Math.Abs((p.Position - pos).TotalMilliseconds) > 80) p.Position = pos;
+        }
+        else if (_partsPlaying) { foreach (var p in _parts) p.Pause(); _partsPlaying = false; }
+        else foreach (var p in _parts) if (Math.Abs((p.Position - pos).TotalMilliseconds) > 80) p.Position = pos;
+    }
 
     void ShowFavorite(bool on)
     {
         FavBtnGlyph.Text = on ? "\uE735" : "\uE734"; // filled or outlined star
         FavBtnGlyph.Foreground = on ? new SolidColorBrush(Color.FromRgb(0xFB, 0xBF, 0x24)) : (Brush)FindResource("TextBrush");
         FavBtn.ToolTip = Loc.T(on ? "Unfavorite" : "Favorite (kept when the storage limit is reached)");
-    }
-
-    /// <summary>Turning sounds off also mutes what you hear now (the player can only mute everything at once).</summary>
-    void Track_Click(object sender, RoutedEventArgs e) => UpdateMute();
-
-    void UpdateMute()
-    {
-        bool silent = ClipLibrary.ChooseTracks(_trackNames.Count, TrackToggles.Children.OfType<System.Windows.Controls.Primitives.ToggleButton>().Select(t => t.IsChecked == true).ToList()).Count == 0;
-        Player.IsMuted = silent;
-        MuteGlyph.Text = silent ? "\uE74F" : "\uE767";
-    }
-
-    void Mute_Click(object sender, RoutedEventArgs e)
-    {
-        var toggles = TrackToggles.Children.OfType<System.Windows.Controls.Primitives.ToggleButton>().ToList();
-        bool anyOn = toggles.Any(t => t.IsChecked == true);
-        foreach (var t in toggles) t.IsChecked = !anyOn;
-        if (toggles.Count == 0) Player.IsMuted = !Player.IsMuted;
-        UpdateMute();
     }
 
     void PlayerClose_Click(object sender, RoutedEventArgs e) => ClosePlayer();
@@ -894,6 +945,7 @@ public partial class ClipsPage : UserControl, IPage
         Player.Stop();
         Player.Close();
         Player.Source = null;
+        StopParts();
         _inputs = null;
         InputBox.Visibility = Visibility.Collapsed;
         _playing = false;

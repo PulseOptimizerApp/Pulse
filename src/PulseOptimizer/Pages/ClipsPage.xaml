@@ -343,9 +343,14 @@
                                 </StackPanel>
                                 <CheckBox x:Name="VoiceSwitch" Grid.Column="2" Style="{StaticResource Switch}" Click="Setting_Click"/>
                             </Grid>
+                            <Grid Style="{StaticResource Row}">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                <TextBlock Style="{StaticResource RowLabel}" Text="Stretched resolution: play clips stretched to your screen, like in game (for example 1440×1080 on a 16:9 monitor), instead of in a box"/>
+                                <CheckBox x:Name="StretchSwitch" Grid.Column="1" Style="{StaticResource Switch}" Click="Setting_Click"/>
+                            </Grid>
                             <Grid x:Name="AppTracksRow" Style="{StaticResource Row}">
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                                <TextBlock Style="{StaticResource RowLabel}" Text="Give the game, Discord and Spotify their own tracks, so you can mute any of them in a clip"/>
+                                <TextBlock Style="{StaticResource RowLabel}" Text="Give the game and every app in your volume mixer (Discord, Spotify, browsers…) its own track, so you can mute any of them in a clip"/>
                                 <CheckBox x:Name="AppTracksSwitch" Grid.Column="1" Style="{StaticResource Switch}" Click="Setting_Click"/>
                             </Grid>
                             <Grid Style="{StaticResource Row}">
@@ -486,12 +491,25 @@
                             <TextBlock x:Name="SelText" FontSize="12" Foreground="{StaticResource TextDimBrush}" Margin="0,2,0,0"/>
                         </StackPanel>
                         <!-- Sound to keep in the exported copy -->
-                        <StackPanel x:Name="AudioPanel" Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
-                            <Button x:Name="MuteBtn" Style="{StaticResource GhostButton}" Width="40" Padding="0,8" Margin="0,0,8,0" Click="Mute_Click" ToolTip="Sound on or off">
-                                <TextBlock x:Name="MuteGlyph" Text="&#xE767;" Style="{StaticResource IconText}" FontSize="14"/>
+                        <!-- Audio: like a volume mixer for the clip. Mute any sound; you hear it now and copies leave it out -->
+                        <Grid x:Name="AudioPanel" Grid.Column="3" VerticalAlignment="Center">
+                            <Button x:Name="AudioBtn" Style="{StaticResource GhostButton}" Click="AudioBtn_Click" ToolTip="Mute any sound in this clip">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock x:Name="AudioGlyph" Text="&#xE767;" Style="{StaticResource IconText}" FontSize="14"/>
+                                    <TextBlock x:Name="AudioBtnText" Text="Audio" Margin="8,0,6,0"/>
+                                    <TextBlock Text="&#xE70D;" Style="{StaticResource IconText}" FontSize="10" VerticalAlignment="Center"/>
+                                </StackPanel>
                             </Button>
-                            <WrapPanel x:Name="TrackToggles" VerticalAlignment="Center" ToolTip="Turn a sound off to leave it out of what you hear and of saved and Discord copies"/>
-                        </StackPanel>
+                            <Popup x:Name="AudioPopup" PlacementTarget="{Binding ElementName=AudioBtn}" Placement="Top" VerticalOffset="-8" StaysOpen="False" AllowsTransparency="True" PopupAnimation="Fade">
+                                <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="12" Padding="8" MinWidth="230">
+                                    <Border.Effect><DropShadowEffect BlurRadius="24" ShadowDepth="4" Opacity="0.5" Color="Black"/></Border.Effect>
+                                    <StackPanel>
+                                        <TextBlock Text="Click a sound to mute it" FontSize="11" Foreground="{StaticResource TextDimBrush}" Margin="8,4,8,8"/>
+                                        <StackPanel x:Name="AudioRows"/>
+                                    </StackPanel>
+                                </Border>
+                            </Popup>
+                        </Grid>
                         <StackPanel x:Name="InputPanel" Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,16,0" Visibility="Collapsed"
                                     ToolTip="Show the keys and buttons you pressed. Saved and Discord copies include it too.">
                             <TextBlock Text="&#xE765;" Style="{StaticResource IconText}" FontSize="14" Foreground="{StaticResource TextDimBrush}" Margin="0,0,10,0" VerticalAlignment="Center"/>

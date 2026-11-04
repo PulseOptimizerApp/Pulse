@@ -66,3 +66,16 @@ public class UpdaterTests
         Assert.False(Pulse.Core.Updater.IsNewer("9.9.9", "0.0.0"));
     }
 }
+
+public class StretchTests
+{
+    [Fact]
+    public void A_4_3_stretched_clip_on_a_16_9_screen_is_marked_to_show_16_9()
+    {
+        var sar = Pulse.Core.Clips.ClipLibrary.StretchSar(1440, 1080, 16 / 9.0);
+        Assert.Equal("4/3", sar);
+        Assert.Contains("h264_metadata=sample_aspect_ratio=4/3", Pulse.Core.Clips.ClipLibrary.StretchCopyArgs("h264", sar));
+        Assert.Null(Pulse.Core.Clips.ClipLibrary.StretchSar(1920, 1080, 16 / 9.0));
+        Assert.Equal("", Pulse.Core.Clips.ClipLibrary.StretchCopyArgs("h264", null));
+    }
+}

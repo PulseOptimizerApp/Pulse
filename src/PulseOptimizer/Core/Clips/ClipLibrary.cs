@@ -111,6 +111,26 @@ public static class ClipLibrary
         catch { return new(); }
     }
 
+    /// <summary>
+    /// Writes each part track (Game, Discord, Microphone...) of a clip to its own WAV in a temporary folder, so the
+    /// player can mute them one by one. Returns the folder and the files in track order.
+    /// </summary>
+    public static async Task<(string Dir, List<string> Files)> ExtractParts(string clip, int parts)
+    {
+        var dir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "pulse-parts-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        var files = Enumerable.Range(1, parts).Select(i => System.IO.Path.Combine(dir, $"{i}.wav")).ToList();
+        var outs = string.Join(" ", files.Select((f, i) => $"-map 0:a:{i + 1} -c:a pcm_s16le \"{f}\""));
+        var (code, _) = await Ffmpeg.Run($"-hide_banner -loglevel error -y -i \"{clip}\" {outs}", timeoutMs: 60_000);
+        if (code != 0 || !files.All(File.Exists)) { CleanParts(dir); return (null, new()); }
+        return (dir, files);
+    }
+
+    public static void CleanParts(string dir)
+    {
+        try { if (dir != null && Directory.Exists(dir)) Directory.Delete(dir, true); } catch { }
+    }
+
     /// <summary>Renames a clip (and its picture and bookmarks). Returns the new path.</summary>
     public static string Rename(string clip, string newName)
     {
@@ -169,7 +189,7 @@ public static class ClipLibrary
     }
 
     /// <summary>FFmpeg options for the sound to keep: a track number, or -1 for none.</summary>
-    internal static string AudioArgs(int track) => track < 0 ? "-an" : $"-map 0:a:{track}? -c:a aac -b:a 160k";
+    internal static string AudioArgs(int track) => track < 0 ? "-an" : $"-map 0:a:{track}? -c:a aac -b:a 256k";
 
     /// <summary>
     /// FFmpeg options for the sound to keep from several tracks: none, one, or several mixed together
@@ -180,7 +200,7 @@ public static class ClipLibrary
         if (tracks == null || tracks.Count == 0) return "-an";
         if (tracks.Count == 1) return AudioArgs(tracks[0]);
         var ins = string.Concat(tracks.Select(t => $"[{inputIndex}:a:{t}]"));
-        return $"-filter_complex \"{ins}amix=inputs={tracks.Count}:duration=longest:dropout_transition=0:normalize=0[aout]\" -map \"[aout]\" -c:a aac -b:a 160k";
+        return $"-filter_complex \"{ins}amix=inputs={tracks.Count}:duration=longest:dropout_transition=0:normalize=0,alimiter=limit=0.97:level=0[aout]\" -map \"[aout]\" -c:a aac -b:a 256k";
     }
 
     /// <summary>Clip length in seconds, read from FFmpeg's own report.</summary>
@@ -251,9 +271,44 @@ public static class ClipLibrary
     internal static string VideoArgs(InputBurn burn, int height)
     {
         string scale = height > 0 ? $"scale=-2:{height}" : "";
-        if (burn == null) return height > 0 ? $"-map 0:v:0 -vf {scale}" : "-map 0:v:0";
+        if (burn == null) return $"-map 0:v:0 -vf {SquarePixels}" + (height > 0 ? "," + scale : "");
         var chain = "overlay=x=main_h*0.025:y=main_h-overlay_h-main_h*0.035" + (height > 0 ? "," + scale : "") + ",format=yuv420p";
-        return $"-filter_complex \"[0:v:0][1:v]{chain}[vout]\" -map \"[vout]\"";
+        return $"-filter_complex \"[0:v:0]{SquarePixels}[base];[base][1:v]{chain}[vout]\" -map \"[vout]\"";
+    }
+
+    /// <summary>
+    /// Re-encoded copies get square pixels at the clip's display shape: a stretched-resolution clip (4:3 marked to
+    /// show 16:9) becomes a real 16:9 picture, so every player and site shows it stretched like in game.
+    /// </summary>
+    internal const string SquarePixels = "scale=trunc(ih*dar/2)*2:ih,setsar=1";
+
+    /// <summary>
+    /// The sample aspect ratio that makes a <paramref name="width"/>×<paramref name="height"/> picture show at the
+    /// screen's shape (stretched resolution), as "num/den", or null when it already matches (within 3%).
+    /// </summary>
+    internal static string StretchSar(int width, int height, double screenAspect)
+    {
+        if (width <= 0 || height <= 0 || screenAspect <= 0) return null;
+        double own = width / (double)height;
+        if (Math.Abs(own - screenAspect) <= screenAspect * 0.03) return null;
+        // SAR = screen aspect / picture aspect = (screenW × height) / (screenH × width), kept as small whole numbers.
+        long num = (long)Math.Round(screenAspect * 1000 * height), den = 1000L * width;
+        long g = Gcd(num, den);
+        return $"{num / g}/{den / g}";
+    }
+
+    static long Gcd(long a, long b) { while (b != 0) (a, b) = (b, a % b); return Math.Abs(a); }
+
+    /// <summary>FFmpeg options that mark a stream-copied clip to show stretched (no re-encode), or "".</summary>
+    internal static string StretchCopyArgs(string codec, string sar)
+    {
+        if (sar == null) return "";
+        return codec switch
+        {
+            "h264" => $" -bsf:v h264_metadata=sample_aspect_ratio={sar}",
+            "hevc" => $" -bsf:v hevc_metadata=sample_aspect_ratio={sar}",
+            _ => "", // AV1 has no aspect field to rewrite; its re-encoded copies are still stretched
+        };
     }
 
     /// <summary>Width and height of a clip's video (0, 0 if unknown).</summary>
@@ -264,11 +319,11 @@ public static class ClipLibrary
         return m.Success ? (int.Parse(m.Groups[1].Value), int.Parse(m.Groups[2].Value)) : (0, 0);
     }
 
-    /// <summary>The video bitrate (kbit/s) that makes a clip of this length fit Discord's limit with 128 kbit/s audio.</summary>
+    /// <summary>The video bitrate (kbit/s) that makes a clip of this length fit Discord's limit with 160 kbit/s audio.</summary>
     internal static int DiscordVideoKbps(double seconds, long targetBytes = DiscordTargetBytes)
     {
         double totalKbps = targetBytes * 8 / 1000.0 / Math.Max(seconds, 1);
-        return (int)Math.Max(totalKbps - 128 - 32 /*container*/, 150);
+        return (int)Math.Max(totalKbps - 160 - 32 /*audio and container*/, 150);
     }
 
     /// <summary>Re-encodes a copy that fits in a free Discord upload (under 10 MB), lowering the resolution for long clips.</summary>
@@ -293,7 +348,7 @@ public static class ClipLibrary
             string rate = $"-b:v {kbps}k -maxrate {kbps}k -bufsize {kbps * 2}k";
             // H.264 plays everywhere, including Discord's own player: use the graphics card's H.264 encoder.
             var codec = e.Hardware ? $"-c:v {H264Of(e)}" : "-c:v libx264 -preset veryfast";
-            var audio = AudioArgs(audioTracks ?? new[] { 0 }).Replace("-b:a 160k", "-b:a 128k");
+            var audio = AudioArgs(audioTracks ?? new[] { 0 }).Replace("-b:a 256k", "-b:a 160k");
             var (code, err) = await Ffmpeg.Run($"-hide_banner -loglevel error -y {cut} -i \"{clip}\" {OverlayInput(burn)} {VideoArgs(burn, h)} {codec} {rate} {audio} -movflags +faststart \"{dest}\"", ct);
             if (code != 0) throw new InvalidOperationException("Making the Discord copy didn't work: " + err.Trim());
             if (new FileInfo(dest).Length <= DiscordLimitBytes) return dest;

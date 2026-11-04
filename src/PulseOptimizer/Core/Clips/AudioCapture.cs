@@ -106,13 +106,33 @@ public sealed class AudioCapture : IDisposable
             var iid = typeof(IAudioClient).GUID;
             Check(device.Activate(ref iid, CLSCTX_ALL, IntPtr.Zero, out var clientObj));
             var client = (IAudioClient)clientObj;
-            Check(client.GetMixFormat(out var fmtPtr));
+            int baseFlags = _loopback ? AUDCLNT_STREAMFLAGS_LOOPBACK : 0;
+            IntPtr fmtPtr;
+            int channels, bits, rate; bool isFloat;
+            // Best quality: ask Windows for 48 kHz stereo float directly. Its converter resamples cleanly and folds
+            // 5.1/7.1 down properly (center-channel voices included), instead of Pulse keeping only front left/right.
+            var want = new WAVEFORMATEX { wFormatTag = 3, nChannels = 2, nSamplesPerSec = Rate, wBitsPerSample = 32, nBlockAlign = 8, nAvgBytesPerSec = Rate * 8 };
+            fmtPtr = Marshal.AllocCoTaskMem(Marshal.SizeOf<WAVEFORMATEX>());
+            Marshal.StructureToPtr(want, fmtPtr, false);
+            if (client.Initialize(0, baseFlags | AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM | AUDCLNT_STREAMFLAGS_SRC_DEFAULT_QUALITY, 2_000_000, 0, fmtPtr, IntPtr.Zero) >= 0)
+            {
+                channels = 2; bits = 32; rate = Rate; isFloat = true;
+            }
+            else
+            {
+                // Older drivers: fall back to the device's own format and convert in Pulse.
+                Marshal.FreeCoTaskMem(fmtPtr);
+                Marshal.ReleaseComObject(client);
+                Check(device.Activate(ref iid, CLSCTX_ALL, IntPtr.Zero, out clientObj));
+                client = (IAudioClient)clientObj;
+                Check(client.GetMixFormat(out fmtPtr));
+                var fmt = Marshal.PtrToStructure<WAVEFORMATEX>(fmtPtr);
+                isFloat = fmt.wFormatTag == 3 || (fmt.wFormatTag == 0xFFFE && Marshal.PtrToStructure<WAVEFORMATEXTENSIBLE>(fmtPtr).SubFormat == FloatSubtype);
+                channels = fmt.nChannels; bits = fmt.wBitsPerSample; rate = (int)fmt.nSamplesPerSec;
+                Check(client.Initialize(0 /*shared*/, baseFlags, 2_000_000 /*200 ms*/, 0, fmtPtr, IntPtr.Zero));
+            }
             try
             {
-                var fmt = Marshal.PtrToStructure<WAVEFORMATEX>(fmtPtr);
-                bool isFloat = fmt.wFormatTag == 3 || (fmt.wFormatTag == 0xFFFE && Marshal.PtrToStructure<WAVEFORMATEXTENSIBLE>(fmtPtr).SubFormat == FloatSubtype);
-                int channels = fmt.nChannels, bits = fmt.wBitsPerSample, rate = (int)fmt.nSamplesPerSec;
-                Check(client.Initialize(0 /*shared*/, _loopback ? AUDCLNT_STREAMFLAGS_LOOPBACK : 0, 2_000_000 /*200 ms*/, 0, fmtPtr, IntPtr.Zero));
                 var ciid = typeof(IAudioCaptureClient).GUID;
                 Check(client.GetService(ref ciid, out var capObj));
                 var capture = (IAudioCaptureClient)capObj;

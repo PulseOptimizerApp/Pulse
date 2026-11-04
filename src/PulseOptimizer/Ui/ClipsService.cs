@@ -59,9 +59,21 @@ public static class ClipsService
     public static event Action<string> Saved;
 
     /// <summary>Call once on the UI thread when Pulse starts.</summary>
+    static double _screenAspect;
+
     public static void Init()
     {
         if (_timer != null) return;
+        // The screen's real shape, for stretched resolutions (read once; reading monitors takes a moment).
+        _ = Task.Run(() =>
+        {
+            try
+            {
+                var m = Displays.Enumerate().FirstOrDefault(x => x.IsPrimary);
+                if (m?.Native is { Width: > 0, Height: > 0 } n) _screenAspect = n.Width / (double)n.Height;
+            }
+            catch { }
+        });
         _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
         _timer.Tick += (_, _) => Tick();
         _timer.Start();
@@ -195,7 +207,7 @@ public static class ClipsService
             var encoders = await Encoders.Available();
             var enc = Encoders.Pick(encoders, S.Codec);
             if (enc == null) { Set(ClipsState.Problem, "FFmpeg didn't find a video encoder that works on this PC."); return; }
-            _rec = new ReplayRecorder(S, enc, window, game != null ? GameDetector.GamePid : 0);
+            _rec = new ReplayRecorder(S, enc, window, game != null ? GameDetector.GamePid : 0) { ScreenAspect = _screenAspect };
             _rec.Start();
             Set(ClipsState.Recording);
         }

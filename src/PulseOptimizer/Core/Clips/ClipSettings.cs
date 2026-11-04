@@ -17,6 +17,8 @@ public class ClipSettings
     /// <summary>Index of the display to record (0 = the graphics card's first output, usually the main screen).</summary>
     public int Monitor { get; set; }
     public bool RecordCursor { get; set; }
+    /// <summary>Stretched resolutions (4:3 on a 16:9 screen) play stretched like in game, instead of in a box.</summary>
+    public bool StretchToScreen { get; set; } = true;
     /// <summary>
     /// "game" = record the game's own window (Windows 11; follows it across monitors and display-mode changes, and
     /// Discord or other windows on top aren't recorded), falling back to the whole screen when that doesn't work.

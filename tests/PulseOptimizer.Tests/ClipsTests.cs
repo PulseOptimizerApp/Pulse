@@ -330,11 +330,11 @@ public class ClipsTests
     [Fact]
     public void Discord_copies_fit_under_10_MB()
     {
-        // Video + 128 kbit/s audio must stay under the target for any length.
+        // Video + 160 kbit/s audio must stay under the target for any length.
         foreach (var secs in new[] { 10.0, 30, 60, 120 })
         {
             int kbps = ClipLibrary.DiscordVideoKbps(secs);
-            double bytes = (kbps + 128) * 1000 / 8.0 * secs;
+            double bytes = (kbps + 160) * 1000 / 8.0 * secs;
             Assert.True(bytes < ClipLibrary.DiscordLimitBytes, $"{secs}s at {kbps} kbps is {bytes} bytes");
         }
         Assert.True(ClipLibrary.DiscordVideoKbps(15) > ClipLibrary.DiscordVideoKbps(60));
