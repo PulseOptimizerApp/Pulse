@@ -21,10 +21,14 @@ public sealed class ReplayRecorder : IDisposable
     AudioCapture _game, _mic;
     readonly StringWriter _log = new();
 
-    public ReplayRecorder(ClipSettings settings, Encoder encoder)
+    readonly IntPtr _window;
+
+    /// <param name="window">The game's window to record, or Zero to record the whole display.</param>
+    public ReplayRecorder(ClipSettings settings, Encoder encoder, IntPtr window = default)
     {
         _s = settings;
         _encoder = encoder;
+        _window = window;
         _ring.KeepSeconds = settings.ReplaySeconds + 2;
         // Memory cap: twice what the bitrate needs for the replay, plus room for sound. Stops runaway growth.
         _ring.MaxBytes = (long)Math.Clamp(settings.BitrateMbps, 2, 150) * 125_000L * (settings.ReplaySeconds + 2) * 2 + (64L << 20);
@@ -46,6 +50,8 @@ public sealed class ReplayRecorder : IDisposable
 
     public bool Running => _ffmpeg is { HasExited: false };
     public Encoder Encoder => _encoder;
+    /// <summary>The game window being recorded, or Zero for the whole display.</summary>
+    public IntPtr Window => _window;
     public long BufferBytes => _ring.Bytes;
     public double BufferSeconds => _ring.HeldSeconds(Now);
     public int ExitCode => _ffmpeg is { HasExited: true } p ? p.ExitCode : 0;
@@ -79,7 +85,7 @@ public sealed class ReplayRecorder : IDisposable
             micPipe = new NamedPipeServerStream(id + "-mic", PipeDirection.Out, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous, 0, 1 << 16);
         }
 
-        var args = Arguments(_s, _encoder, gamePipe != null ? $@"\\.\pipe\{id}-game" : null, micPipe != null ? $@"\\.\pipe\{id}-mic" : null);
+        var args = Arguments(_s, _encoder, gamePipe != null ? $@"\\.\pipe\{id}-game" : null, micPipe != null ? $@"\\.\pipe\{id}-mic" : null, _window);
         _ffmpeg = Process.Start(Ffmpeg.Start(args, redirectOut: true))!;
         try { _ffmpeg.PriorityClass = ProcessPriorityClass.BelowNormal; } catch { } // the game always comes first
 
@@ -90,13 +96,21 @@ public sealed class ReplayRecorder : IDisposable
     }
 
     /// <summary>The FFmpeg command line. Exposed for tests.</summary>
-    internal static string Arguments(ClipSettings s, Encoder e, string gamePipe, string micPipe)
+    internal static string Arguments(ClipSettings s, Encoder e, string gamePipe, string micPipe, IntPtr window = default)
     {
         var a = new List<string> { "-hide_banner", "-loglevel", "warning", "-nostats" };
         int fps = Math.Clamp(s.Fps, 24, 240);
+        int cursor = s.RecordCursor ? 1 : 0;
 
-        // Input 0: the screen, grabbed on the graphics card.
-        a.Add($"-f lavfi -i ddagrab=output_idx={Math.Max(0, s.Monitor)}:framerate={fps}:draw_mouse={(s.RecordCursor ? 1 : 0)}");
+        // Input 0: grabbed on the graphics card. Either the game's own window (Windows Graphics Capture, which keeps
+        // working when the game changes display mode or moves screens; no yellow border, size kept and rounded to even
+        // numbers for the encoder), or the whole display (Desktop Duplication).
+        if (window != IntPtr.Zero)
+            a.Add($"-f lavfi -i gfxcapture=hwnd={(long)window}:capture_cursor={cursor}:capture_border=0:display_border=0:max_framerate={fps}:resize_mode=scale_aspect:width=-2:height=-2");
+        else
+            a.Add($"-f lavfi -i ddagrab=output_idx={Math.Max(0, s.Monitor)}:framerate={fps}:draw_mouse={cursor}");
+        // Window capture sends a frame when the game draws one; make it a steady frame rate like the screen capture.
+        string src = window != IntPtr.Zero ? $"[0:v]fps={fps}," : "[0:v]";
         int next = 1;
         int gameIn = -1, micIn = -1;
         string Raw(string pipe) => $"-thread_queue_size 4096 -f f32le -ar {AudioCapture.Rate} -ac 2 -i {pipe}";
@@ -106,10 +120,10 @@ public sealed class ReplayRecorder : IDisposable
         // Video: stays on the graphics card for NVIDIA/AMD at native size; otherwise downloaded once and scaled.
         int h = s.Resolution switch { "1440" => 1440, "1080" => 1080, "720" => 720, _ => 0 };
         string v;
-        if (h == 0 && e.TakesGpuFrames) v = "[0:v]null[v]";
-        else if (h == 0 && e.Vendor == "Intel") v = "[0:v]hwmap=derive_device=qsv,format=qsv[v]";
-        else if (h == 0) v = "[0:v]hwdownload,format=bgra,format=nv12[v]";
-        else v = $"[0:v]hwdownload,format=bgra,scale=-2:{h}:flags=bilinear,format=nv12[v]";
+        if (h == 0 && e.TakesGpuFrames) v = src + "null[v]";
+        else if (h == 0 && e.Vendor == "Intel") v = src + "hwmap=derive_device=qsv,format=qsv[v]";
+        else if (h == 0) v = src + "hwdownload,format=bgra,format=nv12[v]";
+        else v = src + $"hwdownload,format=bgra,scale=-2:{h}:flags=bilinear,format=nv12[v]";
 
         var filters = new List<string> { v };
         var maps = new List<string> { "-map", "[v]" };

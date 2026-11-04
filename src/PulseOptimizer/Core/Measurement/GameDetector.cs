@@ -61,6 +61,21 @@ public static class GameDetector
 
     static int _lastGamePid;
     static string _lastGameName;
+    static IntPtr _lastGameWindow;
+    [DllImport("user32.dll")] static extern bool IsWindow(IntPtr hWnd);
+
+    /// <summary>The main window of the game <see cref="RunningGame"/> last found (Zero if none). Used by Clips to record just the game.</summary>
+    public static IntPtr GameWindow
+    {
+        get
+        {
+            if (_lastGamePid == 0) return IntPtr.Zero;
+            if (_lastGameWindow != IntPtr.Zero && IsWindow(_lastGameWindow)) return _lastGameWindow;
+            // The game made a new window (some do when a match loads): use its current main window.
+            try { using var p = Process.GetProcessById(_lastGamePid); _lastGameWindow = p.MainWindowHandle; } catch { _lastGameWindow = IntPtr.Zero; }
+            return _lastGameWindow;
+        }
+    }
 
     /// <summary>
     /// The game being played right now, or null. A game counts once it's in the foreground (from a game library folder,
@@ -79,7 +94,7 @@ public static class GameDetector
                     if (!last.HasExited) return _lastGameName;
                 }
                 catch { }
-                _lastGamePid = 0; _lastGameName = null;
+                _lastGamePid = 0; _lastGameName = null; _lastGameWindow = IntPtr.Zero;
             }
             var hwnd = GetForegroundWindow();
             if (hwnd == IntPtr.Zero) return null;
@@ -101,6 +116,7 @@ public static class GameDetector
             if (string.IsNullOrWhiteSpace(name)) name = string.IsNullOrWhiteSpace(p.MainWindowTitle) ? p.ProcessName : p.MainWindowTitle;
             _lastGamePid = p.Id;
             _lastGameName = name.Trim();
+            _lastGameWindow = hwnd;
             return _lastGameName;
         }
         catch { return null; }

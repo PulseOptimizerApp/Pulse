@@ -74,6 +74,8 @@ public static class ClipsService
     {
         StopRecorder();
         _failures = 0;
+        _stalls = 0;
+        _screenOnly = IntPtr.Zero;
         _retryAfter = default;
         RegisterHotkey();
         Tick();
@@ -101,6 +103,17 @@ public static class ClipsService
 
     static bool _ticking;
     static int _stalls;
+    static IntPtr _screenOnly; // a game window that couldn't be recorded directly
+
+    /// <summary>Windows 11 can record a window without the yellow border Windows 10 forces, so window capture is 11+ only.</summary>
+    static bool CanRecordWindow => Environment.OSVersion.Version.Build >= 22000;
+
+    static IntPtr WantWindow(string game)
+    {
+        if (game == null || S.Capture != "game" || !CanRecordWindow) return IntPtr.Zero;
+        var w = GameDetector.GameWindow;
+        return w == _screenOnly ? IntPtr.Zero : w;
+    }
 
     static async void Tick()
     {
@@ -121,7 +134,19 @@ public static class ClipsService
         bool want = !S.OnlyWhileGaming || game != null;
 
         if (!want) { StopRecorder(); Set(ClipsState.WaitingForGame); return; }
-        if (_rec != null && _rec.Stalled)
+        // Record the game's own window when possible (see ClipSettings.Capture).
+        IntPtr window = WantWindow(game);
+        if (_rec != null && _rec.Window != IntPtr.Zero && window != _rec.Window && !_rec.Stalled && _rec.Running)
+            StopRecorder(); // the game opened a new window (or a different game started): follow it
+
+        if (_rec != null && (_rec.Stalled || !_rec.Running) && _rec.Window != IntPtr.Zero)
+        {
+            // Recording just the game's window didn't work here: use the whole screen for this game from now on.
+            _screenOnly = _rec.Window;
+            StopRecorder();
+            window = IntPtr.Zero;
+        }
+        else if (_rec != null && _rec.Stalled)
         {
             // The picture stopped but FFmpeg is still running (usually a display mode change as a match loads, or a
             // switch to exclusive fullscreen). Restart right away so the replay follows the new mode.
@@ -158,7 +183,7 @@ public static class ClipsService
             var encoders = await Encoders.Available();
             var enc = Encoders.Pick(encoders, S.Codec);
             if (enc == null) { Set(ClipsState.Problem, "FFmpeg didn't find a video encoder that works on this PC."); return; }
-            _rec = new ReplayRecorder(S, enc);
+            _rec = new ReplayRecorder(S, enc, window);
             _rec.Start();
             Set(ClipsState.Recording);
         }

@@ -236,6 +236,15 @@
                             </Grid>
                             <Grid Style="{StaticResource Row}">
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="200"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <TextBlock Style="{StaticResource RowLabel}" Text="Record"/>
+                                <StackPanel Grid.Column="1">
+                                    <WrapPanel x:Name="CaptureChips"/>
+                                    <TextBlock x:Name="CaptureHint" FontSize="12" Foreground="{StaticResource TextDimBrush}" Margin="0,6,0,0" TextWrapping="Wrap" MaxWidth="560" HorizontalAlignment="Left"
+                                               Text="Records only the game's window, on whichever screen it's on. Discord and other windows on top stay out of your clips. If a game can't be recorded this way, Pulse records the whole screen instead."/>
+                                </StackPanel>
+                            </Grid>
+                            <Grid Style="{StaticResource Row}">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="200"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                 <TextBlock Style="{StaticResource RowLabel}" Text="Display"/>
                                 <WrapPanel x:Name="MonitorChips" Grid.Column="1"/>
                             </Grid>

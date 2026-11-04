@@ -209,6 +209,7 @@ public partial class ClipsPage : UserControl, IPage
         Fill(BitrateChips, "br", new[] { ("15 Mbps", "15"), ("25 Mbps", "25"), ("40 Mbps", "40"), ("60 Mbps", "60"), ("80 Mbps", "80"), ("120 Mbps", "120") });
         Fill(QuickLenChips, "qlen", new[] { ("10 s", "10"), ("15 s", "15"), ("30 s", "30") });
         Fill(LimitChips, "lim", new[] { ("10 GB", "10"), ("30 GB", "30"), ("100 GB", "100"), ("No limit", "0") });
+        Fill(CaptureChips, "cap", new[] { ("The game", "game"), ("Whole screen", "screen") });
         int monitors = Math.Max(1, MonitorCount());
         Fill(MonitorChips, "mon", Enumerable.Range(0, monitors).Select(i => (Loc.F("Display {0}", i + 1), i.ToString(CultureInfo.InvariantCulture))).ToArray());
         BuildCodecChips();
@@ -250,6 +251,12 @@ public partial class ClipsPage : UserControl, IPage
         Mark(BitrateChips, S.BitrateMbps.ToString(CultureInfo.InvariantCulture));
         Mark(LimitChips, S.StorageLimitGb.ToString(CultureInfo.InvariantCulture));
         Mark(MonitorChips, S.Monitor.ToString(CultureInfo.InvariantCulture));
+        Mark(CaptureChips, S.Capture);
+        CaptureHint.Text = Environment.OSVersion.Version.Build < 22000
+            ? Loc.T("Recording just the game's window needs Windows 11. On Windows 10, Pulse records the whole screen.")
+            : S.Capture == "game"
+                ? Loc.T("Records only the game's window, on whichever screen it's on. Discord and other windows on top stay out of your clips. If a game can't be recorded this way, Pulse records the whole screen instead.")
+                : Loc.T("Records everything on the display picked below, including windows on top of the game.");
         Mark(CodecChips, S.Codec);
         var preset = Presets.FirstOrDefault(p => (p.Res == 0 ? "native" : p.Res.ToString(CultureInfo.InvariantCulture)) == S.Resolution && p.Fps == S.Fps && p.Mbps == S.BitrateMbps);
         Mark(QualityChips, preset.Label ?? "");
@@ -293,6 +300,7 @@ public partial class ClipsPage : UserControl, IPage
             case "lim": S.StorageLimitGb = n; break;
             case "qlen": S.QuickSeconds = n; break;
             case "mon": S.Monitor = n; break;
+            case "cap": S.Capture = v; ShowSettings(); break;
             case "codec": S.Codec = v; break;
         }
         Changed(restart: group is not ("lim" or "qlen"));

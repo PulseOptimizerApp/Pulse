@@ -17,6 +17,12 @@ public class ClipSettings
     /// <summary>Index of the display to record (0 = the graphics card's first output, usually the main screen).</summary>
     public int Monitor { get; set; }
     public bool RecordCursor { get; set; }
+    /// <summary>
+    /// "game" = record the game's own window (Windows 11; follows it across monitors and display-mode changes, and
+    /// Discord or other windows on top aren't recorded), falling back to the whole screen when that doesn't work.
+    /// "screen" = always record the whole display picked in <see cref="Monitor"/>.
+    /// </summary>
+    public string Capture { get; set; } = "game";
 
     public bool GameAudio { get; set; } = true;
     public int GameVolume { get; set; } = 100;

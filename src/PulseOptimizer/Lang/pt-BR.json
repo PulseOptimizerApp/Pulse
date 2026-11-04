@@ -1706,5 +1706,12 @@
  "FFmpeg couldn't save the screenshot:": "O FFmpeg não conseguiu salvar a captura:",
  "10 s": "10 s",
  "15 s": "15 s",
- "30 s": "30 s"
+ "30 s": "30 s",
+ "Record": "Gravar",
+ "The game": "O jogo",
+ "Whole screen": "Tela inteira",
+ "Records only the game's window, on whichever screen it's on. Discord and other windows on top stay out of your clips. If a game can't be recorded this way, Pulse records the whole screen instead.": "Grava só a janela do jogo, em qualquer tela em que ele esteja. O Discord e outras janelas por cima ficam fora dos seus clipes. Se um jogo não puder ser gravado assim, o Pulse grava a tela inteira.",
+ "Recording just the game's window needs Windows 11. On Windows 10, Pulse records the whole screen.": "Gravar só a janela do jogo precisa do Windows 11. No Windows 10, o Pulse grava a tela inteira.",
+ "Records everything on the display picked below, including windows on top of the game.": "Grava tudo na tela escolhida abaixo, incluindo janelas por cima do jogo.",
+ "Windows stopped giving Pulse the game's picture. Set the game to borderless or windowed fullscreen in its video settings, then turn Clips off and on.": "O Windows parou de enviar a imagem do jogo para o Pulse. Coloque o jogo em tela cheia sem bordas ou em janela nas configurações de vídeo e depois desligue e ligue o Clips."
 }

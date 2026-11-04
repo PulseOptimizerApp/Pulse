@@ -134,6 +134,17 @@ public class ClipsTests
     // ───────── FFmpeg command ─────────
 
     static readonly Encoder Nvenc = new("h264_nvenc", "h264", "NVIDIA", true);
+    [Fact]
+    public void Game_window_capture_follows_the_window_at_a_steady_frame_rate()
+    {
+        var a = ReplayRecorder.Arguments(new ClipSettings { Fps = 120 }, Nvenc, null, null, (IntPtr)0x1234);
+        Assert.Contains("gfxcapture=hwnd=4660", a);
+        Assert.Contains("display_border=0", a);
+        Assert.Contains("[0:v]fps=120,null[v]", a);
+        Assert.DoesNotContain("ddagrab", a);
+        Assert.Contains("ddagrab", ReplayRecorder.Arguments(new ClipSettings(), Nvenc, null, null));
+    }
+
     static readonly Encoder Qsv = new("h264_qsv", "h264", "Intel", true);
 
     [Fact]
