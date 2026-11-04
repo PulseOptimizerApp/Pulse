@@ -54,6 +54,7 @@ public class AppState
     public Pulse.Core.Roblox.RobloxSettings Roblox { get; set; } = new();
     /// <summary>The Clips page: instant replay settings and favorite clips.</summary>
     public Pulse.Core.Clips.ClipSettings Clips { get; set; } = new();
+    public Pulse.Core.Reaction.ReactionSettings Reaction { get; set; } = new();
 }
 
 /// <summary>Applies and undoes tweaks, keeping a backup of every value it changes on disk.</summary>

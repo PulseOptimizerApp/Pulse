@@ -61,6 +61,7 @@
                         <RadioButton Style="{StaticResource NavButton}" Tag="fresh" ui:Icon.Glyph="&#xE895;" Content="Keep it fresh" Checked="Nav_Checked" Click="Nav_Click"/>
                         <Border Height="1" Background="{StaticResource BorderBrush}" Margin="10,10,10,10"/>
                         <RadioButton Style="{StaticResource NavButton}" Tag="measure" ui:Icon.Glyph="&#xE9D2;" Content="Measure" Checked="Nav_Checked" Click="Nav_Click"/>
+                        <RadioButton Style="{StaticResource NavButton}" Tag="reaction" ui:Icon.Glyph="&#xE916;" Content="Reaction trainer" Checked="Nav_Checked" Click="Nav_Click"/>
                         <RadioButton Style="{StaticResource NavButton}" Tag="startup" ui:Icon.Glyph="&#xE7E8;" Content="Startup apps" Checked="Nav_Checked" Click="Nav_Click"/>
                         <RadioButton Style="{StaticResource NavButton}" Tag="security" ui:Icon.Glyph="&#xEA18;" Content="Security" Checked="Nav_Checked" Click="Nav_Click"/>
                         <RadioButton Style="{StaticResource NavButton}" Tag="safety" ui:Icon.Glyph="&#xE7A7;" Content="Undo &amp; restore" Checked="Nav_Checked" Click="Nav_Click"/>

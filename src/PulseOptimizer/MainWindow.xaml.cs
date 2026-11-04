@@ -141,6 +141,7 @@ public partial class MainWindow : Window
                 "clips" => new ClipsPage(),
                 "tweaks" => new TweaksPage(),
                 "measure" => new MeasurePage(),
+                "reaction" => new ReactionPage(),
                 "games" => new GamesPage(),
                 "cleanup" => new DeclutterPage(),
                 "startup" => new StartupPage(),
