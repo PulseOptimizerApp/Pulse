@@ -28,7 +28,21 @@ public class SafetyTests
     [Fact]
     public void Has_no_network_code() =>
         AssertNotUsed(@"\b(HttpClient|WebClient|WebRequest|TcpClient|UdpClient|Socket|ClientWebSocket)\b",
-            "Pulse never sends or downloads anything itself (links open in the user's browser)");
+            "Pulse never sends or downloads anything itself (links open in the user's browser). The one exception is the " +
+            "opt-in Clips download of FFmpeg, which lives in Ffmpeg.cs only",
+            "Ffmpeg.cs");
+
+    [Fact]
+    public void The_only_download_is_FFmpeg_from_this_projects_own_releases()
+    {
+        var src = File.ReadAllText(Repo.SourceFiles().Single(f => Path.GetFileName(f) == "Ffmpeg.cs"));
+        var urls = Regex.Matches(src, @"https?://[^\s""{}]+").Select(m => m.Value).Distinct().ToList();
+        Assert.All(urls, u => Assert.StartsWith("https://github.com/", u));
+        Assert.Contains("PulseOptimizer-app/PulseOptimizer", src);
+        Assert.Contains("SHA256", src); // checked before use
+        Assert.DoesNotContain("PostAsync", src);
+        Assert.DoesNotContain("PutAsync", src);
+    }
 
     [Fact]
     public void Never_injects_into_or_reads_other_processes_memory() =>
@@ -39,7 +53,9 @@ public class SafetyTests
     public void Only_the_cleaner_deletes_files() =>
         AssertNotUsed(@"\bFile\.Delete\(|\bDirectory\.Delete\(|\.Delete\(\)",
             "deleting files is only allowed in the cleanup engine (and Pulse's own temporary script/state files)",
-            "Cleaner.cs", "Shell.cs", "AbTest.cs");
+            "Cleaner.cs", "Shell.cs", "AbTest.cs",
+            "ClipLibrary.cs" /* the user's own clips, when they delete one or the storage limit is reached */,
+            "Ffmpeg.cs" /* its own download */, "ReplayRecorder.cs" /* its own temporary file */);
 
     [Fact]
     public void Never_deletes_whole_registry_keys() =>
