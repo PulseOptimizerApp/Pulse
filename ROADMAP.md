@@ -4,7 +4,7 @@ Paste everything below the line into a new Claude session to pick the work back 
 
 ---
 
-You're continuing work on **Pulse Optimizer**, a free, open-source (MIT) Windows PC optimizer for gamers, with a large Roblox audience. The repository is `PulseOptimizer-app/PulseOptimizer` on GitHub. The website is `PulseOptimizer-app/pulseoptimizer-app.github.io`, and its download buttons always point to the latest GitHub release. The latest release is **v0.2.9**.
+You're continuing work on **Pulse Optimizer**, a free, open-source (MIT) Windows PC optimizer for gamers, with a large Roblox audience. The repository is `PulseOptimizer-app/PulseOptimizer` on GitHub. The website is `PulseOptimizer-app/pulseoptimizer-app.github.io`, and its download buttons always point to the latest GitHub release. The latest release is **v0.3.0** (see Status below).
 
 ## How the project works (read before changing anything)
 
@@ -44,6 +44,25 @@ You're continuing work on **Pulse Optimizer**, a free, open-source (MIT) Windows
   - library, Medal-style trimmer (filmstrip, handles, frame stepping), Discord copy under 10 MB
   - quick-clip and screenshot hotkeys, tray mode, start with Windows
 - **UI polish:** consistent sizes and spacing, dark drop-downs and menus, focus outlines.
+
+## Status (4 Nov 2026, v0.3.0)
+
+Built and merged, CI green, **not yet tested on a real PC** (the owner tests the v0.3.0 release):
+
+- **Fixes:** Diagnose native resolution from EDID (no more "switch your 1080p screen to 4K"); clips freezing on the menu and coming out the wrong length (stall restart, forced keyframes, memory cap); website download fallback during the release build gap; last translation gaps.
+- **Clips:** records the game's own window on Windows 11 (Windows Graphics Capture, falls back to the screen); per-app tracks (game, Discord, Spotify) with per-clip mute; full-screen player; quality tuning per GPU brand; library search, filter, sort, rename, select and delete; session recording to disk (Alt+F9); bookmarks (Alt+F12) on the timeline; "Test what Clips costs" (FPS on/off with PresentMon); **input overlay** (keyboard + mouse, Xbox, PlayStation) shown in the player and burned into copies.
+- **Roblox:** run on the graphics card; game mode while Roblox runs; auto-cleanup over 1 GB; settings per experience (place ID); lag check (router + Roblox server).
+- **Any game:** game mode, live FPS overlay, lag check (router + internet).
+- **New:** Reaction trainer (4 drills, adaptive, progress graph).
+- **UI:** Home rebuilt from the approved mockup (other pages still to do).
+
+Still to do (next sessions):
+
+- Verify everything above with the owner's screenshots; fix what breaks.
+- UI system for the remaining pages (Games, Clips, Roblox, Diagnose, Tweaks, Debloat, Settings), one per PR, plus the refined logo if the owner picks it.
+- Clips: compare quality and FPS cost against Medal and NVIDIA (needs the owner's PC); HDR tone-mapping; audio sync offset; voice clipping; in-game "clip saved" indicator for exclusive fullscreen.
+- Roblox: NVIDIA "Roblox only" own-profile split; warning when a flag stops working (needs real Roblox logs to match).
+- New features: one-click "Optimize for this game" flow, driver manager, stutter detective, upgrade advisor, weekly report.
 
 ## Roadmap
 
