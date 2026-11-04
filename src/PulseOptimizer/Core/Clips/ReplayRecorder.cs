@@ -22,13 +22,17 @@ public sealed class ReplayRecorder : IDisposable
     readonly StringWriter _log = new();
 
     readonly IntPtr _window;
+    readonly int _gamePid;
+    readonly List<(string Title, AudioCapture Capture)> _apps = new();
 
     /// <param name="window">The game's window to record, or Zero to record the whole display.</param>
-    public ReplayRecorder(ClipSettings settings, Encoder encoder, IntPtr window = default)
+    /// <param name="gamePid">The game's process, for its own sound track (0 = unknown).</param>
+    public ReplayRecorder(ClipSettings settings, Encoder encoder, IntPtr window = default, int gamePid = 0)
     {
         _s = settings;
         _encoder = encoder;
         _window = window;
+        _gamePid = gamePid;
         _ring.KeepSeconds = settings.ReplaySeconds + 2;
         // Memory cap: twice what the bitrate needs for the replay, plus room for sound. Stops runaway growth.
         _ring.MaxBytes = (long)Math.Clamp(settings.BitrateMbps, 2, 150) * 125_000L * (settings.ReplaySeconds + 2) * 2 + (64L << 20);
@@ -52,6 +56,8 @@ public sealed class ReplayRecorder : IDisposable
     public Encoder Encoder => _encoder;
     /// <summary>The game window being recorded, or Zero for the whole display.</summary>
     public IntPtr Window => _window;
+    /// <summary>Names of the sound tracks being recorded, in order (track 1 is always all sound).</summary>
+    public List<string> TrackTitles { get; } = new();
     public long BufferBytes => _ring.Bytes;
     public double BufferSeconds => _ring.HeldSeconds(Now);
     public int ExitCode => _ffmpeg is { HasExited: true } p ? p.ExitCode : 0;
@@ -85,19 +91,40 @@ public sealed class ReplayRecorder : IDisposable
             micPipe = new NamedPipeServerStream(id + "-mic", PipeDirection.Out, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous, 0, 1 << 16);
         }
 
-        var args = Arguments(_s, _encoder, gamePipe != null ? $@"\\.\pipe\{id}-game" : null, micPipe != null ? $@"\\.\pipe\{id}-mic" : null, _window);
+        // Separate tracks per app (game, Discord, music) so a clip can mute any of them later.
+        var appPipes = new List<(string Title, string Pipe, NamedPipeServerStream Server, AudioCapture Capture)>();
+        if (_s.AppTracks && _s.GameAudio && AudioCapture.AppCaptureSupported)
+        {
+            foreach (var (title, pid) in AppAudio.Sources(_gamePid))
+            {
+                var cap = AudioCapture.App(pid);
+                cap.Volume = _s.GameVolume / 100f;
+                cap.Start();
+                var name = $"{id}-app{appPipes.Count}";
+                appPipes.Add((title, $@"\\.\pipe\{name}", new NamedPipeServerStream(name, PipeDirection.Out, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous, 0, 1 << 16), cap));
+                _apps.Add((title, cap));
+            }
+        }
+
+        var args = Arguments(_s, _encoder, gamePipe != null ? $@"\\.\pipe\{id}-game" : null, micPipe != null ? $@"\\.\pipe\{id}-mic" : null, _window,
+            appPipes.Select(a => (a.Title, a.Pipe)).ToList(), TrackTitles);
         _ffmpeg = Process.Start(Ffmpeg.Start(args, redirectOut: true))!;
         try { _ffmpeg.PriorityClass = ProcessPriorityClass.BelowNormal; } catch { } // the game always comes first
 
         if (gamePipe != null) _tasks.Add(Pump(gamePipe, _game));
         if (micPipe != null) _tasks.Add(Pump(micPipe, _mic));
+        foreach (var a in appPipes) _tasks.Add(Pump(a.Server, a.Capture));
         _tasks.Add(Task.Run(ReadVideo));
         _tasks.Add(Task.Run(ReadLog));
     }
 
     /// <summary>The FFmpeg command line. Exposed for tests.</summary>
-    internal static string Arguments(ClipSettings s, Encoder e, string gamePipe, string micPipe, IntPtr window = default)
+    internal static string Arguments(ClipSettings s, Encoder e, string gamePipe, string micPipe, IntPtr window = default,
+        IReadOnlyList<(string Title, string Pipe)> apps = null, List<string> titles = null)
     {
+        apps ??= Array.Empty<(string, string)>();
+        titles ??= new List<string>();
+        titles.Clear();
         var a = new List<string> { "-hide_banner", "-loglevel", "warning", "-nostats" };
         int fps = Math.Clamp(s.Fps, 24, 240);
         int cursor = s.RecordCursor ? 1 : 0;
@@ -125,26 +152,29 @@ public sealed class ReplayRecorder : IDisposable
         else if (h == 0) v = src + "hwdownload,format=bgra,format=nv12[v]";
         else v = src + $"hwdownload,format=bgra,scale=-2:{h}:flags=bilinear,format=nv12[v]";
 
+        var appIn = new List<int>();
+        foreach (var app in apps) { a.Add(Raw(app.Pipe)); appIn.Add(next++); }
+
         var filters = new List<string> { v };
         var maps = new List<string> { "-map", "[v]" };
+        bool micTrack = micIn >= 0 && (s.SeparateMicTrack || appIn.Count > 0);
+        bool gameTrack = gameIn >= 0 && micIn >= 0 && s.SeparateMicTrack && appIn.Count == 0;
+        // Track 1: everything mixed (what Discord and players play).
         if (gameIn >= 0 && micIn >= 0)
         {
-            if (s.SeparateMicTrack)
-            {
-                // Track 1 is the mix (what Discord and players play), then game only and mic only for the trimmer.
-                filters.Add($"[{gameIn}:a]asplit=2[g1][g2]");
-                filters.Add($"[{micIn}:a]asplit=2[m1][m2]");
-                filters.Add("[g1][m1]amix=inputs=2:duration=longest:dropout_transition=0:normalize=0[mix]");
-                maps.AddRange(new[] { "-map", "[mix]", "-map", "[g2]", "-map", "[m2]" });
-            }
-            else
-            {
-                filters.Add($"[{gameIn}:a][{micIn}:a]amix=inputs=2:duration=longest:dropout_transition=0:normalize=0[mix]");
-                maps.AddRange(new[] { "-map", "[mix]" });
-            }
+            string g = gameIn + ":a", m = micIn + ":a";
+            if (gameTrack) { filters.Add($"[{gameIn}:a]asplit=2[g1][g2]"); g = "g1"; }
+            if (micTrack) { filters.Add($"[{micIn}:a]asplit=2[m1][m2]"); m = "m1"; }
+            filters.Add($"[{g}][{m}]amix=inputs=2:duration=longest:dropout_transition=0:normalize=0[mix]");
+            maps.AddRange(new[] { "-map", "[mix]" });
         }
         else if (gameIn >= 0) maps.AddRange(new[] { "-map", $"{gameIn}:a" });
         else if (micIn >= 0) maps.AddRange(new[] { "-map", $"{micIn}:a" });
+        if (gameIn >= 0 || micIn >= 0) titles.Add("All sound");
+        // Then one track per app, the game sound without the mic, and the mic alone.
+        for (int i = 0; i < appIn.Count; i++) { maps.AddRange(new[] { "-map", $"{appIn[i]}:a" }); titles.Add(apps[i].Title); }
+        if (gameTrack) { maps.AddRange(new[] { "-map", "[g2]" }); titles.Add("Game"); }
+        if (micTrack) { maps.AddRange(new[] { "-map", micIn >= 0 && gameIn < 0 ? $"{micIn}:a" : "[m2]" }); titles.Add("Microphone"); }
 
         a.Add("-filter_complex \"" + string.Join(";", filters) + "\"");
         a.AddRange(maps);
@@ -228,7 +258,7 @@ public sealed class ReplayRecorder : IDisposable
             var mp4 = UniquePath(folder, name);
             // -t caps the length even if keyframes were far apart (the clip starts at a keyframe, so it's never shorter).
             string len = (seconds + 1.5).ToString("0.###", CultureInfo.InvariantCulture);
-            var (code, err) = await Ffmpeg.Run($"-hide_banner -loglevel error -y -i \"{ts}\" -map 0 -c copy -t {len} -movflags +faststart \"{mp4}\"", ct, 120_000);
+            var (code, err) = await Ffmpeg.Run($"-hide_banner -loglevel error -y -i \"{ts}\" -map 0 -c copy -t {len}{TitleArgs(TrackTitles)} -movflags +faststart \"{mp4}\"", ct, 120_000);
             if (code != 0 || !File.Exists(mp4)) throw new InvalidOperationException("FFmpeg couldn't save the clip: " + err.Trim());
             return mp4;
         }
@@ -251,6 +281,18 @@ public sealed class ReplayRecorder : IDisposable
             return png;
         }
         finally { try { File.Delete(ts); } catch { } }
+    }
+
+    /// <summary>Names each sound track in the MP4 so the trimmer can show them (MPEG-TS can't carry names).</summary>
+    internal static string TitleArgs(IReadOnlyList<string> titles)
+    {
+        var sb = new System.Text.StringBuilder();
+        for (int i = 0; i < titles.Count; i++)
+        {
+            var t = titles[i].Replace("\"", "");
+            sb.Append($" -metadata:s:a:{i} title=\"{t}\" -metadata:s:a:{i} handler_name=\"{t}\"");
+        }
+        return sb.ToString();
     }
 
     internal static string UniquePath(string folder, string name)
@@ -280,6 +322,7 @@ public sealed class ReplayRecorder : IDisposable
         try { Task.WaitAll(_tasks.ToArray(), 2000); } catch { }
         _game?.Dispose();
         _mic?.Dispose();
+        foreach (var (_, c) in _apps) c.Dispose();
         _ffmpeg?.Dispose();
         _ring.Clear();
     }

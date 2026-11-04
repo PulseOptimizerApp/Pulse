@@ -15,6 +15,7 @@ public sealed class AudioCapture : IDisposable
     const int CLSCTX_ALL = 23;
 
     readonly bool _loopback;
+    readonly int _pid; // process loopback: capture only this process and its children (0 = whole device)
     readonly object _gate = new();
     readonly Queue<float[]> _chunks = new();
     int _queued; // floats waiting
@@ -23,14 +24,22 @@ public sealed class AudioCapture : IDisposable
     public float Volume { get; set; } = 1f;
     public string Error { get; private set; }
 
-    AudioCapture(bool loopback) => _loopback = loopback;
+    AudioCapture(bool loopback, int pid = 0) { _loopback = loopback; _pid = pid; }
 
     public static AudioCapture GameSound() => new(true);
     public static AudioCapture Microphone() => new(false);
+    /// <summary>
+    /// Only what one app plays (it and the processes it started), with Windows' process loopback (Windows 10 2004+).
+    /// Used for separate game, Discord and music tracks.
+    /// </summary>
+    public static AudioCapture App(int pid) => new(true, pid);
+
+    /// <summary>Windows 10 version 2004 (build 19041) added per-app audio capture.</summary>
+    public static bool AppCaptureSupported => Environment.OSVersion.Version.Build >= 19041;
 
     public void Start()
     {
-        _thread = new Thread(Loop) { IsBackground = true, Name = _loopback ? "Pulse game audio" : "Pulse mic", Priority = ThreadPriority.AboveNormal };
+        _thread = new Thread(Loop) { IsBackground = true, Name = _pid != 0 ? "Pulse app audio" : _loopback ? "Pulse game audio" : "Pulse mic", Priority = ThreadPriority.AboveNormal };
         _thread.Start();
     }
 
@@ -89,6 +98,7 @@ public sealed class AudioCapture : IDisposable
 
     void CaptureUntilLost()
     {
+        if (_pid != 0) { CaptureApp(); return; }
         var enumerator = (IMMDeviceEnumerator)new MMDeviceEnumerator();
         try
         {
@@ -140,6 +150,110 @@ public sealed class AudioCapture : IDisposable
             finally { Marshal.FreeCoTaskMem(fmtPtr); }
         }
         finally { Marshal.ReleaseComObject(enumerator); }
+    }
+
+    // ───────── one app's sound (process loopback) ─────────
+
+    const int AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM = unchecked((int)0x80000000), AUDCLNT_STREAMFLAGS_SRC_DEFAULT_QUALITY = 0x08000000;
+
+    void CaptureApp()
+    {
+        var client = ActivateProcessLoopback(_pid);
+        // Process loopback has no mix format of its own: ask for 48 kHz stereo float and let Windows convert.
+        var fmt = new WAVEFORMATEX { wFormatTag = 3, nChannels = 2, nSamplesPerSec = Rate, wBitsPerSample = 32, nBlockAlign = 8, nAvgBytesPerSec = Rate * 8, cbSize = 0 };
+        var fmtPtr = Marshal.AllocCoTaskMem(Marshal.SizeOf<WAVEFORMATEX>());
+        try
+        {
+            Marshal.StructureToPtr(fmt, fmtPtr, false);
+            Check(client.Initialize(0, AUDCLNT_STREAMFLAGS_LOOPBACK | AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM | AUDCLNT_STREAMFLAGS_SRC_DEFAULT_QUALITY, 2_000_000, 0, fmtPtr, IntPtr.Zero));
+            var ciid = typeof(IAudioCaptureClient).GUID;
+            Check(client.GetService(ref ciid, out var capObj));
+            var capture = (IAudioCaptureClient)capObj;
+            Check(client.Start());
+            Error = null;
+            var resampler = new Resampler(Rate);
+            try
+            {
+                while (!_stop)
+                {
+                    Thread.Sleep(5);
+                    if (!ProcessAlive(_pid)) { Thread.Sleep(200); continue; } // the app closed: silence (the pump fills it)
+                    while (true)
+                    {
+                        int hr = capture.GetNextPacketSize(out var frames);
+                        if (hr < 0) return;
+                        if (frames == 0) break;
+                        hr = capture.GetBuffer(out var data, out var n, out var flags, out _, out _);
+                        if (hr < 0) return;
+                        try { if (n > 0) Push(resampler.Process(data, (int)n, 2, 32, true, (flags & AUDCLNT_BUFFERFLAGS_SILENT) != 0, Volume)); }
+                        finally { capture.ReleaseBuffer(n); }
+                    }
+                }
+            }
+            finally
+            {
+                client.Stop();
+                Marshal.ReleaseComObject(capture);
+                Marshal.ReleaseComObject(client);
+            }
+        }
+        finally { Marshal.FreeCoTaskMem(fmtPtr); }
+    }
+
+    static bool ProcessAlive(int pid)
+    {
+        try { using var p = Process.GetProcessById(pid); return !p.HasExited; } catch { return false; }
+    }
+
+    static IAudioClient ActivateProcessLoopback(int pid)
+    {
+        // AUDIOCLIENT_ACTIVATION_PARAMS { type = PROCESS_LOOPBACK, pid, mode = INCLUDE_TARGET_PROCESS_TREE }
+        var paramsPtr = Marshal.AllocHGlobal(12);
+        var prop = Marshal.AllocHGlobal(24); // PROPVARIANT holding a VT_BLOB that points at the params
+        try
+        {
+            Marshal.WriteInt32(paramsPtr, 0, 1);
+            Marshal.WriteInt32(paramsPtr, 4, pid);
+            Marshal.WriteInt32(paramsPtr, 8, 0);
+            for (int i = 0; i < 24; i += 4) Marshal.WriteInt32(prop, i, 0);
+            Marshal.WriteInt16(prop, 0, 65 /*VT_BLOB*/);
+            Marshal.WriteInt32(prop, 8, 12);
+            Marshal.WriteIntPtr(prop, 16, paramsPtr);
+
+            var done = new ActivationHandler();
+            var iid = typeof(IAudioClient).GUID;
+            ActivateAudioInterfaceAsync(@"VAD\Process_Loopback", ref iid, prop, done, out var op);
+            if (!done.Wait(5000)) throw new TimeoutException("Windows didn't start per-app audio capture.");
+            op.GetActivateResult(out int hr, out var obj);
+            Check(hr);
+            return (IAudioClient)obj;
+        }
+        finally
+        {
+            Marshal.FreeHGlobal(prop);
+            Marshal.FreeHGlobal(paramsPtr);
+        }
+    }
+
+    [DllImport("Mmdevapi.dll", ExactSpelling = true, PreserveSig = false)]
+    static extern void ActivateAudioInterfaceAsync([MarshalAs(UnmanagedType.LPWStr)] string deviceInterfacePath, ref Guid riid,
+        IntPtr activationParams, IActivateAudioInterfaceCompletionHandler completionHandler, out IActivateAudioInterfaceAsyncOperation operation);
+
+    [ComImport, Guid("41D949AB-9862-444A-80F6-C261334DA5EB"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    interface IActivateAudioInterfaceCompletionHandler { void ActivateCompleted(IActivateAudioInterfaceAsyncOperation operation); }
+
+    [ComImport, Guid("72A22D78-CDE4-431D-B8CC-843A71199B6D"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    interface IActivateAudioInterfaceAsyncOperation { void GetActivateResult(out int activateResult, [MarshalAs(UnmanagedType.IUnknown)] out object activatedInterface); }
+
+    /// <summary>Windows calls this back on its own thread, so it must be agile (no apartment).</summary>
+    [ComImport, Guid("94ea2b94-e9cc-49e0-c0ff-ee64ca8f5b90"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    interface IAgileObject { }
+
+    sealed class ActivationHandler : IActivateAudioInterfaceCompletionHandler, IAgileObject
+    {
+        readonly ManualResetEventSlim _done = new();
+        public void ActivateCompleted(IActivateAudioInterfaceAsyncOperation operation) => _done.Set();
+        public bool Wait(int ms) => _done.Wait(ms);
     }
 
     static void Check(int hr)

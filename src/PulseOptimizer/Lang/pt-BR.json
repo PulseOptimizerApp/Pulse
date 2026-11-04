@@ -1770,5 +1770,8 @@
  "{0} warm-up tries, then {1} that count.": "{0} tentativas de aquecimento e depois {1} que contam.",
  "±{0} ms": "±{0} ms",
  "Wait…": "Espere…",
- "Get ready…": "Prepare-se…"
+ "Get ready…": "Prepare-se…",
+ "Give the game, Discord and Spotify their own tracks, so you can mute any of them in a clip": "Dar faixas próprias ao jogo, Discord e Spotify, para poder silenciar qualquer um deles num clipe",
+ "Sound to keep in the saved and Discord copies": "Som que fica nas cópias salvas e para o Discord",
+ "All sound": "Todo o som"
 }

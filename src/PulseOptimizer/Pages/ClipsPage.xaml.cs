@@ -268,6 +268,8 @@ public partial class ClipsPage : UserControl, IPage
         TraySwitch.IsChecked = S.KeepRunningInTray;
         StartupSwitch.IsChecked = S.StartWithWindows;
         SeparateMicSwitch.IsChecked = S.SeparateMicTrack;
+        AppTracksSwitch.IsChecked = S.AppTracks;
+        AppTracksRow.Visibility = AudioCapture.AppCaptureSupported ? Visibility.Visible : Visibility.Collapsed;
         CursorSwitch.IsChecked = S.RecordCursor;
         SoundSwitch.IsChecked = S.PlaySound;
         PopupSwitch.IsChecked = S.ShowSavedPopup;
@@ -314,6 +316,7 @@ public partial class ClipsPage : UserControl, IPage
         S.OnlyWhileGaming = OnlyGamingSwitch.IsChecked == true;
         S.KeepRunningInTray = TraySwitch.IsChecked == true;
         S.SeparateMicTrack = SeparateMicSwitch.IsChecked == true;
+        S.AppTracks = AppTracksSwitch.IsChecked == true;
         S.RecordCursor = CursorSwitch.IsChecked == true;
         S.PlaySound = SoundSwitch.IsChecked == true;
         S.ShowSavedPopup = PopupSwitch.IsChecked == true;
@@ -523,7 +526,7 @@ public partial class ClipsPage : UserControl, IPage
 
     // ───────── Player and trimmer ─────────
 
-    int _tracks = 1;
+    List<string> _trackNames = new();
     double _pendingSeek = -1;
     bool _resumeAfterScrub;
 
@@ -546,11 +549,8 @@ public partial class ClipsPage : UserControl, IPage
         Keyboard.Focus(PlayerLayer);
 
         // Which sounds can be chosen, and the filmstrip, load while the clip starts playing.
-        _tracks = await ClipLibrary.AudioTracks(vm.Clip.Path);
-        MicTrack.Visibility = _tracks >= 3 ? Visibility.Visible : Visibility.Collapsed;
-        GameTrack.Content = Loc.T(_tracks >= 3 ? "Game" : "Sound");
-        AudioPanel.Visibility = _tracks >= 1 ? Visibility.Visible : Visibility.Collapsed;
-        GameTrack.IsChecked = MicTrack.IsChecked = true;
+        _trackNames = await ClipLibrary.AudioTrackNames(vm.Clip.Path);
+        BuildTrackToggles();
     }
 
     async void Player_Opened(object sender, RoutedEventArgs e)
@@ -664,13 +664,32 @@ public partial class ClipsPage : UserControl, IPage
         e.Handled = true;
     }
 
-    /// <summary>Which audio track the exported copy keeps: mix, game only, mic only or none.</summary>
-    int ChosenTrack()
+    /// <summary>One toggle per sound in the clip (Game, Discord, Spotify, Microphone...). Off = left out of copies.</summary>
+    void BuildTrackToggles()
     {
-        bool game = GameTrack.IsChecked == true, mic = MicTrack.IsChecked == true;
-        if (_tracks >= 3) return game && mic ? 0 : game ? 1 : mic ? 2 : -1;
-        return _tracks >= 1 && game ? 0 : -1;
+        TrackToggles.Children.Clear();
+        AudioPanel.Visibility = _trackNames.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        // Track 1 is everything mixed; the others are its parts. With only one track, that one is the toggle.
+        var parts = _trackNames.Count >= 2 ? _trackNames.Skip(1).ToList() : _trackNames.Select(_ => "Sound").ToList();
+        foreach (var name in parts)
+        {
+            var t = new System.Windows.Controls.Primitives.ToggleButton
+            {
+                Style = (Style)FindResource("TrackToggle"), Content = Loc.T(name), IsChecked = true,
+                Margin = new Thickness(TrackToggles.Children.Count == 0 ? 0 : 6, 0, 0, 0),
+            };
+            t.Click += Track_Click;
+            TrackToggles.Children.Add(t);
+        }
     }
+
+    /// <summary>Which tracks the exported copy keeps: all of them (track 1, the full mix), some parts mixed, or none.</summary>
+    List<int> ChosenTracks()
+    {
+        var on = TrackToggles.Children.OfType<System.Windows.Controls.Primitives.ToggleButton>().Select(t => t.IsChecked == true).ToList();
+        return ClipLibrary.ChooseTracks(_trackNames.Count, on);
+    }
+
 
     void Track_Click(object sender, RoutedEventArgs e) { /* read when exporting */ }
 
@@ -809,7 +828,7 @@ public partial class ClipsPage : UserControl, IPage
         steps[0].Start();
         try
         {
-            var path = await ClipLibrary.Trim(_open.Clip.Path, Timeline.Start, Timeline.End, enc, Math.Max(S.BitrateMbps, 20), ChosenTrack());
+            var path = await ClipLibrary.Trim(_open.Clip.Path, Timeline.Start, Timeline.End, enc, Math.Max(S.BitrateMbps, 20), ChosenTracks());
             await ClipLibrary.MakeThumbnail(path);
             steps[0].Finish(Format.Bytes(new FileInfo(path).Length));
             await MainWindow.Instance.FinishSteps("Trimmed copy saved", Loc.F("Saved as {0}. The original is untouched.", Path.GetFileName(path)));
@@ -834,7 +853,7 @@ public partial class ClipsPage : UserControl, IPage
         try
         {
             bool whole = Timeline.Start <= 0.01 && Timeline.End >= Timeline.Duration - 0.05;
-            var path = await ClipLibrary.ForDiscord(_open.Clip.Path, enc, whole ? 0 : Timeline.Start, whole ? 0 : Timeline.End, ChosenTrack());
+            var path = await ClipLibrary.ForDiscord(_open.Clip.Path, enc, whole ? 0 : Timeline.Start, whole ? 0 : Timeline.End, ChosenTracks());
             await ClipLibrary.MakeThumbnail(path);
             steps[0].Finish(Format.Bytes(new FileInfo(path).Length));
             // Put the file on the clipboard so it can be pasted straight into Discord.

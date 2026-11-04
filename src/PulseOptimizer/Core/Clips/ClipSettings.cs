@@ -30,6 +30,11 @@ public class ClipSettings
     public int MicVolume { get; set; } = 100;
     /// <summary>Also put the microphone on its own second audio track (for editing). The first track is always the mix.</summary>
     public bool SeparateMicTrack { get; set; }
+    /// <summary>
+    /// Record the game, Discord and Spotify on their own sound tracks too (Windows 10 2004+), so each can be muted
+    /// in a clip afterwards. The first track is still everything mixed.
+    /// </summary>
+    public bool AppTracks { get; set; } = true;
 
     /// <summary>Hotkey to save the replay: modifier flags (MOD_ALT=1, MOD_CONTROL=2, MOD_SHIFT=4) and a virtual-key code.</summary>
     public int HotkeyModifiers { get; set; } = 1;   // Alt

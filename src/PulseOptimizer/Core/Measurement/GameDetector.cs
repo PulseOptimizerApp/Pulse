@@ -64,6 +64,9 @@ public static class GameDetector
     static IntPtr _lastGameWindow;
     [DllImport("user32.dll")] static extern bool IsWindow(IntPtr hWnd);
 
+    /// <summary>The process of the game <see cref="RunningGame"/> last found (0 if none).</summary>
+    public static int GamePid => _lastGamePid;
+
     /// <summary>The main window of the game <see cref="RunningGame"/> last found (Zero if none). Used by Clips to record just the game.</summary>
     public static IntPtr GameWindow
     {

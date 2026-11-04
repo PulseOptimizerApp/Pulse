@@ -74,8 +74,60 @@ public static class ClipLibrary
 
     internal static int CountAudio(string ffmpegOutput) => Regex.Matches(ffmpegOutput ?? "", @"Stream #\d+:\d+[^:]*: Audio:").Count;
 
+    /// <summary>The name of each sound track, in order. Clips from before tracks had names get "All sound", "Game", "Microphone".</summary>
+    public static async Task<List<string>> AudioTrackNames(string clip)
+    {
+        var (_, err) = await Ffmpeg.Run($"-hide_banner -i \"{clip}\"", timeoutMs: 15_000);
+        return TrackNames(err);
+    }
+
+    internal static List<string> TrackNames(string ffmpegOutput)
+    {
+        var names = new List<string>();
+        var lines = (ffmpegOutput ?? "").Split('\n');
+        for (int i = 0; i < lines.Length; i++)
+        {
+            if (!Regex.IsMatch(lines[i], @"Stream #\d+:\d+[^:]*: Audio:")) continue;
+            string name = null;
+            // The stream's own Metadata block follows: indented "title" or "handler_name" lines.
+            for (int j = i + 1; j < lines.Length && !lines[j].TrimStart().StartsWith("Stream #"); j++)
+            {
+                var m = Regex.Match(lines[j], @"^\s+(title|handler_name)\s*:\s*(.+?)\s*$");
+                if (m.Success && (name == null || m.Groups[1].Value == "title")) name = m.Groups[2].Value;
+            }
+            // FFmpeg's own default handler name isn't a real track name.
+            if (name is "SoundHandler" or "Sound Handler" or "") name = null;
+            names.Add(name);
+        }
+        // Clips from before tracks had names: Pulse always wrote all sound, then game, then microphone.
+        string[] old = { "All sound", "Game", "Microphone" };
+        bool anyNamed = names.Any(n => n != null);
+        for (int i = 0; i < names.Count; i++) names[i] ??= !anyNamed && i < old.Length ? old[i] : i == 0 ? "All sound" : $"Track {i + 1}";
+        return names;
+    }
+
+    /// <summary>Which tracks a copy keeps, from the per-part toggles (track 1 is the mix of all parts).</summary>
+    public static List<int> ChooseTracks(int trackCount, IReadOnlyList<bool> on)
+    {
+        if (trackCount == 0 || on.Count == 0 || on.All(x => !x)) return new List<int>();
+        if (trackCount == 1 || on.All(x => x)) return new List<int> { 0 }; // everything: the original mix (includes other apps' sound)
+        return on.Select((x, i) => (x, i)).Where(p => p.x).Select(p => p.i + 1).ToList();
+    }
+
     /// <summary>FFmpeg options for the sound to keep: a track number, or -1 for none.</summary>
     internal static string AudioArgs(int track) => track < 0 ? "-an" : $"-map 0:a:{track}? -c:a aac -b:a 160k";
+
+    /// <summary>
+    /// FFmpeg options for the sound to keep from several tracks: none, one, or several mixed together
+    /// (for example game + microphone, leaving Discord out).
+    /// </summary>
+    internal static string AudioArgs(IReadOnlyList<int> tracks, int inputIndex = 0)
+    {
+        if (tracks == null || tracks.Count == 0) return "-an";
+        if (tracks.Count == 1) return AudioArgs(tracks[0]);
+        var ins = string.Concat(tracks.Select(t => $"[{inputIndex}:a:{t}]"));
+        return $"-filter_complex \"{ins}amix=inputs={tracks.Count}:duration=longest:dropout_transition=0:normalize=0[aout]\" -map \"[aout]\" -c:a aac -b:a 160k";
+    }
 
     /// <summary>Clip length in seconds, read from FFmpeg's own report.</summary>
     public static async Task<double> Duration(string clip)
@@ -118,13 +170,13 @@ public static class ClipLibrary
     /// Saves the part between <paramref name="from"/> and <paramref name="to"/> as a new clip. It's re-encoded with the
     /// graphics card so the cut is exact to the frame (a plain copy could only cut on keyframes).
     /// </summary>
-    public static async Task<string> Trim(string clip, double from, double to, Encoder e, int mbps, int audioTrack = 0, CancellationToken ct = default)
+    public static async Task<string> Trim(string clip, double from, double to, Encoder e, int mbps, IReadOnlyList<int> audio = null, CancellationToken ct = default)
     {
         if (to - from < 0.5) throw new InvalidOperationException("Pick at least half a second to keep.");
         var dest = Sibling(clip, "trimmed");
         var f = from.ToString("0.###", CultureInfo.InvariantCulture);
         var d = (to - from).ToString("0.###", CultureInfo.InvariantCulture);
-        var (code, err) = await Ffmpeg.Run($"-hide_banner -loglevel error -y -ss {f} -i \"{clip}\" -t {d} -map 0:v:0 {Encoders.Options(e, mbps, 60)} {AudioArgs(audioTrack)} -movflags +faststart \"{dest}\"", ct);
+        var (code, err) = await Ffmpeg.Run($"-hide_banner -loglevel error -y -ss {f} -i \"{clip}\" -t {d} -map 0:v:0 {Encoders.Options(e, mbps, 60)} {AudioArgs(audio ?? new[] { 0 })} -movflags +faststart \"{dest}\"", ct);
         if (code != 0) throw new InvalidOperationException("Trimming didn't work: " + err.Trim());
         return dest;
     }
@@ -137,7 +189,7 @@ public static class ClipLibrary
     }
 
     /// <summary>Re-encodes a copy that fits in a free Discord upload (under 10 MB), lowering the resolution for long clips.</summary>
-    public static async Task<string> ForDiscord(string clip, Encoder e, double from = 0, double to = 0, int audioTrack = 0, CancellationToken ct = default)
+    public static async Task<string> ForDiscord(string clip, Encoder e, double from = 0, double to = 0, IReadOnlyList<int> audioTracks = null, CancellationToken ct = default)
     {
         double total = await Duration(clip);
         if (total <= 0) throw new InvalidOperationException("Couldn't read the clip's length.");
@@ -152,7 +204,7 @@ public static class ClipLibrary
             string rate = $"-b:v {kbps}k -maxrate {kbps}k -bufsize {kbps * 2}k";
             // H.264 plays everywhere, including Discord's own player: use the graphics card's H.264 encoder.
             var codec = e.Hardware ? $"-c:v {H264Of(e)}" : "-c:v libx264 -preset veryfast";
-            var audio = audioTrack < 0 ? "-an" : $"-map 0:a:{audioTrack}? -c:a aac -b:a 128k";
+            var audio = AudioArgs(audioTracks ?? new[] { 0 }).Replace("-b:a 160k", "-b:a 128k");
             var (code, err) = await Ffmpeg.Run($"-hide_banner -loglevel error -y {cut} -i \"{clip}\" -map 0:v:0 -vf scale=-2:{h} {codec} {rate} {audio} -movflags +faststart \"{dest}\"", ct);
             if (code != 0) throw new InvalidOperationException("Making the Discord copy didn't work: " + err.Trim());
             if (new FileInfo(dest).Length <= DiscordLimitBytes) return dest;

@@ -284,6 +284,11 @@
                                 <TextBlock Style="{StaticResource RowLabel}" Text="Also save game sound and microphone on their own tracks, so either can be muted when trimming"/>
                                 <CheckBox x:Name="SeparateMicSwitch" Grid.Column="1" Style="{StaticResource Switch}" Click="Setting_Click"/>
                             </Grid>
+                            <Grid x:Name="AppTracksRow" Style="{StaticResource Row}">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                <TextBlock Style="{StaticResource RowLabel}" Text="Give the game, Discord and Spotify their own tracks, so you can mute any of them in a clip"/>
+                                <CheckBox x:Name="AppTracksSwitch" Grid.Column="1" Style="{StaticResource Switch}" Click="Setting_Click"/>
+                            </Grid>
                             <Grid Style="{StaticResource Row}">
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                                 <TextBlock Style="{StaticResource RowLabel}" Text="Record the mouse cursor"/>
@@ -377,8 +382,7 @@
                         <!-- Sound to keep in the exported copy -->
                         <StackPanel x:Name="AudioPanel" Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
                             <TextBlock Text="&#xE767;" Style="{StaticResource IconText}" FontSize="14" Foreground="{StaticResource TextDimBrush}" Margin="0,0,10,0"/>
-                            <ToggleButton x:Name="GameTrack" Style="{StaticResource TrackToggle}" Content="Game" IsChecked="True" Click="Track_Click"/>
-                            <ToggleButton x:Name="MicTrack" Style="{StaticResource TrackToggle}" Content="Microphone" IsChecked="True" Click="Track_Click" Margin="6,0,0,0"/>
+                            <WrapPanel x:Name="TrackToggles" ToolTip="Sound to keep in the saved and Discord copies"/>
                         </StackPanel>
                         <Button x:Name="FullBtn" Grid.Column="4" Style="{StaticResource GhostButton}" Width="44" Padding="0,8" Margin="12,0,0,0" Click="Full_Click" ToolTip="Full screen (F)">
                             <TextBlock x:Name="FullGlyph" Text="&#xE740;" Style="{StaticResource IconText}" FontSize="13"/>

@@ -183,7 +183,7 @@ public static class ClipsService
             var encoders = await Encoders.Available();
             var enc = Encoders.Pick(encoders, S.Codec);
             if (enc == null) { Set(ClipsState.Problem, "FFmpeg didn't find a video encoder that works on this PC."); return; }
-            _rec = new ReplayRecorder(S, enc, window);
+            _rec = new ReplayRecorder(S, enc, window, game != null ? GameDetector.GamePid : 0);
             _rec.Start();
             Set(ClipsState.Recording);
         }

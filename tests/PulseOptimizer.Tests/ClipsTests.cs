@@ -156,6 +156,48 @@ public class ClipsTests
         Assert.Contains("-quality speed", Encoders.Options(amf, 80, 144, 3840L * 2160 * 144));
     }
 
+    [Fact]
+    public void Each_app_gets_its_own_named_track_after_the_mix()
+    {
+        var titles = new List<string>();
+        var a = ReplayRecorder.Arguments(new ClipSettings(), Nvenc, "G", "M", default, new List<(string, string)> { ("Game", "A0"), ("Discord", "A1") }, titles);
+        Assert.Equal(new[] { "All sound", "Game", "Discord", "Microphone" }, titles);
+        Assert.Contains("-i A0", a);
+        Assert.Contains("-i A1", a);
+        Assert.Contains("[1:a][m1]amix", a);
+        Assert.Contains("-map [mix] -map 3:a -map 4:a -map [m2]", a);
+    }
+
+    [Fact]
+    public void Track_names_are_read_back_from_the_clip()
+    {
+        const string probe = """
+              Stream #0:0[0x1](und): Video: h264 (High) (avc1 / 0x31637661), yuv420p, 1920x1080, 40000 kb/s, 60 fps
+              Stream #0:1[0x2](und): Audio: aac (LC) (mp4a / 0x6134706D), 48000 Hz, stereo, fltp, 192 kb/s
+                Metadata:
+                  handler_name    : All sound
+              Stream #0:2[0x3](und): Audio: aac (LC) (mp4a / 0x6134706D), 48000 Hz, stereo, fltp, 192 kb/s
+                Metadata:
+                  title           : Discord
+                  handler_name    : Discord
+              Stream #0:3[0x4](und): Audio: aac (LC), 48000 Hz, stereo, fltp
+                Metadata:
+                  handler_name    : SoundHandler
+            """;
+        Assert.Equal(new[] { "All sound", "Discord", "Track 3" }, ClipLibrary.TrackNames(probe));
+    }
+
+    [Fact]
+    public void Muting_some_parts_mixes_only_the_rest()
+    {
+        Assert.Equal(new[] { 0 }, ClipLibrary.ChooseTracks(4, new[] { true, true, true }));
+        Assert.Equal(new[] { 1, 3 }, ClipLibrary.ChooseTracks(4, new[] { true, false, true }));
+        Assert.Empty(ClipLibrary.ChooseTracks(4, new[] { false, false, false }));
+        Assert.Equal(new[] { 0 }, ClipLibrary.ChooseTracks(1, new[] { true }));
+        Assert.Contains("[0:a:1][0:a:3]amix=inputs=2", ClipLibrary.AudioArgs(new[] { 1, 3 }));
+        Assert.Equal("-an", ClipLibrary.AudioArgs(new int[0]));
+    }
+
     static readonly Encoder Qsv = new("h264_qsv", "h264", "Intel", true);
 
     [Fact]
