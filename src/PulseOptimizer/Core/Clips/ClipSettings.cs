@@ -84,6 +84,12 @@ public class ClipSettings
     /// Off keeps it in memory, which writes nothing to the drive.
     /// </summary>
     public bool ReplayOnDisk { get; set; } = true;
+    /// <summary>
+    /// Set by Pulse when this PC couldn't record smoothly at the chosen quality: the largest height and frame rate that
+    /// kept up (0 = no limit). Cleared when the user picks a different quality.
+    /// </summary>
+    public int FitHeight { get; set; }
+    public int FitFps { get; set; }
     /// <summary>Keep clipping when the Pulse window is closed (Pulse stays in the tray).</summary>
     public bool KeepRunningInTray { get; set; } = true;
     /// <summary>Start Pulse in the tray when you sign in, so clips work without opening Pulse.</summary>

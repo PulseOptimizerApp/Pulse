@@ -40,6 +40,20 @@ public static class Native
         catch { return 0; }
     }
 
+    [DllImport("gdi32.dll")] static extern int D3DKMTSetProcessSchedulingPriorityClass(IntPtr process, int priority);
+    const int D3DKMT_PRIORITY_HIGH = 4;
+
+    /// <summary>
+    /// Lets a process (Pulse's recorder) go first on the graphics card, like OBS does when it runs as administrator.
+    /// When a game holds the GPU near 100% (common on integrated graphics), the recorder otherwise waits behind it and
+    /// clips come out choppy. The recorder's work is tiny, so the game barely notices. Needs administrator rights.
+    /// </summary>
+    public static bool RaiseGpuPriority(System.Diagnostics.Process p)
+    {
+        try { return p != null && !p.HasExited && D3DKMTSetProcessSchedulingPriorityClass(p.Handle, D3DKMT_PRIORITY_HIGH) == 0; }
+        catch { return false; }
+    }
+
     public static void GiveBackMemory()
     {
         try

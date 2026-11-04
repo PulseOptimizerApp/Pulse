@@ -179,7 +179,7 @@ public static class ClipsService
         if (_rec != null && _rec.Window != IntPtr.Zero && window != _rec.Window && !_rec.Stalled && _rec.Running)
             StopRecorder(); // the game opened a new window (or a different game started): follow it
 
-        if (_rec != null && (_rec.Stalled || !_rec.Running) && !_rec.HadVideo && _videoLevel < 2)
+        if (_rec != null && (_rec.Stalled || !_rec.Running) && !_rec.HadVideo && _videoLevel < 3)
         {
             // No picture at all at this quality (some drivers or window sizes don't take the fastest path, which
             // used to leave Balanced and High recording nothing): try the next, more compatible way.
@@ -210,6 +210,15 @@ public static class ClipsService
                 return;
             }
         }
+        else if (_rec != null && _rec.Running && _rec.FallingBehind && StepDown())
+        {
+            // This PC can't make every frame at these settings (the clip would stutter): record a little smaller,
+            // then at 30 FPS, so clips stay smooth. Remembered for this PC; picking a quality again clears it.
+            TweakEngine.AddLog("clips", $"Recording couldn't keep up ({_rec.Frames.Rate(_rec.Seconds, 10):0} of {_rec.TargetFps} FPS): now {(S.FitHeight > 0 ? S.FitHeight + "p" : "full size")}{(S.FitFps > 0 ? $" at {S.FitFps} FPS" : "")}");
+            TweakEngine.Save();
+            StopRecorder();
+            Changed?.Invoke();
+        }
         else if (_rec != null && _rec.Running)
         {
             if (_rec.BufferSeconds > 30) _stalls = 0; // recording fine for a while: forget earlier stalls
@@ -233,7 +242,11 @@ public static class ClipsService
             var encoders = await Encoders.Available();
             var enc = Encoders.Pick(encoders, S.Codec);
             if (enc == null) { Set(ClipsState.Problem, "FFmpeg didn't find a video encoder that works on this PC."); return; }
-            _rec = new ReplayRecorder(S, enc, window, game != null ? GameDetector.GamePid : 0) { ScreenAspect = _screenAspect, VideoLevel = _videoLevel };
+            _rec = new ReplayRecorder(S, enc, window, game != null ? GameDetector.GamePid : 0)
+            {
+                ScreenAspect = _screenAspect, VideoLevel = _videoLevel,
+                TargetFps = Math.Clamp(S.FitFps > 0 ? Math.Min(S.Fps, S.FitFps) : S.Fps, 24, 240),
+            };
             _rec.Start();
             Set(ClipsState.Recording);
         }
@@ -244,6 +257,21 @@ public static class ClipsService
             Set(ClipsState.Problem, ex.Message);
         }
     }
+
+    /// <summary>One step smaller: 1080p, then 720p, then 720p at 30 FPS. False when there's nothing left to lower.</summary>
+    static bool StepDown()
+    {
+        int h = S.FitHeight > 0 ? S.FitHeight : S.Resolution switch { "1440" => 1440, "1080" => 1080, "720" => 720, _ => 1440 };
+        if (h > 1080) { S.FitHeight = 1080; return true; }
+        if (h > 720) { S.FitHeight = 720; return true; }
+        if (S.FitFps == 0 && S.Fps > 30) { S.FitFps = 30; return true; }
+        return false;
+    }
+
+    /// <summary>What Pulse lowered on this PC to keep clips smooth, for the Clips page (or null).</summary>
+    public static string FitNote => S.FitHeight == 0 && S.FitFps == 0 ? null
+        : Loc.F("Lowered to {0} so clips stay smooth on this PC. Pick a quality again to try higher.",
+            (S.FitHeight > 0 ? S.FitHeight + "p" : Loc.T("full size")) + (S.FitFps > 0 ? $" · {S.FitFps} FPS" : ""));
 
     static string Explain(string ffmpegError)
     {

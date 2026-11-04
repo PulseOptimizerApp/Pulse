@@ -2006,5 +2006,7 @@
  "Weather, News, Maps, Tips and other extras stop refreshing in the background for your account.": "El Tiempo, Noticias, Mapas, Consejos y otros extras dejan de actualizarse en segundo plano en tu cuenta.",
  "Only these apps are switched off, one by one, the same as Settings → Apps → the app → Background permissions. Windows' all-apps switch isn't used: it also stops the Snipping Tool (Win+Shift+S). Pulse makes no speed claim for this.": "Solo se desactivan estas apps, una por una, igual que en Configuración → Aplicaciones → la app → Permisos en segundo plano. No se usa el interruptor de todas las apps de Windows: también detiene la Herramienta Recortes (Win+Mayús+S). Pulse no promete más velocidad con esto.",
  "HKCU\\…\\BackgroundAccessApplications\\<app> → Disabled = 1, DisabledByUser = 1 (Weather, News, Maps, Tips, Get Help, Movies & TV, People, Solitaire, Feedback Hub, Microsoft 365 hub)": "HKCU\\…\\BackgroundAccessApplications\\<app> → Disabled = 1, DisabledByUser = 1 (El Tiempo, Noticias, Mapas, Consejos, Obtener ayuda, Películas y TV, Contactos, Solitario, Centro de opiniones, Microsoft 365)",
- "Those apps refresh when you open them. Everything else, including the Snipping Tool, is untouched.": "Esas apps se actualizan cuando las abres. Todo lo demás, incluida la Herramienta Recortes, no se toca."
+ "Those apps refresh when you open them. Everything else, including the Snipping Tool, is untouched.": "Esas apps se actualizan cuando las abres. Todo lo demás, incluida la Herramienta Recortes, no se toca.",
+ "Lowered to {0} so clips stay smooth on this PC. Pick a quality again to try higher.": "Bajado a {0} para que los clips vayan fluidos en este PC. Elige una calidad otra vez para probar más alto.",
+ "full size": "tamaño completo"
 }

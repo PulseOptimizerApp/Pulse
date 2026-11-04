@@ -85,10 +85,33 @@ public sealed class ReplayRecorder : IDisposable
     /// <summary>True once any picture has arrived (false means the video path never worked on this PC).</summary>
     public bool HadVideo => _ring.SecondsSinceVideo(Now) >= 0;
     /// <summary>
-    /// 0 = fastest (frames stay on the graphics card), 1 = frames copied once and converted (works with every
-    /// driver and window size), 2 = that at 1080p. Pulse steps down when a level gives no picture.
+    /// 0 = fastest (resized and converted by the graphics card's video processor), 1 = frames handed to the encoder as
+    /// they are, 2 = frames copied once and converted on the processor (works with every driver and window size),
+    /// 3 = that at 1080p. Pulse steps down when a level gives no picture.
     /// </summary>
     public int VideoLevel { get; init; }
+    /// <summary>True when the recorder was given priority on the graphics card.</summary>
+    public bool GpuPriority { get; private set; }
+
+    /// <summary>Frames FFmpeg has written, sampled every second.</summary>
+    public FrameRateMeter Frames { get; } = new();
+    /// <summary>The frame rate being asked for (after any step-down).</summary>
+    public int TargetFps { get; init; }
+
+    /// <summary>
+    /// True when this PC can't record at these settings: for the last 10 seconds FFmpeg made under 85% of the frames
+    /// it should have (the clip would stutter). The caller steps the quality down.
+    /// </summary>
+    public bool FallingBehind => Now > 15 && TargetFps > 0 && Frames.Rate(Now, 10) is double r && r < TargetFps * 0.85;
+
+    internal static bool IsProgressLine(string line)
+    {
+        int eq = line.IndexOf('=');
+        if (eq <= 0 || line.Contains(' ')) return false;
+        var key = line[..eq];
+        return key is "fps" or "stream_0_0_q" or "bitrate" or "total_size" or "out_time_us" or "out_time_ms" or "out_time"
+            or "dup_frames" or "drop_frames" or "speed" or "progress" || key.StartsWith("stream_", StringComparison.Ordinal);
+    }
     public double BufferSeconds => _ring.HeldSeconds(Now);
     public int ExitCode => _ffmpeg is { HasExited: true } p ? p.ExitCode : 0;
     /// <summary>The last lines FFmpeg printed (shown when recording fails).</summary>
@@ -98,6 +121,8 @@ public sealed class ReplayRecorder : IDisposable
     }
 
     double Now => _clock.Elapsed.TotalSeconds;
+    /// <summary>Seconds since this recording started.</summary>
+    public double Seconds => Now;
 
     /// <summary>CPU time FFmpeg has used, for the "what Clips costs" readout.</summary>
     public TimeSpan CpuTime { get { try { return _ffmpeg?.TotalProcessorTime ?? TimeSpan.Zero; } catch { return TimeSpan.Zero; } } }
@@ -139,7 +164,10 @@ public sealed class ReplayRecorder : IDisposable
         var args = Arguments(_s, _encoder, gamePipe != null ? $@"\\.\pipe\{id}-game" : null, micPipe != null ? $@"\\.\pipe\{id}-mic" : null, _window,
             appPipes.Select(a => (a.Title, a.Pipe)).ToList(), TrackTitles, VideoLevel);
         _ffmpeg = Process.Start(Ffmpeg.Start(args, redirectOut: true))!;
-        try { _ffmpeg.PriorityClass = ProcessPriorityClass.BelowNormal; } catch { } // the game always comes first
+        // Normal CPU priority: "below normal" next to a game using every core (weak PCs) starved the recorder and clips
+        // came out at a few FPS. The recorder's CPU work is small, so the game doesn't notice.
+        try { _ffmpeg.PriorityClass = ProcessPriorityClass.Normal; } catch { }
+        GpuPriority = Native.RaiseGpuPriority(_ffmpeg);
 
         if (gamePipe != null) _tasks.Add(Pump(gamePipe, _game));
         if (micPipe != null) _tasks.Add(Pump(micPipe, _mic));
@@ -155,8 +183,9 @@ public sealed class ReplayRecorder : IDisposable
         apps ??= Array.Empty<(string, string)>();
         titles ??= new List<string>();
         titles.Clear();
-        var a = new List<string> { "-hide_banner", "-loglevel", "warning", "-nostats" };
-        int fps = Math.Clamp(s.Fps, 24, 240);
+        // -progress: FFmpeg reports its frame count every second, so Pulse can tell when a PC can't keep up.
+        var a = new List<string> { "-hide_banner", "-loglevel", "warning", "-nostats", "-stats_period", "1", "-progress", "pipe:2" };
+        int fps = Math.Clamp(s.FitFps > 0 ? Math.Min(s.Fps, s.FitFps) : s.Fps, 24, 240);
         int cursor = s.RecordCursor ? 1 : 0;
 
         // Input 0: grabbed on the graphics card. Either the game's own window (Windows Graphics Capture, which keeps
@@ -178,10 +207,21 @@ public sealed class ReplayRecorder : IDisposable
 
         // Video: stays on the graphics card for NVIDIA/AMD at native size; otherwise downloaded once and scaled.
         int h = s.Resolution switch { "1440" => 1440, "1080" => 1080, "720" => 720, _ => 0 };
-        if (videoLevel >= 2 && (h == 0 || h > 1080)) h = 1080;
+        // Pulse lowered the size on this PC because it couldn't keep up (see ClipSettings.FitHeight).
+        if (s.FitHeight > 0 && (h == 0 || h > s.FitHeight)) h = s.FitHeight;
+        if (videoLevel >= 3 && (h == 0 || h > 1080)) h = 1080;
+        string size = h > 0 ? $"width=-2:height={h}:" : "";
         string v;
-        if (h == 0 && videoLevel == 0 && e.TakesGpuFrames) v = src + "null[v]";
-        else if (h == 0 && videoLevel == 0 && e.Vendor == "Intel") v = src + "hwmap=derive_device=qsv,format=qsv[v]";
+        // Level 0: resized and converted for the encoder by the graphics card's video processor (scale_d3d11), a
+        // separate part of the chip from the one the game draws with. Nothing goes through the processor, which is
+        // what keeps clips smooth on weak PCs and integrated graphics.
+        if (videoLevel == 0 && e.TakesGpuFrames) v = src + $"scale_d3d11={size}format=nv12[v]";
+        else if (videoLevel == 0 && e.Vendor == "Intel") v = src + $"scale_d3d11={size}format=nv12,hwmap=derive_device=qsv,format=qsv[v]";
+        else if (videoLevel == 0) v = src + $"scale_d3d11={size}format=nv12,hwdownload,format=nv12[v]"; // processor encoder: still no conversion on the CPU
+        // Level 1: frames handed to the encoder as they are (the previous fast path).
+        else if (videoLevel == 1 && h == 0 && e.TakesGpuFrames) v = src + "null[v]";
+        else if (videoLevel == 1 && h == 0 && e.Vendor == "Intel") v = src + "hwmap=derive_device=qsv,format=qsv[v]";
+        // Level 2+: copied once and converted on the processor; works with every driver.
         // Native size, rounded to even numbers (a game window can be any size; encoders need even ones).
         else if (h == 0) v = src + "hwdownload,format=bgra,scale=trunc(iw/2)*2:trunc(ih/2)*2,format=nv12[v]";
         else v = src + $"hwdownload,format=bgra,scale=-2:{h}:flags=bilinear,format=nv12[v]";
@@ -273,7 +313,11 @@ public sealed class ReplayRecorder : IDisposable
         {
             string line;
             while ((line = await _ffmpeg.StandardError.ReadLineAsync(_stop.Token)) != null)
+            {
+                if (line.StartsWith("frame=", StringComparison.Ordinal) && long.TryParse(line.AsSpan(6), out var f)) { Frames.Add(Now, f); continue; }
+                if (IsProgressLine(line)) continue; // the other progress keys aren't kept
                 lock (_log) { _log.WriteLine(line); if (_log.GetStringBuilder().Length > 20_000) _log.GetStringBuilder().Remove(0, 10_000); }
+            }
         }
         catch { }
     }
@@ -426,5 +470,34 @@ public sealed class ReplayRecorder : IDisposable
         foreach (var (_, c) in _apps) c.Dispose();
         _ffmpeg?.Dispose();
         _ring.Dispose();
+    }
+}
+
+/// <summary>Frames made per second over a recent window, from (time, total frames) samples.</summary>
+public sealed class FrameRateMeter
+{
+    readonly object _gate = new();
+    readonly Queue<(double T, long Frames)> _samples = new();
+
+    public void Add(double t, long frames)
+    {
+        lock (_gate)
+        {
+            _samples.Enqueue((t, frames));
+            while (_samples.Count > 0 && t - _samples.Peek().T > 30) _samples.Dequeue();
+        }
+    }
+
+    /// <summary>Frames per second over the last <paramref name="seconds"/>, or null without enough samples.</summary>
+    public double? Rate(double now, double seconds)
+    {
+        lock (_gate)
+        {
+            if (_samples.Count < 2) return null;
+            var last = _samples.Last();
+            var first = _samples.FirstOrDefault(x => now - x.T <= seconds + 0.5);
+            if (last.T - first.T < seconds * 0.8) return null;
+            return (last.Frames - first.Frames) / (last.T - first.T);
+        }
     }
 }

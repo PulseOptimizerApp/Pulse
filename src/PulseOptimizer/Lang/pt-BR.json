@@ -2006,5 +2006,7 @@
  "Weather, News, Maps, Tips and other extras stop refreshing in the background for your account.": "Clima, Notícias, Mapas, Dicas e outros extras param de atualizar em segundo plano na sua conta.",
  "Only these apps are switched off, one by one, the same as Settings → Apps → the app → Background permissions. Windows' all-apps switch isn't used: it also stops the Snipping Tool (Win+Shift+S). Pulse makes no speed claim for this.": "Só esses apps são desligados, um por um, igual a Configurações → Aplicativos → o app → Permissões em segundo plano. A chave de todos os apps do Windows não é usada: ela também para a Ferramenta de Captura (Win+Shift+S). O Pulse não promete mais velocidade com isso.",
  "HKCU\\…\\BackgroundAccessApplications\\<app> → Disabled = 1, DisabledByUser = 1 (Weather, News, Maps, Tips, Get Help, Movies & TV, People, Solitaire, Feedback Hub, Microsoft 365 hub)": "HKCU\\…\\BackgroundAccessApplications\\<app> → Disabled = 1, DisabledByUser = 1 (Clima, Notícias, Mapas, Dicas, Obter Ajuda, Filmes e TV, Pessoas, Paciência, Hub de Feedback, Microsoft 365)",
- "Those apps refresh when you open them. Everything else, including the Snipping Tool, is untouched.": "Esses apps atualizam quando você os abre. Todo o resto, incluindo a Ferramenta de Captura, fica intocado."
+ "Those apps refresh when you open them. Everything else, including the Snipping Tool, is untouched.": "Esses apps atualizam quando você os abre. Todo o resto, incluindo a Ferramenta de Captura, fica intocado.",
+ "Lowered to {0} so clips stay smooth on this PC. Pick a quality again to try higher.": "Reduzido para {0} para os clipes ficarem fluidos neste PC. Escolha uma qualidade de novo para tentar mais alto.",
+ "full size": "tamanho total"
 }

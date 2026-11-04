@@ -345,6 +345,7 @@ public partial class ClipsPage : UserControl, IPage, IReleasable
                 : Loc.F("Uses about {0} of memory for your {1} replay. It doesn't cost FPS unless your PC runs low on memory.", Format.Bytes(replayBytes), LengthText(S.ReplaySeconds)));
         bool heavy = !S.ReplayOnDisk && ramGb > 0 && replayBytes > ramGb * 1073741824.0 * (ramGb <= 8.5 ? 0.08 : 0.15);
         QualityText.Foreground = (Brush)FindResource(heavy ? "WarnBrush" : "TextDimBrush");
+        if (ClipsService.FitNote is string fit) QualityText.Text += "\n" + fit;
         if (heavy) QualityText.Text += "\n" + Loc.F("That's a lot for a PC with {0} GB. A shorter replay or Light quality keeps games from running short on memory.", Math.Round(ramGb));
         GameAudioSwitch.IsChecked = S.GameAudio;
         MicSwitch.IsChecked = S.Microphone;
@@ -384,14 +385,15 @@ public partial class ClipsPage : UserControl, IPage, IReleasable
         {
             case "len": S.ReplaySeconds = n; break;
             case "q":
+                S.FitHeight = S.FitFps = 0; // a fresh pick: try it on this PC again
                 var preset = Presets.First(x => x.Label == v);
                 S.Resolution = preset.Res == 0 ? "native" : preset.Res.ToString(CultureInfo.InvariantCulture);
                 S.Fps = preset.Fps; S.BitrateMbps = preset.Mbps;
                 break;
             case "gv": S.GameVolume = n; break;
             case "mv": S.MicVolume = n; break;
-            case "res": S.Resolution = v; break;
-            case "fps": S.Fps = n; break;
+            case "res": S.Resolution = v; S.FitHeight = S.FitFps = 0; break;
+            case "fps": S.Fps = n; S.FitHeight = S.FitFps = 0; break;
             case "br": S.BitrateMbps = n; break;
             case "lim": S.StorageLimitGb = n; break;
             case "sync": S.AudioOffsetMs = n; break;
