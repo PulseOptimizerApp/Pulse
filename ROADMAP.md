@@ -65,7 +65,11 @@ Work top to bottom unless the owner says otherwise. For each item: say the plan 
      - **Fixes:** force a keyframe every second for every encoder (`-force_key_frames "expr:gte(t,n_forced*1)"` plus each encoder's own IDR option); cap the ring by bytes as well as seconds; if the groups around the cut-off are too far apart, cut to the exact length with FFmpeg (`-ss`) when saving; and log keyframe spacing so a support screenshot shows the problem.
      - **Tests:** a `TsRing` unit test with sparse or missing keyframes (clip length and memory both stay bounded), and a CI check that each encoder's output has a keyframe at least every 2 seconds.
    - **Test** with Valorant, Fortnite, CS2 and Roblox in fullscreen, borderless and windowed, on one and two monitors, including clips saved right after a match starts.
-4. **Clips beta hardening:**
+4. **BUG (reported by a user): Diagnose says a 1080p monitor "isn't at its native resolution".** The user's Acer **XV240 F6** is a 24" 1920×1080 high-refresh monitor, running at 1920×1080. Diagnose said its full resolution is 3840×2160 (60 Hz) and told him to switch to it. That advice is wrong and would make things worse.
+   - **Cause (in the code):** `MonitorInfo.Native` in `Core/Display.cs` picks the *largest* mode Windows offers. That list includes **NVIDIA DSR / DLDSR** and **AMD VSR** virtual resolutions, and modes the monitor accepts and then downscales (many 1080p monitors take a 4K 60 Hz signal). The check in `PcDiagnostics.Monitors.cs` (#3, "not at native resolution") then fires.
+   - **Fix:** take native resolution from the monitor's EDID **preferred timing** (the first detailed timing descriptor, which is the panel's real resolution). Fall back to the largest mode only if EDID can't be read, and in that case don't show this warning at all. Also ignore modes larger than the EDID native, and use the same native value for the refresh-rate checks.
+   - **Tests:** unit tests with a 1080p EDID plus 4K DSR modes (no warning), a 1440p panel running 1080p (warning), and a laptop panel.
+5. **Clips beta hardening:**
    - audio/video sync (add an offset setting if needed)
    - capture in true exclusive fullscreen and on HDR displays (tone-map to SDR)
    - multi-monitor: the display index vs DXGI output order
