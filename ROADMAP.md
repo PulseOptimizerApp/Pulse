@@ -53,7 +53,13 @@ Work top to bottom unless the owner says otherwise. For each item: say the plan 
 
 1. **Roblox detection in the wild.** Confirm with real users (one reported "Roblox isn't installed" with Roblox installed) that v0.2.5+ finds Roblox, and fix any new cases from their screenshots.
 2. **NVIDIA "Roblox only", guaranteed.** If Roblox's NVIDIA profile also lists other programs (for example Roblox Studio, or a shared profile), move `RobloxPlayerBeta.exe` into its own profile before applying, so only the game is affected.
-3. **Clips beta hardening:**
+3. **BUG (reported by a user, fix first): Clips records the menu instead of the match.** A user played a Valorant match, saved a clip, and the 2:20 clip showed only the Valorant main menu (the lobby with "Find match"), never the game itself. Likely causes to check, in order:
+   - **Frozen frame from exclusive or "optimized" fullscreen:** when a game goes fullscreen with independent flip, Desktop Duplication (ddagrab) can stop getting new frames, and FFmpeg keeps repeating the last frame it saw, which is the menu. Detect this: if the captured frames stop changing for a few seconds while a game is in focus, it's frozen.
+   - **Wrong monitor or output:** the display index may not match the DXGI output the game is on (multi-monitor, or a game that moved displays).
+   - **Capture restarted or lost:** a resolution or mode change when the match loads (menu → match often switches) can break ddagrab. It must detect this and restart capture on the new mode instead of silently stalling.
+   - **Fixes:** restart ddagrab automatically on mode changes and stalls; add Windows Graphics Capture (WGC, the method OBS and Xbox Game Bar use) as a second capture method, used for the game's window when Desktop Duplication can't see it, chosen automatically; show a clear status in Clips ("Recording: Valorant") and warn if the picture hasn't changed. Never use game hooks or injection (anti-cheat like Vanguard would flag it).
+   - **Test** with Valorant, Fortnite, CS2 and Roblox in fullscreen, borderless and windowed, on one and two monitors, including clips saved right after a match starts.
+4. **Clips beta hardening:**
    - audio/video sync (add an offset setting if needed)
    - capture in true exclusive fullscreen and on HDR displays (tone-map to SDR)
    - multi-monitor: the display index vs DXGI output order
@@ -61,9 +67,9 @@ Work top to bottom unless the owner says otherwise. For each item: say the plan 
    - clear messages when the encoder fails
    - faster first-run encoder test
    - memory use at long replay lengths
-4. **Website download gap.** For about 5 minutes after a release is published, the website's Download button gives "not found" while the exe builds. Change the site's script to fall back to the previous release's `PulseOptimizer.exe` when the latest release has no exe yet.
-5. **Translation gaps.** Find text that's still English (strings joined with `+`, new strings) and convert it to `Loc.F` patterns with Spanish and Portuguese.
-6. **Screen-by-screen polish** from the owner's screenshots, keeping the current style.
+5. **Website download gap.** For about 5 minutes after a release is published, the website's Download button gives "not found" while the exe builds. Change the site's script to fall back to the previous release's `PulseOptimizer.exe` when the latest release has no exe yet.
+6. **Translation gaps.** Find text that's still English (strings joined with `+`, new strings) and convert it to `Loc.F` patterns with Spanish and Portuguese.
+7. **Screen-by-screen polish** from the owner's screenshots, keeping the current style.
 
 ### 2. UI system: world-class, with our original look
 
