@@ -45,7 +45,7 @@ public partial class MainWindow : Window
         ClipsService.Changed += () => Dispatcher.InvokeAsync(ShowClipsPill);
         // Clipped in a game? The next time you switch to Pulse it opens on your clips.
         ClipsService.Saved += _ => Dispatcher.InvokeAsync(() => { if (!IsActive) _clippedWhileAway = true; });
-        Activated += (_, _) => { LeaveLean(); OpenClipsIfClipped(); };
+        Activated += (_, _) => { LeaveLean(); OpenClipsIfClipped(); CheckForUpdateSoon(); };
         SourceInitialized += (_, _) => Native.StyleWindow(new WindowInteropHelper(this).Handle);
         StateChanged += (_, _) =>
         {
@@ -510,10 +510,22 @@ public partial class MainWindow : Window
     CancellationTokenSource _updateCancel;
 
     /// <summary>Checks for a newer Pulse shortly after start and twice a day; shows a card if there is one.</summary>
+    DateTime _lastUpdateCheck;
+    Func<Task> _checkForUpdate;
+
+    /// <summary>Also checks when Pulse comes to the front (from the tray, or another launch), at most every 30 minutes.</summary>
+    void CheckForUpdateSoon()
+    {
+        if (_checkForUpdate == null || DateTime.UtcNow - _lastUpdateCheck < TimeSpan.FromMinutes(30)) return;
+        _ = _checkForUpdate();
+    }
+
     void StartUpdateChecks()
     {
+        _checkForUpdate = Check;
         async Task Check()
         {
+            _lastUpdateCheck = DateTime.UtcNow;
             var st = TweakEngine.State.Settings;
             if (!st.CheckForUpdates || UpdateBar.Visibility == Visibility.Visible) return;
             var latest = await Updater.LatestVersion();
