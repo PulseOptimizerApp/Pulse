@@ -56,6 +56,52 @@ public static class GameDetector
         return r.Left <= m.Left && r.Top <= m.Top && r.Right >= m.Right && r.Bottom >= m.Bottom;
     }
 
+    [DllImport("user32.dll")] static extern IntPtr GetForegroundWindow();
+    [DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint pid);
+
+    static int _lastGamePid;
+    static string _lastGameName;
+
+    /// <summary>
+    /// The game being played right now, or null. A game counts once it's in the foreground (from a game library folder,
+    /// or fullscreen); after that it stays "running" while its process lives, so alt-tabbing out doesn't stop clipping.
+    /// Cheap enough to call every few seconds (no icons, one process lookup).
+    /// </summary>
+    public static string RunningGame()
+    {
+        try
+        {
+            if (_lastGamePid != 0)
+            {
+                try
+                {
+                    using var last = Process.GetProcessById(_lastGamePid);
+                    if (!last.HasExited) return _lastGameName;
+                }
+                catch { }
+                _lastGamePid = 0; _lastGameName = null;
+            }
+            var hwnd = GetForegroundWindow();
+            if (hwnd == IntPtr.Zero) return null;
+            GetWindowThreadProcessId(hwnd, out var pid);
+            if (pid == 0 || pid == Environment.ProcessId) return null;
+            using var p = Process.GetProcessById((int)pid);
+            if (NotGames.Contains(p.ProcessName)) return null;
+            string path = null;
+            try { path = p.MainModule?.FileName; } catch { }
+            bool isGame = (path != null && LibraryMarkers.Any(m => path.Contains(m, StringComparison.OrdinalIgnoreCase))) || IsFullscreen(hwnd);
+            if (!isGame) return null;
+            string name = null;
+            try { name = p.MainModule?.FileVersionInfo.ProductName; } catch { }
+            if (string.IsNullOrWhiteSpace(name)) name = string.IsNullOrWhiteSpace(p.MainWindowTitle) ? p.ProcessName : p.MainWindowTitle;
+            if (p.ProcessName.Equals("RobloxPlayerBeta", StringComparison.OrdinalIgnoreCase)) name = "Roblox";
+            _lastGamePid = p.Id;
+            _lastGameName = name.Trim();
+            return _lastGameName;
+        }
+        catch { return null; }
+    }
+
     public static List<GameEntry> Find(IReadOnlyList<string> installFolders)
     {
         var found = new List<GameEntry>();

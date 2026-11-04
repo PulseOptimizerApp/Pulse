@@ -52,6 +52,8 @@ public class AppState
     public List<Pulse.Core.Games.CustomGame> CustomGames { get; set; } = new();
     /// <summary>The Roblox page: launch-through-Pulse and the chosen Roblox settings.</summary>
     public Pulse.Core.Roblox.RobloxSettings Roblox { get; set; } = new();
+    /// <summary>The Clips page: instant replay settings and favorite clips.</summary>
+    public Pulse.Core.Clips.ClipSettings Clips { get; set; } = new();
 }
 
 /// <summary>Applies and undoes tweaks, keeping a backup of every value it changes on disk.</summary>

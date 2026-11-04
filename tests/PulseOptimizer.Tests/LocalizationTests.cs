@@ -33,7 +33,7 @@ public class LocalizationTests
     public void Every_navigation_label_is_translated(string file)
     {
         var map = Read(file);
-        foreach (var label in new[] { "Home", "Games", "Diagnose", "Tweaks", "Debloat", "Keep it fresh", "Measure", "Startup apps", "Security", "Undo & restore" })
+        foreach (var label in new[] { "Home", "Games", "Clips", "Diagnose", "Tweaks", "Debloat", "Keep it fresh", "Measure", "Startup apps", "Security", "Undo & restore" })
             Assert.True(map.ContainsKey(label), $"{file} is missing '{label}'");
     }
 

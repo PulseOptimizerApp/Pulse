@@ -5,6 +5,7 @@
     <TargetFramework>net8.0-windows</TargetFramework>
     <UseWPF>true</UseWPF>
     <Nullable>disable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>latest</LangVersion>
     <ApplicationManifest>app.manifest</ApplicationManifest>
@@ -36,6 +37,8 @@
     <Resource Include="Assets\Games\*.png" />
     <!-- PresentMon (Intel, MIT) is downloaded here by the build and carried inside the exe, so the release is one file. -->
     <EmbeddedResource Include="tools\PresentMon.exe" Condition="Exists('tools\PresentMon.exe')" LogicalName="PresentMon.exe" />
+    <!-- SHA-256 of the FFmpeg zip attached to this release (tools/get-ffmpeg.ps1). Clips refuses any other file. -->
+    <EmbeddedResource Include="tools\ffmpeg.sha256" Condition="Exists('tools\ffmpeg.sha256')" LogicalName="ffmpeg.sha256" />
   </ItemGroup>
 
   <ItemGroup>
