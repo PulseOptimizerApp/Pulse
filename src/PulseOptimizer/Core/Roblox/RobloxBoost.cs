@@ -28,6 +28,12 @@ public class RobloxSettings
     public NvImport NvidiaImport { get; set; }
     /// <summary>Ask Windows to run Roblox on the dedicated graphics card (PCs with two graphics chips, like most gaming laptops).</summary>
     public bool HighPerformanceGpu { get; set; }
+    /// <summary>While Roblox runs: Windows' High performance power plan, put back when Roblox closes.</summary>
+    public bool GameMode { get; set; }
+    /// <summary>Before each launch: clear Roblox's logs and cache when they're over 1 GB (Roblox closed only).</summary>
+    public bool AutoClean { get; set; }
+    /// <summary>Settings for single experiences: place ID → preset key ("maxfps", "balanced", "default").</summary>
+    public Dictionary<string, string> PlacePresets { get; set; } = new();
 }
 
 /// <summary>One setting on the Roblox page, shown as a row of choices.</summary>
@@ -468,6 +474,15 @@ public static class RobloxBoost
         var settings = LaunchSettings();
         var options = CreateOptions();
         foreach (var o in options) o.Value = settings.Choices.GetValueOrDefault(o.Key, "");
+        // Settings for this one experience, if the user saved some.
+        var place = PlaceId(uri);
+        if (place != null)
+        {
+            try { File.WriteAllText(LastPlaceFile, place); } catch { }
+            if (settings.PlacePresets.TryGetValue(place, out var preset) && Presets.TryGetValue(preset, out var values))
+                foreach (var o in options) o.Value = values.GetValueOrDefault(o.Key, "");
+        }
+        if (settings.AutoClean) try { CleanIfLarge(); } catch { }
         var flags = BuildFlags(options, settings.CustomFlags);
         var ordered = PlayerVersions();
         var known = new HashSet<string>(ordered, StringComparer.OrdinalIgnoreCase);
@@ -490,6 +505,7 @@ public static class RobloxBoost
         }
 
         Process.Start(new ProcessStartInfo(exe, $"\"{uri}\"") { UseShellExecute = false, WorkingDirectory = Path.GetDirectoryName(exe) });
+        string restorePlan = settings.GameMode ? StartGameMode() : null;
 
         // Watch for a Roblox update for up to two minutes.
         var roots = VersionRoots().Where(Directory.Exists).ToList();
@@ -512,11 +528,93 @@ public static class RobloxBoost
             Thread.Sleep(400);
         }
         try { if (settings.LaunchThroughPulse && !HandlerIsPulse()) RegisterKeys(settings); } catch { }
+
+        // Game mode: stay (invisibly) until Roblox closes, then put the power plan back.
+        if (restorePlan != null)
+        {
+            var stopAt = DateTime.Now.AddHours(12);
+            Thread.Sleep(15_000);
+            while (DateTime.Now < stopAt && Process.GetProcessesByName("RobloxPlayerBeta").Length > 0) Thread.Sleep(5_000);
+            EndGameMode();
+        }
+    }
+
+    // ───────── Settings for one experience ─────────
+
+    /// <summary>The place ID in a roblox-player: launch link (inside its URL-encoded placelauncherurl), or null.</summary>
+    internal static string PlaceId(string uri)
+    {
+        if (string.IsNullOrEmpty(uri)) return null;
+        var text = Uri.UnescapeDataString(Uri.UnescapeDataString(uri));
+        var m = System.Text.RegularExpressions.Regex.Match(text, @"[?&+]placeId[=:](\d{1,15})", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        return m.Success ? m.Groups[1].Value : null;
+    }
+
+    static string LastPlaceFile => Path.Combine(RobloxUser.LocalAppData, "PulseOptimizer", "roblox-last-place.txt");
+
+    /// <summary>The experience Roblox was last launched into through Pulse (place ID), or null.</summary>
+    public static string LastPlace
+    {
+        get { try { return File.Exists(LastPlaceFile) ? File.ReadAllText(LastPlaceFile).Trim() is { Length: > 0 } p ? p : null : null; } catch { return null; } }
+    }
+
+    // ───────── Game mode (power plan while Roblox runs) ─────────
+
+    const string HighPerformancePlan = "8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c";
+    static string PowerFile => Path.Combine(RobloxUser.LocalAppData, "PulseOptimizer", "roblox-power.txt");
+    static string Powercfg => Path.Combine(Environment.SystemDirectory, "powercfg.exe");
+
+    internal static string ActivePlan(string powercfgOutput)
+    {
+        var m = System.Text.RegularExpressions.Regex.Match(powercfgOutput ?? "", @"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}");
+        return m.Success ? m.Value.ToLowerInvariant() : null;
+    }
+
+    /// <summary>Switches to High performance and remembers the plan to go back to. Returns it, or null if nothing changed.</summary>
+    static string StartGameMode()
+    {
+        try
+        {
+            var current = ActivePlan(Shell.Run(Powercfg, "/getactivescheme", 10_000).Output);
+            if (current == null || current == HighPerformancePlan) return null;
+            if (!Shell.Run(Powercfg, $"/setactive {HighPerformancePlan}", 10_000).Ok) return null; // no such plan (many laptops): leave it
+            Directory.CreateDirectory(Path.GetDirectoryName(PowerFile)!);
+            File.WriteAllText(PowerFile, current);
+            return current;
+        }
+        catch { return null; }
+    }
+
+    /// <summary>Puts the power plan back (also called when Pulse starts, in case the watcher was stopped).</summary>
+    public static void EndGameMode()
+    {
+        try
+        {
+            if (!File.Exists(PowerFile)) return;
+            var plan = ActivePlan(File.ReadAllText(PowerFile));
+            if (plan == null || Process.GetProcessesByName("RobloxPlayerBeta").Length > 0) return;
+            Shell.Run(Powercfg, $"/setactive {plan}", 10_000);
+            File.WriteAllText(PowerFile, "");
+        }
+        catch { }
+    }
+
+    // ───────── Automatic cleanup ─────────
+
+    /// <summary>Clears Roblox's cache and logs before a launch when they've grown past 1 GB and Roblox is closed.</summary>
+    static void CleanIfLarge()
+    {
+        if (Process.GetProcessesByName("RobloxPlayerBeta").Length > 0) return;
+        var cat = Cleaner.Categories.FirstOrDefault(c => c.Id == "roblox");
+        if (cat == null) return;
+        Cleaner.Scan(cat);
+        if (cat.Size > 1L << 30) Cleaner.Clean(cat);
     }
 
     /// <summary>On Pulse start: if Roblox updated and took the Play button back, quietly take it again and re-apply.</summary>
     public static void Maintain()
     {
+        EndGameMode();
         if (!Settings.LaunchThroughPulse) return;
         try { if (!HandlerIsPulse()) EnableLaunch(); ApplyAll(); Save(); } catch { }
     }

@@ -47,6 +47,54 @@
                 </Grid>
             </Border>
 
+            <Border Style="{StaticResource Card}" Margin="0,14,0,0" Padding="24,18" ui:Anim.Reveal="True">
+                <Grid>
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource CardTitle}" Text="Game mode while Roblox runs"/>
+                        <TextBlock Style="{StaticResource Body}" Margin="0,6,0,0" MaxWidth="620" HorizontalAlignment="Left" Text="Switches Windows to its High performance power plan when you press Play, and back when Roblox closes. Helps most on laptops, where the default plan slows the processor down. Needs Launch through Pulse."/>
+                    </StackPanel>
+                    <CheckBox x:Name="GameModeSwitch" Grid.Column="1" Style="{StaticResource Switch}" VerticalAlignment="Center" Margin="20,0,0,0" Click="GameMode_Click"/>
+                </Grid>
+            </Border>
+
+            <Border Style="{StaticResource Card}" Margin="0,14,0,0" Padding="24,18" ui:Anim.Reveal="True">
+                <Grid>
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource CardTitle}" Text="Clean up Roblox automatically"/>
+                        <TextBlock Style="{StaticResource Body}" Margin="0,6,0,0" MaxWidth="620" HorizontalAlignment="Left" Text="Before Roblox starts, Pulse clears its logs and cache once they pass 1 GB. Needs Launch through Pulse."/>
+                    </StackPanel>
+                    <CheckBox x:Name="AutoCleanSwitch" Grid.Column="1" Style="{StaticResource Switch}" VerticalAlignment="Center" Margin="20,0,0,0" Click="AutoClean_Click"/>
+                </Grid>
+            </Border>
+
+            <!-- One experience -->
+            <Border Style="{StaticResource Card}" Margin="0,14,0,0" Padding="24,18" ui:Anim.Reveal="True">
+                <StackPanel>
+                    <TextBlock Style="{StaticResource CardTitle}" Text="Settings for one game"/>
+                    <TextBlock Style="{StaticResource Body}" Margin="0,6,0,0" MaxWidth="660" HorizontalAlignment="Left"
+                               Text="Give one experience its own settings, for example Max FPS for a competitive game and Roblox's defaults for a showcase. Pulse uses them whenever you launch that game from roblox.com."/>
+                    <TextBlock x:Name="PlaceText" Style="{StaticResource Body}" Margin="0,12,0,0" Foreground="{StaticResource TextDimBrush}"/>
+                    <WrapPanel x:Name="PlaceChips" Margin="0,8,0,0"/>
+                    <ItemsControl x:Name="PlaceList" Margin="0,8,0,0"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Connection -->
+            <Border Style="{StaticResource Card}" Margin="0,14,0,0" Padding="24,18" ui:Anim.Reveal="True">
+                <Grid>
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource CardTitle}" Text="Lag check"/>
+                        <TextBlock x:Name="NetText" Style="{StaticResource Body}" Margin="0,6,0,0" MaxWidth="620" HorizontalAlignment="Left"
+                                   Text="Is it your PC, your internet or Roblox's server? Join a game, then run this. It pings your router and the server you're on for a few seconds."/>
+                        <TextBlock x:Name="NetDetail" FontSize="12" Foreground="{StaticResource TextDimBrush}" Margin="0,8,0,0" TextWrapping="Wrap"/>
+                    </StackPanel>
+                    <Button x:Name="NetBtn" Grid.Column="1" Style="{StaticResource GhostButton}" VerticalAlignment="Center" Margin="20,0,0,0" Content="Check my connection" Click="Net_Click"/>
+                </Grid>
+            </Border>
+
             <!-- Presets -->
             <Grid Margin="0,28,0,10">
                 <TextBlock Style="{StaticResource H2}" Text="Settings"/>

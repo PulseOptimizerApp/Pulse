@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
 using Pulse.Core;
 using Pulse.Core.Roblox;
 
@@ -31,6 +32,9 @@ public partial class RobloxPage : UserControl, IPage
         MarkPreset();
         LaunchSwitch.IsChecked = S.LaunchThroughPulse && RobloxBoost.HandlerIsPulse();
         GpuSwitch.IsChecked = S.HighPerformanceGpu;
+        GameModeSwitch.IsChecked = S.GameMode;
+        AutoCleanSwitch.IsChecked = S.AutoClean;
+        ShowPlaces();
         _loading = false;
         ShowCustom();
         UpdateStatus();
@@ -147,6 +151,91 @@ public partial class RobloxPage : UserControl, IPage
             GpuSwitch.IsChecked = !on;
             await MainWindow.Instance.Alert("That didn't work", ex.Message);
         }
+    }
+
+    void GameMode_Click(object sender, RoutedEventArgs e)
+    {
+        S.GameMode = GameModeSwitch.IsChecked == true;
+        RobloxBoost.Save();
+        if (S.GameMode && !S.LaunchThroughPulse) MainWindow.Instance.Toast("Turn on Launch through Pulse too, so game mode starts when you press Play.", ToastKind.Info);
+    }
+
+    void AutoClean_Click(object sender, RoutedEventArgs e)
+    {
+        S.AutoClean = AutoCleanSwitch.IsChecked == true;
+        RobloxBoost.Save();
+        if (S.AutoClean && !S.LaunchThroughPulse) MainWindow.Instance.Toast("Turn on Launch through Pulse too, so the cleanup runs before Roblox starts.", ToastKind.Info);
+    }
+
+    // ───────── Settings for one game ─────────
+
+    static readonly (string Key, string Label)[] PlaceChoices = { ("", "Same as above"), ("maxfps", "Max FPS"), ("balanced", "Balanced"), ("default", "Roblox default") };
+
+    void ShowPlaces()
+    {
+        var last = RobloxBoost.LastPlace;
+        PlaceText.Text = last == null
+            ? Pulse.Ui.Loc.T("Launch a game through Pulse once and it shows up here.")
+            : Pulse.Ui.Loc.F("Last game you launched: place {0}", last);
+        PlaceChips.Children.Clear();
+        if (last != null)
+        {
+            var current = S.PlacePresets.GetValueOrDefault(last, "");
+            foreach (var (key, label) in PlaceChoices)
+            {
+                var rb = new RadioButton { Style = (Style)FindResource("Chip"), Content = Pulse.Ui.Loc.T(label), GroupName = "roblox-place", Tag = key, Margin = new Thickness(0, 3, 6, 3), IsChecked = key == current };
+                rb.Checked += (s, _) => SetPlace(last, (string)((FrameworkElement)s).Tag);
+                PlaceChips.Children.Add(rb);
+            }
+        }
+        PlaceList.Items.Clear();
+        foreach (var (place, preset) in S.PlacePresets.Where(p => p.Key != last))
+        {
+            var row = new DockPanel { Margin = new Thickness(0, 4, 0, 0) };
+            var remove = new Button { Style = (Style)FindResource("LinkButton"), Content = Pulse.Ui.Loc.T("Remove"), Tag = place };
+            remove.Click += (s, _) => SetPlace((string)((FrameworkElement)s).Tag, "");
+            DockPanel.SetDock(remove, Dock.Right);
+            row.Children.Add(remove);
+            row.Children.Add(new TextBlock
+            {
+                Text = Pulse.Ui.Loc.F("Place {0}: {1}", place, Pulse.Ui.Loc.T(PlaceChoices.FirstOrDefault(c => c.Key == preset).Label ?? preset)),
+                Foreground = (Brush)FindResource("TextDimBrush"), VerticalAlignment = VerticalAlignment.Center,
+            });
+            PlaceList.Items.Add(row);
+        }
+    }
+
+    void SetPlace(string place, string preset)
+    {
+        if (string.IsNullOrEmpty(preset)) S.PlacePresets.Remove(place);
+        else S.PlacePresets[place] = preset;
+        RobloxBoost.Save();
+        Dispatcher.InvokeAsync(ShowPlaces);
+    }
+
+    // ───────── Lag check ─────────
+
+    async void Net_Click(object sender, RoutedEventArgs e)
+    {
+        NetBtn.IsEnabled = false;
+        NetText.Text = Pulse.Ui.Loc.T("Checking for about 5 seconds…");
+        NetDetail.Text = "";
+        try
+        {
+            var gw = NetworkCheck.Gateway();
+            var server = NetworkCheck.RobloxServer(Path.Combine(RobloxUser.LocalAppData, "Roblox", "logs"));
+            var routerTask = gw != null ? NetworkCheck.PingMany(gw) : Task.FromResult<PingStats>(null);
+            var serverTask = server != null ? NetworkCheck.PingMany(server) : Task.FromResult<PingStats>(null);
+            var (router, srv) = (await routerTask, await serverTask);
+            bool wifi = NetworkCheck.OnWifi();
+            NetText.Text = Pulse.Ui.Loc.T(NetworkCheck.Verdict(router, srv, wifi));
+            var parts = new List<string>();
+            if (router?.Answered == true) parts.Add(Pulse.Ui.Loc.F("Router{0}: {1} ms, jumps {2} ms, {3}% lost", wifi ? " (Wi-Fi)" : "", Math.Round(router.AvgMs), Math.Round(router.JitterMs), Math.Round(router.LossPercent)));
+            if (srv?.Answered == true) parts.Add(Pulse.Ui.Loc.F("Roblox server: {0} ms, jumps {1} ms, {2}% lost", Math.Round(srv.AvgMs), Math.Round(srv.JitterMs), Math.Round(srv.LossPercent)));
+            NetDetail.Text = string.Join(" · ", parts);
+        }
+        catch (Exception ex) { NetText.Text = ex.Message; }
+        finally { NetBtn.IsEnabled = true; }
     }
 
     void Cache_Click(object sender, RoutedEventArgs e) => MainWindow.Instance.Navigate("cleanup");
