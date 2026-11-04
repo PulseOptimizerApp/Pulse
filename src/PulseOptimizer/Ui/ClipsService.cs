@@ -287,6 +287,7 @@ public static class ClipsService
             var path = await _rec.Save(S.ClipsFolder, _game ?? "Clip", seconds);
             SaveInputs(path);
             Feedback.Saved(S, seconds);
+            Saved?.Invoke(path); // show it in the library now; the picture follows
             _ = Task.Run(async () =>
             {
                 try { await ClipLibrary.MakeThumbnail(path); } catch { }
@@ -339,6 +340,7 @@ public static class ClipsService
             SyncInput();
             Feedback.Saved(S, 0, Loc.T("Recording saved"), playSound: true);
             TweakEngine.AddLog("clips", $"Saved a recording: {Path.GetFileName(path)}");
+            Saved?.Invoke(path);
             _ = Task.Run(async () =>
             {
                 try { await ClipLibrary.MakeThumbnail(path); } catch { }

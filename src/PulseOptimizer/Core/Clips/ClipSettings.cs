@@ -85,6 +85,8 @@ public class ClipSettings
     public bool StartWithWindows { get; set; }
     public bool PlaySound { get; set; } = true;
     public bool ShowSavedPopup { get; set; } = true;
+    /// <summary>After you clip in a game, Pulse opens on Clips the next time you switch to it.</summary>
+    public bool OpenClipsAfterClip { get; set; } = true;
 
     /// <summary>"" = Videos\Pulse Clips.</summary>
     public string Folder { get; set; } = "";

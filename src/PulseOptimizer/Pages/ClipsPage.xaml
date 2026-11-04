@@ -368,6 +368,11 @@
                                 <TextBlock Style="{StaticResource RowLabel}" Text="Show a small &quot;Clip saved&quot; popup"/>
                                 <CheckBox x:Name="PopupSwitch" Grid.Column="1" Style="{StaticResource Switch}" Click="Setting_Click"/>
                             </Grid>
+                            <Grid Style="{StaticResource Row}">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                <TextBlock Style="{StaticResource RowLabel}" Text="Open Clips when you come back to Pulse after clipping"/>
+                                <CheckBox x:Name="OpenAfterSwitch" Grid.Column="1" Style="{StaticResource Switch}" Click="Setting_Click"/>
+                            </Grid>
                         </StackPanel>
                     </StackPanel>
                 </Border>

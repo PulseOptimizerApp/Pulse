@@ -1995,5 +1995,6 @@
  "Already removed: only its entry in Windows' list of programs is left. Removing it uses no uninstaller and frees nothing.": "Ya eliminado: solo queda su entrada en la lista de programas de Windows. Quitarla no usa ningún desinstalador y no libera espacio.",
  "Windows couldn't back up the entry, so it wasn't removed.": "Windows no pudo hacer una copia de la entrada, así que no se quitó.",
  "  scanning…": "  analizando…",
- "How to tell it worked: ": "Cómo saber si funcionó: "
+ "How to tell it worked: ": "Cómo saber si funcionó: ",
+ "Open Clips when you come back to Pulse after clipping": "Abrir Clips al volver a Pulse después de grabar un clip"
 }

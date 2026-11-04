@@ -54,6 +54,7 @@ public partial class ClipsPage : UserControl, IPage
         ClipsService.Changed += () => Dispatcher.InvokeAsync(UpdateStatus);
         ClipsService.Saved += _ => Dispatcher.InvokeAsync(LoadLibrary);
         Unloaded += (_, _) => _usage.Stop();
+        _reload.Tick += (_, _) => { _reload.Stop(); LoadLibrary(); };
         _playerTimer.Interval = TimeSpan.FromMilliseconds(33);
         Timeline.Seek += Timeline_Seek;
         Timeline.SelectionChanged += UpdateTimes;
@@ -64,11 +65,36 @@ public partial class ClipsPage : UserControl, IPage
     public async void OnShown(object parameter)
     {
         _usage.Start();
+        if (parameter as string == "newest") { _settingsOpen = false; Scroll?.ScrollToTop(); }
+        UpdateStatus();
+        LoadLibrary(); // your clips first; the encoder check below can take a moment
+        WatchFolder();
         BuildChips();
         await LoadEncoders();
         ShowSettings();
         UpdateStatus();
-        LoadLibrary();
+    }
+
+    // Clips saved while the page is open, by a second copy, or moved into the folder by hand show up on their own.
+    FileSystemWatcher _watcher;
+    readonly System.Windows.Threading.DispatcherTimer _reload = new() { Interval = TimeSpan.FromMilliseconds(700) };
+
+    void WatchFolder()
+    {
+        var folder = S.ClipsFolder;
+        if (_watcher?.Path == folder) return;
+        _watcher?.Dispose();
+        _watcher = null;
+        if (string.IsNullOrEmpty(folder) || !Directory.Exists(folder)) return;
+        try
+        {
+            _watcher = new FileSystemWatcher(folder, "*.mp4") { NotifyFilter = NotifyFilters.FileName, EnableRaisingEvents = true };
+            FileSystemEventHandler h = (_, _) => Dispatcher.InvokeAsync(() => { _reload.Stop(); _reload.Start(); });
+            _watcher.Created += h;
+            _watcher.Deleted += h;
+            _watcher.Renamed += (s, e) => h(s, e);
+        }
+        catch { _watcher = null; }
     }
 
     async Task LoadEncoders()
@@ -314,6 +340,7 @@ public partial class ClipsPage : UserControl, IPage
         CursorSwitch.IsChecked = S.RecordCursor;
         SoundSwitch.IsChecked = S.PlaySound;
         PopupSwitch.IsChecked = S.ShowSavedPopup;
+        OpenAfterSwitch.IsChecked = S.OpenClipsAfterClip;
         FolderText.Text = S.ClipsFolder;
         HotkeyBtn.Content = ClipsService.HotkeyText(S.HotkeyModifiers, S.HotkeyKey);
         QuickBtn.Content = ClipsService.HotkeyText(S.QuickModifiers, S.QuickKey);
@@ -369,6 +396,7 @@ public partial class ClipsPage : UserControl, IPage
         S.RecordCursor = CursorSwitch.IsChecked == true;
         S.PlaySound = SoundSwitch.IsChecked == true;
         S.ShowSavedPopup = PopupSwitch.IsChecked == true;
+        S.OpenClipsAfterClip = OpenAfterSwitch.IsChecked == true;
         S.QuickClip = QuickSwitch.IsChecked == true;
         S.Screenshot = ShotSwitch.IsChecked == true;
         S.SessionHotkey = SessionSwitch.IsChecked == true;
@@ -481,10 +509,16 @@ public partial class ClipsPage : UserControl, IPage
 
     // ───────── Library ─────────
 
+    int _libraryVersion;
+
     async void LoadLibrary()
     {
         bool on = S.Enabled && Ffmpeg.Installed;
-        var clips = await Task.Run(() => ClipLibrary.List(S));
+        int version = ++_libraryVersion;
+        List<ClipFile> clips;
+        try { clips = await Task.Run(() => ClipLibrary.List(S)); }
+        catch { return; }
+        if (version != _libraryVersion) return; // a newer load started meanwhile (e.g. another clip was saved)
         LibraryHeader.Visibility = on || clips.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
         LibraryEmpty.Visibility = on && clips.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         ClipGrid.Visibility = clips.Count > 0 ? Visibility.Visible : Visibility.Collapsed;

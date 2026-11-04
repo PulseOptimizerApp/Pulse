@@ -37,6 +37,9 @@ public partial class MainWindow : Window
         StartUpdateChecks();
         VersionText.Text = Updater.CurrentVersion == "0.0.0" ? "dev" : Updater.CurrentVersion;
         ClipsService.Changed += () => Dispatcher.InvokeAsync(ShowClipsPill);
+        // Clipped in a game? The next time you switch to Pulse it opens on your clips.
+        ClipsService.Saved += _ => Dispatcher.InvokeAsync(() => { if (!IsActive) _clippedWhileAway = true; });
+        Activated += (_, _) => OpenClipsIfClipped();
         SourceInitialized += (_, _) => Native.StyleWindow(new WindowInteropHelper(this).Handle);
         StateChanged += (_, _) =>
         {
@@ -410,6 +413,17 @@ public partial class MainWindow : Window
     }
 
     /// <summary>Brings the window back from the tray (or from a second launch of Pulse).</summary>
+    bool _clippedWhileAway;
+
+    void OpenClipsIfClipped()
+    {
+        if (!_clippedWhileAway) return;
+        _clippedWhileAway = false;
+        if (TweakEngine.State.Clips is not { OpenClipsAfterClip: true }) return;
+        if (Overlay.Visibility == Visibility.Visible) return; // a question or a task is on screen: don't pull the page away
+        Navigate("clips", "newest");
+    }
+
     public void ShowFromTray()
     {
         Show();
