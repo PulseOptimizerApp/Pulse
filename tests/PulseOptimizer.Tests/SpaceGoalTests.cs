@@ -141,3 +141,24 @@ public class CleanInUseTests
         }
     }
 }
+
+public class ReactionPopulationTests
+{
+    [Theory]
+    [InlineData(273, 0.50)]   // the median: half are faster, half slower
+    [InlineData(240, 0.697)]  // worked example for this model: faster than about 70%
+    [InlineData(350, 0.16)]
+    public void Percentile_matches_the_log_normal_model(double ms, double faster) =>
+        Assert.Equal(faster, Pulse.Core.Reaction.ReactionPopulation.FasterThan(ms), 2);
+
+    [Fact]
+    public void Faster_times_beat_more_people() =>
+        Assert.True(Pulse.Core.Reaction.ReactionPopulation.FasterThan(200) > Pulse.Core.Reaction.ReactionPopulation.FasterThan(250));
+
+    [Fact]
+    public void The_curve_peaks_a_little_below_the_median()
+    {
+        var d = Pulse.Core.Reaction.ReactionPopulation.Density;
+        Assert.True(d(256) > d(200) && d(256) > d(350));
+    }
+}

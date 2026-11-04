@@ -89,6 +89,7 @@ public partial class ReactionPage : UserControl, IPage
     {
         _trainer = new ReactionTrainer(_mode);
         ResultCard.Visibility = Visibility.Collapsed;
+        PopCard.Visibility = Visibility.Collapsed;
         NextTrial();
     }
 
@@ -255,7 +256,106 @@ public partial class ReactionPage : UserControl, IPage
         LevelText.Text = s.Level.ToString(CultureInfo.CurrentCulture);
         CompareText.Text = s.Trials > 0 ? Loc.T(ReactionTrainer.Compare(s, S.History)) : Loc.T("No tries counted. Wait for the signal before clicking.");
         _ = CountUp(you);
+        _popMeasured = s.Trials > 0 && _mode == ReactionMode.Simple ? s.MedianMs : 0;
+        _popYou = you;
+        ShowPopulation();
         ShowHistory();
+    }
+
+    // ───────── you vs everyone ─────────
+
+    double _popMeasured, _popYou;
+    const double PopMin = 120, PopMax = 520;
+
+    void PopChart_SizeChanged(object sender, SizeChangedEventArgs e) { if (PopCard.Visibility == Visibility.Visible) DrawPopulation(); }
+
+    /// <summary>Only the plain reaction test is compared: people online take that one (the other drills are harder by design).</summary>
+    void ShowPopulation()
+    {
+        PopCard.Visibility = _popMeasured > 0 ? Visibility.Visible : Visibility.Collapsed;
+        if (_popMeasured <= 0) return;
+        double faster = ReactionPopulation.FasterThan(_popMeasured);
+        PopPct.Text = Loc.F("Faster than {0}%", Math.Round(faster * 100));
+        PopTier.Text = Loc.T(ReactionPopulation.Tier(_popMeasured)) + " · " + Loc.F("{0} ms with your setup", Math.Round(_popMeasured));
+        PopText.Text = Loc.F("The average person is about {0} ms on this test, counting their own PC, mouse and screen like yours is counted here.", ReactionPopulation.MedianMs);
+        DrawPopulation();
+    }
+
+    void DrawPopulation()
+    {
+        PopChart.Children.Clear();
+        double w = PopChart.ActualWidth, h = PopChart.ActualHeight;
+        if (w < 50 || h < 50) return;
+        double top = 26, bottom = h - 34; // room for the marker label above and the scale below
+        double peak = ReactionPopulation.Density(ReactionPopulation.MedianMs * Math.Exp(-ReactionPopulation.LogSpread * ReactionPopulation.LogSpread));
+        double X(double ms) => (Math.Clamp(ms, PopMin, PopMax) - PopMin) / (PopMax - PopMin) * w;
+        double Y(double ms) => bottom - ReactionPopulation.Density(ms) / peak * (bottom - top);
+
+        // Tier bands behind the curve, so it's easy to read where a time falls.
+        var bands = new (double From, double To, string Name, string Color)[]
+        {
+            (PopMin, 180, "Elite", "#3322D3EE"), (180, 220, "Very fast", "#2622D3EE"), (220, 250, "Fast", "#1A22D3EE"),
+            (250, 300, "Average", "#12A78BFA"), (300, 350, "A bit slow", "#0CA78BFA"), (350, PopMax, "Slow today", "#06A78BFA"),
+        };
+        foreach (var b in bands)
+        {
+            var r = new Rectangle { Width = Math.Max(X(b.To) - X(b.From) - 1, 0), Height = bottom - top, Fill = (Brush)new BrushConverter().ConvertFromString(b.Color) };
+            Canvas.SetLeft(r, X(b.From)); Canvas.SetTop(r, top);
+            PopChart.Children.Add(r);
+            var label = new TextBlock { Text = Loc.T(b.Name), FontSize = 10, Foreground = (Brush)FindResource("TextFaintBrush") };
+            label.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+            if (label.DesiredSize.Width < X(b.To) - X(b.From) - 4)
+            {
+                Canvas.SetLeft(label, (X(b.From) + X(b.To) - label.DesiredSize.Width) / 2); Canvas.SetTop(label, bottom + 16);
+                PopChart.Children.Add(label);
+            }
+        }
+
+        // The curve: how many people get each time.
+        var fig = new PathFigure { StartPoint = new Point(0, bottom), IsClosed = true };
+        var line = new PathFigure { StartPoint = new Point(0, Y(PopMin)) };
+        for (double ms = PopMin; ms <= PopMax; ms += 2)
+        {
+            fig.Segments.Add(new LineSegment(new Point(X(ms), Y(ms)), true));
+            line.Segments.Add(new LineSegment(new Point(X(ms), Y(ms)), true));
+        }
+        fig.Segments.Add(new LineSegment(new Point(w, bottom), true));
+        var area = new LinearGradientBrush(Color.FromArgb(0x66, 0x22, 0xD3, 0xEE), Color.FromArgb(0x10, 0xA7, 0x8B, 0xFA), 90);
+        PopChart.Children.Add(new System.Windows.Shapes.Path { Data = new PathGeometry(new[] { fig }), Fill = area });
+        PopChart.Children.Add(new System.Windows.Shapes.Path { Data = new PathGeometry(new[] { line }), Stroke = (Brush)FindResource("AccentGradient"), StrokeThickness = 2 });
+
+        // Scale.
+        foreach (var ms in new[] { 150, 200, 250, 300, 350, 400, 450, 500 })
+        {
+            var t = new TextBlock { Text = $"{ms}", FontSize = 10, Foreground = (Brush)FindResource("TextFaintBrush") };
+            Canvas.SetLeft(t, X(ms) - 9); Canvas.SetTop(t, bottom + 2);
+            PopChart.Children.Add(t);
+        }
+
+        // The average person, and you.
+        Marker(X(ReactionPopulation.MedianMs), Loc.F("Average {0} ms", ReactionPopulation.MedianMs), "#8A90A0", dashed: true, labelTop: top + 4);
+        if (_popYou > 0 && _popYou < _popMeasured - 3)
+            Marker(X(_popYou), Loc.T("You, without the PC delay"), "#5EEAD4", dashed: true, labelTop: top + 22, thin: true);
+        Marker(X(_popMeasured), Loc.F("You · {0} ms", Math.Round(_popMeasured)), "#FFFFFF", dashed: false, labelTop: 0, bold: true);
+
+        void Marker(double x, string text, string color, bool dashed, double labelTop, bool bold = false, bool thin = false)
+        {
+            var brush = (Brush)new BrushConverter().ConvertFromString(color);
+            var l = new Line { X1 = x, X2 = x, Y1 = top, Y2 = bottom, Stroke = brush, StrokeThickness = bold ? 2.5 : thin ? 1 : 1.5, Opacity = bold ? 1 : 0.8 };
+            if (dashed) l.StrokeDashArray = new DoubleCollection { 3, 3 };
+            PopChart.Children.Add(l);
+            if (bold)
+            {
+                var dot = new Ellipse { Width = 10, Height = 10, Fill = brush };
+                Canvas.SetLeft(dot, x - 5); Canvas.SetTop(dot, Math.Max(Y(Math.Clamp(_popMeasured, PopMin, PopMax)) - 5, top - 5));
+                PopChart.Children.Add(dot);
+            }
+            var tb = new TextBlock { Text = text, FontSize = bold ? 12 : 10.5, FontWeight = bold ? FontWeights.SemiBold : FontWeights.Normal, Foreground = brush };
+            tb.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+            Canvas.SetLeft(tb, Math.Clamp(x - tb.DesiredSize.Width / 2, 0, Math.Max(w - tb.DesiredSize.Width, 0)));
+            Canvas.SetTop(tb, labelTop);
+            PopChart.Children.Add(tb);
+        }
     }
 
     int _hz = 60; // read once in the background (reading monitors can take a second)

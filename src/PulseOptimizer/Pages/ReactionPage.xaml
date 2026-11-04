@@ -74,6 +74,23 @@
                 </StackPanel>
             </Border>
 
+            <!-- You on the curve of how fast people are -->
+            <Border x:Name="PopCard" Style="{StaticResource Card}" Margin="0,18,0,0" Visibility="Collapsed" ui:Anim.Reveal="True">
+                <StackPanel>
+                    <Grid>
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource CardTitle}" Text="How you compare"/>
+                            <TextBlock x:Name="PopText" FontSize="12" Foreground="{StaticResource TextDimBrush}" Margin="0,4,0,0" TextWrapping="Wrap"/>
+                        </StackPanel>
+                        <StackPanel HorizontalAlignment="Right">
+                            <TextBlock x:Name="PopPct" FontSize="28" FontWeight="Bold" Foreground="{StaticResource AccentGradient}" HorizontalAlignment="Right"/>
+                            <TextBlock x:Name="PopTier" FontSize="12" Foreground="{StaticResource TextDimBrush}" HorizontalAlignment="Right"/>
+                        </StackPanel>
+                    </Grid>
+                    <Canvas x:Name="PopChart" Height="190" Margin="0,14,0,0" ClipToBounds="False" SizeChanged="PopChart_SizeChanged"/>
+                </StackPanel>
+            </Border>
+
             <!-- Progress over time -->
             <Border x:Name="HistoryCard" Style="{StaticResource Card}" Margin="0,18,0,0" Visibility="Collapsed" ui:Anim.Reveal="True">
                 <StackPanel>

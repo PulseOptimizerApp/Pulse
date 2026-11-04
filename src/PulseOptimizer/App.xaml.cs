@@ -11,6 +11,15 @@ public partial class App : Application
         TaskScheduler.UnobservedTaskException += (_, args) => args.SetObserved();
         base.OnStartup(e);
 
+        // The new version putting itself in place after an update (see Updater.FinishUpdate).
+        int fu = Array.FindIndex(e.Args, a => a.Equals("--finish-update", StringComparison.OrdinalIgnoreCase));
+        if (fu >= 0 && fu + 2 < e.Args.Length)
+        {
+            Core.Updater.FinishUpdate(e.Args[fu + 1], int.TryParse(e.Args[fu + 2], out var pid) ? pid : 0);
+            Shutdown();
+            return;
+        }
+
         // Roblox's Play button (when Roblox launches through Pulse): no window, no admin rights needed.
         int r = Array.FindIndex(e.Args, a => a.Equals("--roblox", StringComparison.OrdinalIgnoreCase));
         if (r >= 0)
@@ -60,6 +69,7 @@ public partial class App : Application
         }
         // An update was downloaded and checked but the file swap didn't happen: finish it now (no second download).
         if (Core.Updater.ResumeSwap()) { Shutdown(); return; }
+        Core.Updater.TidyAfterUpdate();
         WriteInstanceInfo();
         ShutdownMode = ShutdownMode.OnExplicitShutdown;
 

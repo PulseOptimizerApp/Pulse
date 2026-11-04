@@ -337,22 +337,28 @@ public partial class MainWindow : Window
         DialogText.Visibility = string.IsNullOrEmpty(text) ? Visibility.Collapsed : Visibility.Visible;
     }
 
+    int _overlayVersion; // a fade-out only hides the overlay if nothing was shown since it started
+
     void ShowOverlay()
     {
-        if (Overlay.Visibility == Visibility.Visible) return;
+        _overlayVersion++;
+        bool wasShown = Overlay.Visibility == Visibility.Visible && Overlay.Opacity > 0.95;
         Overlay.Visibility = Visibility.Visible;
+        // Always fade in from where it is: the previous question may still be fading out (confirm, then a progress
+        // screen right away), and that fade used to finish and hide the progress screen while the work went on.
+        Overlay.BeginAnimation(OpacityProperty, new DoubleAnimation(1, TimeSpan.FromMilliseconds(wasShown ? 1 : 180)));
+        if (wasShown) return;
         var ease = new BackEase { EasingMode = EasingMode.EaseOut, Amplitude = 0.3 };
-        Overlay.BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(180)));
         DialogScale.BeginAnimation(ScaleTransform.ScaleXProperty, new DoubleAnimation(0.92, 1, TimeSpan.FromMilliseconds(260)) { EasingFunction = ease });
         DialogScale.BeginAnimation(ScaleTransform.ScaleYProperty, new DoubleAnimation(0.92, 1, TimeSpan.FromMilliseconds(260)) { EasingFunction = ease });
     }
-
     public void HideOverlay()
     {
+        int version = ++_overlayVersion;
         var fade = new DoubleAnimation(0, TimeSpan.FromMilliseconds(150));
         fade.Completed += (_, _) =>
         {
-            if (Overlay.Opacity < 0.05) Overlay.Visibility = Visibility.Collapsed;
+            if (version == _overlayVersion) Overlay.Visibility = Visibility.Collapsed;
         };
         Overlay.BeginAnimation(OpacityProperty, fade);
     }

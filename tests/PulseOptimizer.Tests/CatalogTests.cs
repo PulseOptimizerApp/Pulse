@@ -83,12 +83,12 @@ public class SnippingToolSafetyTests
         Assert.DoesNotContain(Pulse.Core.TweakCatalog.BackgroundExtras, a => a.StartsWith("Microsoft.ScreenSketch", StringComparison.OrdinalIgnoreCase));
 
     [Fact]
-    public void Update_swap_retries_until_pulse_has_closed()
+    public void Updates_are_swapped_in_by_the_new_version_not_a_script()
     {
-        var s = Pulse.Core.Updater.UpdateScript(@"C:\P\PulseOptimizer.update.exe", @"C:\P\PulseOptimizer.exe");
-        Assert.Contains("for /l %%i in (1,1,60)", s);
-        Assert.Contains("goto started", s);
-        Assert.Contains("--restarted", s);
+        var src = File.ReadAllText(Path.Combine(Repo.Root, "src", "PulseOptimizer", "Core", "Updater.cs"));
+        Assert.DoesNotContain("pulse-update.cmd", src);
+        Assert.Contains("--finish-update", src);
+        Assert.Contains("WaitForExit", src);
     }
 }
 

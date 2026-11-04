@@ -181,3 +181,45 @@ public sealed class ReactionTrainer
         return "Within your normal range. Day-to-day changes this small are normal.";
     }
 }
+
+/// <summary>
+/// How fast people are on a simple "click when it changes" test. Large online datasets put the median near 273 ms;
+/// times are skewed (a long slow tail, a hard floor near 150 ms), so they're modelled as log-normal with a log-space
+/// spread of 0.25. Those online numbers include each person's own PC, mouse and screen, so they're compared with the
+/// full measured time, not the "you alone" part.
+/// </summary>
+public static class ReactionPopulation
+{
+    public const double MedianMs = 273;
+    public const double LogSpread = 0.25;
+
+    /// <summary>Share of people (0 to 1) slower than <paramref name="ms"/>.</summary>
+    public static double FasterThan(double ms) => ms <= 0 ? 1 : 1 - Phi((Math.Log(ms) - Math.Log(MedianMs)) / LogSpread);
+
+    /// <summary>How common a time is (the curve's height), for drawing.</summary>
+    public static double Density(double ms)
+    {
+        if (ms <= 0) return 0;
+        double z = (Math.Log(ms) - Math.Log(MedianMs)) / LogSpread;
+        return Math.Exp(-z * z / 2) / (ms * LogSpread * Math.Sqrt(2 * Math.PI));
+    }
+
+    /// <summary>A plain name for a time.</summary>
+    public static string Tier(double ms) => ms switch
+    {
+        < 180 => "Elite",
+        < 220 => "Very fast",
+        < 250 => "Fast",
+        < 300 => "Average",
+        < 350 => "A bit slow",
+        _ => "Slow today",
+    };
+
+    static double Phi(double z)
+    {
+        // Abramowitz & Stegun 7.1.26 (error under 1.5e-7): plenty for a percentile.
+        double t = 1 / (1 + 0.3275911 * Math.Abs(z) / Math.Sqrt(2));
+        double y = 1 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.Exp(-z * z / 2);
+        return z >= 0 ? (1 + y) / 2 : (1 - y) / 2;
+    }
+}

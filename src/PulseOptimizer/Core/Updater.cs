@@ -85,9 +85,7 @@ public static class Updater
             // Remember the verified download: if the swap still doesn't happen (something held the file), the next start
             // finishes it instead of asking the user to download again.
             File.WriteAllText(MarkerFor(dir), $"{version}\n{expected}\n0");
-            var script = Path.Combine(dir, "pulse-update.cmd");
-            File.WriteAllText(script, UpdateScript(staged, exe));
-            Process.Start(new ProcessStartInfo(Shell.CmdExe, $"/c \"{script}\"") { UseShellExecute = false, CreateNoWindow = true, WorkingDirectory = dir });
+            StartSwap(staged, exe);
             TweakEngine.AddLog("update", $"Updating Pulse to {version}");
             return null;
         }
@@ -131,22 +129,70 @@ public static class Updater
             using (var f = File.OpenRead(staged)) actual = Convert.ToHexString(SHA256.HashData(f)).ToLowerInvariant();
             if (actual != parts[1]) { File.WriteAllText(marker, ""); return false; }
             File.WriteAllText(marker, $"{parts[0]}\n{parts[1]}\n{tries + 1}");
-            var script = Path.Combine(dir, "pulse-update.cmd");
-            File.WriteAllText(script, UpdateScript(staged, exe));
-            Process.Start(new ProcessStartInfo(Shell.CmdExe, $"/c \"{script}\"") { UseShellExecute = false, CreateNoWindow = true, WorkingDirectory = dir });
+            StartSwap(staged, exe);
             TweakEngine.AddLog("update", $"Finishing the update to {parts[0]}");
             return true;
         }
         catch { return false; }
     }
 
-    /// <summary>The swap script: up to a minute of retries, then start whichever version is in place.</summary>
-    internal static string UpdateScript(string staged, string exe) =>
-        "@echo off\r\n" +
-        "for /l %%i in (1,1,60) do (\r\n" +
-        $"  move /y \"{staged}\" \"{exe}\" >nul 2>&1 && goto started\r\n" +
-        "  ping 127.0.0.1 -n 2 >nul\r\n" +
-        ")\r\n" +
-        ":started\r\n" +
-        $"start \"\" \"{exe}\" --restarted\r\n";
+    /// <summary>
+    /// Starts the downloaded new version and lets it put itself in place: it waits until this Pulse has really
+    /// exited (its file is locked until then), copies itself over it, and starts it. No command script in between
+    /// (the old way could fail without a word, and the old version simply opened again).
+    /// </summary>
+    static void StartSwap(string staged, string exe)
+    {
+        var psi = new ProcessStartInfo(staged) { UseShellExecute = false, WorkingDirectory = Path.GetDirectoryName(exe)! };
+        psi.ArgumentList.Add("--finish-update");
+        psi.ArgumentList.Add(exe);
+        psi.ArgumentList.Add(Environment.ProcessId.ToString());
+        Process.Start(psi);
+    }
+
+    static string SwapLog => Path.Combine(TweakEngine.DataDir, "update.log");
+
+    static void Note(string text)
+    {
+        try { Directory.CreateDirectory(TweakEngine.DataDir); File.AppendAllText(SwapLog, $"{DateTime.Now:yyyy-MM-dd HH:mm:ss}  {text}\r\n"); } catch { }
+    }
+
+    /// <summary>
+    /// Runs in the new version (started with --finish-update "target" oldPid): waits for the old Pulse to exit,
+    /// copies this file over it (retrying while anything still holds it), then starts it. Each step is written to
+    /// update.log in Pulse's data folder.
+    /// </summary>
+    public static void FinishUpdate(string target, int oldPid)
+    {
+        var self = Environment.ProcessPath!;
+        Note($"Finishing update {CurrentVersion}: {self} -> {target} (waiting for {oldPid})");
+        try { using var old = Process.GetProcessById(oldPid); if (!old.WaitForExit(90_000)) Note("The old Pulse didn't exit within 90 s"); }
+        catch { /* already gone */ }
+        bool copied = false;
+        Exception last = null;
+        for (int i = 0; i < 120 && !copied; i++)
+        {
+            try { File.Copy(self, target, true); copied = true; }
+            catch (Exception ex) { last = ex; Thread.Sleep(500); }
+        }
+        Note(copied ? "Copied" : $"Couldn't replace the file: {last?.Message}");
+        try { Process.Start(new ProcessStartInfo(copied ? target : self, "--restarted") { UseShellExecute = false, WorkingDirectory = Path.GetDirectoryName(target)! }); }
+        catch (Exception ex) { Note("Couldn't start Pulse: " + ex.Message); }
+    }
+
+    /// <summary>The download left next to Pulse after an update is moved out of the way (to the temp folder).</summary>
+    public static void TidyAfterUpdate()
+    {
+        try
+        {
+            var exe = Environment.ProcessPath;
+            if (exe == null) return;
+            var staged = Path.Combine(Path.GetDirectoryName(exe)!, "PulseOptimizer.update.exe");
+            if (string.Equals(staged, exe, StringComparison.OrdinalIgnoreCase) || !File.Exists(staged)) return;
+            var marker = MarkerFor(Path.GetDirectoryName(exe)!);
+            if (File.Exists(marker) && File.ReadAllText(marker).Trim().Length > 0) return; // still waiting to be swapped in
+            File.Move(staged, Path.Combine(Path.GetTempPath(), $"PulseOptimizer.update-{Guid.NewGuid():N}.exe"), true);
+        }
+        catch { }
+    }
 }

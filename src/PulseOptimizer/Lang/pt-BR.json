@@ -2026,5 +2026,18 @@
  "Freeing space": "Liberando espaço",
  "Follow the uninstaller's window": "Siga a janela do desinstalador",
  "In use or blocked": "Em uso ou bloqueado",
- "Stopped": "Parado"
+ "Stopped": "Parado",
+ "How you compare": "Como você se compara",
+ "Faster than {0}%": "Mais rápido que {0}%",
+ "{0} ms with your setup": "{0} ms com seu setup",
+ "The average person is about {0} ms on this test, counting their own PC, mouse and screen like yours is counted here.": "A pessoa média faz cerca de {0} ms neste teste, contando o próprio PC, mouse e tela, assim como o seu é contado aqui.",
+ "Elite": "Elite",
+ "Very fast": "Muito rápido",
+ "Fast": "Rápido",
+ "Average": "Média",
+ "A bit slow": "Um pouco lento",
+ "Slow today": "Lento hoje",
+ "Average {0} ms": "Média {0} ms",
+ "You, without the PC delay": "Você, sem o atraso do PC",
+ "You · {0} ms": "Você · {0} ms"
 }
