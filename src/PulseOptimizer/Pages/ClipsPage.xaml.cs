@@ -231,8 +231,11 @@ public partial class ClipsPage : UserControl, IPage
         if (ClipsService.State != ClipsState.Recording) { UsageText.Text = Loc.T("Using nothing right now."); return; }
         var enc = ClipsService.Encoder;
         string encText = enc == null ? "" : enc.Hardware ? Loc.F("{0} graphics card encoder ({1})", enc.Vendor, CodecName(enc.Codec)) : Loc.T("processor encoder (no graphics card encoder found)");
-        UsageText.Text = Loc.F("Using {0} of memory for {1} s of replay · FFmpeg CPU {2}% · {3}",
-            Format.Bytes(ClipsService.BufferBytes), (int)ClipsService.BufferSeconds, ClipsService.CpuPercent.ToString("0.0", CultureInfo.CurrentCulture), encText);
+        UsageText.Text = ClipsService.OnDisk
+            ? Loc.F("{0} s of replay kept on your drive ({1}) · {2} of memory · FFmpeg CPU {3}% · {4}",
+                (int)ClipsService.BufferSeconds, Format.Bytes(ClipsService.BufferBytes), Format.Bytes(ClipsService.MemoryBytes), ClipsService.CpuPercent.ToString("0.0", CultureInfo.CurrentCulture), encText)
+            : Loc.F("Using {0} of memory for {1} s of replay · FFmpeg CPU {2}% · {3}",
+                Format.Bytes(ClipsService.MemoryBytes), (int)ClipsService.BufferSeconds, ClipsService.CpuPercent.ToString("0.0", CultureInfo.CurrentCulture), encText);
     }
 
     static string CodecName(string c) => c switch { "hevc" => "HEVC", "av1" => "AV1", _ => "H.264" };
@@ -321,13 +324,16 @@ public partial class ClipsPage : UserControl, IPage
         double replayBytes = S.BitrateMbps * 1_000_000.0 / 8 * (S.ReplaySeconds + 2);
         double ramGb = SystemInfo.TotalRam / 1073741824.0;
         QualityText.Text = Loc.F("{0} · {1} FPS · {2} Mbps", S.Resolution == "native" ? Loc.T("Native resolution") : S.Resolution + "p", S.Fps, S.BitrateMbps) + "\n" +
-            Loc.F("Uses about {0} of memory for your {1} replay. It doesn't cost FPS unless your PC runs low on memory.", Format.Bytes(replayBytes), LengthText(S.ReplaySeconds));
-        bool heavy = ramGb > 0 && replayBytes > ramGb * 1073741824.0 * (ramGb <= 8.5 ? 0.08 : 0.15);
+            (S.ReplayOnDisk
+                ? Loc.F("Your {1} replay takes about {0} on your drive, so Pulse uses almost no memory for it.", Format.Bytes(replayBytes), LengthText(S.ReplaySeconds))
+                : Loc.F("Uses about {0} of memory for your {1} replay. It doesn't cost FPS unless your PC runs low on memory.", Format.Bytes(replayBytes), LengthText(S.ReplaySeconds)));
+        bool heavy = !S.ReplayOnDisk && ramGb > 0 && replayBytes > ramGb * 1073741824.0 * (ramGb <= 8.5 ? 0.08 : 0.15);
         QualityText.Foreground = (Brush)FindResource(heavy ? "WarnBrush" : "TextDimBrush");
         if (heavy) QualityText.Text += "\n" + Loc.F("That's a lot for a PC with {0} GB. A shorter replay or Light quality keeps games from running short on memory.", Math.Round(ramGb));
         GameAudioSwitch.IsChecked = S.GameAudio;
         MicSwitch.IsChecked = S.Microphone;
         OnlyGamingSwitch.IsChecked = S.OnlyWhileGaming;
+        DiskSwitch.IsChecked = S.ReplayOnDisk;
         TraySwitch.IsChecked = S.KeepRunningInTray;
         StartupSwitch.IsChecked = S.StartWithWindows;
         SeparateMicSwitch.IsChecked = S.SeparateMicTrack;
@@ -387,6 +393,7 @@ public partial class ClipsPage : UserControl, IPage
         S.GameAudio = GameAudioSwitch.IsChecked == true;
         S.Microphone = MicSwitch.IsChecked == true;
         S.OnlyWhileGaming = OnlyGamingSwitch.IsChecked == true;
+        S.ReplayOnDisk = DiskSwitch.IsChecked == true;
         S.KeepRunningInTray = TraySwitch.IsChecked == true;
         S.SeparateMicTrack = SeparateMicSwitch.IsChecked == true;
         S.AppTracks = AppTracksSwitch.IsChecked == true;
@@ -636,6 +643,10 @@ public partial class ClipsPage : UserControl, IPage
         Timeline.Position = 0;
         PlayerLayer.Visibility = Visibility.Visible;
         PlayerLayer.BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(180)));
+        // A fresh clip starts with its own sound on (the last clip's muted parts don't carry over).
+        _trackOn = new List<bool>();
+        _lastPos = -1;
+        Player.IsMuted = false;
         Player.Source = new Uri(vm.Clip.Path);
         Player.Play();
         _playing = true;
@@ -771,6 +782,9 @@ public partial class ClipsPage : UserControl, IPage
     List<MediaPlayer> _parts = new();
     string _partsDir;
     bool _partsPlaying;
+    int _partsReady;
+    DateTime _partsSynced;
+    double _lastPos = -1;
 
     void BuildTrackToggles()
     {
@@ -800,18 +814,20 @@ public partial class ClipsPage : UserControl, IPage
     }
 
     /// <summary>Which tracks the exported copy keeps: all of them (track 1, the full mix), some parts mixed, or none.</summary>
-    List<int> ChosenTracks() => ClipLibrary.ChooseTracks(_trackNames.Count, _trackOn);
+    /// <summary>Null (keep the original sound) until the clip's sound tracks are known, so a quick trim is never silent.</summary>
+    List<int> ChosenTracks() => _trackOn.Count == 0 ? null : ClipLibrary.ChooseTracks(_trackNames.Count, _trackOn);
 
     void AudioBtn_Click(object sender, RoutedEventArgs e) => AudioPopup.IsOpen = !AudioPopup.IsOpen;
 
     /// <summary>Plays what the copy will keep: the original mix, the parts left on, or nothing.</summary>
     void ApplyAudio()
     {
-        var chosen = ChosenTracks();
+        var chosen = ChosenTracks() ?? new List<int> { 0 };
         int muted = _trackOn.Count(x => !x);
         AudioBtnText.Text = muted == 0 ? Loc.T("Audio") : Loc.F("Audio ({0} muted)", muted);
         AudioGlyph.Text = chosen.Count == 0 ? "\uE74F" : "\uE767";
-        bool useParts = chosen.Count > 0 && !(chosen.Count == 1 && chosen[0] == 0) && _parts.Count > 0;
+        // The separate sounds are only used once they're all ready; until then you hear the clip's own mix.
+        bool useParts = chosen.Count > 0 && !(chosen.Count == 1 && chosen[0] == 0) && _parts.Count > 0 && _partsReady >= _parts.Count;
         Player.IsMuted = chosen.Count == 0 || useParts;
         for (int i = 0; i < _parts.Count; i++) _parts[i].Volume = useParts && i < _trackOn.Count && _trackOn[i] ? 1 : 0;
     }
@@ -827,6 +843,8 @@ public partial class ClipsPage : UserControl, IPage
         foreach (var f in files)
         {
             var mp = new MediaPlayer { Volume = 0 };
+            mp.MediaOpened += (_, _) => { _partsReady++; ApplyAudio(); };
+            mp.MediaEnded += (_, _) => _partsPlaying = false; // started again (from the right spot) on the next tick
             mp.Open(new Uri(f));
             _parts.Add(mp);
         }
@@ -838,6 +856,7 @@ public partial class ClipsPage : UserControl, IPage
     {
         foreach (var p in _parts) { try { p.Stop(); p.Close(); } catch { } }
         _parts.Clear();
+        _partsReady = 0;
         _partsPlaying = false;
         if (_partsDir != null) { var d = _partsDir; _partsDir = null; _ = Task.Delay(300).ContinueWith(_ => ClipLibrary.CleanParts(d)); }
     }
@@ -845,16 +864,27 @@ public partial class ClipsPage : UserControl, IPage
     /// <summary>Keeps the separate sounds in step with the video (called by the player's timer).</summary>
     void SyncParts()
     {
-        if (_parts.Count == 0) return;
+        if (_parts.Count == 0 || _partsReady < _parts.Count) return;
         var pos = Player.Position;
+        // A jump (the trimmed part looping back, a seek): restart the sounds from the new spot.
+        bool jumped = _lastPos >= 0 && Math.Abs(pos.TotalSeconds - _lastPos) > 0.5;
+        _lastPos = pos.TotalSeconds;
         if (_playing && !_scrubbing)
         {
-            if (!_partsPlaying) { foreach (var p in _parts) { p.Position = pos; p.Play(); } _partsPlaying = true; }
+            if (!_partsPlaying || jumped)
+            {
+                foreach (var p in _parts) { p.Position = pos; p.Play(); }
+                _partsPlaying = true;
+                _partsSynced = DateTime.UtcNow;
+                return;
+            }
+            // Small drift is fixed now and then, not every tick: seeking a sound over and over makes it go quiet.
+            if (DateTime.UtcNow - _partsSynced < TimeSpan.FromMilliseconds(800)) return;
             foreach (var p in _parts)
-                if (Math.Abs((p.Position - pos).TotalMilliseconds) > 80) p.Position = pos;
+                if (Math.Abs((p.Position - pos).TotalMilliseconds) > 150) { p.Position = pos; _partsSynced = DateTime.UtcNow; }
         }
         else if (_partsPlaying) { foreach (var p in _parts) p.Pause(); _partsPlaying = false; }
-        else foreach (var p in _parts) if (Math.Abs((p.Position - pos).TotalMilliseconds) > 80) p.Position = pos;
+        else if (jumped) foreach (var p in _parts) p.Position = pos;
     }
 
     void ShowFavorite(bool on)

@@ -439,3 +439,82 @@ public class ClipsTests
         Assert.Contains("-map 0:a:2?", ClipLibrary.AudioArgs(2));
     }
 }
+
+public class ReplayStoreTests
+{
+    static byte[] Packet(int pid, bool key = false)
+    {
+        var p = new byte[Pulse.Core.Clips.TsRing.PacketSize];
+        p[0] = 0x47; p[1] = (byte)(((pid >> 8) & 0x1F) | (key ? 0x40 : 0)); p[2] = (byte)pid;
+        if (key) { p[3] = 0x30; p[4] = 1; p[5] = 0x40; } else p[3] = 0x10;
+        return p;
+    }
+
+    static byte[] Pat()
+    {
+        var p = new byte[Pulse.Core.Clips.TsRing.PacketSize];
+        p[0] = 0x47; p[1] = 0x40; p[2] = 0; p[3] = 0x10; p[4] = 0;
+        p[5 + 8 + 2] = 0x10; p[5 + 8 + 3] = 0x00; // program map on PID 0x1000
+        return p;
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Saved_replay_has_every_byte_in_memory_and_on_disk(bool disk)
+    {
+        using var ring = new Pulse.Core.Clips.TsRing { KeepSeconds = 1000 };
+        if (disk) ring.UseDisk(Path.Combine(Path.GetTempPath(), "pulse-test", Guid.NewGuid() + ".tmp"));
+        Assert.Equal(disk, ring.OnDisk);
+        ring.Write(Pat(), 0);
+        ring.Write(Packet(0x1000), 0);
+        // 3 keyframe groups, each bigger than one 64 KB block, so blocks and the unfinished block are both used.
+        for (int g = 0; g < 3; g++)
+        {
+            ring.Write(Packet(Pulse.Core.Clips.TsRing.VideoPid, key: true), g);
+            for (int i = 0; i < 500; i++) ring.Write(Packet(Pulse.Core.Clips.TsRing.VideoPid), g + 0.5);
+        }
+        using var ms = new MemoryStream();
+        long n = ring.SaveTo(ms, 100, 3);
+        Assert.Equal(n, ms.Length);
+        Assert.Equal((2 + 3 * 501) * Pulse.Core.Clips.TsRing.PacketSize, ms.Length);
+        var all = ms.ToArray();
+        for (int i = 0; i < all.Length; i += Pulse.Core.Clips.TsRing.PacketSize) Assert.Equal(0x47, all[i]);
+        if (disk) Assert.True(ring.MemoryBytes < 1 << 20, "on disk the replay shouldn't sit in memory");
+    }
+
+    [Fact]
+    public void Old_groups_give_their_blocks_back()
+    {
+        using var ring = new Pulse.Core.Clips.TsRing { KeepSeconds = 2 };
+        ring.Write(Pat(), 0);
+        ring.Write(Packet(0x1000), 0);
+        for (int g = 0; g < 60; g++)
+        {
+            ring.Write(Packet(Pulse.Core.Clips.TsRing.VideoPid, key: true), g);
+            for (int i = 0; i < 400; i++) ring.Write(Packet(Pulse.Core.Clips.TsRing.VideoPid), g + 0.5);
+        }
+        // About 3 groups of ~75 KB are kept: memory stays small instead of growing with every second recorded.
+        Assert.True(ring.MemoryBytes < 2 << 20, $"memory grew to {ring.MemoryBytes}");
+    }
+
+    [Theory]
+    [InlineData("ScreenClippingHost")]
+    [InlineData("SnippingTool")]
+    [InlineData("ShareX")]
+    public void Screenshot_tools_are_never_games(string name) =>
+        Assert.True(Pulse.Core.Measurement.GameDetector.IsIgnored(name));
+
+    [Fact]
+    public void A_compatible_video_path_is_used_after_the_fast_one_fails()
+    {
+        var s = new Pulse.Core.Clips.ClipSettings { Resolution = "native" };
+        var e = new Pulse.Core.Clips.Encoder("h264_nvenc", "h264", "NVIDIA", true);
+        var fast = Pulse.Core.Clips.ReplayRecorder.Arguments(s, e, null, null);
+        var safe = Pulse.Core.Clips.ReplayRecorder.Arguments(s, e, null, null, videoLevel: 1);
+        var small = Pulse.Core.Clips.ReplayRecorder.Arguments(s, e, null, null, videoLevel: 2);
+        Assert.Contains("null[v]", fast);
+        Assert.Contains("trunc(iw/2)*2", safe);
+        Assert.Contains("scale=-2:1080", small);
+    }
+}

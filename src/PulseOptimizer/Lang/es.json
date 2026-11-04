@@ -1997,5 +1997,8 @@
  "  scanning…": "  analizando…",
  "How to tell it worked: ": "Cómo saber si funcionó: ",
  "Open Clips when you come back to Pulse after clipping": "Abrir Clips al volver a Pulse después de grabar un clip",
- "Print Screen is kept for Windows' Snipping Tool": "Impr Pant se reserva para la Herramienta Recortes de Windows"
+ "Print Screen is kept for Windows' Snipping Tool": "Impr Pant se reserva para la Herramienta Recortes de Windows",
+ "Keep the replay on your drive instead of in memory (Pulse uses almost no memory)": "Guardar la repetición en tu disco en vez de en la memoria (Pulse casi no usa memoria)",
+ "{0} s of replay kept on your drive ({1}) · {2} of memory · FFmpeg CPU {3}% · {4}": "{0} s de repetición en tu disco ({1}) · {2} de memoria · CPU de FFmpeg {3}% · {4}",
+ "Your {1} replay takes about {0} on your drive, so Pulse uses almost no memory for it.": "Tu repetición de {1} ocupa unos {0} en tu disco, así que Pulse casi no usa memoria para ella."
 }

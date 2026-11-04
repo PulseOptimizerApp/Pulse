@@ -34,6 +34,9 @@
     <Resource Include="Assets\Games\*.jpg" />
     <!-- Translations: English text → translated text, one file per language. -->
     <EmbeddedResource Include="Lang\*.json" LogicalName="Lang.%(Filename).json" />
+    <!-- Give memory back sooner (Pulse sits in the tray next to games). -->
+    <RuntimeHostConfigurationOption Include="System.GC.ConserveMemory" Value="5" />
+    <RuntimeHostConfigurationOption Include="System.GC.RetainVM" Value="false" />
     <Resource Include="Assets\Games\*.png" />
     <!-- PresentMon (Intel, MIT) is downloaded here by the build and carried inside the exe, so the release is one file. -->
     <EmbeddedResource Include="tools\PresentMon.exe" Condition="Exists('tools\PresentMon.exe')" LogicalName="PresentMon.exe" />

@@ -306,6 +306,11 @@
                             </Grid>
                             <Grid Style="{StaticResource Row}">
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                <TextBlock Style="{StaticResource RowLabel}" Text="Keep the replay on your drive instead of in memory (Pulse uses almost no memory)"/>
+                                <CheckBox x:Name="DiskSwitch" Grid.Column="1" Style="{StaticResource Switch}" Click="Setting_Click"/>
+                            </Grid>
+                            <Grid Style="{StaticResource Row}">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                                 <TextBlock Style="{StaticResource RowLabel}" Text="Keep clipping when the Pulse window is closed (Pulse waits by the clock)"/>
                                 <CheckBox x:Name="TraySwitch" Grid.Column="1" Style="{StaticResource Switch}" Click="Setting_Click"/>
                             </Grid>

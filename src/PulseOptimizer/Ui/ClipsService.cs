@@ -38,6 +38,10 @@ public static class ClipsService
     public static bool QuickOk { get; private set; } = true;
     public static bool ShotOk { get; private set; } = true;
     public static long BufferBytes => _rec?.BufferBytes ?? 0;
+    public static long MemoryBytes => _rec?.MemoryBytes ?? 0;
+    public static bool OnDisk => _rec?.OnDisk == true;
+    // How far Pulse stepped down the video path after one gave no picture (see ReplayRecorder.VideoLevel).
+    static int _videoLevel;
     public static double BufferSeconds => _rec?.BufferSeconds ?? 0;
     /// <summary>FFmpeg's share of all CPU time since the last call (0..100).</summary>
     public static double CpuPercent
@@ -89,6 +93,7 @@ public static class ClipsService
         _failures = 0;
         _stalls = 0;
         _screenOnly = IntPtr.Zero;
+        _videoLevel = 0;
         _retryAfter = default;
         RegisterHotkey();
         Tick();
@@ -163,7 +168,15 @@ public static class ClipsService
         if (_rec != null && _rec.Window != IntPtr.Zero && window != _rec.Window && !_rec.Stalled && _rec.Running)
             StopRecorder(); // the game opened a new window (or a different game started): follow it
 
-        if (_rec != null && (_rec.Stalled || !_rec.Running) && _rec.Window != IntPtr.Zero)
+        if (_rec != null && (_rec.Stalled || !_rec.Running) && !_rec.HadVideo && _videoLevel < 2)
+        {
+            // No picture at all at this quality (some drivers or window sizes don't take the fastest path, which
+            // used to leave Balanced and High recording nothing): try the next, more compatible way.
+            TweakEngine.AddLog("clips", $"No picture at video level {_videoLevel}: {_rec.LastError}");
+            StopRecorder();
+            _videoLevel++;
+        }
+        else if (_rec != null && (_rec.Stalled || !_rec.Running) && _rec.Window != IntPtr.Zero)
         {
             // Recording just the game's window didn't work here: use the whole screen for this game from now on.
             _screenOnly = _rec.Window;
@@ -207,7 +220,7 @@ public static class ClipsService
             var encoders = await Encoders.Available();
             var enc = Encoders.Pick(encoders, S.Codec);
             if (enc == null) { Set(ClipsState.Problem, "FFmpeg didn't find a video encoder that works on this PC."); return; }
-            _rec = new ReplayRecorder(S, enc, window, game != null ? GameDetector.GamePid : 0) { ScreenAspect = _screenAspect };
+            _rec = new ReplayRecorder(S, enc, window, game != null ? GameDetector.GamePid : 0) { ScreenAspect = _screenAspect, VideoLevel = _videoLevel };
             _rec.Start();
             Set(ClipsState.Recording);
         }

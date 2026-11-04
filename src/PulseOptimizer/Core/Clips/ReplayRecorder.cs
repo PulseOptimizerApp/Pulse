@@ -38,6 +38,9 @@ public sealed class ReplayRecorder : IDisposable
         _window = window;
         _gamePid = gamePid;
         _ring.KeepSeconds = settings.ReplaySeconds + 2;
+        // On disk (the default) the replay lives in a temporary file instead of Pulse's memory, like NVIDIA's.
+        if (settings.ReplayOnDisk)
+            _ring.UseDisk(Path.Combine(Path.GetTempPath(), "Pulse", $"replay-{Environment.ProcessId}-{Guid.NewGuid():N}.tmp"));
         // Memory cap: twice what the bitrate needs for the replay, plus room for sound. Stops runaway growth.
         _ring.MaxBytes = (long)Math.Clamp(settings.BitrateMbps, 2, 150) * 125_000L * (settings.ReplaySeconds + 2) * 2 + (64L << 20);
     }
@@ -74,6 +77,16 @@ public sealed class ReplayRecorder : IDisposable
     /// <summary>Names of the sound tracks being recorded, in order (track 1 is always all sound).</summary>
     public List<string> TrackTitles { get; } = new();
     public long BufferBytes => _ring.Bytes;
+    /// <summary>What the replay takes in Pulse's memory (small when it's kept on disk).</summary>
+    public long MemoryBytes => _ring.MemoryBytes;
+    public bool OnDisk => _ring.OnDisk;
+    /// <summary>True once any picture has arrived (false means the video path never worked on this PC).</summary>
+    public bool HadVideo => _ring.SecondsSinceVideo(Now) >= 0;
+    /// <summary>
+    /// 0 = fastest (frames stay on the graphics card), 1 = frames copied once and converted (works with every
+    /// driver and window size), 2 = that at 1080p. Pulse steps down when a level gives no picture.
+    /// </summary>
+    public int VideoLevel { get; init; }
     public double BufferSeconds => _ring.HeldSeconds(Now);
     public int ExitCode => _ffmpeg is { HasExited: true } p ? p.ExitCode : 0;
     /// <summary>The last lines FFmpeg printed (shown when recording fails).</summary>
@@ -122,7 +135,7 @@ public sealed class ReplayRecorder : IDisposable
         }
 
         var args = Arguments(_s, _encoder, gamePipe != null ? $@"\\.\pipe\{id}-game" : null, micPipe != null ? $@"\\.\pipe\{id}-mic" : null, _window,
-            appPipes.Select(a => (a.Title, a.Pipe)).ToList(), TrackTitles);
+            appPipes.Select(a => (a.Title, a.Pipe)).ToList(), TrackTitles, VideoLevel);
         _ffmpeg = Process.Start(Ffmpeg.Start(args, redirectOut: true))!;
         try { _ffmpeg.PriorityClass = ProcessPriorityClass.BelowNormal; } catch { } // the game always comes first
 
@@ -135,7 +148,7 @@ public sealed class ReplayRecorder : IDisposable
 
     /// <summary>The FFmpeg command line. Exposed for tests.</summary>
     internal static string Arguments(ClipSettings s, Encoder e, string gamePipe, string micPipe, IntPtr window = default,
-        IReadOnlyList<(string Title, string Pipe)> apps = null, List<string> titles = null)
+        IReadOnlyList<(string Title, string Pipe)> apps = null, List<string> titles = null, int videoLevel = 0)
     {
         apps ??= Array.Empty<(string, string)>();
         titles ??= new List<string>();
@@ -163,10 +176,12 @@ public sealed class ReplayRecorder : IDisposable
 
         // Video: stays on the graphics card for NVIDIA/AMD at native size; otherwise downloaded once and scaled.
         int h = s.Resolution switch { "1440" => 1440, "1080" => 1080, "720" => 720, _ => 0 };
+        if (videoLevel >= 2 && (h == 0 || h > 1080)) h = 1080;
         string v;
-        if (h == 0 && e.TakesGpuFrames) v = src + "null[v]";
-        else if (h == 0 && e.Vendor == "Intel") v = src + "hwmap=derive_device=qsv,format=qsv[v]";
-        else if (h == 0) v = src + "hwdownload,format=bgra,format=nv12[v]";
+        if (h == 0 && videoLevel == 0 && e.TakesGpuFrames) v = src + "null[v]";
+        else if (h == 0 && videoLevel == 0 && e.Vendor == "Intel") v = src + "hwmap=derive_device=qsv,format=qsv[v]";
+        // Native size, rounded to even numbers (a game window can be any size; encoders need even ones).
+        else if (h == 0) v = src + "hwdownload,format=bgra,scale=trunc(iw/2)*2:trunc(ih/2)*2,format=nv12[v]";
         else v = src + $"hwdownload,format=bgra,scale=-2:{h}:flags=bilinear,format=nv12[v]";
 
         var appIn = new List<int>();
@@ -408,6 +423,6 @@ public sealed class ReplayRecorder : IDisposable
         _mic?.Dispose();
         foreach (var (_, c) in _apps) c.Dispose();
         _ffmpeg?.Dispose();
-        _ring.Clear();
+        _ring.Dispose();
     }
 }

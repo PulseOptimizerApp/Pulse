@@ -79,6 +79,11 @@ public class ClipSettings
 
     /// <summary>Only keep a replay while a game is running (saves memory and GPU work the rest of the time).</summary>
     public bool OnlyWhileGaming { get; set; } = true;
+    /// <summary>
+    /// Keep the replay in a temporary file instead of memory (on by default): Pulse then uses almost no memory for it.
+    /// Off keeps it in memory, which writes nothing to the drive.
+    /// </summary>
+    public bool ReplayOnDisk { get; set; } = true;
     /// <summary>Keep clipping when the Pulse window is closed (Pulse stays in the tray).</summary>
     public bool KeepRunningInTray { get; set; } = true;
     /// <summary>Start Pulse in the tray when you sign in, so clips work without opening Pulse.</summary>

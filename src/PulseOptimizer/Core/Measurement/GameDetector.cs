@@ -18,6 +18,10 @@ public static class GameDetector
         // Windows and Pulse itself
         "explorer", "ApplicationFrameHost", "TextInputHost", "SystemSettings", "Taskmgr", "ShellExperienceHost",
         "StartMenuExperienceHost", "SearchHost", "LockApp", "PulseOptimizer", "WindowsTerminal", "cmd", "powershell", "pwsh",
+        "ShellHost", "Widgets", "WidgetBoard", "PhoneExperienceHost", "LogonUI", "consent", "dwm", "SecurityHealthSystray",
+        // Screenshot tools: their full-screen overlay (Win+Shift+S) isn't a game, and recording it breaks the snip
+        "ScreenClippingHost", "SnippingTool", "ScreenSketch", "ShareX", "Lightshot", "Greenshot", "Snagit32", "SnagitEditor",
+        "Flameshot", "PowerToys", "PowerToys.ScreenRuler", "PowerToys.MeasureToolUI", "Microsoft.CmdPal.UI",
         // Browsers and chat
         "chrome", "msedge", "msedgewebview2", "firefox", "opera", "brave", "vivaldi", "Discord", "Telegram", "WhatsApp",
         "Signal", "Teams", "ms-teams", "Zoom", "Slack", "Claude",
@@ -48,9 +52,18 @@ public static class GameDetector
     [DllImport("user32.dll")] static extern bool GetMonitorInfo(IntPtr hMon, ref MONITORINFO mi);
     [DllImport("user32.dll")] static extern bool IsWindowVisible(IntPtr hWnd);
 
+    /// <summary>True for programs that are never a game (Windows parts, screenshot tools, launchers, chat...).</summary>
+    internal static bool IsIgnored(string processName) => NotGames.Contains(processName ?? "");
+
+    [DllImport("user32.dll")] static extern int GetWindowLong(IntPtr hWnd, int index);
+    const int GWL_EXSTYLE = -20, WS_EX_TOOLWINDOW = 0x80, WS_EX_NOACTIVATE = 0x08000000;
+
     static bool IsFullscreen(IntPtr hwnd)
     {
         if (!IsWindowVisible(hwnd) || !GetWindowRect(hwnd, out var r)) return false;
+        // Overlays (a screenshot tool's dimmed screen, tool palettes) cover the screen but aren't games.
+        int ex = GetWindowLong(hwnd, GWL_EXSTYLE);
+        if ((ex & (WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE)) != 0) return false;
         var mi = new MONITORINFO { cbSize = Marshal.SizeOf<MONITORINFO>() };
         if (!GetMonitorInfo(MonitorFromWindow(hwnd, 2 /*nearest*/), ref mi)) return false;
         var m = mi.rcMonitor;

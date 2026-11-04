@@ -1,11 +1,64 @@
 namespace Pulse.Core.Clips;
 
 /// <summary>
-/// The instant-replay buffer. FFmpeg streams the encoded recording as MPEG-TS (188-byte packets); this keeps the last
-/// N seconds in memory, split into groups that each start at a video keyframe, so a saved clip always starts cleanly.
-/// Nothing is written to disk until a clip is saved.
+/// Where the replay's bytes live: fixed 64 KB blocks that are reused, either in memory or in one temporary file
+/// (deleted when it's closed). Reusing same-size blocks keeps memory flat: growing buffers used to hold up to twice
+/// the replay and left big freed arrays behind for the garbage collector.
 /// </summary>
-public sealed class TsRing
+public sealed class ChunkStore : IDisposable
+{
+    public const int Size = 64 * 1024; // under the large-object threshold, so blocks never fragment memory
+    readonly List<byte[]> _mem = new();
+    readonly Stack<int> _free = new();
+    FileStream _file;
+    int _count;
+
+    public bool OnDisk => _file != null;
+
+    /// <summary>A store in memory, or (when <paramref name="tempFile"/> is given) in that file on disk.</summary>
+    public ChunkStore(string tempFile = null)
+    {
+        if (tempFile == null) return;
+        Directory.CreateDirectory(Path.GetDirectoryName(tempFile)!);
+        _file = new FileStream(tempFile, FileMode.Create, FileAccess.ReadWrite, FileShare.None, 1, FileOptions.DeleteOnClose | FileOptions.RandomAccess);
+    }
+
+    public int Alloc()
+    {
+        if (_free.Count > 0) return _free.Pop();
+        if (_file == null) _mem.Add(new byte[Size]);
+        return _count++;
+    }
+
+    public void Free(int id) => _free.Push(id);
+
+    public void Write(int id, byte[] data, int length)
+    {
+        if (_file == null) { Buffer.BlockCopy(data, 0, _mem[id], 0, length); return; }
+        _file.Position = (long)id * Size;
+        _file.Write(data, 0, length);
+    }
+
+    public void CopyTo(int id, int length, Stream output, byte[] scratch)
+    {
+        if (_file == null) { output.Write(_mem[id], 0, length); return; }
+        _file.Position = (long)id * Size;
+        _file.ReadExactly(scratch, 0, length);
+        output.Write(scratch, 0, length);
+    }
+
+    /// <summary>Bytes this store keeps in Pulse's memory.</summary>
+    public long MemoryBytes => _file == null ? (long)_mem.Count * Size : 0;
+
+    public void Dispose() { try { _file?.Dispose(); } catch { } _file = null; _mem.Clear(); _free.Clear(); }
+}
+
+/// <summary>
+/// The instant-replay buffer. FFmpeg streams the encoded recording as MPEG-TS (188-byte packets); this keeps the last
+/// N seconds, split into groups that each start at a video keyframe, so a saved clip always starts cleanly. The bytes
+/// are kept in a <see cref="ChunkStore"/> (memory, or a temporary file on disk).
+/// </summary>
+public sealed class TsRing : IDisposable
 {
     public const int PacketSize = 188;
     public const int VideoPid = 0x100;   // FFmpeg's first stream; Pulse always maps video first
@@ -14,7 +67,71 @@ public sealed class TsRing
     sealed class Group
     {
         public double Time;                    // seconds on the ring's clock when the keyframe arrived
-        public readonly MemoryStream Data = new();
+        public readonly List<(int Id, int Length)> Chunks = new();
+        public long Length;
+    }
+
+    ChunkStore _store = new();
+    readonly byte[] _stage = new byte[ChunkStore.Size]; // the newest block, filled before it's stored
+    readonly byte[] _scratch = new byte[ChunkStore.Size];
+    int _stageLen;
+
+    /// <summary>Keeps the replay in a temporary file on disk instead of memory (Pulse then uses almost no memory for it).</summary>
+    public void UseDisk(string tempFile)
+    {
+        lock (_gate)
+        {
+            Clear();
+            _store.Dispose();
+            try { _store = new ChunkStore(tempFile); }
+            catch { _store = new ChunkStore(); } // no room or no access: memory still works
+        }
+    }
+
+    public bool OnDisk { get { lock (_gate) return _store.OnDisk; } }
+    /// <summary>Bytes the replay takes in Pulse's memory (blocks in memory, or just the newest block when on disk).</summary>
+    public long MemoryBytes { get { lock (_gate) return _store.MemoryBytes + _stage.Length * 2; } }
+
+    void Append(ReadOnlySpan<byte> p)
+    {
+        int i = 0;
+        while (i < p.Length)
+        {
+            int take = Math.Min(p.Length - i, _stage.Length - _stageLen);
+            p.Slice(i, take).CopyTo(_stage.AsSpan(_stageLen));
+            _stageLen += take;
+            i += take;
+            if (_stageLen == _stage.Length) Flush();
+        }
+        _current.Length += p.Length;
+    }
+
+    /// <summary>Stores the newest block in the current group.</summary>
+    void Flush()
+    {
+        if (_stageLen == 0 || _current == null) { _stageLen = 0; return; }
+        int id = _store.Alloc();
+        try { _store.Write(id, _stage, _stageLen); }
+        catch
+        {
+            // The disk filled up or went away: carry on in memory (the replay so far is dropped).
+            _store.Dispose();
+            _store = new ChunkStore();
+            foreach (var g in _groups) { g.Chunks.Clear(); g.Length = 0; }
+            _groups.Clear();
+            _current = null;
+            _bytes = 0;
+            _stageLen = 0;
+            return;
+        }
+        _current.Chunks.Add((id, _stageLen));
+        _stageLen = 0;
+    }
+
+    void Drop(Group g)
+    {
+        foreach (var (id, _) in g.Chunks) _store.Free(id);
+        _bytes -= g.Length;
     }
 
     readonly object _gate = new();
@@ -125,7 +242,7 @@ public sealed class TsRing
         if (pid == VideoPid)
         {
             _lastVideo = now;
-            if (IsKeyframeStart(p)) { key = true; _lastKeyframe = now; _groups.AddLast(_current = new Group { Time = now }); }
+            if (IsKeyframeStart(p)) { key = true; _lastKeyframe = now; Flush(); _groups.AddLast(_current = new Group { Time = now }); }
         }
         if (_tap != null)
         {
@@ -137,7 +254,8 @@ public sealed class TsRing
         // No keyframe for a long time means the picture stopped: don't keep piling sound onto the last frame,
         // or a saved clip becomes minutes of a frozen picture.
         if (pid != VideoPid && now - _current.Time > StaleGroupSeconds) return;
-        _current.Data.Write(p);
+        Append(p);
+        if (_current == null) return; // the store failed and was reset
         _bytes += PacketSize;
     }
 
@@ -166,13 +284,13 @@ public sealed class TsRing
     {
         while (MaxBytes > 0 && _bytes > MaxBytes && _groups.First?.Next != null)
         {
-            _bytes -= _groups.First.Value.Data.Length;
+            Drop(_groups.First.Value);
             _groups.RemoveFirst();
         }
         // Keep the newest group that started at least KeepSeconds ago, drop everything before it.
         while (_groups.First?.Next != null && now - _groups.First.Next.Value.Time >= KeepSeconds)
         {
-            _bytes -= _groups.First.Value.Data.Length;
+            Drop(_groups.First.Value);
             _groups.RemoveFirst();
         }
     }
@@ -195,10 +313,9 @@ public sealed class TsRing
             long n = 2 * PacketSize;
             for (var g = start; g != null; g = g.Next)
             {
-                g.Value.Data.Position = 0;
-                g.Value.Data.CopyTo(output);
-                g.Value.Data.Position = g.Value.Data.Length;
-                n += g.Value.Data.Length;
+                foreach (var (id, len) in g.Value.Chunks) _store.CopyTo(id, len, output, _scratch);
+                if (g.Value == _current && _stageLen > 0) output.Write(_stage, 0, _stageLen);
+                n += g.Value.Length;
             }
             return n;
         }
@@ -208,10 +325,14 @@ public sealed class TsRing
     {
         lock (_gate)
         {
+            foreach (var g in _groups) foreach (var (id, _) in g.Chunks) _store.Free(id);
             _groups.Clear();
             _current = null;
             _bytes = 0;
             _carryLen = 0;
+            _stageLen = 0;
         }
     }
+
+    public void Dispose() { lock (_gate) { Clear(); _store.Dispose(); } }
 }

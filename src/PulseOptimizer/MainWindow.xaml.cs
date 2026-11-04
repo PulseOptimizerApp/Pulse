@@ -398,6 +398,12 @@ public partial class MainWindow : Window
             e.Cancel = true;
             Hide();
             Ui.TrayIcon.Show();
+            // Hidden in the tray next to a game: hand back the memory the screens were using.
+            Dispatcher.BeginInvoke(() =>
+            {
+                System.Runtime.GCSettings.LargeObjectHeapCompactionMode = System.Runtime.GCLargeObjectHeapCompactionMode.CompactOnce;
+                GC.Collect(2, GCCollectionMode.Aggressive, true, true);
+            }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
             if (!_trayHintShown)
             {
                 _trayHintShown = true;
