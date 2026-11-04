@@ -70,47 +70,139 @@
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
 
-            <!-- NVIDIA profile, Roblox only -->
+            <!-- NVIDIA, Roblox only: a simple NVIDIA Profile Inspector for Roblox's profile -->
             <Border x:Name="NvCard" Style="{StaticResource Card}" Margin="0,16,0,0" Padding="22,18" Visibility="Collapsed">
                 <StackPanel>
                     <Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                         <StackPanel>
                             <StackPanel Orientation="Horizontal">
-                                <TextBlock Style="{StaticResource H2}" Text="NVIDIA settings for Roblox only"/>
+                                <TextBlock Style="{StaticResource H2}" Text="NVIDIA settings for Roblox"/>
                                 <Border x:Name="NvOnPill" Style="{StaticResource Pill}" Background="{StaticResource GoodSoftBrush}" Margin="10,0,0,0" Visibility="Collapsed">
                                     <TextBlock Style="{StaticResource PillText}" Text="Applied" Foreground="{StaticResource GoodBrush}"/>
                                 </Border>
                             </StackPanel>
-                            <TextBlock Style="{StaticResource Body}" Margin="0,4,0,0" MaxWidth="660" HorizontalAlignment="Left"
-                                       Text="Pulse sets these in NVIDIA's own per-game profile for Roblox, the same place as NVIDIA Control Panel → Manage 3D settings → Program Settings. Your other games and global settings don't change."/>
+                            <TextBlock Style="{StaticResource Body}" Margin="0,4,0,0" MaxWidth="560" HorizontalAlignment="Left"
+                                       Text="Changes NVIDIA's driver settings for Roblox only. Other games stay as they are, and Undo puts everything back."/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top">
+                            <RadioButton x:Name="NvPresetLow" Style="{StaticResource Chip}" GroupName="NvPreset" Tag="lowlatency" Content="Recommended" Checked="NvPreset_Checked"/>
+                            <RadioButton x:Name="NvPresetNone" Style="{StaticResource Chip}" GroupName="NvPreset" Tag="none" Content="Change nothing" Checked="NvPreset_Checked"/>
                         </StackPanel>
                     </Grid>
-                    <StackPanel Margin="0,14,0,0">
-                        <Grid Margin="0,0,0,10">
-                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                            <TextBlock Style="{StaticResource Body}" Foreground="{StaticResource TextBrush}" VerticalAlignment="Center" Margin="0,0,16,0" Text="Low Latency Mode: On. Roblox has no NVIDIA Reflex, so this is the driver's best option."/>
-                            <CheckBox x:Name="NvLowLatency" Grid.Column="1" Style="{StaticResource Switch}" IsChecked="True"/>
+                    <TextBlock x:Name="NvReadError" Foreground="{StaticResource WarnBrush}" FontSize="12" Margin="0,8,0,0" Visibility="Collapsed" TextWrapping="Wrap"/>
+
+                    <!-- Imported .nip file -->
+                    <Border x:Name="NvImportBar" Background="{StaticResource InfoSoftBrush}" CornerRadius="10" Padding="14,10" Margin="0,14,0,0" Visibility="Collapsed">
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <TextBlock Text="&#xE8E5;" Style="{StaticResource IconText}" Foreground="{StaticResource InfoBrush}" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="NvImportText" Grid.Column="1" Style="{StaticResource Body}" Foreground="{StaticResource TextBrush}" Margin="10,0" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                            <Button Grid.Column="2" Style="{StaticResource LinkButton}" Content="Remove" Click="NvRemoveImport_Click"/>
                         </Grid>
-                        <Grid Margin="0,0,0,10">
-                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                            <TextBlock Style="{StaticResource Body}" Foreground="{StaticResource TextBrush}" VerticalAlignment="Center" Margin="0,0,16,0" Text="Power management: Prefer maximum performance. Stops the card clocking down mid-game."/>
-                            <CheckBox x:Name="NvMaxPerf" Grid.Column="1" Style="{StaticResource Switch}" IsChecked="True"/>
-                        </Grid>
-                        <Grid Margin="0,0,0,10">
-                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                            <TextBlock Style="{StaticResource Body}" Foreground="{StaticResource TextBrush}" VerticalAlignment="Center" Margin="0,0,16,0" Text="Vertical sync: Force off. Lowest delay; you may see tearing without G-SYNC."/>
-                            <CheckBox x:Name="NvVsyncOff" Grid.Column="1" Style="{StaticResource Switch}" IsChecked="True"/>
-                        </Grid>
-                        <Grid Margin="0,0,0,4">
-                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                            <TextBlock x:Name="NvCapText" Style="{StaticResource Body}" Foreground="{StaticResource TextBrush}" VerticalAlignment="Center" Margin="0,0,16,0"/>
-                            <CheckBox x:Name="NvCap" Grid.Column="1" Style="{StaticResource Switch}" IsChecked="False"/>
-                        </Grid>
+                    </Border>
+
+                    <ItemsControl x:Name="NvList" Margin="0,12,0,0">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0" Padding="0,12">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                        <StackPanel VerticalAlignment="Center" Margin="0,0,16,0">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Style="{StaticResource CardTitle}" Text="{Binding Title}"/>
+                                                <TextBlock Text="{Binding Current}" FontSize="12" Foreground="{StaticResource TextFaintBrush}" Margin="10,1,0,0" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                            <TextBlock Style="{StaticResource Body}" FontSize="12.5" Margin="0,3,0,0" Text="{Binding Detail}" MaxWidth="480" HorizontalAlignment="Left"/>
+                                        </StackPanel>
+                                        <ItemsControl Grid.Column="1" ItemsSource="{Binding Choices}" VerticalAlignment="Center">
+                                            <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel MaxWidth="440" HorizontalAlignment="Right"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <RadioButton Style="{StaticResource Chip}" Content="{Binding Label}" GroupName="{Binding Owner.Key}"
+                                                                 IsChecked="{Binding IsSelected, Mode=TwoWay}" Margin="6,3,0,3" Click="NvChoice_Click"/>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <ToggleButton x:Name="NvMoreToggle" Style="{StaticResource LinkToggle}" Content="More settings" HorizontalAlignment="Left" Margin="0,4,0,0" Click="NvMoreToggle_Click"/>
+                    <StackPanel x:Name="NvMorePanel" Visibility="Collapsed">
+                        <ItemsControl x:Name="NvMoreList" Margin="0,6,0,0">
+                            <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0" Padding="0,12">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                        <StackPanel VerticalAlignment="Center" Margin="0,0,16,0">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Style="{StaticResource CardTitle}" Text="{Binding Title}"/>
+                                                <TextBlock Text="{Binding Current}" FontSize="12" Foreground="{StaticResource TextFaintBrush}" Margin="10,1,0,0" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                            <TextBlock Style="{StaticResource Body}" FontSize="12.5" Margin="0,3,0,0" Text="{Binding Detail}" MaxWidth="480" HorizontalAlignment="Left"/>
+                                        </StackPanel>
+                                        <ItemsControl Grid.Column="1" ItemsSource="{Binding Choices}" VerticalAlignment="Center">
+                                            <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel MaxWidth="440" HorizontalAlignment="Right"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <RadioButton Style="{StaticResource Chip}" Content="{Binding Label}" GroupName="{Binding Owner.Key}"
+                                                                 IsChecked="{Binding IsSelected, Mode=TwoWay}" Margin="6,3,0,3" Click="NvChoice_Click"/>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <!-- Advanced: any setting by ID -->
+                        <Border BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0" Padding="0,12,0,0">
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource CardTitle}" Text="Any setting by ID"/>
+                                <TextBlock Style="{StaticResource Body}" FontSize="12.5" Margin="0,3,0,0" MaxWidth="560" HorizontalAlignment="Left"
+                                           Text="For NVIDIA Profile Inspector users: a setting's hex ID and a value. Roblox's profile only; Undo puts the old value back."/>
+                                <Grid Margin="0,10,0,0">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="160"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                    <TextBox x:Name="NvCustomId" Style="{StaticResource SearchBox}" Tag="Setting ID, e.g. 0x10835002"/>
+                                    <TextBox x:Name="NvCustomValue" Grid.Column="1" Style="{StaticResource SearchBox}" Tag="Value" Margin="10,0,0,0"/>
+                                    <Button Grid.Column="2" Style="{StaticResource GhostButton}" Content="Add" Margin="10,0,0,0" Click="NvAddCustom_Click"/>
+                                </Grid>
+                                <TextBlock x:Name="NvCustomError" Foreground="{StaticResource WarnBrush}" FontSize="12" Margin="0,6,0,0" Visibility="Collapsed"/>
+                                <ItemsControl x:Name="NvCustomList" Margin="0,8,0,0">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Grid Margin="0,4">
+                                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                                <TextBlock Text="{Binding Key}" Style="{StaticResource Mono}" Foreground="{StaticResource TextBrush}" VerticalAlignment="Center"/>
+                                                <TextBlock Grid.Column="1" Text="{Binding Value}" Style="{StaticResource Mono}" Margin="16,0" VerticalAlignment="Center"/>
+                                                <Button Grid.Column="2" Style="{StaticResource LinkButton}" Content="Remove" Tag="{Binding Key}" Click="NvRemoveCustom_Click"/>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
                     </StackPanel>
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
-                        <Button x:Name="NvUndoBtn" Style="{StaticResource GhostButton}" Content="Undo" Margin="0,0,10,0" Click="NvUndo_Click" Visibility="Collapsed"/>
-                        <Button Style="{StaticResource PrimaryButton}" Content="Apply NVIDIA settings" Click="NvApply_Click"/>
-                    </StackPanel>
+
+                    <Grid Margin="0,14,0,0">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <TextBlock x:Name="NvSummary" Style="{StaticResource Body}" VerticalAlignment="Center" FontSize="12.5"/>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal">
+                            <Button Style="{StaticResource GhostButton}" Margin="0,0,10,0" Click="NvImport_Click" ToolTip="Use a file exported from NVIDIA Profile Inspector">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#xE8E5;" Style="{StaticResource IconText}" FontSize="13"/>
+                                    <TextBlock Text="Import .nip" Margin="8,0,0,0"/>
+                                </StackPanel>
+                            </Button>
+                            <Button x:Name="NvUndoBtn" Style="{StaticResource GhostButton}" Content="Undo" Margin="0,0,10,0" Click="NvUndo_Click" Visibility="Collapsed"/>
+                            <Button Style="{StaticResource PrimaryButton}" Content="Apply" Click="NvApply_Click"/>
+                        </StackPanel>
+                    </Grid>
                 </StackPanel>
             </Border>
 

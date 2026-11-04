@@ -6,6 +6,9 @@ namespace Pulse.Core.Roblox;
 /// <summary>A driver setting Pulse can set in NVIDIA's per-game profile.</summary>
 public record NvSetting(uint Id, string Name, uint Value, string ValueText);
 
+/// <summary>What Roblox's NVIDIA profile holds for one setting right now.</summary>
+public record NvCurrent(bool SetOnProfile, uint Value);
+
 /// <summary>What was there before Pulse changed a setting, so Undo can put it back.</summary>
 public class NvBackup
 {
@@ -150,6 +153,35 @@ public static class NvidiaProfile
     // NVDRS_SETTING field offsets
     const int OffId = 4 + Str, OffType = OffId + 4, OffLocation = OffType + 4, OffCurrent = OffLocation + 4 + 4 + 4 + 4100;
 
+    /// <summary>
+    /// Reads what Roblox's profile has for these settings (like NVIDIA Profile Inspector's view of one profile).
+    /// Settings the profile doesn't set itself are left out: the driver's default or the global profile applies.
+    /// Saves nothing, so if Roblox has no profile yet the one created for the read is thrown away.
+    /// </summary>
+    public static Dictionary<uint, NvCurrent> ReadCurrent(IEnumerable<uint> ids)
+    {
+        var result = new Dictionary<uint, NvCurrent>();
+        WithRobloxProfile((session, profile) =>
+        {
+            var buf = Alloc(SettingSize);
+            try
+            {
+                foreach (var id in ids.Distinct())
+                {
+                    for (int i = 0; i < SettingSize; i += 8) Marshal.WriteInt64(buf, i, 0);
+                    Marshal.WriteInt32(buf, 0, (int)Ver(SettingSize, 1));
+                    if (Fn<D_GetSetting>(ID_GetSetting)(session, profile, id, buf) != 0) continue;
+                    // Only DWORD settings (type 0) are shown; Pulse doesn't edit string or binary ones.
+                    if (Marshal.ReadInt32(buf, OffType) != 0) continue;
+                    if (Marshal.ReadInt32(buf, OffLocation) == 0)
+                        result[id] = new NvCurrent(true, (uint)Marshal.ReadInt32(buf, OffCurrent));
+                }
+            }
+            finally { Marshal.FreeHGlobal(buf); }
+        }, save: false);
+        return result;
+    }
+
     /// <summary>Applies the settings to Roblox's profile and returns what was there before.</summary>
     public static List<NvBackup> Apply(IEnumerable<NvSetting> settings)
     {
@@ -159,7 +191,7 @@ public static class NvidiaProfile
             var buf = Alloc(SettingSize);
             try
             {
-                foreach (var s in settings)
+                foreach (var s in settings.GroupBy(x => x.Id).Select(g => g.Last()))
                 {
                     // Read what the profile has now (location 0 = set on this profile itself).
                     for (int i = 0; i < SettingSize; i += 8) Marshal.WriteInt64(buf, i, 0);
