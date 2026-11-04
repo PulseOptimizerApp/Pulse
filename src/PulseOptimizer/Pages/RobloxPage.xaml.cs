@@ -150,12 +150,14 @@ public partial class RobloxPage : UserControl, IPage
 
         _nvLoading = true;
         _nv = NvidiaCatalog.CreateOptions(hz);
-        if (S.NvidiaChoices.Count == 0 && S.NvidiaBackups.Count == 0) S.NvidiaChoices = new(NvidiaCatalog.Presets["lowlatency"]);
+        if (S.NvidiaChoices.Count == 0 && S.NvidiaBackups.Count == 0 && S.NvidiaImport == null) S.NvidiaChoices = new(NvidiaCatalog.Presets["lowlatency"]);
         foreach (var o in _nv) o.Value = S.NvidiaChoices.GetValueOrDefault(o.Key, "");
-        NvList.ItemsSource = _nv;
+        NvList.ItemsSource = _nv.Where(o => o.Main).ToList();
+        NvMoreList.ItemsSource = _nv.Where(o => !o.Main).ToList();
         MarkNvPreset();
         _nvLoading = false;
         ShowNvCustom();
+        ShowNvImport();
 
         try
         {
@@ -174,17 +176,20 @@ public partial class RobloxPage : UserControl, IPage
         UpdateNvSummary();
     }
 
+    List<NvSetting> NvPlan() => NvidiaCatalog.Build(_nv, S.NvidiaCustom, S.NvidiaImport);
+
     void MarkNvPreset()
     {
         var mine = _nv.Where(o => o.Value.Length > 0).ToDictionary(o => o.Key, o => o.Value);
-        string match = NvidiaCatalog.Presets.FirstOrDefault(p => p.Value.Count == mine.Count && p.Value.All(kv => mine.GetValueOrDefault(kv.Key) == kv.Value)).Key;
+        string match = S.NvidiaImport != null ? null
+            : NvidiaCatalog.Presets.FirstOrDefault(p => p.Value.Count == mine.Count && p.Value.All(kv => mine.GetValueOrDefault(kv.Key) == kv.Value)).Key;
         NvPresetLow.IsChecked = match == "lowlatency";
         NvPresetNone.IsChecked = match == "none";
     }
 
     void UpdateNvSummary()
     {
-        int n = NvidiaCatalog.Build(_nv, S.NvidiaCustom).Count;
+        int n = NvPlan().Count;
         NvSummary.Text = n == 0 ? Pulse.Ui.Loc.T("Nothing will change in Roblox's NVIDIA profile.")
             : n == 1 ? Pulse.Ui.Loc.T("1 driver setting will be set for Roblox.")
             : Pulse.Ui.Loc.F("{0} driver settings will be set for Roblox.", n);
@@ -203,6 +208,8 @@ public partial class RobloxPage : UserControl, IPage
         _nvLoading = true;
         foreach (var o in _nv) o.Value = NvidiaCatalog.Presets[key].GetValueOrDefault(o.Key, "");
         _nvLoading = false;
+        S.NvidiaImport = null; // a preset replaces an imported file
+        ShowNvImport();
         SaveNvChoices();
     }
 
@@ -214,15 +221,30 @@ public partial class RobloxPage : UserControl, IPage
         _nvLoading = false;
     }
 
+    void NvMoreToggle_Click(object sender, RoutedEventArgs e)
+    {
+        bool show = NvMoreToggle.IsChecked == true;
+        NvMorePanel.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+        NvMoreToggle.Content = Pulse.Ui.Loc.T(show ? "Fewer settings" : "More settings");
+    }
+
     async void NvApply_Click(object sender, RoutedEventArgs e)
     {
-        var list = NvidiaCatalog.Build(_nv, S.NvidiaCustom);
+        var list = NvPlan();
         if (list.Count == 0 && S.NvidiaBackups.Count == 0) { MainWindow.Instance.Toast("Pick at least one NVIDIA setting first."); return; }
 
-        var lines = list.Count == 0 ? "•  Nothing: Pulse's earlier changes are put back."
-            : string.Join("\n", list.Where(x => !x.Name.StartsWith("Ultra Low") && !x.Name.StartsWith("Max pre-rendered")).Select(x => $"•  {x.Name}: {x.ValueText}"));
+        // Short list: the rows people recognise, then a count for the rest (an imported file can hold dozens).
+        var shown = list.Where(x => !x.Name.StartsWith("Ultra Low") && !x.Name.StartsWith("Max pre-rendered")).ToList();
+        var lines = list.Count == 0 ? Pulse.Ui.Loc.T("•  Nothing: Pulse's earlier changes are put back.")
+            : string.Join("\n", shown.Take(6).Select(x => $"•  {Pulse.Ui.Loc.T(x.Name)}"))
+              + (shown.Count > 6 ? "\n" + Pulse.Ui.Loc.F("•  and {0} more", shown.Count - 6) : "");
         if (!await MainWindow.Instance.Confirm("Change NVIDIA settings for Roblox?",
-                lines + "\n\nOnly Roblox's profile changes; your other games and global settings stay as they are. Undo puts the old values back. Takes effect the next time Roblox starts.", "Apply")) return;
+                lines + "\n\n" + Pulse.Ui.Loc.T("Only Roblox's profile changes. Undo puts the old values back. Takes effect the next time Roblox starts."), "Apply")) return;
+        await ApplyNv(list);
+    }
+
+    async Task ApplyNv(List<NvSetting> list)
+    {
         try
         {
             if (S.NvidiaBackups.Count > 0) { await Task.Run(() => NvidiaProfile.Undo(S.NvidiaBackups)); S.NvidiaBackups.Clear(); }
@@ -249,11 +271,57 @@ public partial class RobloxPage : UserControl, IPage
         await ShowNvidia();
     }
 
-    void NvAdvToggle_Click(object sender, RoutedEventArgs e)
+    // ───────── Import an NVIDIA Profile Inspector file ─────────
+
+    async void NvImport_Click(object sender, RoutedEventArgs e)
     {
-        bool show = NvAdvToggle.IsChecked == true;
-        NvAdvPanel.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
-        NvAdvToggle.Content = show ? "Hide" : "Show";
+        var dlg = new Microsoft.Win32.OpenFileDialog
+        {
+            Title = Pulse.Ui.Loc.T("Import an NVIDIA Profile Inspector file"),
+            Filter = Pulse.Ui.Loc.T("NVIDIA profile") + " (*.nip)|*.nip|" + Pulse.Ui.Loc.T("All files") + " (*.*)|*.*",
+        };
+        if (dlg.ShowDialog() != true) return;
+
+        NipReadout nip;
+        try { nip = await Task.Run(() => NipFile.Read(dlg.FileName)); }
+        catch (Exception ex) { await MainWindow.Instance.Alert("Couldn't read that file", ex is FormatException ? ex.Message : Pulse.Ui.Loc.T("This isn't an NVIDIA Profile Inspector file (.nip).")); return; }
+        if (nip.Use.Count == 0) { await MainWindow.Instance.Alert("Nothing to use in that file", "Every setting in it is hardware-specific or applies to the whole PC, so there's nothing to set for Roblox."); return; }
+
+        var file = Path.GetFileName(dlg.FileName);
+        var text = Pulse.Ui.Loc.F("Pulse will use {0} settings from {1}, for Roblox only.", nip.Use.Count, file);
+        if (!nip.ForRoblox && nip.ProfileName.Length > 0)
+            text += "\n\n" + Pulse.Ui.Loc.F("The file was made for NVIDIA's \"{0}\" profile. Pulse applies it to Roblox only, so your other games don't change.", nip.ProfileName);
+        if (nip.Skipped > 0)
+            text += "\n\n" + Pulse.Ui.Loc.F("Left out {0} that don't belong in one game's profile: SLI, Optimus and 3D Vision switches, settings for the whole PC, and unnamed IDs.", nip.Skipped);
+        text += "\n\n" + Pulse.Ui.Loc.T("Undo puts Roblox's old values back.");
+        if (!await MainWindow.Instance.Confirm(Pulse.Ui.Loc.F("Use {0}?", file), text, "Apply now")) return;
+
+        S.NvidiaImport = new NvImport { FileName = file, Settings = nip.Use };
+        // Rows the file covers step aside, so the file's values are the ones written.
+        var ids = nip.Use.Select(x => x.Id).ToHashSet();
+        _nvLoading = true;
+        foreach (var o in _nv)
+            if (o.Choices.Skip(1).Any(c => o.Writes(c.Value).Any(w => ids.Contains(w.Id)))) o.Value = "";
+        _nvLoading = false;
+        S.NvidiaChoices = _nv.ToDictionary(o => o.Key, o => o.Value);
+        await ApplyNv(NvPlan());
+    }
+
+    void ShowNvImport()
+    {
+        var imp = S.NvidiaImport;
+        NvImportBar.Visibility = imp == null ? Visibility.Collapsed : Visibility.Visible;
+        if (imp != null) NvImportText.Text = Pulse.Ui.Loc.F("Using {0}: {1} settings from NVIDIA Profile Inspector.", imp.FileName, imp.Settings.Count);
+    }
+
+    void NvRemoveImport_Click(object sender, RoutedEventArgs e)
+    {
+        S.NvidiaImport = null;
+        RobloxBoost.Save();
+        ShowNvImport();
+        MarkNvPreset();
+        UpdateNvSummary();
+        MainWindow.Instance.Toast("Removed. Press Apply to put Roblox's old NVIDIA values back.");
     }
 
     void ShowNvCustom() => NvCustomList.ItemsSource = S.NvidiaCustom.OrderBy(kv => kv.Key).ToList();

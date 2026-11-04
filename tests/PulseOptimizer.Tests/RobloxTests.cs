@@ -176,4 +176,59 @@ public class RobloxTests
         Assert.Equal("Now: 0x00000007", rows.Single(r => r.Key == "nv-threads").Current);
         Assert.Equal("Now: driver default", rows.Single(r => r.Key == "nv-power").Current);
     }
+
+    // ───────── NVIDIA Profile Inspector files (.nip) ─────────
+
+    const string Nip = """
+        <?xml version="1.0" encoding="utf-16"?>
+        <ArrayOfProfile>
+          <Profile>
+            <ProfileName>Base Profile</ProfileName>
+            <Executeables />
+            <Settings>
+              <ProfileSetting><SettingNameInfo> </SettingNameInfo><SettingID>390467</SettingID><SettingValue>2</SettingValue><ValueType>Dword</ValueType></ProfileSetting>
+              <ProfileSetting><SettingNameInfo>Vertical Sync</SettingNameInfo><SettingID>11041231</SettingID><SettingValue>138504007</SettingValue><ValueType>Dword</ValueType></ProfileSetting>
+              <ProfileSetting><SettingNameInfo>Texture filtering - Negative LOD bias</SettingNameInfo><SettingID>1686376</SettingID><SettingValue>1</SettingValue><ValueType>Dword</ValueType></ProfileSetting>
+              <ProfileSetting><SettingNameInfo>SLI rendering mode</SettingNameInfo><SettingID>271830737</SettingID><SettingValue>0</SettingValue><ValueType>Dword</ValueType></ProfileSetting>
+              <ProfileSetting><SettingNameInfo>Enable application for Optimus</SettingNameInfo><SettingID>284810369</SettingID><SettingValue>1</SettingValue><ValueType>Dword</ValueType></ProfileSetting>
+              <ProfileSetting><SettingNameInfo>Enable G-SYNC globally</SettingNameInfo><SettingID>294973784</SettingID><SettingValue>0</SettingValue><ValueType>Dword</ValueType></ProfileSetting>
+              <ProfileSetting><SettingNameInfo>List of Universal GPU ids</SettingNameInfo><SettingID>271929336</SettingID><SettingValue>none</SettingValue><ValueType>String</ValueType></ProfileSetting>
+              <ProfileSetting><SettingNameInfo /><SettingID>541081465</SettingID><SettingValue>119</SettingValue><ValueType>Dword</ValueType></ProfileSetting>
+            </Settings>
+          </Profile>
+        </ArrayOfProfile>
+        """;
+
+    [Fact]
+    public void Reads_a_profile_inspector_file_and_keeps_only_what_fits_one_game()
+    {
+        var r = NipFile.Parse(Nip);
+        Assert.Equal("Base Profile", r.ProfileName);
+        Assert.False(r.ForRoblox);
+        Assert.Equal(new uint[] { NvidiaCatalog.ULL_CPL_STATE, NvidiaCatalog.VSYNCMODE, 1686376 }, r.Use.Select(x => x.Id));
+        Assert.Equal("Low Latency Mode", r.Use[0].Name);          // blank in the file, named by Pulse
+        Assert.Equal(NvidiaCatalog.VSYNC_OFF, r.Use[1].Value);
+        Assert.Equal(2, r.SkippedHardware);                       // SLI, Optimus
+        Assert.Equal(1, r.SkippedWholePc);                        // G-SYNC globally
+        Assert.Equal(1, r.SkippedText);                           // a text value
+        Assert.Equal(1, r.SkippedUnknown);                        // no name
+    }
+
+    [Theory]
+    [InlineData("not xml at all")]
+    [InlineData("<Something />")]
+    [InlineData("<ArrayOfProfile />")]
+    public void A_file_that_isnt_a_profile_is_refused(string text) =>
+        Assert.Throws<FormatException>(() => NipFile.Parse(text));
+
+    [Fact]
+    public void A_row_you_pick_wins_over_the_imported_file()
+    {
+        var rows = NvidiaCatalog.CreateOptions(144);
+        rows.Single(r => r.Key == "nv-vsync").Value = NvidiaCatalog.VSYNC_ON.ToString();
+        var import = new NvImport { Settings = NipFile.Parse(Nip).Use };
+        var s = NvidiaCatalog.Build(rows, new Dictionary<string, string>(), import);
+        Assert.Equal(NvidiaCatalog.VSYNC_ON, s.Single(x => x.Id == NvidiaCatalog.VSYNCMODE).Value);
+        Assert.Contains(s, x => x.Id == 1686376);
+    }
 }

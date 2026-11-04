@@ -10,6 +10,9 @@ public class NvOption : RobloxOption
     /// <summary>Driver settings this row writes, per choice value. "" writes nothing (the profile keeps what it had).</summary>
     public Func<string, List<NvSetting>> Writes { get; init; } = _ => new();
 
+    /// <summary>Shown straight away; the rest sit under "More settings".</summary>
+    public bool Main { get; set; }
+
     string _current = "";
     /// <summary>What Roblox's profile has now, in words.</summary>
     public string Current { get => _current; set => Set(ref _current, value ?? ""); }
@@ -60,7 +63,8 @@ public static class NvidiaCatalog
         var latency = new NvOption
         {
             Key = "nv-latency", Id = ULL_CPL_STATE, Title = "Low Latency Mode",
-            Detail = "How many frames the driver queues before your screen. Roblox has no NVIDIA Reflex, so this is the best the driver can do. Ultra queues frames just in time; On is the safe pick if Ultra stutters.",
+            Main = true,
+            Detail = "Less delay between your mouse and the screen. Roblox has no NVIDIA Reflex, so this is the next best thing. Pick On if Ultra stutters.",
             Writes = v => v switch
             {
                 "off" => new() { S(ULL_CPL_STATE, "Low Latency Mode", 0, "Off"), S(ULL_ENABLED, "Ultra Low Latency", 0, "Off"), S(PRERENDERLIMIT, "Max pre-rendered frames", 0, "Roblox decides") },
@@ -77,32 +81,34 @@ public static class NvidiaCatalog
         if (hz >= 100) frl.Add((Pulse.Ui.Loc.F("{0} (G-SYNC)", cap), (uint)cap));
         foreach (var f in new uint[] { 60, 144, 240 }) if (f != cap) frl.Add((f.ToString(CultureInfo.InvariantCulture), f));
 
-        return new()
+        var rows = new List<NvOption>
         {
             latency,
             Simple("power", PREFERRED_PSTATE, "Power management mode",
-                "Maximum performance stops the card clocking down between busy moments, which causes small stutters in light games like Roblox. Uses a bit more power while Roblox runs.",
-                ("Normal", 0), ("Maximum performance", 1)),
+                "Keeps the card at full speed so it doesn't stutter while speeding back up.",
+                ("Normal", 5), ("Maximum performance", 1)),
             Simple("vsync", VSYNCMODE, "Vertical sync",
-                "Off gives the lowest delay; you may see tearing without G-SYNC. Fast Sync removes tearing with less delay than On, but only helps when you get far more FPS than your refresh rate.",
+                "Off gives the least delay. Turn it on only if you see tearing and don't have G-SYNC.",
                 ("Roblox decides", VSYNC_APP), ("Off", VSYNC_OFF), ("On", VSYNC_ON), ("Fast Sync", VSYNC_FAST)),
             Simple("frl", FRL_FPS, "Max Frame Rate (driver)",
-                hz >= 100 ? Pulse.Ui.Loc.F("NVIDIA's own frame limiter. With G-SYNC or FreeSync, {0} keeps you just under your {1} Hz so it stays in range. Use either this or Pulse's Roblox frame cap above, not both.", cap, hz)
-                          : "NVIDIA's own frame limiter. Use either this or Pulse's Roblox frame cap above, not both.",
+                hz >= 100 ? Pulse.Ui.Loc.F("NVIDIA's frame limiter. {0} keeps G-SYNC working on your {1} Hz screen. Don't use it together with the Roblox frame cap above.", cap, hz)
+                          : "NVIDIA's frame limiter. Don't use it together with the Roblox frame cap above.",
                 frl.ToArray()),
             Simple("refresh", REFRESH_RATE_OVERRIDE, "Preferred refresh rate",
-                "Highest available makes exclusive fullscreen (Alt+Enter, see above) use your monitor's top refresh rate instead of 60 Hz.",
+                "Lets Alt+Enter fullscreen use your monitor's top refresh rate instead of 60 Hz.",
                 ("Roblox decides", 0), ("Highest available", 1)),
             Simple("gsync", VRR_APP_OVERRIDE, "G-SYNC for Roblox",
-                "Turn G-SYNC off for Roblox only if its menus flicker or the brightness pulses.",
+                "Only turn this off if Roblox's menus flicker.",
                 ("Allow", 0), ("Off", 1)),
             Simple("texfilter", QUALITY_ENHANCEMENTS, "Texture filtering quality",
-                "High performance trades a little texture sharpness at angles for a few FPS. Mostly matters on older cards.",
+                "Slightly blurrier textures at an angle for a few more FPS. Helps most on older cards.",
                 ("High performance", 20), ("Performance", 10), ("Quality", 0), ("High quality", 0xFFFFFFF6)),
             Simple("threads", THREAD_CONTROL, "Threaded optimization",
-                "Lets the driver spread its work over more CPU cores. Auto is right for most PCs; On can help on CPUs with many cores.",
+                "Spreads the driver's work across CPU cores. Auto is right for almost every PC.",
                 ("Auto", 0), ("On", 1), ("Off", 2)),
         };
+        foreach (var r in rows) if (r.Key is "nv-power" or "nv-vsync" or "nv-frl") r.Main = true;
+        return rows;
     }
 
     public static readonly Dictionary<string, Dictionary<string, string>> Presets = new()
@@ -111,10 +117,14 @@ public static class NvidiaCatalog
         ["none"] = new(),
     };
 
-    /// <summary>All driver settings for these choices plus the advanced (raw ID) settings.</summary>
-    public static List<NvSetting> Build(IEnumerable<NvOption> options, IReadOnlyDictionary<string, string> custom)
+    /// <summary>
+    /// All driver settings to write: an imported .nip file first, then the rows, then the advanced (raw ID) settings.
+    /// A later one wins for the same ID, so a row you pick overrides the file.
+    /// </summary>
+    public static List<NvSetting> Build(IEnumerable<NvOption> options, IReadOnlyDictionary<string, string> custom, NvImport import = null)
     {
         var list = new List<NvSetting>();
+        foreach (var x in import?.Settings ?? new()) list.Add(new NvSetting(x.Id, x.Name, x.Value, $"0x{x.Value:X8}"));
         foreach (var o in options) list.AddRange(o.Writes(o.Value));
         foreach (var kv in custom ?? new Dictionary<string, string>())
             if (TryParseCustom(kv.Key, kv.Value, out var id, out var value, out _))

@@ -24,6 +24,8 @@ public class RobloxSettings
     public Dictionary<string, string> NvidiaChoices { get; set; } = new();
     /// <summary>Advanced NVIDIA settings by hex ID → value, like NVIDIA Profile Inspector.</summary>
     public Dictionary<string, string> NvidiaCustom { get; set; } = new();
+    /// <summary>An NVIDIA Profile Inspector file (.nip) the user imported for Roblox, if any.</summary>
+    public NvImport NvidiaImport { get; set; }
 }
 
 /// <summary>One setting on the Roblox page, shown as a row of choices.</summary>
