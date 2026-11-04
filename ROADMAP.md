@@ -77,9 +77,9 @@ Work top to bottom unless the owner says otherwise. For each item: say the plan 
    - clear messages when the encoder fails
    - faster first-run encoder test
    - memory use at long replay lengths
-5. **Website download gap.** For about 5 minutes after a release is published, the website's Download button gives "not found" while the exe builds. Change the site's script to fall back to the previous release's `PulseOptimizer.exe` when the latest release has no exe yet.
-6. **Translation gaps.** Find text that's still English (strings joined with `+`, new strings) and convert it to `Loc.F` patterns with Spanish and Portuguese.
-7. **Screen-by-screen polish** from the owner's screenshots, keeping the current style.
+6. **Website download gap.** For about 5 minutes after a release is published, the website's Download button gives "not found" while the exe builds. Change the site's script to fall back to the previous release's `PulseOptimizer.exe` when the latest release has no exe yet.
+7. **Translation gaps.** Find text that's still English (strings joined with `+`, new strings) and convert it to `Loc.F` patterns with Spanish and Portuguese.
+8. **Screen-by-screen polish** from the owner's screenshots, keeping the current style.
 
 ### 2. UI system: world-class, with our original look
 
