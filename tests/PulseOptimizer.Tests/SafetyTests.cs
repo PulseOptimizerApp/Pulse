@@ -60,7 +60,24 @@ public class SafetyTests
     [Fact]
     public void Never_deletes_whole_registry_keys() =>
         AssertNotUsed(@"DeleteSubKeyTree|DeleteSubKey\(",
-            "tweaks only change single values, which are backed up first");
+            "tweaks only change single values, which are backed up first. The one exception is Reg.ExportAndDeleteKey, " +
+            "which only accepts a single leftover entry under Windows' Uninstall list and exports it to a .reg file first",
+            "Reg.cs");
+
+    [Theory]
+    [InlineData(@"SOFTWARE\Microsoft\Windows\CurrentVersion")]
+    [InlineData(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall")]
+    [InlineData(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Game\Sub")]
+    [InlineData(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\..\Run")]
+    [InlineData(@"SYSTEM\CurrentControlSet\Services\Something")]
+    public void Key_removal_is_limited_to_one_uninstall_entry(string path) =>
+        Assert.False(Pulse.Core.Reg.IsUninstallEntry(path));
+
+    [Theory]
+    [InlineData(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Some Game_is1")]
+    [InlineData(@"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\{1234}")]
+    public void Uninstall_entries_are_allowed(string path) =>
+        Assert.True(Pulse.Core.Reg.IsUninstallEntry(path));
 
     [Fact]
     public void Never_turns_off_Defender() =>

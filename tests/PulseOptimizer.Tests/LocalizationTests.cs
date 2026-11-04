@@ -98,3 +98,50 @@ public class LocalizationTests
     public void Text_with_no_entry_is_left_alone() =>
         Assert.Equal("Something else entirely. Freedom", WithTable(() => Loc.T("Something else entirely. Freedom")));
 }
+
+public class LocalizationOnScreenTests
+{
+    /// <summary>Text written in XAML (no Loaded handler of its own) is translated once it's on screen.</summary>
+    [Fact]
+    public void Xaml_text_without_handlers_is_translated()
+    {
+        Exception error = null;
+        string text = null, button = null;
+        var t = new Thread(() =>
+        {
+            try
+            {
+                Loc.Init("es");
+                var tb = new System.Windows.Controls.TextBlock { Text = "Run a checkup" };
+                var btn = new System.Windows.Controls.Button { Content = "Measure FPS" };
+                var w = new System.Windows.Window
+                {
+                    Content = new System.Windows.Controls.StackPanel { Children = { tb, btn } },
+                    Width = 300, Height = 200, Left = -2000, Top = -2000, ShowActivated = false, ShowInTaskbar = false, WindowStyle = System.Windows.WindowStyle.None,
+                };
+                w.Show();
+                w.UpdateLayout();
+                text = tb.Text;
+                var inner = FindText(btn);
+                button = inner?.Text;
+                w.Close();
+            }
+            catch (Exception ex) { error = ex; }
+            finally { Loc.UseForTests("en", new Dictionary<string, string>()); }
+        });
+        t.SetApartmentState(ApartmentState.STA);
+        t.Start();
+        t.Join();
+        Assert.Null(error);
+        Assert.Equal("Haz una revisión", text);
+        Assert.NotEqual("Measure FPS", button);
+    }
+
+    static System.Windows.Controls.TextBlock FindText(System.Windows.DependencyObject d)
+    {
+        if (d is System.Windows.Controls.TextBlock tb) return tb;
+        for (int i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(d); i++)
+            if (FindText(System.Windows.Media.VisualTreeHelper.GetChild(d, i)) is { } found) return found;
+        return null;
+    }
+}

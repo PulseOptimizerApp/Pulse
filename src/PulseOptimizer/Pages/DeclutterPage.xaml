@@ -183,6 +183,7 @@
                     <RadioButton Style="{StaticResource Chip}" GroupName="AppTab" Tag="Suggested" Content="Suggested" IsChecked="True" Checked="AppTab_Checked"/>
                     <RadioButton Style="{StaticResource Chip}" GroupName="AppTab" Tag="Game" Content="Games" Checked="AppTab_Checked"/>
                     <RadioButton Style="{StaticResource Chip}" GroupName="AppTab" Tag="All" Content="All programs" Checked="AppTab_Checked"/>
+                    <RadioButton x:Name="LeftoverTab" Style="{StaticResource Chip}" GroupName="AppTab" Tag="Leftover" Content="Already removed" Checked="AppTab_Checked" Visibility="Collapsed"/>
                 </WrapPanel>
                 <TextBox x:Name="AppSearch" Grid.Column="1" Style="{StaticResource SearchBox}" Tag="Search apps" TextChanged="AppSearch_Changed" VerticalAlignment="Top"/>
             </Grid>

@@ -79,3 +79,41 @@ public class StretchTests
         Assert.Equal("", Pulse.Core.Clips.ClipLibrary.StretchCopyArgs("h264", null));
     }
 }
+
+public class ClipSoundTests
+{
+    [Fact]
+    public void Clip_sound_is_a_short_clean_stereo_wav()
+    {
+        var wav = Pulse.Ui.Feedback.Blip();
+        Assert.Equal("RIFF", System.Text.Encoding.ASCII.GetString(wav, 0, 4));
+        Assert.Equal(2, BitConverter.ToInt16(wav, 22));          // stereo
+        Assert.Equal(48000, BitConverter.ToInt32(wav, 24));      // 48 kHz
+        double seconds = BitConverter.ToInt32(wav, 40) / 4.0 / 48000;
+        Assert.InRange(seconds, 0.5, 0.8);
+        short last = BitConverter.ToInt16(wav, wav.Length - 2);
+        Assert.InRange(Math.Abs((int)last), 0, 50);             // fades out: no click at the end
+        var shot = Pulse.Ui.Feedback.Shutter();
+        Assert.Equal("RIFF", System.Text.Encoding.ASCII.GetString(shot, 0, 4));
+        Assert.NotEqual(wav.Length, shot.Length);                 // a different sound from the clip one
+    }
+}
+
+public class LeftoverAppTests
+{
+    [Fact]
+    public void MissingUninstallerIsSpotted()
+    {
+        Assert.True(Pulse.Core.Declutter.DeclutterEngine.UninstallerMissing(@"""C:\Games\Gone Game 7Q2\unins000.exe"" /SILENT"));
+        Assert.True(Pulse.Core.Declutter.DeclutterEngine.UninstallerMissing(@"C:\Games\Gone Game 7Q2\unins000.exe"));
+    }
+
+    [Fact]
+    public void WindowsInstallerAndPathCommandsAreNotJudged()
+    {
+        Assert.False(Pulse.Core.Declutter.DeclutterEngine.UninstallerMissing("MsiExec.exe /X{12345678-1234-1234-1234-123456789012}"));
+        Assert.False(Pulse.Core.Declutter.DeclutterEngine.UninstallerMissing("rundll32.exe something"));
+        Assert.False(Pulse.Core.Declutter.DeclutterEngine.UninstallerMissing(""));
+        Assert.False(Pulse.Core.Declutter.DeclutterEngine.UninstallerMissing("steam://uninstall/730"));
+    }
+}

@@ -29,8 +29,31 @@ public static class Loc
     {
         Current = string.IsNullOrEmpty(choice) || choice == "auto" ? FromWindows() : choice;
         Use(Load(Current));
-        if (Current != "en")
-            EventManager.RegisterClassHandler(typeof(FrameworkElement), FrameworkElement.LoadedEvent, new RoutedEventHandler((s, _) => Translate(s as FrameworkElement)), true);
+        if (Current != "en") Hook();
+    }
+
+    static bool _hooked;
+
+    /// <summary>
+    /// Translates each element the first time it's laid out. WPF only sends Loaded to elements that have their own
+    /// Loaded handler, so a class handler on Loaded misses most text written in XAML (the sidebar, buttons, card
+    /// titles). SizeChanged is raised for every element when it first gets a size, which is exactly when it appears.
+    /// </summary>
+    static void Hook()
+    {
+        if (_hooked) return;
+        _hooked = true;
+        EventManager.RegisterClassHandler(typeof(FrameworkElement), FrameworkElement.LoadedEvent, new RoutedEventHandler((s, _) => TranslateOnce(s as FrameworkElement)), true);
+        EventManager.RegisterClassHandler(typeof(FrameworkElement), FrameworkElement.SizeChangedEvent, new SizeChangedEventHandler((s, _) => TranslateOnce(s as FrameworkElement)), true);
+    }
+
+    static readonly ConditionalWeakTable<FrameworkElement, object> Done = new();
+
+    static void TranslateOnce(FrameworkElement fe)
+    {
+        if (fe == null || _map.Count == 0 || Done.TryGetValue(fe, out _)) return;
+        Done.Add(fe, null);
+        try { Translate(fe); } catch { /* a translation must never break a screen */ }
     }
 
     /// <summary>Maps a Windows language to one Pulse has: es-MX → es, pt-PT → pt-BR, anything else → en.</summary>
@@ -175,6 +198,7 @@ public static class Loc
         TextProp.RemoveValueChanged(tb, TextChanged);
         tb.Unloaded -= Unwatch;
         Watched.Remove(tb);
+        Done.Remove(tb);
     }
 
     static void TextChanged(object sender, EventArgs e)

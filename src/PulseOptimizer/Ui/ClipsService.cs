@@ -281,6 +281,7 @@ public static class ClipsService
             return null;
         }
         _saving = true;
+        Feedback.Pressed(S); // the sound plays the moment the key is pressed
         try
         {
             var path = await _rec.Save(S.ClipsFolder, _game ?? "Clip", seconds);
@@ -297,6 +298,7 @@ public static class ClipsService
         }
         catch (Exception ex)
         {
+            Feedback.Failed(S);
             ClipToast.Show(Loc.T("Couldn't save the clip"), Loc.T(ex.Message), false);
             return null;
         }
@@ -335,7 +337,7 @@ public static class ClipsService
             var path = await _rec.StopSession(S.ClipsFolder);
             SaveInputs(path);
             SyncInput();
-            Feedback.Saved(S, 0, Loc.T("Recording saved"));
+            Feedback.Saved(S, 0, Loc.T("Recording saved"), playSound: true);
             TweakEngine.AddLog("clips", $"Saved a recording: {Path.GetFileName(path)}");
             _ = Task.Run(async () =>
             {
@@ -373,6 +375,7 @@ public static class ClipsService
             return null;
         }
         _shooting = true;
+        Feedback.ScreenshotPressed(S); // the shutter sound plays the moment the key is pressed
         try
         {
             var path = await _rec.SaveScreenshot(S.ScreenshotsFolder, _game ?? "Screenshot");
@@ -382,6 +385,7 @@ public static class ClipsService
         }
         catch (Exception ex)
         {
+            Feedback.Failed(S);
             ClipToast.Show(Loc.T("Couldn't save the screenshot"), Loc.T(ex.Message), false);
             return null;
         }
@@ -455,52 +459,137 @@ public static class ClipsService
 /// <summary>The short sound and the small popup that confirm a clip was saved, without taking focus from the game.</summary>
 static class Feedback
 {
-    static byte[] _blip;
+    static byte[] _blip, _shutter;
 
-    public static void Saved(ClipSettings s, int seconds, string title = null)
+    /// <summary>Right when the hotkey is pressed: the sound plays at once, before saving finishes, so it feels instant.</summary>
+    public static void Pressed(ClipSettings s)
     {
         if (s.PlaySound) Play();
+    }
+
+    /// <summary>When the clip is on disk: the popup (the sound already played on the key press).</summary>
+    public static void Saved(ClipSettings s, int seconds, string title = null, bool playSound = false)
+    {
+        if (s.PlaySound && playSound) Play();
         if (s.ShowSavedPopup) ClipToast.Show(title ?? Loc.T("Clip saved"), seconds > 0 ? Loc.F("Last {0} seconds", seconds) : "", true);
+    }
+
+    /// <summary>Saving failed after the sound already said yes: a different, lower sound so it's clear.</summary>
+    public static void Failed(ClipSettings s)
+    {
+        if (s.PlaySound) try { System.Media.SystemSounds.Hand.Play(); } catch { }
     }
 
     public static void Screenshot(ClipSettings s)
     {
-        if (s.PlaySound) Play();
         if (s.ShowSavedPopup) ClipToast.Show(Loc.T("Screenshot saved"), Loc.T("In your clips folder, under Screenshots"), true);
     }
 
-    static void Play()
+    static void Play(bool screenshot = false)
     {
         try
         {
-            _blip ??= Blip();
-            var player = new System.Media.SoundPlayer(new MemoryStream(_blip));
-            player.Play();
+            var wav = screenshot ? (_shutter ??= Shutter()) : (_blip ??= Blip());
+            new System.Media.SoundPlayer(new MemoryStream(wav)).Play();
         }
         catch { }
     }
 
-    /// <summary>A soft two-note chime, made in code so there's no sound file to ship.</summary>
-    internal static byte[] Blip()
+    /// <summary>Right when the screenshot hotkey is pressed: the shutter sound plays at once.</summary>
+    public static void ScreenshotPressed(ClipSettings s)
     {
-        const int rate = 44100;
-        var samples = new List<short>();
-        foreach (var (freq, ms) in new[] { (880.0, 70), (1320.0, 110) })
+        if (s.PlaySound) Play(screenshot: true);
+    }
+
+    const int SoundRate = 48000;
+
+    static double[] Mallet(double f, double seconds, double decay, double bright)
+    {
+        int n = (int)(SoundRate * seconds);
+        var x = new double[n];
+        for (int i = 0; i < n; i++)
         {
-            int n = rate * ms / 1000;
-            for (int i = 0; i < n; i++)
-            {
-                double env = Math.Min(1, i / (rate * 0.005)) * Math.Exp(-3.0 * i / n);
-                samples.Add((short)(Math.Sin(2 * Math.PI * freq * i / rate) * env * 9000));
-            }
+            double t = i / (double)SoundRate;
+            double attack = Math.Min(1, t / 0.0015);
+            x[i] = attack * (Math.Sin(2 * Math.PI * f * t) * Math.Exp(-t / decay)
+                + bright * Math.Sin(2 * Math.PI * f * 3.98 * t) * Math.Exp(-t / (decay * 0.25))
+                + 0.12 * Math.Sin(2 * Math.PI * f * 10.0 * t) * Math.Exp(-t / 0.006));
         }
+        return x;
+    }
+
+    /// <summary>A soft click like a camera shutter blade: a very short burst of smoothed noise.</summary>
+    static double[] Click(int seed)
+    {
+        var rng = new Random(seed);
+        int n = (int)(SoundRate * 0.01);
+        var raw = new double[n];
+        for (int i = 0; i < n; i++)
+        {
+            double g = Math.Sqrt(-2 * Math.Log(1 - rng.NextDouble())) * Math.Cos(2 * Math.PI * rng.NextDouble()); // normal noise
+            raw[i] = g * Math.Exp(-(i / (double)SoundRate) / 0.0015);
+        }
+        var x = new double[n];
+        for (int i = 0; i < n; i++) { double sum = 0; int c = 0; for (int j = i - 2; j <= i + 2; j++) if (j >= 0 && j < n) { sum += raw[j]; c++; } x[i] = sum / c * 0.55; }
+        return x;
+    }
+
+    static void Add(double[] into, double[] what, int at, double gain = 1)
+    {
+        for (int i = 0; i < what.Length && at + i < into.Length; i++) into[at + i] += what[i] * gain;
+    }
+
+    /// <summary>A short room echo mixed in lightly, a 3 ms fade at the end, then a 48 kHz stereo 16-bit WAV.</summary>
+    static byte[] Finish(double[] dry, double wetMix)
+    {
+        int len = dry.Length + (int)(SoundRate * 0.35);
+        var wet = new double[len];
+        foreach (var (d, g) in new[] { (0.0297, 0.72), (0.0371, 0.68), (0.0411, 0.64), (0.0437, 0.6) })
+        {
+            int delay = (int)(SoundRate * d);
+            var y = new double[len];
+            for (int i = delay; i < len; i++) y[i] = (i - delay < dry.Length ? dry[i - delay] : 0) + g * 0.7 * y[i - delay];
+            for (int i = 0; i < len; i++) wet[i] += y[i] * 0.25;
+        }
+        var mix = new double[len];
+        double peak = 1e-9;
+        for (int i = 0; i < len; i++) { mix[i] = (i < dry.Length ? dry[i] : 0) * (1 - wetMix) + wet[i] * wetMix; peak = Math.Max(peak, Math.Abs(mix[i])); }
+        int fade = (int)(SoundRate * 0.003);
         using var ms2 = new MemoryStream();
         using var w = new BinaryWriter(ms2);
-        int bytes = samples.Count * 2;
+        int bytes = len * 4;
         w.Write("RIFF"u8); w.Write(36 + bytes); w.Write("WAVE"u8);
-        w.Write("fmt "u8); w.Write(16); w.Write((short)1); w.Write((short)1); w.Write(rate); w.Write(rate * 2); w.Write((short)2); w.Write((short)16);
+        w.Write("fmt "u8); w.Write(16); w.Write((short)1); w.Write((short)2); w.Write(SoundRate); w.Write(SoundRate * 4); w.Write((short)4); w.Write((short)16);
         w.Write("data"u8); w.Write(bytes);
-        foreach (var x in samples) w.Write(x);
+        for (int i = 0; i < len; i++)
+        {
+            double gain = 0.55 / peak * (i >= len - fade ? (len - i) / (double)fade : 1);
+            double l = mix[i], r = i >= 24 ? mix[i - 24] : 0; // a hair of width: the right side is 0.5 ms later
+            w.Write((short)(Math.Clamp(l * gain, -1, 1) * 32767));
+            w.Write((short)(Math.Clamp(r * gain, -1, 1) * 32767));
+        }
         return ms2.ToArray();
+    }
+
+    /// <summary>"Bloop" (clip saved): two quick rising mallet notes, C6 then G6 55 ms later, with a short room echo.</summary>
+    internal static byte[] Blip()
+    {
+        var a = Mallet(1046.5, 0.18, 0.07, 0.25);
+        var b = Mallet(1568.0, 0.30, 0.11, 0.25);
+        int off = (int)(SoundRate * 0.055);
+        var dry = new double[off + b.Length];
+        Add(dry, a, 0);
+        Add(dry, b, off);
+        return Finish(dry, 0.16);
+    }
+
+    /// <summary>Screenshot: a soft two-part shutter click, then one bright note from the same family as Bloop (G6).</summary>
+    internal static byte[] Shutter()
+    {
+        var dry = new double[(int)(SoundRate * 0.45)];
+        Add(dry, Click(1), 0);
+        Add(dry, Click(2), (int)(SoundRate * 0.045), 0.8);
+        Add(dry, Mallet(1568.0, 0.3, 0.09, 0.22), (int)(SoundRate * 0.06), 0.9);
+        return Finish(dry, 0.15);
     }
 }

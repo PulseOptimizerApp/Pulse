@@ -346,7 +346,8 @@ public partial class DeclutterPage : UserControl, IPage
         {
             "Suggested" => _apps.Where(a => a.Suggested),
             "Game" => _apps.Where(a => a.Kind == "Game"),
-            _ => _apps.OrderByDescending(a => a.Size),
+            "Leftover" => _apps.Where(a => a.Leftover && !a.Removed),
+            _ => _apps.Where(a => !a.Leftover).OrderByDescending(a => a.Size),
         };
         if (q.Length > 0) list = _apps.Where(a => a.Name.Contains(q, StringComparison.OrdinalIgnoreCase) || a.Publisher.Contains(q, StringComparison.OrdinalIgnoreCase)).OrderByDescending(a => a.Size);
         return list;
@@ -356,6 +357,7 @@ public partial class DeclutterPage : UserControl, IPage
     {
         if (AppList == null) return;
         var all = FilteredApps().ToList();
+        if (LeftoverTab != null) LeftoverTab.Visibility = _apps.Any(a => a.Leftover && !a.Removed) ? Visibility.Visible : Visibility.Collapsed;
         AppList.ItemsSource = all.Take(_shown).ToList();
         AppsEmpty.Text = _tab == "Suggested" && AppSearch.Text.Length == 0 ? "No preinstalled extras found. Check the Games and All programs tabs." : "Nothing matches.";
         AppsEmpty.Visibility = all.Count == 0 && AppsLoading.Visibility != Visibility.Visible ? Visibility.Visible : Visibility.Collapsed;
@@ -427,16 +429,25 @@ public partial class DeclutterPage : UserControl, IPage
     async void RemoveApp_Click(object sender, RoutedEventArgs e)
     {
         if ((sender as FrameworkElement)?.Tag is not AppEntry app || app.Busy) return;
-        var text = app.IsStoreApp
+        var text = app.Leftover
+            ? Loc.T("This program is already deleted. Only its entry in Windows' list of installed programs is left, so Pulse removes just that entry. Pulse saves a backup of it first.")
+            : app.IsStoreApp
             ? $"{(app.Why.Length > 0 ? app.Why + ". " : "")}It's removed for your account and can be reinstalled from the Microsoft Store any time."
             : $"Pulse runs {app.Name}'s own uninstaller{(app.Wait ? "; follow its steps if it shows a window" : " through Steam")}.";
-        if (!await MainWindow.Instance.Confirm($"Remove {app.Name}?", text, "Remove")) return;
+        if (!await MainWindow.Instance.Confirm(app.Leftover ? Loc.F("Remove {0} from the list?", app.Name) : $"Remove {app.Name}?", text, "Remove")) return;
 
         app.Busy = true;
         try
         {
             var (ok, msg) = await Task.Run(() => app.IsStoreApp ? DeclutterEngine.RemoveStoreApp(app) : DeclutterEngine.StartUninstaller(app));
             if (!ok) { await MainWindow.Instance.Alert($"Couldn't remove {app.Name}", msg); return; }
+            if (app.Leftover)
+            {
+                app.Removed = true;
+                MainWindow.Instance.Toast(Loc.F("Removed {0} from the list.", app.Name));
+                ShowApps();
+                return;
+            }
             if (app.IsStoreApp || (app.Wait && !await Task.Run(() => DeclutterEngine.StillInstalled(app))))
             {
                 app.Removed = true;

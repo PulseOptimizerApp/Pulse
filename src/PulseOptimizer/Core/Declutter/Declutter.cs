@@ -51,6 +51,11 @@ public class AppEntry : Observable
     public string IconPath { get; init; }
     public string InstallLocation { get; init; }
     public bool Wait { get; init; } = true;
+    /// <summary>The program is already gone (its folder or uninstaller is missing); only its entry in Windows' list is left.</summary>
+    public bool Leftover { get; init; }
+    /// <summary>Where that entry lives, so a leftover can be removed from the list.</summary>
+    public RegistryHive EntryHive { get; init; }
+    public string EntryKey { get; init; }
 
     System.Windows.Media.ImageSource _icon;
     bool _iconLoaded;
@@ -79,8 +84,8 @@ public class AppEntry : Observable
     public bool Removed { get => _removed; set { if (Set(ref _removed, value)) { Raise(nameof(CanRemove)); Selected = false; } } }
     public bool CanRemove => Advice != AppAdvice.Keep && !Removed && !string.IsNullOrEmpty(RemoveKey);
 
-    public string SizeText => Size > 0 ? Format.Bytes(Size) : "";
-    public string AdviceText => !Suggested ? (Kind == "Game" ? "Game" : "") : Advice switch { AppAdvice.Safe => "Safe to remove", AppAdvice.Keep => "Keep", _ => "Check first" };
+    public string SizeText => Leftover ? "0 B" : Size > 0 ? Format.Bytes(Size) : "";
+    public string AdviceText => Leftover ? "Already removed" : !Suggested ? (Kind == "Game" ? "Game" : "") : Advice switch { AppAdvice.Safe => "Safe to remove", AppAdvice.Keep => "Keep", _ => "Check first" };
     public bool HasAdvice => AdviceText.Length > 0;
     public string Detail => string.Join("  ·  ", new[] { Why, Publisher, Installed is DateTime d ? $"Installed {d:MMM yyyy}" : "" }.Where(x => !string.IsNullOrEmpty(x)).Distinct());
     public Brush AdviceBrush => !Suggested ? Palette.Info : Advice switch { AppAdvice.Safe => Palette.Good, AppAdvice.Keep => Palette.Info, _ => Palette.Warn };
@@ -450,12 +455,25 @@ public static class DeclutterEngine
                 var publisher = Reg.Get(hive, k, "Publisher") as string ?? "";
                 var loc = (Reg.Get(hive, k, "InstallLocation") as string ?? "").Trim('"');
                 long size = Reg.Get(hive, k, "EstimatedSize") is int kb ? kb * 1024L : 0;
+                // Deleted by hand (common with repacks): the folder or the uninstaller is gone, only the entry is left.
+                bool leftover = (loc.Length > 0 && !Directory.Exists(loc)) || UninstallerMissing(uninstall);
                 DateTime? date = DateTime.TryParseExact(Reg.Get(hive, k, "InstallDate") as string, "yyyyMMdd", null, System.Globalization.DateTimeStyles.None, out var d) ? d : null;
                 var rule = DesktopBloat.FirstOrDefault(b => name.Contains(b.match, StringComparison.OrdinalIgnoreCase));
                 bool isGame = sub.StartsWith("Steam App ", StringComparison.OrdinalIgnoreCase)
                               || launcherGames.Any(g => g.Name.Equals(name, StringComparison.OrdinalIgnoreCase))
                               || GamePublishers.Any(gp => publisher.StartsWith(gp, StringComparison.OrdinalIgnoreCase)) && !IsLauncher(name);
 
+                if (leftover)
+                {
+                    list.Add(new AppEntry
+                    {
+                        Name = name, Publisher = publisher, Installed = date, InstallLocation = loc, Size = 0,
+                        Kind = "Leftover", Advice = AppAdvice.Safe, Leftover = true, EntryHive = hive, EntryKey = k,
+                        Why = "Already removed: only its entry in Windows' list of programs is left. Removing it uses no uninstaller and frees nothing.",
+                        RemoveKey = uninstall, Wait = false,
+                    });
+                    continue;
+                }
                 list.Add(new AppEntry
                 {
                     Name = name, Publisher = publisher, Installed = date, InstallLocation = loc,
@@ -476,8 +494,12 @@ public static class DeclutterEngine
             list.Add(new AppEntry { Name = name, Kind = "Game", Why = "Uninstall it from the Epic Games Launcher", InstallLocation = folder, Advice = AppAdvice.Check });
         }
 
-        // Fill in sizes Windows doesn't know (common for games).
-        Parallel.ForEach(list.Where(a => a.Size == 0 && !string.IsNullOrEmpty(a.InstallLocation) && Directory.Exists(a.InstallLocation)).ToList(),
+        // Fill in sizes Windows doesn't know (common for games). A folder several entries point at (like D:\Games)
+        // isn't any one program's size, so it isn't measured for them.
+        var shared = list.Where(a => !string.IsNullOrEmpty(a.InstallLocation))
+            .GroupBy(a => a.InstallLocation.TrimEnd('\\').ToUpperInvariant()).Where(g => g.Count() > 1).Select(g => g.Key).ToHashSet();
+        Parallel.ForEach(list.Where(a => a.Size == 0 && !a.Leftover && !string.IsNullOrEmpty(a.InstallLocation) && Directory.Exists(a.InstallLocation)
+                                         && !shared.Contains(a.InstallLocation.TrimEnd('\\').ToUpperInvariant())).ToList(),
             new ParallelOptions { MaxDegreeOfParallelism = 4 }, a => a.Size = FolderSize(a.InstallLocation));
 
         return list.OrderBy(a => a.Suggested ? (a.Advice switch { AppAdvice.Safe => 0, AppAdvice.Check => 1, _ => 2 }) : 3).ThenByDescending(a => a.Size).ToList();
@@ -568,9 +590,36 @@ public static class DeclutterEngine
         return (ok, ok ? "" : CmdAction.FirstLine(r.Error) ?? "Windows didn't allow removing this app.");
     }
 
+    /// <summary>True when the uninstall command points at an exe that no longer exists (Windows Installer entries are checked by folder instead).</summary>
+    internal static bool UninstallerMissing(string uninstall)
+    {
+        if (string.IsNullOrWhiteSpace(uninstall)) return false;
+        var u = Environment.ExpandEnvironmentVariables(uninstall.Trim());
+        if (u.Contains("msiexec", StringComparison.OrdinalIgnoreCase) || u.Contains("://")) return false;
+        string exe = u.StartsWith('"') ? u[1..Math.Max(1, u.IndexOf('"', 1))] : (u.IndexOf(".exe", StringComparison.OrdinalIgnoreCase) is int i and >= 0 ? u[..(i + 4)] : u);
+        if (!Path.IsPathRooted(exe)) return false; // a command like "rundll32 ..." on the PATH: can't tell
+        return !File.Exists(exe);
+    }
+
+    /// <summary>
+    /// Removes a leftover entry from Windows' list of programs. Its registry key is exported to Pulse's backup folder
+    /// first (double-click the .reg file to put it back).
+    /// </summary>
+    public static (bool ok, string message) RemoveLeftover(AppEntry app)
+    {
+        try
+        {
+            var file = Reg.ExportAndDeleteKey(app.EntryHive, app.EntryKey, Path.Combine(TweakEngine.DataDir, "backups"), "program-" + app.Name);
+            TweakEngine.AddLog("apps", $"Removed the leftover entry for {app.Name} (backup: {Path.GetFileName(file)})");
+            return (true, "");
+        }
+        catch (Exception ex) { return (false, ex.Message); }
+    }
+
     /// <summary>Runs the program's own uninstaller and waits for it to close (the user may need to click through it).</summary>
     public static (bool ok, string message) StartUninstaller(AppEntry app)
     {
+        if (app.Leftover) return RemoveLeftover(app);
         try
         {
             using var p = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(Shell.CmdExe, "/c \"" + app.RemoveKey + "\"")

@@ -1987,5 +1987,13 @@
  "Mute any sound in this clip": "Silencia cualquier sonido de este clip",
  "Audio": "Audio",
  "Click a sound to mute it": "Haz clic en un sonido para silenciarlo",
- "Audio ({0} muted)": "Audio ({0} silenciados)"
+ "Audio ({0} muted)": "Audio ({0} silenciados)",
+ "Already removed": "Ya eliminado",
+ "This program is already deleted. Only its entry in Windows' list of installed programs is left, so Pulse removes just that entry. Pulse saves a backup of it first.": "Este programa ya está eliminado. Solo queda su entrada en la lista de programas instalados de Windows, así que Pulse quita solo esa entrada. Pulse guarda antes una copia de seguridad.",
+ "Remove {0} from the list?": "¿Quitar {0} de la lista?",
+ "Removed {0} from the list.": "{0} se quitó de la lista.",
+ "Already removed: only its entry in Windows' list of programs is left. Removing it uses no uninstaller and frees nothing.": "Ya eliminado: solo queda su entrada en la lista de programas de Windows. Quitarla no usa ningún desinstalador y no libera espacio.",
+ "Windows couldn't back up the entry, so it wasn't removed.": "Windows no pudo hacer una copia de la entrada, así que no se quitó.",
+ "  scanning…": "  analizando…",
+ "How to tell it worked: ": "Cómo saber si funcionó: "
 }

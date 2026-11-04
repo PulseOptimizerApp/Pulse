@@ -63,6 +63,36 @@ public static class Reg
                              Convert.ToString(b, CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>
+    /// Saves a whole key to a .reg file (Windows' own export) and then deletes it. The file puts it back when opened.
+    /// Returns the backup file. Throws if the backup couldn't be made (then nothing is deleted).
+    /// </summary>
+    /// <summary>True only for one entry directly inside Windows' Uninstall list (no deeper keys, no "..").</summary>
+    internal static bool IsUninstallEntry(string path)
+    {
+        foreach (var root in new[] { @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\", @"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\" })
+            if (path.StartsWith(root, StringComparison.OrdinalIgnoreCase))
+            {
+                var name = path[root.Length..];
+                return name.Length > 0 && !name.Contains('\\') && !name.Contains("..");
+            }
+        return false;
+    }
+
+    public static string ExportAndDeleteKey(RegistryHive h, string path, string backupDir, string name)
+    {
+        if (!IsUninstallEntry(path)) throw new InvalidOperationException("Only a program's entry in Windows' list of programs can be removed.");
+        var root = h switch { RegistryHive.LocalMachine => "HKLM", RegistryHive.CurrentUser => "HKCU", RegistryHive.Users => "HKU", _ => throw new ArgumentException("Unsupported hive") };
+        foreach (var c in Path.GetInvalidFileNameChars()) name = name.Replace(c, '_');
+        Directory.CreateDirectory(backupDir);
+        var file = Path.Combine(backupDir, $"{name} {DateTime.Now:yyyyMMdd-HHmmss}.reg");
+        var r = Shell.Run(Path.Combine(Environment.SystemDirectory, "reg.exe"), $"export \"{root}\\{path}\" \"{file}\" /y /reg:64", 30_000);
+        if (!r.Ok || !File.Exists(file)) throw new InvalidOperationException("Windows couldn't back up the entry, so it wasn't removed.");
+        using var b = Base(h);
+        b.DeleteSubKeyTree(path, false);
+        return file;
+    }
+
     public static ActionBackup Snapshot(RegistryHive h, string path, string name)
     {
         var bk = new ActionBackup { Kind = "reg" };
