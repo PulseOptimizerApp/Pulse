@@ -26,7 +26,7 @@ You're continuing work on **Pulse Optimizer**, a free, open-source (MIT) Windows
   - **Defender** is never turned off, and no exclusions are added.
   - **Evidence only:** Pulse only applies documented settings and never sells placebo tweaks.
 - **Roblox rules:** Roblox only honors Fast Flags on its official allowlist (since 29 Sep 2025). Don't add flags outside it, don't inject flags into the running client, and don't build "desync" or network flags. That's against Roblox's rules and gets accounts banned by Hyperion.
-- **Look and feel:** the owner likes the current look: the dark theme with the cyan-to-purple gradient (`AccentGradient`), glow, hover and entrance animations. Keep that style. Polish is about consistency (type scale 11/12/13/14/15/17/20+, corner radius 12 cards / 10 buttons / 16 chips, card padding 24,20 or 18,14), not about replacing the style. A stripped-down, plain redesign was rejected. Ask for screenshots before redesigning a screen.
+- **Look and feel:** the owner likes the current look: the dark theme with the cyan-to-purple gradient (`AccentGradient`), glow, hover and entrance animations. Keep that style. Polish is about consistency (type scale 11/12/13/14/15/17/20+, corner radius 12 cards / 10 buttons / 16 chips, card padding 24,20 or 18,14), not about replacing the style. A stripped-down, plain redesign was rejected. Ask for screenshots before redesigning a screen. The goal is a world-class UI system built on this look (roadmap section 2).
 - **Testing:** the owner tests on their PC and sends screenshots. Explain what to click to test each change, and say plainly what couldn't be tested.
 
 ## Shipped recently (for context)
@@ -65,7 +65,23 @@ Work top to bottom unless the owner says otherwise. For each item: say the plan 
 5. **Translation gaps.** Find text that's still English (strings joined with `+`, new strings) and convert it to `Loc.F` patterns with Spanish and Portuguese.
 6. **Screen-by-screen polish** from the owner's screenshots, keeping the current style.
 
-### 2. Clips: get it to Medal level and beyond
+### 2. UI system: world-class, with our original look
+
+The owner wants Pulse's UI on the same level as the best apps in the world (think Linear, Arc, Raycast, Discord, Steam's new client, Apple's own apps), while keeping the original Pulse personality: the dark theme, cyan-to-purple gradient, glow and animations. This is not a plain or minimal redesign. Two earlier attempts went wrong in opposite ways: the first looked sloppy, and the "clean" redesign was rejected as boring. The target is polished and premium *and* exciting.
+
+1. **Design tokens first.** Before touching screens, define everything in `Theme.xaml` as named resources and use only those:
+   - colors: background layers (app, sidebar, card, raised, hover, pressed), text (primary, secondary, faint, on-accent), borders, accent gradient, status colors (good, warning, danger, info)
+   - type scale with fixed roles: display, page title, section title, body, label, caption, number
+   - spacing on a 4 px grid (4, 8, 12, 16, 20, 24, 32, 48), corner radii, shadows and glow levels
+   - motion: 3 durations (fast 120 ms, normal 200 ms, slow 320 ms) and 2 easing curves, used everywhere
+2. **One component library.** Build each control once as a shared style, with all states (normal, hover, pressed, focused, disabled, loading): primary/secondary/ghost/danger buttons, toggle, slider, drop-down, text box, tabs, chips, cards, list rows, stat tiles, progress, toasts, dialogs, tooltips, empty states and skeleton loaders. No page defines its own one-off button or card.
+3. **Where the pop goes.** Use the gradient and glow on purpose, not everywhere: the main action on each page, active sidebar item, key numbers (FPS gains, space freed), progress and success moments. Everything else stays calm so these stand out.
+4. **Feel.** Smooth page transitions, hover lift on cards, satisfying feedback when something finishes (count-up numbers, a check animation), no layout jumps while loading, and nothing that ever looks frozen.
+5. **Apply page by page.** Home, Diagnose, Tweaks, Roblox, Clips, Debloat, Settings: one page per PR, with before/after screenshots for the owner to approve before the next page.
+6. **Quality bar.** Every page checked at 100%, 125% and 150% Windows scaling and a small window, in English, Spanish and Portuguese (longer text must not break layouts), with keyboard focus visible and text contrast readable everywhere.
+7. **Show it first.** Before building, make a mockup of the new Home page in the new system and get the owner's OK on the direction.
+
+### 3. Clips: get it to Medal level and beyond
 
 1. **Per-app audio tracks (requested).** Record game, Discord, Spotify, browser and microphone as separate tracks, using Windows' process-loopback capture (Windows 10 2004+). The trimmer shows a toggle per app, and exports mix the ones left on. Track 1 is always the full mix, for Discord and players.
 2. **Long recording:** a start/stop hotkey for full sessions, with **bookmarks** (a hotkey adds a marker you can jump to).
@@ -79,7 +95,7 @@ Work top to bottom unless the owner says otherwise. For each item: say the plan 
 5. **Overlay:** a small in-game "Clip saved" indicator for borderless games, with sound kept as the fallback.
 6. **Later, if the owner wants (these cost money or need partners):** share links or cloud hosting, and automatic kill clips through game integrations.
 
-### 3. Roblox page additions
+### 4. Roblox page additions
 
 1. **Settings per experience:** read the place ID from the Play link and apply different settings per game (max FPS for competitive games, prettier for showcases).
 2. **Make Roblox use the graphics card:** set Windows' per-app GPU preference (`UserGpuPreferences`) for `RobloxPlayerBeta.exe`, with Undo. This is the biggest win on laptops.
@@ -88,7 +104,7 @@ Work top to bottom unless the owner says otherwise. For each item: say the plan 
 5. **Check flags after every update:** read Roblox's log for "Denied local configuration" and tell the user if a flag stopped working.
 6. **Connection check:** ping, jitter and spikes to Roblox servers while playing, plus Wi-Fi and background-download detection, with a plain answer: "your PC or internet" vs "Roblox's server".
 
-### 4. New features (best on the market)
+### 5. New features (best on the market)
 
 1. **Reaction time trainer** (its own page). Pulse already measures PC latency, so it can show "You: 182 ms · Your PC: 24 ms".
    - Training modes: choice reaction, go/no-go (ignore fakes), anticipation timing, and flick-to-target.
@@ -112,4 +128,4 @@ Work top to bottom unless the owner says otherwise. For each item: say the plan 
 
 ## First message to send in the new session
 
-> Read ROADMAP.md in PulseOptimizer-app/PulseOptimizer and follow it. Start with section 1, item [number], unless I say otherwise. Tell me your plan in a few lines first.
+> Read ROADMAP.md in PulseOptimizer-app/PulseOptimizer and follow it. Start with section [number], item [number], unless I say otherwise. Tell me your plan in a few lines first.
