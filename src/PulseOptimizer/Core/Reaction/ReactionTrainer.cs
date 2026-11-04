@@ -53,13 +53,14 @@ public enum TrialResult { Hit, TooEarly, WrongSide, ClickedNoGo, Missed, Correct
 
 /// <summary>
 /// Runs a session: picks random waits, adapts difficulty, and scores. Kept free of any UI so it can be tested.
-/// Design follows what reaction research supports: random waits (no rhythm to anticipate), warm-up tries that
-/// don't count, the median instead of the average, and honest feedback about normal day-to-day variation.
+/// Design follows what reaction research supports: random waits (no rhythm to anticipate), short sessions,
+/// the median instead of the average, and honest feedback about normal day-to-day variation.
 /// </summary>
 public sealed class ReactionTrainer
 {
-    public const int WarmUp = 3;
-    public const int TrialsPerSession = 20;
+    // Short on purpose: 8 tries give a steady median in about 20 seconds, and people actually finish them.
+    public const int WarmUp = 0;
+    public const int TrialsPerSession = 8;
     /// <summary>Faster than this after the signal is physically impossible: it was a guess.</summary>
     public const double AnticipationMs = 100;
 
@@ -139,6 +140,18 @@ public sealed class ReactionTrainer
         Mistakes = Mistakes,
         Level = Level,
     };
+
+    /// <summary>
+    /// About how much of a measured time is the PC, not you: the screen (on average half a refresh until the next one,
+    /// plus one refresh for Windows to compose it), the mouse (half its polling interval) and Windows' input handling.
+    /// </summary>
+    public static (double Screen, double Mouse, double Windows, double Total) SystemDelay(int refreshHz, int mouseHz = 1000)
+    {
+        double screen = 1000.0 / Math.Max(refreshHz, 30) * 1.5;
+        double mouse = 1000.0 / Math.Max(mouseHz, 125) / 2;
+        const double windows = 2;
+        return (screen, mouse, windows, screen + mouse + windows);
+    }
 
     public static double Median(IReadOnlyCollection<double> xs) => Quantile(xs, 0.5);
 

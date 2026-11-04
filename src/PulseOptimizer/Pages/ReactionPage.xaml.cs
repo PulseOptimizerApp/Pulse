@@ -45,6 +45,7 @@ public partial class ReactionPage : UserControl, IPage
         InitializeComponent();
         _timer.Tick += Timer_Tick;
         PreviewKeyDown += Page_KeyDown;
+        _ = Task.Run(() => { var hz = ScreenHz(); Dispatcher.Invoke(() => _hz = hz); });
         Unloaded += (_, _) => { _timer.Stop(); Reset(); };
         foreach (var (mode, label, _) in Modes)
         {
@@ -67,7 +68,7 @@ public partial class ReactionPage : UserControl, IPage
         ModeText.Text = Loc.T(Modes.First(m => m.Mode == _mode).Text);
         ClearField();
         BigText.Text = Loc.T("Click to start");
-        SmallText.Text = Loc.F("{0} warm-up tries, then {1} that count.", ReactionTrainer.WarmUp, ReactionTrainer.TrialsPerSession);
+        SmallText.Text = Loc.F("{0} tries, about 20 seconds.", ReactionTrainer.TrialsPerSession);
         ProgressText.Text = "";
         Sides.Visibility = _mode == ReactionMode.Choice ? Visibility.Visible : Visibility.Collapsed;
         ShowHistory();
@@ -207,7 +208,7 @@ public partial class ReactionPage : UserControl, IPage
         BigText.Foreground = Brushes.White;
         (BigText.Text, SmallText.Text) = r switch
         {
-            TrialResult.Hit => (Loc.F("{0} ms", Math.Round(ms)), _trainer.InWarmUp || _trainer.Done <= ReactionTrainer.WarmUp ? Loc.T("Warm-up") : ""),
+            TrialResult.Hit => (Loc.F("{0} ms", Math.Round(ms)), ""),
             TrialResult.TooEarly => (Loc.T("Too early"), Loc.T("Wait for the signal: guessing doesn't train anything.")),
             TrialResult.WrongSide => (Loc.T("Wrong side"), ""),
             TrialResult.ClickedNoGo => (Loc.T("That was red"), Loc.T("Hold still on red.")),
@@ -215,7 +216,7 @@ public partial class ReactionPage : UserControl, IPage
             _ => (Loc.T("Missed"), ""),
         };
         if (r is TrialResult.TooEarly or TrialResult.WrongSide or TrialResult.ClickedNoGo or TrialResult.Missed) BigText.Foreground = NoGo;
-        Arm(r == TrialResult.Hit ? 750 : 1100);
+        Arm(r == TrialResult.Hit ? 600 : 1000);
     }
 
     void Finish()
@@ -235,15 +236,38 @@ public partial class ReactionPage : UserControl, IPage
         ProgressText.Text = "";
 
         ResultCard.Visibility = Visibility.Visible;
-        MedianText.Text = s.Trials > 0 ? Loc.F("{0} ms", Math.Round(s.MedianMs)) : "–";
-        BestText.Text = s.Trials > 0 ? Loc.F("{0} ms", Math.Round(s.BestMs)) : "–";
+        // Split the measured time into you and the PC (screen, mouse, Windows).
+        int hz = _hz;
+        var d = ReactionTrainer.SystemDelay(hz);
+        double you = Math.Max(0, s.MedianMs - d.Total);
+        MedianText.Text = s.Trials > 0 ? Loc.F("{0} ms", Math.Round(you)) : "–";
+        BestText.Text = s.Trials > 0 ? Loc.F("{0} ms", Math.Round(Math.Max(0, s.BestMs - d.Total))) : "–";
+        YouCol.Width = new GridLength(Math.Max(you, 1), GridUnitType.Star);
+        PcCol.Width = new GridLength(Math.Max(d.Total, 1), GridUnitType.Star);
+        SplitText.Text = s.Trials > 0
+            ? Loc.F("Measured {0} ms: about {1} ms was you, and about {2} ms was your PC, mouse and screen.", Math.Round(s.MedianMs), Math.Round(you), Math.Round(d.Total))
+            : "";
+        SplitDetail.Text = Loc.F("Screen {0} ms ({1} Hz) · mouse {2} ms · Windows {3} ms", Math.Round(d.Screen, 1), hz, Math.Round(d.Mouse, 1), Math.Round(d.Windows)) +
+            (hz < 120 ? " · " + Loc.T("A 144 Hz screen would cut the screen part by more than half.") : "");
         SpreadText.Text = s.Trials > 1 ? Loc.F("±{0} ms", Math.Round(s.SpreadMs / 2)) : "–";
         MistakeText.Text = s.Mistakes.ToString(CultureInfo.CurrentCulture);
         LevelBox.Visibility = _mode is ReactionMode.GoNoGo or ReactionMode.Flick ? Visibility.Visible : Visibility.Collapsed;
         LevelText.Text = s.Level.ToString(CultureInfo.CurrentCulture);
         CompareText.Text = s.Trials > 0 ? Loc.T(ReactionTrainer.Compare(s, S.History)) : Loc.T("No tries counted. Wait for the signal before clicking.");
-        _ = CountUp(s.MedianMs);
+        _ = CountUp(you);
         ShowHistory();
+    }
+
+    int _hz = 60; // read once in the background (reading monitors can take a second)
+
+    static int ScreenHz()
+    {
+        try
+        {
+            var m = Displays.Enumerate().FirstOrDefault(x => x.IsPrimary) ?? Displays.Enumerate().FirstOrDefault();
+            return m?.Current.Hz > 1 ? m.Current.Hz : 60;
+        }
+        catch { return 60; }
     }
 
     async Task CountUp(double target)

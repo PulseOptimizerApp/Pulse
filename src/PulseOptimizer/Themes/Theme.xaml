@@ -101,6 +101,16 @@
         <Setter Property="TextWrapping" Value="Wrap"/>
         <Setter Property="LineHeight" Value="19"/>
     </Style>
+
+    <!-- A settings row (label on the left, control on the right), shared by every page -->
+    <Style x:Key="Row" TargetType="Grid">
+        <Setter Property="Margin" Value="0,0,0,14"/>
+    </Style>
+    <Style x:Key="RowLabel" TargetType="TextBlock" BasedOn="{StaticResource Body}">
+        <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="Margin" Value="0,0,16,0"/>
+    </Style>
     <Style x:Key="Mono" TargetType="TextBlock">
         <Setter Property="FontFamily" Value="{StaticResource MonoFont}"/>
         <Setter Property="FontSize" Value="12"/>

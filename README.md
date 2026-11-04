@@ -21,7 +21,7 @@ Pulse is an open-source, evidence-based Windows optimizer. It finds what's actua
 
 ## What it never does
 - Never changes a setting without saving the exact previous value first.
-- Never uploads anything, and never downloads anything unless you turn on Clips (below).
+- Never uploads anything. It only downloads from its own GitHub releases: FFmpeg when you turn on Clips (below), and new versions of Pulse when you press Install on the update card. The lag checks only send pings.
 - Never reads, writes or injects into games or other processes.
 - Never turns off your antivirus or adds exclusions.
 - Never applies tweaks that Microsoft documents as unused, or undocumented ones as speed boosts.

@@ -70,3 +70,16 @@ public class ReactionTests
         Assert.Contains("Slower", ReactionTrainer.Compare(new ReactionSession { Mode = ReactionMode.Simple, MedianMs = 240, Trials = 20 }, history));
     }
 }
+
+public class ReactionDelayTests
+{
+    [Fact]
+    public void Faster_screens_add_less_delay()
+    {
+        var at60 = ReactionTrainer.SystemDelay(60);
+        var at144 = ReactionTrainer.SystemDelay(144);
+        Assert.InRange(at60.Total, 25, 30);
+        Assert.InRange(at144.Total, 12, 14);
+        Assert.True(ReactionTrainer.SystemDelay(144, 125).Mouse > at144.Mouse);
+    }
+}

@@ -14,7 +14,18 @@ public class ClipFile
     public string Thumbnail { get; set; }
     public bool Favorite { get; set; }
     /// <summary>The game part of the name ("VALORANT 2026-11-04 01-30-22" → "VALORANT").</summary>
-    public string Game => Regex.Replace(Name, @"\s\d{4}-\d{2}-\d{2} \d{2}-\d{2}-\d{2}( \(\d+\))?$", "").Trim();
+    public string Game => GameOf(Name);
+
+    /// <summary>
+    /// "NBA 2K26 2026-11-04 02-38-47 (trimmed)" → "NBA 2K26": drops the date, and the "(trimmed)" or "(Discord)" a
+    /// copy gets, so copies are grouped with their game.
+    /// </summary>
+    internal static string GameOf(string name)
+    {
+        var n = Regex.Replace(name, @"(\s\((trimmed|Discord)\)(\s\d+)?)+$", "", RegexOptions.IgnoreCase);
+        n = Regex.Replace(n, @"\s(session\s)?\d{4}-\d{2}-\d{2} \d{2}-\d{2}-\d{2}( \(\d+\))?$", "").Trim();
+        return Regex.Replace(n, @"\s+session$", "", RegexOptions.IgnoreCase).Trim();
+    }
 }
 
 /// <summary>Pictures of the input overlay prepared for one export (deleted afterwards).</summary>

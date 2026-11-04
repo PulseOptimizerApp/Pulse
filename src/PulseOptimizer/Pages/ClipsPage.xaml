@@ -28,14 +28,6 @@
                 </Setter.Value>
             </Setter>
         </Style>
-        <Style x:Key="Row" TargetType="Grid">
-            <Setter Property="Margin" Value="0,0,0,14"/>
-        </Style>
-        <Style x:Key="RowLabel" TargetType="TextBlock" BasedOn="{StaticResource Body}">
-            <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
-            <Setter Property="VerticalAlignment" Value="Center"/>
-            <Setter Property="Margin" Value="0,0,16,0"/>
-        </Style>
     </UserControl.Resources>
     <Grid>
         <ScrollViewer x:Name="Scroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
@@ -154,6 +146,12 @@
                             </Button>
                             <Button x:Name="CostBtn" Style="{StaticResource GhostButton}" Margin="0,10,0,0" HorizontalAlignment="Stretch" Content="Test what Clips costs" Click="Cost_Click"
                                     ToolTip="Measures your game's FPS with Clips off and on (about 2 minutes, keep playing)"/>
+                            <Button x:Name="SettingsBtn" Style="{StaticResource GhostButton}" Margin="0,10,0,0" HorizontalAlignment="Stretch" Click="Settings_Click">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#xE713;" Style="{StaticResource IconText}" FontSize="13"/>
+                                    <TextBlock Text="Settings" Margin="8,0,0,0"/>
+                                </StackPanel>
+                            </Button>
                             <Button Style="{StaticResource LinkButton}" Content="Turn Clips off" HorizontalAlignment="Right" Margin="0,12,0,0" Click="Disable_Click"/>
                         </StackPanel>
                     </Grid>
@@ -162,6 +160,12 @@
                 <!-- ═════════ Settings ═════════ -->
                 <Border x:Name="SettingsCard" Style="{StaticResource Card}" Margin="0,16,0,0" Padding="24,20" Visibility="Collapsed">
                     <StackPanel>
+                        <Button Style="{StaticResource LinkButton}" HorizontalAlignment="Left" Margin="0,0,0,12" Click="Settings_Click">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="&#xE72B;" Style="{StaticResource IconText}" FontSize="12"/>
+                                <TextBlock Text="Back to your clips" Margin="8,0,0,0"/>
+                            </StackPanel>
+                        </Button>
                         <Grid Margin="0,0,0,16">
                             <TextBlock Style="{StaticResource H2}" Text="Settings"/>
                             <ToggleButton x:Name="MoreToggle" Style="{StaticResource LinkToggle}" Content="More settings" HorizontalAlignment="Right" Click="More_Click"/>
@@ -363,6 +367,7 @@
                     </StackPanel>
                 </Border>
 
+                <StackPanel x:Name="LibraryPanel">
                 <!-- ═════════ Library ═════════ -->
                 <Grid x:Name="LibraryHeader" Margin="0,28,0,12" Visibility="Collapsed">
                     <StackPanel Orientation="Horizontal">
@@ -395,6 +400,21 @@
                                     <Grid Height="140" Background="#0B0C10">
                                         <Image Source="{Binding Image}" Stretch="UniformToFill"/>
                                         <TextBlock Text="&#xE768;" Style="{StaticResource IconText}" FontSize="28" Foreground="#CCFFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        <!-- Delete straight from the library, like Medal -->
+                                        <Button HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="8" Width="32" Height="32" Cursor="Hand" Tag="{Binding}"
+                                                Click="CardDelete_Click" ToolTip="Delete this clip" FocusVisualStyle="{x:Null}" Visibility="{Binding DeleteVisibility}">
+                                            <Button.Template>
+                                                <ControlTemplate TargetType="Button">
+                                                    <Border x:Name="Bd" CornerRadius="9" Background="#B30B0C10" BorderBrush="#33FFFFFF" BorderThickness="1">
+                                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                    </Border>
+                                                    <ControlTemplate.Triggers>
+                                                        <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Bd" Property="Background" Value="#E6F87171"/></Trigger>
+                                                    </ControlTemplate.Triggers>
+                                                </ControlTemplate>
+                                            </Button.Template>
+                                            <TextBlock Text="&#xE74D;" Style="{StaticResource IconText}" FontSize="13" Foreground="White"/>
+                                        </Button>
                                         <Border HorizontalAlignment="Right" VerticalAlignment="Top" Margin="8" Width="22" Height="22" CornerRadius="11" BorderThickness="2" BorderBrush="White"
                                                 Background="{Binding CheckBrush}" Visibility="{Binding SelectVisibility}">
                                             <TextBlock Text="&#xE73E;" Style="{StaticResource IconText}" FontSize="11" Foreground="#0B0C10" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="{Binding CheckVisibility}"/>
@@ -413,6 +433,7 @@
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
+                </StackPanel>
                 <TextBlock Style="{StaticResource Body}" FontSize="12" Foreground="{StaticResource TextFaintBrush}" Margin="0,20,0,0" MaxWidth="760" HorizontalAlignment="Left" TextWrapping="Wrap"
                            Text="Clips records with FFmpeg (ffmpeg.org, GPL), downloaded on demand and run as a separate program. Recording uses Windows' own screen capture, so it never touches a game and anti-cheat has nothing to flag."/>
             </StackPanel>
@@ -436,12 +457,27 @@
                             <Viewbox x:Name="InputBox" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="14" Visibility="Collapsed" IsHitTestVisible="False">
                                 <ui:InputOverlayView x:Name="InputView"/>
                             </Viewbox>
+                            <!-- Full screen, in the video's corner like every video player -->
+                            <Button x:Name="FullBtn" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="12" Width="38" Height="38" Cursor="Hand"
+                                    Click="Full_Click" ToolTip="Full screen (F)" FocusVisualStyle="{x:Null}">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border x:Name="Bd" CornerRadius="10" Background="#990B0C10" BorderBrush="#40FFFFFF" BorderThickness="1">
+                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Bd" Property="Background" Value="#CC22D3EE"/></Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Button.Template>
+                                <TextBlock x:Name="FullGlyph" Text="&#xE740;" Style="{StaticResource IconText}" FontSize="14" Foreground="White"/>
+                            </Button>
                         </Grid>
                     </Border>
                     <!-- Timeline: drag the gradient handles to trim, drag anywhere else to scrub -->
                     <ui:ClipTimeline x:Name="Timeline" Grid.Row="2" Margin="0,14,0,0"/>
                     <Grid x:Name="PlayerControls" Grid.Row="3" Margin="0,12,0,0">
-                        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                         <Button x:Name="PlayBtn" Style="{StaticResource GhostButton}" Width="44" Padding="0,8" Click="PlayPause_Click" ToolTip="Play or pause (Space)">
                             <TextBlock x:Name="PlayGlyph" Text="&#xE769;" Style="{StaticResource IconText}" FontSize="13"/>
                         </Button>
@@ -451,26 +487,35 @@
                         </StackPanel>
                         <!-- Sound to keep in the exported copy -->
                         <StackPanel x:Name="AudioPanel" Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
-                            <TextBlock Text="&#xE767;" Style="{StaticResource IconText}" FontSize="14" Foreground="{StaticResource TextDimBrush}" Margin="0,0,10,0"/>
-                            <WrapPanel x:Name="TrackToggles" ToolTip="Sound to keep in the saved and Discord copies"/>
+                            <Button x:Name="MuteBtn" Style="{StaticResource GhostButton}" Width="40" Padding="0,8" Margin="0,0,8,0" Click="Mute_Click" ToolTip="Sound on or off">
+                                <TextBlock x:Name="MuteGlyph" Text="&#xE767;" Style="{StaticResource IconText}" FontSize="14"/>
+                            </Button>
+                            <WrapPanel x:Name="TrackToggles" VerticalAlignment="Center" ToolTip="Turn a sound off to leave it out of what you hear and of saved and Discord copies"/>
                         </StackPanel>
                         <StackPanel x:Name="InputPanel" Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,16,0" Visibility="Collapsed"
                                     ToolTip="Show the keys and buttons you pressed. Saved and Discord copies include it too.">
                             <TextBlock Text="&#xE765;" Style="{StaticResource IconText}" FontSize="14" Foreground="{StaticResource TextDimBrush}" Margin="0,0,10,0" VerticalAlignment="Center"/>
                             <WrapPanel x:Name="InputChips"/>
                         </StackPanel>
-                        <Button x:Name="FullBtn" Grid.Column="4" Style="{StaticResource GhostButton}" Width="44" Padding="0,8" Margin="12,0,0,0" Click="Full_Click" ToolTip="Full screen (F)">
-                            <TextBlock x:Name="FullGlyph" Text="&#xE740;" Style="{StaticResource IconText}" FontSize="13"/>
-                        </Button>
                     </Grid>
                     <Grid Grid.Row="4" Margin="0,16,0,0">
-                        <StackPanel Orientation="Horizontal">
-                            <Button x:Name="FavBtn" Style="{StaticResource GhostButton}" Click="Fav_Click" Margin="0,0,8,0"/>
-                            <Button Style="{StaticResource GhostButton}" Content="Rename" Click="Rename_Click" Margin="0,0,8,0"/>
-                            <Button Style="{StaticResource GhostButton}" Content="Show in folder" Click="Reveal_Click" Margin="0,0,8,0"/>
-                            <Button Style="{StaticResource GhostButton}" Content="Delete" Click="Delete_Click" ToolTip="Delete (Del)"/>
-                            <TextBlock Style="{StaticResource Body}" FontSize="12" Foreground="{StaticResource TextFaintBrush}" VerticalAlignment="Center" Margin="16,0,0,0"
-                                       Text="Space play · ← → step · Shift ← → 1 s · I / O set start and end · F full screen"/>
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <Button x:Name="FavBtn" Style="{StaticResource GhostButton}" Width="42" Padding="0,9" Margin="0,0,6,0" Click="Fav_Click" ToolTip="Favorite (kept when the storage limit is reached)">
+                                <TextBlock x:Name="FavBtnGlyph" Text="&#xE734;" Style="{StaticResource IconText}" FontSize="14"/>
+                            </Button>
+                            <Button Style="{StaticResource GhostButton}" Width="42" Padding="0,9" Margin="0,0,6,0" Click="Rename_Click" ToolTip="Rename">
+                                <TextBlock Text="&#xE8AC;" Style="{StaticResource IconText}" FontSize="14"/>
+                            </Button>
+                            <Button Style="{StaticResource GhostButton}" Width="42" Padding="0,9" Margin="0,0,6,0" Click="Reveal_Click" ToolTip="Show in folder">
+                                <TextBlock Text="&#xE838;" Style="{StaticResource IconText}" FontSize="14"/>
+                            </Button>
+                            <Button Style="{StaticResource GhostButton}" Width="42" Padding="0,9" Margin="0,0,6,0" Click="Delete_Click" ToolTip="Delete (Del)">
+                                <TextBlock Text="&#xE74D;" Style="{StaticResource IconText}" FontSize="14"/>
+                            </Button>
+                            <Border Width="28" Height="28" CornerRadius="14" Margin="6,0,0,0" Background="#14FFFFFF" VerticalAlignment="Center" Cursor="Help"
+                                    ToolTip="Space play · ← → one frame · Shift ← → one second · I / O set start and end · F full screen · Del delete">
+                                <TextBlock Text="?" FontWeight="SemiBold" Foreground="{StaticResource TextDimBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
                         </StackPanel>
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                             <Button Style="{StaticResource GhostButton}" Content="Save trimmed copy" Click="Trim_Click" Margin="0,0,8,0"/>

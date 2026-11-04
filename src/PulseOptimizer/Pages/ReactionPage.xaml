@@ -47,7 +47,7 @@
                     <Grid>
                         <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                         <StackPanel>
-                            <TextBlock Text="Your reaction" FontSize="12" Foreground="{StaticResource TextDimBrush}"/>
+                            <TextBlock Text="You" FontSize="12" Foreground="{StaticResource TextDimBrush}"/>
                             <TextBlock x:Name="MedianText" FontSize="44" FontWeight="Bold" Foreground="{StaticResource AccentGradient}"/>
                         </StackPanel>
                         <WrapPanel Grid.Column="1" Margin="32,6,0,0" VerticalAlignment="Center">
@@ -58,6 +58,18 @@
                         </WrapPanel>
                         <Button Grid.Column="2" Style="{StaticResource PrimaryButton}" Content="Go again" VerticalAlignment="Center" Click="Again_Click"/>
                     </Grid>
+                    <!-- Where the time went: you vs your PC, mouse and screen -->
+                    <Border Margin="0,14,0,0" Padding="14,10" CornerRadius="10" Background="{StaticResource Surface2Brush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
+                        <StackPanel>
+                            <Grid Height="10" Margin="0,2,0,8">
+                                <Grid.ColumnDefinitions><ColumnDefinition x:Name="YouCol" Width="9*"/><ColumnDefinition x:Name="PcCol" Width="1*"/></Grid.ColumnDefinitions>
+                                <Border CornerRadius="5,0,0,5" Background="{StaticResource AccentGradient}"/>
+                                <Border Grid.Column="1" CornerRadius="0,5,5,0" Background="#5A6072"/>
+                            </Grid>
+                            <TextBlock x:Name="SplitText" FontSize="13" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                            <TextBlock x:Name="SplitDetail" FontSize="12" Foreground="{StaticResource TextDimBrush}" Margin="0,4,0,0" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Border>
                     <TextBlock x:Name="CompareText" Style="{StaticResource Body}" Margin="0,10,0,0"/>
                 </StackPanel>
             </Border>
@@ -72,7 +84,7 @@
             </Border>
 
             <TextBlock Style="{StaticResource Body}" FontSize="12" Foreground="{StaticResource TextFaintBrush}" Margin="0,20,0,0" MaxWidth="760" HorizontalAlignment="Left" TextWrapping="Wrap"
-                       Text="Your time includes your mouse, PC and screen, which usually add 10 to 40 ms. Use the same mouse and screen to compare sessions. Simple reaction time only improves a little with practice; reacting and choosing in games improves a lot, so mix the drills."/>
+                       Text="The delay from your PC, mouse and screen is an estimate from your screen's refresh rate, assuming a 1000 Hz gaming mouse. Your progress graph uses the full measured time, so compare sessions on the same setup. Simple reaction time only improves a little with practice; reacting and choosing in games improves a lot, so mix the drills."/>
         </StackPanel>
     </ScrollViewer>
 </UserControl>

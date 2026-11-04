@@ -24,6 +24,10 @@ public class AppSettings
     public bool AutoRestorePoint { get; set; } = true;
     /// <summary>"auto" follows Windows; otherwise a language code from Loc.Languages.</summary>
     public string Language { get; set; } = "auto";
+    /// <summary>Look for a newer Pulse on its GitHub releases page (nothing is installed until the user says so).</summary>
+    public bool CheckForUpdates { get; set; } = true;
+    /// <summary>A version the user chose to skip.</summary>
+    public string SkippedVersion { get; set; } = "";
 }
 
 public class AppState

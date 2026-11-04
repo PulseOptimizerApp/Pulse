@@ -7,6 +7,7 @@ using System.Windows.Media.Animation;
 using Pulse.Core;
 using Pulse.Core.Measurement;
 using Pulse.Pages;
+using Pulse.Ui;
 
 namespace Pulse;
 
@@ -33,6 +34,9 @@ public partial class MainWindow : Window
         Instance = this;
         LangLabel.Text = Ui.Loc.Current == "pt-BR" ? "PT" : Ui.Loc.Current.ToUpperInvariant();
         Loaded += OnLoaded;
+        StartUpdateChecks();
+        VersionText.Text = Updater.CurrentVersion == "0.0.0" ? "dev" : Updater.CurrentVersion;
+        ClipsService.Changed += () => Dispatcher.InvokeAsync(ShowClipsPill);
         SourceInitialized += (_, _) => Native.StyleWindow(new WindowInteropHelper(this).Handle);
         StateChanged += (_, _) =>
         {
@@ -422,5 +426,74 @@ public partial class MainWindow : Window
     {
         _quitting = true;
         Close();
+    }
+
+    void ShowClipsPill()
+    {
+        bool rec = ClipsService.State == ClipsState.Recording;
+        ClipsPill.Visibility = rec ? Visibility.Visible : Visibility.Collapsed;
+        ClipsPillGame.Text = ClipsService.Game ?? Loc.T("Your screen");
+    }
+
+    void ClipsPill_Click(object sender, System.Windows.Input.MouseButtonEventArgs e) => Navigate("clips");
+
+    // ───────── New version ─────────
+
+    string _newVersion;
+    CancellationTokenSource _updateCancel;
+
+    /// <summary>Checks for a newer Pulse shortly after start and twice a day; shows a card if there is one.</summary>
+    void StartUpdateChecks()
+    {
+        async Task Check()
+        {
+            var st = TweakEngine.State.Settings;
+            if (!st.CheckForUpdates || UpdateBar.Visibility == Visibility.Visible) return;
+            var latest = await Updater.LatestVersion();
+            if (latest == null || !Updater.IsNewer(latest, Updater.CurrentVersion) || latest == st.SkippedVersion) return;
+            _newVersion = latest;
+            UpdateTitle.Text = Loc.F("Pulse {0} is out", latest);
+            UpdateText.Text = Loc.F("You have {0}. Your settings and clips stay as they are, and Pulse restarts by itself.", Updater.CurrentVersion);
+            UpdateBar.Visibility = Visibility.Visible;
+        }
+        var t = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromHours(12) };
+        t.Tick += async (_, _) => await Check();
+        t.Start();
+        _ = Task.Delay(8000).ContinueWith(_ => Dispatcher.InvokeAsync(Check));
+    }
+
+    async void Update_Click(object sender, RoutedEventArgs e)
+    {
+        if (_newVersion == null) return;
+        if (_updateCancel != null) { _updateCancel.Cancel(); return; } // the button cancels while downloading
+        _updateCancel = new CancellationTokenSource();
+        UpdateBtn.Content = Loc.T("Cancel");
+        UpdateLaterBtn.IsEnabled = UpdateSkipBtn.IsEnabled = false;
+        UpdateProgress.Visibility = Visibility.Visible;
+        UpdateText.Text = Loc.T("Downloading the update…");
+        var progress = new Progress<double>(f => UpdateFill.Width = ((FrameworkElement)UpdateFill.Parent).ActualWidth * f);
+        var error = await Updater.Install(_newVersion, progress, _updateCancel.Token);
+        _updateCancel = null;
+        if (error == null)
+        {
+            UpdateText.Text = Loc.T("Restarting into the new version…");
+            PrepareForExit();
+            QuitApp();
+            Application.Current.Shutdown();
+            return;
+        }
+        UpdateText.Text = Loc.T(error);
+        UpdateBtn.Content = Loc.T("Try again");
+        UpdateLaterBtn.IsEnabled = UpdateSkipBtn.IsEnabled = true;
+        UpdateProgress.Visibility = Visibility.Collapsed;
+    }
+
+    void UpdateLater_Click(object sender, RoutedEventArgs e) => UpdateBar.Visibility = Visibility.Collapsed;
+
+    void UpdateSkip_Click(object sender, RoutedEventArgs e)
+    {
+        TweakEngine.State.Settings.SkippedVersion = _newVersion ?? "";
+        TweakEngine.Save();
+        UpdateBar.Visibility = Visibility.Collapsed;
     }
 }

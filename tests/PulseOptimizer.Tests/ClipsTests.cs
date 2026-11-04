@@ -244,6 +244,16 @@ public class ClipsTests
         Assert.Equal("-an", ClipLibrary.AudioArgs(new int[0]));
     }
 
+    [Theory]
+    [InlineData("NBA 2K26 2026-11-04 02-38-47", "NBA 2K26")]
+    [InlineData("NBA 2K26 2026-11-04 02-38-47 (trimmed)", "NBA 2K26")]
+    [InlineData("NBA 2K26 2026-11-04 02-38-47 (2) (Discord)", "NBA 2K26")]
+    [InlineData("NBA 2K26 2026-11-04 02-38-47 (trimmed) 2", "NBA 2K26")]
+    [InlineData("VALORANT session 2026-11-04 01-30-22", "VALORANT")]
+    [InlineData("ace clutch", "ace clutch")]
+    public void Copies_and_sessions_group_with_their_game(string name, string game) =>
+        Assert.Equal(game, ClipFile.GameOf(name));
+
     static readonly Encoder Qsv = new("h264_qsv", "h264", "Intel", true);
 
     [Fact]

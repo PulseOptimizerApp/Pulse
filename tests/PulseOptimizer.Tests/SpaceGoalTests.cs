@@ -46,3 +46,23 @@ public class SpaceGoalTests
         Assert.Equal(0, done + failed);
     }
 }
+
+public class UpdaterTests
+{
+    [Theory]
+    [InlineData("https://github.com/PulseOptimizer-app/PulseOptimizer/releases/tag/v0.3.1", "0.3.1")]
+    [InlineData("https://github.com/PulseOptimizer-app/PulseOptimizer/releases/tag/0.4.0", "0.4.0")]
+    [InlineData("https://github.com/PulseOptimizer-app/PulseOptimizer/releases", null)]
+    public void Version_comes_from_the_latest_release_redirect(string url, string expected) =>
+        Assert.Equal(expected, Pulse.Core.Updater.TagFromUrl(url));
+
+    [Fact]
+    public void Only_newer_versions_are_offered_and_dev_builds_never_update()
+    {
+        Assert.True(Pulse.Core.Updater.IsNewer("0.3.1", "0.3.0"));
+        Assert.True(Pulse.Core.Updater.IsNewer("0.10.0", "0.9.9"));
+        Assert.False(Pulse.Core.Updater.IsNewer("0.3.0", "0.3.0"));
+        Assert.False(Pulse.Core.Updater.IsNewer("0.2.9", "0.3.0"));
+        Assert.False(Pulse.Core.Updater.IsNewer("9.9.9", "0.0.0"));
+    }
+}

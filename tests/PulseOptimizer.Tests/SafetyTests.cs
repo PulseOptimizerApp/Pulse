@@ -28,9 +28,9 @@ public class SafetyTests
     [Fact]
     public void Has_no_network_code() =>
         AssertNotUsed(@"\b(HttpClient|WebClient|WebRequest|TcpClient|UdpClient|Socket|ClientWebSocket)\b",
-            "Pulse never sends or downloads anything itself (links open in the user's browser). The one exception is the " +
-            "opt-in Clips download of FFmpeg, which lives in Ffmpeg.cs only",
-            "Ffmpeg.cs");
+            "Pulse never sends anything, and only downloads from its own GitHub releases: the opt-in Clips download of " +
+            "FFmpeg (Ffmpeg.cs) and the update check and install (Updater.cs). The lag checks only send pings (NetworkCheck.cs)",
+            "Ffmpeg.cs", "Updater.cs");
 
     [Fact]
     public void The_only_download_is_FFmpeg_from_this_projects_own_releases()
