@@ -83,17 +83,31 @@ The owner wants Pulse's UI on the same level as the best apps in the world (thin
 
 ### 3. Clips: get it to Medal level and beyond
 
-1. **Per-app audio tracks (requested).** Record game, Discord, Spotify, browser and microphone as separate tracks, using Windows' process-loopback capture (Windows 10 2004+). The trimmer shows a toggle per app, and exports mix the ones left on. Track 1 is always the full mix, for Discord and players.
-2. **Long recording:** a start/stop hotkey for full sessions, with **bookmarks** (a hotkey adds a marker you can jump to).
-3. **Voice clipping (opt-in):** a phrase like "Pulse, clip that" saves a clip. It must run fully offline, like Vosk, with its model downloaded only when turned on.
-4. **Library:**
+1. **Best clip quality on the market (requested).** Clips must look better than Medal, NVIDIA ShadowPlay/App and AMD ReLive at the same file size, and match them at the same speed cost.
+   - **Encoder tuning per brand:**
+     - NVIDIA NVENC: `p5`–`p7` presets, `-tune hq`, `-rc vbr` with lookahead, spatial and temporal AQ, B-frames as reference, and full-range colour handled correctly
+     - AMD AMF: `quality` preset, pre-analysis and VBAQ
+     - Intel QSV: `veryslow`/`slower` preset, lookahead and extended bitrate control
+     - libx264 fallback: tuned for games
+   - **Codecs:** HEVC and AV1 (on RTX 40+/RX 7000+/Arc) as options, with H.264 kept as the "plays everywhere" default. Pick the best one the GPU supports automatically.
+   - **Quality presets** with honest labels: *Balanced*, *High*, *Max* (and *Custom*: resolution, FPS up to 240, bitrate/quality value, codec), plus an estimate of the file size per minute and RAM use. Default to a level that looks great without hurting FPS.
+   - **Capture at native resolution and FPS** (including 1440p/4K and 144/240 Hz), with optional downscaling done with a high-quality scaler (Lanczos) on the GPU.
+   - **Colour accuracy:** correct BT.709 tags and range so clips don't look washed out or too dark in Discord, browsers or players. HDR games get proper tone-mapping to SDR, with optional HDR clips.
+   - **Exports keep the quality:** trimming should cut without re-encoding when possible. When re-encoding is needed (the Discord copy, or cutting off a keyframe), use the best settings for the target size, two-pass when time allows.
+   - **Audio:** AAC at 192–320 kb/s (or Opus), 48 kHz, no clipping or drift over long replays.
+   - **Prove it:** compare Pulse vs Medal vs ShadowPlay on the same scene with screenshots and VMAF/SSIM scores at equal bitrate, and measure the FPS cost of each. Show the owner the results before claiming "best quality".
+2. **Full-screen player (requested).** A full-screen button in the clip player (plus double-click on the video and the `F` key, `Esc` to leave). It keeps the timeline, play/pause, volume and trim handles as an overlay that fades out when the mouse stops and comes back when it moves. It should open on the monitor the app is on, without stretching the video.
+3. **Per-app audio tracks (requested).** Record game, Discord, Spotify, browser and microphone as separate tracks, using Windows' process-loopback capture (Windows 10 2004+). The trimmer shows a toggle per app, and exports mix the ones left on. Track 1 is always the full mix, for Discord and players.
+4. **Long recording:** a start/stop hotkey for full sessions, with **bookmarks** (a hotkey adds a marker you can jump to).
+5. **Voice clipping (opt-in):** a phrase like "Pulse, clip that" saves a clip. It must run fully offline, like Vosk, with its model downloaded only when turned on.
+6. **Library:**
    - search and filter by game
    - rename
    - select several clips and delete them together
    - sort by date or size
    - show duration on the cards
-5. **Overlay:** a small in-game "Clip saved" indicator for borderless games, with sound kept as the fallback.
-6. **Later, if the owner wants (these cost money or need partners):** share links or cloud hosting, and automatic kill clips through game integrations.
+7. **Overlay:** a small in-game "Clip saved" indicator for borderless games, with sound kept as the fallback.
+8. **Later, if the owner wants (these cost money or need partners):** share links or cloud hosting, and automatic kill clips through game integrations.
 
 ### 4. Roblox page additions
 
