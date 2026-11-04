@@ -62,6 +62,10 @@ public partial class HomePage : UserControl, IPage
         DeclutterStat.Text = Loc.F("{0} free on {1}", Format.Bytes(d.AvailableFreeSpace), d.Name.TrimEnd('\\'));
         int n = TweakEngine.State.Applied.Count;
         TweakStat.Text = n == 0 ? Loc.T("None applied yet") : Loc.F("{0} applied, all undoable", n);
+        var c = TweakEngine.State.Clips;
+        ClipStat.Text = c is { Enabled: true }
+            ? Loc.F("{0} saves the last {1} s", ClipsService.HotkeyText(c.HotkeyModifiers, c.HotkeyKey), c.ReplaySeconds)
+            : Loc.T("Save your best moments with a hotkey");
     }
 
     void UpdateLive()

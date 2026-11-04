@@ -1862,5 +1862,10 @@
  "Bottom right": "Embaixo à direita",
  "Your home network is fine, but the internet isn't answering. Restart the router; if that doesn't help, it's your internet provider.": "Sua rede de casa está boa, mas a internet não responde. Reinicie o roteador; se não ajudar, é seu provedor de internet.",
  "Your home network is fine, but your internet connection is unstable (packet loss or spikes). That's your internet provider, not your PC.": "Sua rede de casa está boa, mas sua conexão com a internet está instável (perda de pacotes ou picos). É seu provedor de internet, não seu PC.",
- "Your PC, Wi-Fi and internet look stable. If one game still lags, the problem is likely its server.": "Seu PC, Wi-Fi e internet parecem estáveis. Se um jogo ainda tiver lag, provavelmente é o servidor dele."
+ "Your PC, Wi-Fi and internet look stable. If one game still lags, the problem is likely its server.": "Seu PC, Wi-Fi e internet parecem estáveis. Se um jogo ainda tiver lag, provavelmente é o servidor dele.",
+ "Measure FPS": "Medir FPS",
+ "Optimize a game": "Otimizar um jogo",
+ "Save your best moments with a hotkey": "Salve seus melhores momentos com um atalho",
+ "Train the reactions games use": "Treine os reflexos que os jogos usam",
+ "{0} saves the last {1} s": "{0} salva os últimos {1} s"
 }

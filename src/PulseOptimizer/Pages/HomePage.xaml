@@ -44,27 +44,55 @@
 
     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
         <StackPanel Margin="0,6,0,40">
-            <TextBlock x:Name="Greeting" Style="{StaticResource H1}" Text="Home"/>
-            <TextBlock x:Name="PcLine" Style="{StaticResource Sub}" Margin="0,4,0,0"/>
+            <Grid>
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                <StackPanel>
+                    <TextBlock x:Name="Greeting" Style="{StaticResource H1}" Text="Home"/>
+                    <TextBlock x:Name="PcLine" Style="{StaticResource Sub}" Margin="0,4,0,0"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Bottom">
+                    <Button Style="{StaticResource GhostButton}" Content="Measure FPS" Tag="measure" Click="Tile_Click" Margin="0,0,10,0"/>
+                    <Button Style="{StaticResource PrimaryButton}" Tag="games" Click="Tile_Click">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE945;" Style="{StaticResource IconText}" FontSize="13"/>
+                            <TextBlock Text="Optimize a game" Margin="8,0,0,0"/>
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </Grid>
 
             <!-- Health + live -->
             <Grid Margin="0,22,0,0">
-                <Grid.ColumnDefinitions><ColumnDefinition Width="340"/><ColumnDefinition Width="16"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Grid.ColumnDefinitions><ColumnDefinition Width="1.25*"/><ColumnDefinition Width="16"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
 
-                <Border Style="{StaticResource Card}" Padding="24,20" ui:Anim.Reveal="True">
+                <!-- The hero: health, in the accent gradient so it's the first thing you see -->
+                <Border CornerRadius="16" Padding="24,20" BorderThickness="1" ui:Anim.Reveal="True">
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                            <GradientStop Color="#1F22D3EE" Offset="0"/>
+                            <GradientStop Color="#1F8B5CF6" Offset="1"/>
+                        </LinearGradientBrush>
+                    </Border.Background>
+                    <Border.BorderBrush>
+                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                            <GradientStop Color="#6622D3EE" Offset="0"/>
+                            <GradientStop Color="#668B5CF6" Offset="1"/>
+                        </LinearGradientBrush>
+                    </Border.BorderBrush>
                     <StackPanel>
                         <TextBlock Style="{StaticResource Label}" Text="PC HEALTH"/>
                         <Grid Margin="0,14,0,0">
-                            <Grid.ColumnDefinitions><ColumnDefinition Width="104"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                            <Grid Width="96" Height="96" HorizontalAlignment="Left">
-                                <ui:Ring x:Name="HealthRing" Thickness="8" Brush="{StaticResource AccentGradient}"/>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="140"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <Grid Width="124" Height="124" HorizontalAlignment="Left">
+                                <Grid.Effect><DropShadowEffect Color="#5B8CFF" BlurRadius="28" ShadowDepth="0" Opacity="0.45"/></Grid.Effect>
+                                <ui:Ring x:Name="HealthRing" Thickness="10" Brush="{StaticResource AccentGradient}"/>
                                 <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                                    <TextBlock x:Name="HealthBig" Text="—" FontFamily="{StaticResource DisplayFont}" FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+                                    <TextBlock x:Name="HealthBig" Text="—" FontFamily="{StaticResource DisplayFont}" FontSize="34" FontWeight="Bold" HorizontalAlignment="Center"/>
                                     <TextBlock x:Name="HealthSmall" Text="not checked" FontSize="11" Foreground="{StaticResource TextDimBrush}" HorizontalAlignment="Center"/>
                                 </StackPanel>
                             </Grid>
                             <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="6,0,0,0">
-                                <TextBlock x:Name="HealthTitle" Style="{StaticResource CardTitle}" Text="Run a checkup"/>
+                                <TextBlock x:Name="HealthTitle" Style="{StaticResource H2}" Text="Run a checkup" TextWrapping="Wrap"/>
                                 <TextBlock x:Name="HealthText" Style="{StaticResource Body}" FontSize="13" Margin="0,4,0,0"
                                            Text="About a minute. Pulse looks for real problems like a monitor stuck at 60 Hz or slow RAM."/>
                             </StackPanel>
@@ -130,37 +158,48 @@
             <UniformGrid Columns="4" Margin="0,16,0,0">
                 <Button Style="{StaticResource DashTile}" Margin="0,0,12,0" Tag="cleanup" Click="Tile_Click" ui:Anim.Reveal="True">
                     <StackPanel>
-                        <TextBlock Text="&#xE74D;" Style="{StaticResource IconText}" FontSize="18" Foreground="{StaticResource AccentBrush}" HorizontalAlignment="Left"/>
+                        <Border Width="36" Height="36" CornerRadius="10" Background="#1A22D3EE" HorizontalAlignment="Left">
+                            <TextBlock Text="&#xE74D;" Style="{StaticResource IconText}" FontSize="17" Foreground="#22D3EE" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
                         <TextBlock Text="Debloat" FontWeight="SemiBold" FontSize="14" Margin="0,12,0,0"/>
-                        <TextBlock x:Name="DeclutterStat" FontSize="12" Foreground="{StaticResource TextDimBrush}" Margin="0,3,0,0"/>
+                        <TextBlock x:Name="DeclutterStat" FontSize="12" Foreground="{StaticResource TextDimBrush}" Margin="0,3,0,0" TextTrimming="CharacterEllipsis"/>
                     </StackPanel>
                 </Button>
                 <Button Style="{StaticResource DashTile}" Margin="4,0,8,0" Tag="tweaks" Click="Tile_Click" ui:Anim.Reveal="True">
                     <StackPanel>
-                        <TextBlock Text="&#xE945;" Style="{StaticResource IconText}" FontSize="18" Foreground="{StaticResource AccentBrush}" HorizontalAlignment="Left"/>
+                        <Border Width="36" Height="36" CornerRadius="10" Background="#1F5B8CFF" HorizontalAlignment="Left">
+                            <TextBlock Text="&#xE945;" Style="{StaticResource IconText}" FontSize="17" Foreground="#5B8CFF" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
                         <TextBlock Text="Tweaks" FontWeight="SemiBold" FontSize="14" Margin="0,12,0,0"/>
-                        <TextBlock x:Name="TweakStat" FontSize="12" Foreground="{StaticResource TextDimBrush}" Margin="0,3,0,0"/>
+                        <TextBlock x:Name="TweakStat" FontSize="12" Foreground="{StaticResource TextDimBrush}" Margin="0,3,0,0" TextTrimming="CharacterEllipsis"/>
                     </StackPanel>
                 </Button>
-                <Button Style="{StaticResource DashTile}" Margin="8,0,4,0" Tag="games" Click="Tile_Click" ui:Anim.Reveal="True">
+                <Button Style="{StaticResource DashTile}" Margin="8,0,4,0" Tag="clips" Click="Tile_Click" ui:Anim.Reveal="True">
                     <StackPanel>
-                        <TextBlock Text="&#xE7FC;" Style="{StaticResource IconText}" FontSize="18" Foreground="{StaticResource AccentBrush}" HorizontalAlignment="Left"/>
-                        <TextBlock Text="Games" FontWeight="SemiBold" FontSize="14" Margin="0,12,0,0"/>
-                        <TextBlock x:Name="GameStat" FontSize="12" Foreground="{StaticResource TextDimBrush}" Margin="0,3,0,0" Text="Finding your games…"/>
+                        <Border Width="36" Height="36" CornerRadius="10" Background="#1F8B5CF6" HorizontalAlignment="Left">
+                            <TextBlock Text="&#xE714;" Style="{StaticResource IconText}" FontSize="17" Foreground="#8B5CF6" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <TextBlock Text="Clips" FontWeight="SemiBold" FontSize="14" Margin="0,12,0,0"/>
+                        <TextBlock x:Name="ClipStat" FontSize="12" Foreground="{StaticResource TextDimBrush}" Margin="0,3,0,0" TextTrimming="CharacterEllipsis" Text="Save your best moments with a hotkey"/>
                     </StackPanel>
                 </Button>
-                <Button Style="{StaticResource DashTile}" Margin="12,0,0,0" Tag="security" Click="Tile_Click" ui:Anim.Reveal="True">
+                <Button Style="{StaticResource DashTile}" Margin="12,0,0,0" Tag="reaction" Click="Tile_Click" ui:Anim.Reveal="True">
                     <StackPanel>
-                        <TextBlock Text="&#xEA18;" Style="{StaticResource IconText}" FontSize="18" Foreground="{StaticResource AccentBrush}" HorizontalAlignment="Left"/>
-                        <TextBlock Text="Security" FontWeight="SemiBold" FontSize="14" Margin="0,12,0,0"/>
-                        <TextBlock FontSize="12" Foreground="{StaticResource TextDimBrush}" Margin="0,3,0,0" Text="Malware and startup check"/>
+                        <Border Width="36" Height="36" CornerRadius="10" Background="#1A34D399" HorizontalAlignment="Left">
+                            <TextBlock Text="&#xE916;" Style="{StaticResource IconText}" FontSize="17" Foreground="#34D399" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <TextBlock Text="Reaction trainer" FontWeight="SemiBold" FontSize="14" Margin="0,12,0,0"/>
+                        <TextBlock FontSize="12" Foreground="{StaticResource TextDimBrush}" Margin="0,3,0,0" TextTrimming="CharacterEllipsis" Text="Train the reactions games use"/>
                     </StackPanel>
                 </Button>
             </UniformGrid>
 
             <!-- Games strip -->
             <Grid Margin="0,28,0,14">
-                <TextBlock Style="{StaticResource H2}" Text="Your games"/>
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Style="{StaticResource H2}" Text="Your games"/>
+                    <TextBlock x:Name="GameStat" FontSize="13" Foreground="{StaticResource TextDimBrush}" VerticalAlignment="Bottom" Margin="12,0,0,2" Text="Finding your games…"/>
+                </StackPanel>
                 <Button Style="{StaticResource LinkButton}" Content="See all" HorizontalAlignment="Right" VerticalAlignment="Center" Tag="games" Click="Tile_Click"/>
             </Grid>
             <ItemsControl x:Name="GameStrip">
