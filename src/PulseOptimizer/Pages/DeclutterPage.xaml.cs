@@ -256,45 +256,73 @@ public partial class DeclutterPage : UserControl, IPage
 
         _busy = true;
         FreeBtn.IsEnabled = RescanBtn.IsEnabled = false;
-        long before = SystemInfo.SystemDrive.AvailableFreeSpace;
-        long recycled = 0;
-        MainWindow.Instance.ShowBusy("Freeing up space", "You can keep using your PC while this runs.");
-        try
-        {
-            foreach (var c in cats)
+
+        // One line per job, so people can watch it work instead of wondering if the button did anything.
+        var steps = new List<(ProgressStep Step, Func<ProgressStep, Task> Run)>();
+        long freed = 0, inUse = 0, recycled = 0;
+        string dismNote = "";
+        foreach (var c in cats)
+            steps.Add((new ProgressStep(c.Name), async st =>
             {
-                MainWindow.Instance.SetBusyStatus(c.Name + "…");
-                await Task.Run(() => Cleaner.Clean(c.Category));
-            }
-            if (files.Count > 0)
+                long size = c.Size;
+                long got = await Task.Run(() => Cleaner.Clean(c.Category));
+                freed += got;
+                long left = Math.Max(size - got, 0);
+                inUse += left;
+                if (got == 0 && left > 0) st.Skip(Loc.T("In use by open apps"));
+                else if (left > 0) st.Finish(Loc.F("{0} freed · {1} in use", Format.Bytes(got), Format.Bytes(left)));
+                else st.Finish(Loc.F("{0} freed", Format.Bytes(got)));
+            }));
+        if (files.Count > 0)
+            steps.Add((new ProgressStep("Move files to the Recycle Bin"), async st =>
             {
-                MainWindow.Instance.SetBusyStatus("Moving files to the Recycle Bin…");
                 recycled = await DeclutterEngine.RecycleAsync(files);
-            }
-            if (hib != null)
+                st.Finish(Loc.F("{0} moved", Format.Bytes(recycled)));
+            }));
+        if (hib != null)
+            steps.Add((new ProgressStep("Turn off hibernation"), async st =>
             {
+                // The tweak has its own confirmation; step aside for it, then come back.
                 MainWindow.Instance.HideOverlay();
                 var t = TweakCatalog.All.First(x => x.Id == "hibernate");
-                await TweakRunner.Set(t, true);
-                MainWindow.Instance.ShowBusy("Freeing up space", "You can keep using your PC while this runs.");
-            }
-            string dismNote = "";
-            if (dism != null)
+                bool done = await TweakRunner.Set(t, true);
+                MainWindow.Instance.ShowSteps("Cleaning your PC", "You can keep using your PC while this runs.", steps.Select(x => x.Step).ToList());
+                if (done) { freed += hib.Size; st.Finish(Loc.F("{0} freed", Format.Bytes(hib.Size))); }
+                else st.Skip(Loc.T("Not changed"));
+            }));
+        if (dism != null)
+            steps.Add((new ProgressStep("Clean old Windows update files"), async st =>
             {
-                MainWindow.Instance.SetBusyStatus("Cleaning old Windows update files… this is the slow part.");
+                st.Detail = Loc.T("5 to 20 minutes…");
+                long before = SystemInfo.SystemDrive.AvailableFreeSpace;
                 var (ok, _, msg) = await Task.Run(DeclutterEngine.CleanWindowsUpdateFiles);
-                if (!ok) dismNote = " Windows' update cleanup didn't finish: " + msg;
+                long got = Math.Max(SystemInfo.SystemDrive.AvailableFreeSpace - before, 0);
+                freed += got;
+                if (ok) st.Finish(got > 0 ? Loc.F("{0} freed", Format.Bytes(got)) : Loc.T("Done"));
+                else { st.Skip(Loc.T("Didn't finish")); dismNote = Loc.T("Windows' update cleanup didn't finish:") + " " + msg; }
+            }));
+
+        MainWindow.Instance.ShowSteps("Cleaning your PC", "You can keep using your PC while this runs.", steps.Select(x => x.Step).ToList());
+        try
+        {
+            foreach (var (st, run) in steps)
+            {
+                st.Start();
+                // Keep each line on screen long enough to read, even when deleting takes a split second.
+                await Task.WhenAll(run(st), Task.Delay(450));
             }
-            MainWindow.Instance.HideOverlay();
-            long freed = Math.Max(SystemInfo.SystemDrive.AvailableFreeSpace - before, 0);
             TweakEngine.AddLog("clean", $"Declutter freed {Format.Bytes(freed)}");
-            var binNote = recycled > 0 ? $" {Format.Bytes(recycled)} is in the Recycle Bin; empty it when you're sure to get that space back too." : "";
-            await MainWindow.Instance.Alert($"Freed {Format.Bytes(freed)}", "Done." + binNote + dismNote);
+
+            var notes = new List<string>();
+            if (inUse > 0) notes.Add(Loc.F("{0} was in use by open apps, so Pulse left it alone. It usually clears after you restart your PC.", Format.Bytes(inUse)));
+            if (recycled > 0) notes.Add(Loc.F("{0} is in the Recycle Bin. Empty it when you're sure, to get that space back too.", Format.Bytes(recycled)));
+            if (dismNote.Length > 0) notes.Add(dismNote);
+            string title = freed + recycled > 0 ? Loc.F("Freed {0}", Format.Bytes(freed + recycled)) : Loc.T("Nothing could be removed right now");
+            await MainWindow.Instance.FinishSteps(title, notes.Count > 0 ? string.Join("\n\n", notes) : Loc.T("All done. Your PC is clean."), ok: freed + recycled > 0 || inUse == 0);
         }
         catch (Exception ex)
         {
-            MainWindow.Instance.HideOverlay();
-            await MainWindow.Instance.Alert("Cleanup stopped", ex.Message);
+            await MainWindow.Instance.FinishSteps("Cleanup stopped", ex.Message, ok: false);
         }
         finally
         {

@@ -50,4 +50,50 @@ public class LocalizationTests
     [Fact]
     public void Untranslated_text_stays_in_English() =>
         Assert.Equal("Some text with no translation 123", Loc.T("Some text with no translation 123"));
+
+    // Loc keeps one table for the whole app, so these tests share it one at a time.
+    static readonly object Gate = new();
+
+    static string WithTable(Func<string> body)
+    {
+        lock (Gate)
+        {
+            Loc.UseForTests("es", new Dictionary<string, string>
+            {
+                ["Clean"] = "Limpio",
+                ["Freed {0}"] = "Liberado {0}",
+                ["{0} freed"] = "{0} liberados",
+                ["{0} freed · {1} in use"] = "{0} liberados · {1} en uso",
+                ["Status: {0}"] = "Estado: {0}",
+                ["Files that are in use are skipped."] = "Los archivos en uso se omiten.",
+                ["Free up space?"] = "¿Liberar espacio?",
+                ["Move {0} file{1} to the Recycle Bin"] = "Mover {0} archivo{1} a la Papelera",
+            });
+            try { return body(); }
+            finally { Loc.UseForTests("en", new Dictionary<string, string>()); }
+        }
+    }
+
+    [Theory]
+    [InlineData("Freed 34.8 MB", "Liberado 34.8 MB")]
+    [InlineData("32.6 MB freed", "32.6 MB liberados")]
+    [InlineData("32.6 MB freed · 1.1 MB in use", "32.6 MB liberados · 1.1 MB en uso")]   // the longer entry wins
+    [InlineData("Status: Clean", "Estado: Limpio")]                                       // filled-in words are translated too
+    [InlineData("Move 3 files to the Recycle Bin", "Mover 3 archivos a la Papelera")]
+    [InlineData("Move 1 file to the Recycle Bin", "Mover 1 archivo a la Papelera")]
+    public void Text_built_in_code_is_translated(string english, string expected) =>
+        Assert.Equal(expected, WithTable(() => Loc.T(english)));
+
+    [Fact]
+    public void Joined_sentences_and_lines_are_translated_piece_by_piece() =>
+        Assert.Equal("Liberado 2 GB\n\nLos archivos en uso se omiten.",
+            WithTable(() => Loc.T("Freed 2 GB\n\nFiles that are in use are skipped.")));
+
+    [Fact]
+    public void Leading_and_trailing_spaces_are_kept() =>
+        Assert.Equal("  Limpio ", WithTable(() => Loc.T("  Clean ")));
+
+    [Fact]
+    public void Text_with_no_entry_is_left_alone() =>
+        Assert.Equal("Something else entirely. Freedom", WithTable(() => Loc.T("Something else entirely. Freedom")));
 }

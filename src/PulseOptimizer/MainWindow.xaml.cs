@@ -173,6 +173,7 @@ public partial class MainWindow : Window
         DialogCancel.Visibility = cancel == null ? Visibility.Collapsed : Visibility.Visible;
         DialogButtons.Visibility = Visibility.Visible;
         DialogBusyRow.Visibility = Visibility.Collapsed;
+        HideSteps();
         ShowOverlay();
         _dialog = new TaskCompletionSource<bool>();
         return _dialog.Task;
@@ -188,7 +189,73 @@ public partial class MainWindow : Window
         DialogBusyText.Text = Ui.Loc.T(status);
         DialogButtons.Visibility = Visibility.Collapsed;
         DialogBusyRow.Visibility = Visibility.Visible;
+        HideSteps();
         ShowOverlay();
+    }
+
+    // ───────── Step-by-step progress (e.g. Debloat's cleaning screen) ─────────
+
+    List<Ui.ProgressStep> _steps;
+
+    /// <summary>
+    /// Shows a screen with a big spinning icon, a progress bar and one line per step, so people can see work is
+    /// really happening. Update the steps (Start / Finish / Skip) as you go, then call <see cref="FinishSteps"/>.
+    /// </summary>
+    public void ShowSteps(string title, string text, List<Ui.ProgressStep> steps, string glyph = "\uE74D")
+    {
+        if (_steps != null) foreach (var st in _steps) st.PropertyChanged -= Step_Changed;
+        _steps = steps;
+        foreach (var st in steps) st.PropertyChanged += Step_Changed;
+        DialogTitle.Text = Ui.Loc.T(title);
+        DialogText.Text = Ui.Loc.T(text);
+        DialogText.Visibility = string.IsNullOrEmpty(text) ? Visibility.Collapsed : Visibility.Visible;
+        DialogStepGlyph.Text = glyph;
+        DialogStepGlyph.Foreground = (System.Windows.Media.Brush)FindResource("AccentBrush");
+        DialogStepSpinner.Visibility = Visibility.Visible;
+        DialogStepIcon.Visibility = DialogSteps.Visibility = Visibility.Visible;
+        DialogStepList.ItemsSource = steps;
+        DialogButtons.Visibility = Visibility.Collapsed;
+        DialogBusyRow.Visibility = Visibility.Collapsed;
+        UpdateStepBar();
+        ShowOverlay();
+    }
+
+    void Step_Changed(object sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(Ui.ProgressStep.State)) Dispatcher.Invoke(UpdateStepBar);
+    }
+
+    void UpdateStepBar()
+    {
+        if (_steps == null || _steps.Count == 0) return;
+        double done = _steps.Count(st => st.IsDone || st.IsSkipped) + _steps.Count(st => st.IsActive) * 0.5;
+        double width = Math.Max(DialogSteps.ActualWidth, 420) * done / _steps.Count;
+        DialogStepBar.BeginAnimation(WidthProperty, new DoubleAnimation(width, TimeSpan.FromMilliseconds(350)) { EasingFunction = new QuadraticEase() });
+    }
+
+    /// <summary>Turns the progress screen into the result: a check mark, the outcome and an OK button.</summary>
+    public Task FinishSteps(string title, string text, bool ok = true)
+    {
+        DialogTitle.Text = Ui.Loc.T(title);
+        DialogText.Text = Ui.Loc.T(text);
+        DialogText.Visibility = string.IsNullOrEmpty(text) ? Visibility.Collapsed : Visibility.Visible;
+        DialogStepSpinner.Visibility = Visibility.Collapsed;
+        DialogStepGlyph.Text = ok ? "\uE73E" : "\uE7BA";
+        DialogStepGlyph.Foreground = (System.Windows.Media.Brush)FindResource(ok ? "GoodBrush" : "WarnBrush");
+        DialogStepBar.BeginAnimation(WidthProperty, new DoubleAnimation(Math.Max(DialogSteps.ActualWidth, 420), TimeSpan.FromMilliseconds(300)));
+        DialogOk.Content = Ui.Loc.T("Done");
+        DialogCancel.Visibility = Visibility.Collapsed;
+        DialogButtons.Visibility = Visibility.Visible;
+        _dialog?.TrySetResult(false);
+        _dialog = new TaskCompletionSource<bool>();
+        return _dialog.Task;
+    }
+
+    void HideSteps()
+    {
+        DialogStepIcon.Visibility = DialogSteps.Visibility = Visibility.Collapsed;
+        if (_steps != null) foreach (var st in _steps) st.PropertyChanged -= Step_Changed;
+        _steps = null;
     }
 
     public void SetBusyStatus(string status) => DialogBusyText.Text = Ui.Loc.T(status);

@@ -1,4 +1,7 @@
+using System.ComponentModel;
 using System.Globalization;
+using System.Runtime.CompilerServices;
+using System.Text.RegularExpressions;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
@@ -25,7 +28,7 @@ public static class Loc
     public static void Init(string choice)
     {
         Current = string.IsNullOrEmpty(choice) || choice == "auto" ? FromWindows() : choice;
-        _map = Load(Current);
+        Use(Load(Current));
         if (Current != "en")
             EventManager.RegisterClassHandler(typeof(FrameworkElement), FrameworkElement.LoadedEvent, new RoutedEventHandler((s, _) => Translate(s as FrameworkElement)), true);
     }
@@ -56,17 +59,129 @@ public static class Loc
     }
 
     /// <summary>For tests: use a given translation table.</summary>
-    internal static void UseForTests(string code, Dictionary<string, string> map) { Current = code; _map = map; }
+    internal static void UseForTests(string code, Dictionary<string, string> map) { Current = code; Use(map); }
 
-    /// <summary>The translation of an English text, or the text itself.</summary>
-    public static string T(string english) =>
-        english != null && _map.TryGetValue(english, out var t) && !string.IsNullOrEmpty(t) ? t : english;
+    // Entries with {0}, {1}… also match text built in code, like "Freed 34.8 MB" for "Freed {0}".
+    static List<(Regex Rx, string Translation, int[] Order)> _patterns = new();
+    static readonly Dictionary<string, string> _cache = new(StringComparer.Ordinal);
+
+    static void Use(Dictionary<string, string> map)
+    {
+        _map = map;
+        lock (_cache) _cache.Clear();
+        var list = new List<(Regex, string, int[], int)>();
+        foreach (var (en, tr) in map)
+        {
+            if (string.IsNullOrEmpty(tr) || !Regex.IsMatch(en, @"\{\d\}")) continue;
+            var literal = Regex.Replace(en, @"\{\d\}", "");
+            if (Regex.Matches(literal, @"\p{L}").Count < 3) continue; // too little text to match safely
+            var seen = new List<int>();
+            var rx = "^" + Regex.Replace(Regex.Escape(en).Replace(@"\{", "{"), @"\{(\d)\}", m =>
+            {
+                int n = m.Groups[1].Value[0] - '0';
+                if (seen.Contains(n)) return $@"\k<a{n}>";
+                seen.Add(n);
+                return $"(?<a{n}>.*?)";
+            }) + "$";
+            try { list.Add((new Regex(rx, RegexOptions.Singleline | RegexOptions.CultureInvariant), tr, seen.ToArray(), literal.Length)); }
+            catch (ArgumentException) { }
+        }
+        // Most specific first, so "{0} freed · {1} in use" wins over "{0} freed".
+        _patterns = list.OrderByDescending(x => x.Item4).Select(x => (x.Item1, x.Item2, x.Item3)).ToList();
+    }
+
+    /// <summary>
+    /// The translation of an English text, or the text itself. Besides exact matches it understands text built in
+    /// code: entries with {0} match the same sentence with numbers or names filled in, and text made of several
+    /// sentences or lines is translated piece by piece.
+    /// </summary>
+    public static string T(string english)
+    {
+        if (string.IsNullOrEmpty(english) || _map.Count == 0) return english;
+        lock (_cache) if (_cache.TryGetValue(english, out var hit)) return hit;
+        var result = Lookup(english, true) ?? Pieces(english) ?? english;
+        lock (_cache) { if (_cache.Count > 20000) _cache.Clear(); _cache[english] = result; }
+        return result;
+    }
+
+    static string Lookup(string s, bool patterns)
+    {
+        if (_map.TryGetValue(s, out var t) && !string.IsNullOrEmpty(t)) return t;
+        var trimmed = s.Trim();
+        if (trimmed.Length > 0 && trimmed.Length != s.Length)
+        {
+            var inner = Lookup(trimmed, patterns);
+            if (inner != null) { int i = s.IndexOf(trimmed, StringComparison.Ordinal); return s[..i] + inner + s[(i + trimmed.Length)..]; }
+        }
+        if (!patterns || !Regex.IsMatch(s, @"\p{L}")) return null;
+        foreach (var (rx, tr, order) in _patterns)
+        {
+            var m = rx.Match(s);
+            if (!m.Success) continue;
+            // Values filled in can be words too ("On", "Clean"): translate those that have an exact entry.
+            return Regex.Replace(tr, @"\{(\d)\}", g =>
+            {
+                var v = m.Groups["a" + g.Groups[1].Value];
+                if (!v.Success) return g.Value;
+                return Lookup(v.Value, false) ?? v.Value;
+            });
+        }
+        return null;
+    }
+
+    static readonly Regex Separators = new(@"(\n+|(?<=[.!?:…)])[ ]+|[ ]·[ ]|[ ]—[ ])", RegexOptions.CultureInvariant);
+
+    /// <summary>Text joined from several sentences or lines: translate each piece that has an entry.</summary>
+    static string Pieces(string s)
+    {
+        var parts = Separators.Split(s);
+        if (parts.Length < 3) return null;
+        bool any = false;
+        for (int i = 0; i < parts.Length; i += 2)
+        {
+            if (parts[i].Length == 0) continue;
+            var t = Lookup(parts[i], true);
+            if (t != null) { parts[i] = t; any = true; }
+        }
+        return any ? string.Concat(parts) : null;
+    }
 
     /// <summary>A translated pattern with values filled in, e.g. F("{0} min ago", 5).</summary>
     public static string F(string englishPattern, params object[] args)
     {
         try { return string.Format(T(englishPattern), args); }
         catch (FormatException) { return string.Format(englishPattern, args); }
+    }
+
+    // Text set after a screen appears (scan results, statuses, bound values that change) is translated too.
+    static readonly DependencyPropertyDescriptor TextProp = DependencyPropertyDescriptor.FromProperty(TextBlock.TextProperty, typeof(TextBlock));
+    static readonly ConditionalWeakTable<TextBlock, object> Watched = new();
+    static bool _setting;
+
+    static void Watch(TextBlock tb)
+    {
+        if (Watched.TryGetValue(tb, out _)) return;
+        Watched.Add(tb, null);
+        TextProp.AddValueChanged(tb, TextChanged);
+        tb.Unloaded += Unwatch;
+    }
+
+    static void Unwatch(object sender, RoutedEventArgs e)
+    {
+        if (sender is not TextBlock tb) return;
+        TextProp.RemoveValueChanged(tb, TextChanged);
+        tb.Unloaded -= Unwatch;
+        Watched.Remove(tb);
+    }
+
+    static void TextChanged(object sender, EventArgs e)
+    {
+        if (_setting || sender is not TextBlock tb || tb.Inlines.Count > 1) return;
+        var t = T(tb.Text);
+        if (t == tb.Text) return;
+        _setting = true;
+        try { tb.SetCurrentValue(TextBlock.TextProperty, t); }
+        finally { _setting = false; }
     }
 
     static void Translate(FrameworkElement fe)
@@ -87,6 +202,7 @@ public static class Loc
                 {
                     var t = T(tb.Text);
                     if (t != tb.Text) tb.SetCurrentValue(TextBlock.TextProperty, t);
+                    Watch(tb);
                 }
                 break;
             case TextBox box when box.Tag is string hint:

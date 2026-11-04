@@ -148,8 +148,45 @@
                 <Border.RenderTransform><ScaleTransform x:Name="DialogScale" ScaleX="1" ScaleY="1"/></Border.RenderTransform>
                 <Border.Effect><DropShadowEffect BlurRadius="40" ShadowDepth="8" Opacity="0.5" Color="Black"/></Border.Effect>
                 <StackPanel>
+                    <!-- Big working / done icon for the step-by-step screen -->
+                    <Grid x:Name="DialogStepIcon" Width="64" Height="64" HorizontalAlignment="Left" Margin="0,0,0,16" Visibility="Collapsed">
+                        <Ellipse Fill="{StaticResource InfoSoftBrush}"/>
+                        <ui:Spinner x:Name="DialogStepSpinner" Width="64" Height="64" Thickness="4" Brush="{StaticResource AccentGradient}"/>
+                        <TextBlock x:Name="DialogStepGlyph" Text="&#xE74D;" Style="{StaticResource IconText}" FontSize="24" Foreground="{StaticResource AccentBrush}"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Grid>
                     <TextBlock x:Name="DialogTitle" Style="{StaticResource H2}" TextWrapping="Wrap"/>
                     <TextBlock x:Name="DialogText" Style="{StaticResource Sub}" Margin="0,10,0,0"/>
+                    <!-- Step-by-step progress -->
+                    <StackPanel x:Name="DialogSteps" Margin="0,18,0,0" Visibility="Collapsed">
+                        <Grid>
+                            <Border Style="{StaticResource BarTrack}" Height="6"/>
+                            <Border x:Name="DialogStepBar" Style="{StaticResource BarFill}" Height="6" HorizontalAlignment="Left" Width="0"/>
+                        </Grid>
+                        <ItemsControl x:Name="DialogStepList" Margin="0,12,0,0">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid Margin="0,5">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="28"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                        <Grid Width="18" Height="18" HorizontalAlignment="Left" VerticalAlignment="Center">
+                                            <Ellipse Stroke="{StaticResource TextFaintBrush}" StrokeThickness="1.5" Visibility="{Binding IsWaiting, Converter={StaticResource BoolToVis}}"/>
+                                            <ui:Spinner Width="18" Height="18" Thickness="2" Brush="{StaticResource AccentGradient}" Visibility="{Binding IsActive, Converter={StaticResource BoolToVis}}"/>
+                                            <Grid Visibility="{Binding IsDone, Converter={StaticResource BoolToVis}}">
+                                                <Ellipse Fill="{StaticResource GoodSoftBrush}"/>
+                                                <TextBlock Text="&#xE73E;" Style="{StaticResource IconText}" FontSize="10" Foreground="{StaticResource GoodBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Grid>
+                                            <Grid Visibility="{Binding IsSkipped, Converter={StaticResource BoolToVis}}">
+                                                <Ellipse Fill="{StaticResource WarnSoftBrush}"/>
+                                                <TextBlock Text="&#xE738;" Style="{StaticResource IconText}" FontSize="10" Foreground="{StaticResource WarnBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Grid>
+                                        </Grid>
+                                        <TextBlock Grid.Column="1" Text="{Binding Name}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock Grid.Column="2" Text="{Binding Detail}" FontSize="12" Foreground="{StaticResource TextDimBrush}" VerticalAlignment="Center" Margin="12,0,0,0"/>
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
                     <StackPanel x:Name="DialogBusyRow" Orientation="Horizontal" Margin="0,20,0,0" Visibility="Collapsed">
                         <ui:Spinner Width="22" Height="22" Brush="{StaticResource AccentGradient}"/>
                         <TextBlock x:Name="DialogBusyText" Margin="12,0,0,0" VerticalAlignment="Center" Foreground="{StaticResource TextDimBrush}" Text="Working…"/>
