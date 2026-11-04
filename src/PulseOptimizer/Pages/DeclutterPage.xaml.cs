@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using Pulse.Core;
@@ -48,6 +49,7 @@ public partial class DeclutterPage : UserControl, IPage
             _quick.Add(new QuickItem { Name = c.Name, Glyph = c.Glyph, Description = c.Description, Warning = c.Warning, Category = c, Selected = c.Selected });
         QuickList.ItemsSource = _quick;
         DriveLabel.Text = $"YOUR {SystemInfo.SystemDrive.Name.TrimEnd('\\')} DRIVE";
+        BuildGoalChips();
     }
 
     public async void OnShown(object parameter)
@@ -444,5 +446,155 @@ public partial class DeclutterPage : UserControl, IPage
             else MainWindow.Instance.Toast(app.Wait ? $"{app.Name} is still installed. The uninstaller may have been cancelled." : $"Confirm the uninstall in Steam.", ToastKind.Info);
         }
         finally { app.Busy = false; UpdateBulk(); }
+    }
+
+    // ───────── Free up to a goal ─────────
+
+    List<GoalItem> _goalItems = new();
+    CancellationTokenSource _goalCancel;
+    int _goalShown = 25;
+    bool _goalBusy;
+
+    long GoalBytes => double.TryParse(GoalBox.Text, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.CurrentCulture, out var gb) && gb > 0
+        ? (long)(gb * 1073741824.0) : 0;
+
+    static long FreeNow => SystemInfo.SystemDrive.AvailableFreeSpace;
+
+    void BuildGoalChips()
+    {
+        long freeGb = FreeNow >> 30;
+        // Suggestions above what's free now, rounded to familiar sizes.
+        var picks = new[] { 25, 50, 100, 200, 500 }.Where(g => g > freeGb).Take(3).ToList();
+        if (picks.Count == 0) picks.Add((int)freeGb + 50);
+        GoalChips.Children.Clear();
+        foreach (var g in picks)
+        {
+            var b = new Button { Style = (Style)FindResource("GhostButton"), Content = $"{g} GB", Margin = new Thickness(0, 0, 6, 0), Tag = g };
+            b.Click += (s, _) => GoalBox.Text = ((int)((FrameworkElement)s).Tag).ToString(System.Globalization.CultureInfo.CurrentCulture);
+            GoalChips.Children.Add(b);
+        }
+        GoalBox.Text = picks[0].ToString(System.Globalization.CultureInfo.CurrentCulture);
+    }
+
+    void GoalBox_Changed(object sender, TextChangedEventArgs e)
+    {
+        if (!IsLoaded && GoalStatus == null) return;
+        UpdateGoal();
+    }
+
+    async void GoalPlan_Click(object sender, RoutedEventArgs e)
+    {
+        if (_goalBusy) return;
+        if (GoalBytes <= 0) { GoalStatus.Text = Loc.T("Type how many GB you want free."); return; }
+        if (SpaceGoal.Needed(GoalBytes, FreeNow) == 0) { GoalStatus.Text = Loc.F("You already have {0} free. Nothing to do.", Format.Bytes(FreeNow)); return; }
+        _goalBusy = true;
+        _goalCancel = new CancellationTokenSource();
+        GoalPlanBtn.IsEnabled = false;
+        GoalCancelBtn.Visibility = Visibility.Visible;
+        GoalPanel.Visibility = Visibility.Collapsed;
+        var progress = new Progress<string>(t => GoalStatus.Text = t);
+        try
+        {
+            _goalItems = await Task.Run(() => SpaceGoal.Find(progress, _goalCancel.Token));
+            foreach (var i in _goalItems) i.PropertyChanged += (_, a) => { if (a.PropertyName == nameof(GoalItem.Selected)) UpdateGoal(); };
+            _goalShown = 25;
+            ShowGoalList();
+            GoalPanel.Visibility = Visibility.Visible;
+            UpdateGoal();
+        }
+        catch (OperationCanceledException) { GoalStatus.Text = Loc.T("Cancelled. Nothing was changed."); }
+        catch (Exception ex) { GoalStatus.Text = ex.Message; }
+        finally
+        {
+            _goalBusy = false;
+            GoalPlanBtn.IsEnabled = true;
+            GoalCancelBtn.Visibility = Visibility.Collapsed;
+        }
+    }
+
+    void ShowGoalList()
+    {
+        GoalList.ItemsSource = _goalItems.Take(_goalShown).ToList();
+        int more = _goalItems.Count - _goalShown;
+        GoalMoreBtn.Visibility = more > 0 ? Visibility.Visible : Visibility.Collapsed;
+        GoalMoreBtn.Content = Loc.F("Show {0} more", more);
+    }
+
+    void GoalMore_Click(object sender, RoutedEventArgs e) { _goalShown += 25; ShowGoalList(); }
+
+    void GoalCancel_Click(object sender, RoutedEventArgs e) => _goalCancel?.Cancel();
+
+    void GoalRow_Click(object sender, MouseButtonEventArgs e)
+    {
+        if (_goalBusy) return;
+        if ((sender as FrameworkElement)?.DataContext is GoalItem i) i.Selected = !i.Selected;
+    }
+
+    void GoalClear_Click(object sender, RoutedEventArgs e) { foreach (var i in _goalItems) i.Selected = false; }
+
+    void UpdateGoal()
+    {
+        if (GoalProgress == null) return;
+        long needed = SpaceGoal.Needed(GoalBytes, FreeNow);
+        long picked = SpaceGoal.PickedBytes(_goalItems);
+        long waiting = SpaceGoal.WaitingInBin(_goalItems);
+        long available = _goalItems.Sum(i => i.Bytes);
+        if (GoalPanel.Visibility == Visibility.Visible && !_goalBusy)
+            GoalStatus.Text = needed == 0
+                ? Loc.F("You already have {0} free.", Format.Bytes(FreeNow))
+                : Loc.F("You have {0} free. To reach your goal, free {1} more. Pulse found {2} you could remove.", Format.Bytes(FreeNow), Format.Bytes(needed), Format.Bytes(available));
+        double frac = needed <= 0 ? 1 : Math.Min(1, picked / (double)needed);
+        GoalBar.Width = Math.Max(0, ((FrameworkElement)GoalBar.Parent).ActualWidth * frac);
+        GoalProgress.Text = needed == 0 ? "" : picked >= needed
+            ? Loc.F("Ticked {0}: enough to reach your goal.", Format.Bytes(picked))
+            : Loc.F("Ticked {0} of the {1} needed. Tick {2} more.", Format.Bytes(picked), Format.Bytes(needed), Format.Bytes(needed - picked));
+        GoalBinNote.Visibility = waiting > 0 ? Visibility.Visible : Visibility.Collapsed;
+        GoalBinNote.Text = Loc.F("{0} of your files go to the Recycle Bin, so they only free space once it's emptied. Tick the Recycle Bin too to count them.", Format.Bytes(waiting));
+        int n = _goalItems.Count(i => i.Selected);
+        GoalFreeBtn.IsEnabled = n > 0 && !_goalBusy;
+        GoalFreeText.Text = n == 0 ? Loc.T("Free the ticked items") : Loc.F("Free {0} ({1} items)", Format.Bytes(picked + waiting), n);
+    }
+
+    async void GoalFree_Click(object sender, RoutedEventArgs e)
+    {
+        var picked = _goalItems.Where(i => i.Selected).ToList();
+        if (picked.Count == 0 || _goalBusy) return;
+        var lines = string.Join("\n", picked.Take(10).Select(i => $"•  {i.Title} ({i.SizeText}) · {i.KindText}"));
+        if (picked.Count > 10) lines += "\n" + Loc.F("•  and {0} more", picked.Count - 10);
+        bool programs = picked.Any(i => i.Kind == GoalKind.Program);
+        if (!await MainWindow.Instance.Confirm(Loc.F("Free {0}?", Format.Bytes(SpaceGoal.PickedBytes(picked) + SpaceGoal.WaitingInBin(picked))),
+                lines + "\n\n" + Loc.T("Your own files go to the Recycle Bin, so they can be restored until it's emptied.") +
+                (programs ? " " + Loc.T("Programs open their own uninstaller, one at a time.") : "") + " " + Loc.T("You can cancel while it runs."), "Free space")) return;
+
+        _goalBusy = true;
+        _goalCancel = new CancellationTokenSource();
+        long before = FreeNow;
+        GoalFreeBtn.IsEnabled = false;
+        GoalPlanBtn.IsEnabled = false;
+        GoalCancelBtn.Visibility = Visibility.Visible;
+        var progress = new Progress<string>(t => GoalStatus.Text = Loc.F("Removing: {0}…", t));
+        try
+        {
+            var (done, failed, cancelled) = await SpaceGoal.Free(picked, progress, _goalCancel.Token);
+            long freed = Math.Max(0, FreeNow - before);
+            TweakEngine.AddLog("clean", $"Free up to a goal: {done} items, {Format.Bytes(freed)} freed");
+            long needed = SpaceGoal.Needed(GoalBytes, FreeNow);
+            GoalStatus.Text = (cancelled ? Loc.T("Stopped. ") : "") +
+                Loc.F("Freed {0}. You now have {1} free.", Format.Bytes(freed), Format.Bytes(FreeNow)) + " " +
+                (needed == 0 ? Loc.T("Goal reached.") : Loc.F("{0} to go.", Format.Bytes(needed))) +
+                (failed > 0 ? " " + Loc.F("{0} items couldn't be removed (in use or blocked).", failed) : "");
+            _goalItems.RemoveAll(i => picked.Contains(i) && i.Kind != GoalKind.Program);
+            foreach (var i in _goalItems) i.Selected = false;
+            ShowGoalList();
+        }
+        catch (Exception ex) { GoalStatus.Text = ex.Message; }
+        finally
+        {
+            _goalBusy = false;
+            GoalPlanBtn.IsEnabled = true;
+            GoalCancelBtn.Visibility = Visibility.Collapsed;
+            UpdateGoal();
+            _ = Scan();
+        }
     }
 }

@@ -62,6 +62,63 @@
                 </StackPanel>
             </Border>
 
+            <!-- Free up to a goal -->
+            <Border Style="{StaticResource Card}" Margin="0,16,0,0" Padding="24,20" ui:Anim.Reveal="True">
+                <StackPanel>
+                    <TextBlock Style="{StaticResource H2}" Text="Free up to a goal"/>
+                    <TextBlock Style="{StaticResource Body}" Margin="0,4,0,0" MaxWidth="720" HorizontalAlignment="Left"
+                               Text="Pick how much free space you want. Pulse shows what's taking up the room, biggest first. You tick what goes; nothing is removed until you confirm, and you can cancel at any time."/>
+                    <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
+                        <TextBlock Text="I want" VerticalAlignment="Center" Foreground="{StaticResource TextDimBrush}" Margin="0,0,10,0"/>
+                        <WrapPanel x:Name="GoalChips" VerticalAlignment="Center"/>
+                        <TextBox x:Name="GoalBox" Style="{StaticResource SearchBox}" Width="80" Tag="GB" Margin="4,0,8,0" VerticalAlignment="Center" TextChanged="GoalBox_Changed"/>
+                        <TextBlock Text="GB free" VerticalAlignment="Center" Foreground="{StaticResource TextDimBrush}" Margin="0,0,16,0"/>
+                        <Button x:Name="GoalPlanBtn" Style="{StaticResource PrimaryButton}" Content="Show me what to remove" Click="GoalPlan_Click"/>
+                        <Button x:Name="GoalCancelBtn" Style="{StaticResource GhostButton}" Content="Cancel" Margin="10,0,0,0" Visibility="Collapsed" Click="GoalCancel_Click"/>
+                    </StackPanel>
+                    <TextBlock x:Name="GoalStatus" Style="{StaticResource Body}" FontSize="13" Margin="0,12,0,0" TextWrapping="Wrap"/>
+
+                    <StackPanel x:Name="GoalPanel" Visibility="Collapsed" Margin="0,14,0,0">
+                        <!-- Progress to the goal: what you picked against what's needed -->
+                        <Grid>
+                            <Border Style="{StaticResource BarTrack}" Height="10"/>
+                            <Border x:Name="GoalBar" Style="{StaticResource BarFill}" Height="10" HorizontalAlignment="Left" Width="0"/>
+                        </Grid>
+                        <TextBlock x:Name="GoalProgress" FontSize="13" FontWeight="SemiBold" Margin="0,8,0,0"/>
+                        <TextBlock x:Name="GoalBinNote" FontSize="12" Foreground="{StaticResource WarnBrush}" Margin="0,4,0,0" TextWrapping="Wrap" Visibility="Collapsed"/>
+                        <ItemsControl x:Name="GoalList" Margin="0,12,0,0">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Style="{StaticResource HoverCard}" Margin="0,0,0,6" Padding="16,10" Cursor="Hand" MouseLeftButtonUp="GoalRow_Click">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions><ColumnDefinition Width="34"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                            <CheckBox Style="{StaticResource Tick}" IsChecked="{Binding Selected, Mode=TwoWay}" IsHitTestVisible="False" VerticalAlignment="Center"/>
+                                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                                <TextBlock FontSize="12" Foreground="{StaticResource TextDimBrush}" TextTrimming="CharacterEllipsis">
+                                                    <Run Text="{Binding KindText, Mode=OneWay}"/><Run Text="  ·  "/><Run Text="{Binding Detail, Mode=OneWay}"/>
+                                                </TextBlock>
+                                            </StackPanel>
+                                            <TextBlock Grid.Column="2" Text="{Binding SizeText}" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center" Margin="16,0,0,0"/>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <Button x:Name="GoalMoreBtn" Style="{StaticResource LinkButton}" HorizontalAlignment="Left" Margin="0,6,0,0" Click="GoalMore_Click" Visibility="Collapsed"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
+                            <Button x:Name="GoalFreeBtn" Style="{StaticResource PrimaryButton}" Click="GoalFree_Click" IsEnabled="False">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#xE74D;" Style="{StaticResource IconText}" FontSize="13"/>
+                                    <TextBlock x:Name="GoalFreeText" Text="Free the ticked items" Margin="8,0,0,0"/>
+                                </StackPanel>
+                            </Button>
+                            <Button Style="{StaticResource GhostButton}" Content="Untick all" Margin="10,0,0,0" Click="GoalClear_Click"/>
+                        </StackPanel>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
             <!-- Quick clean -->
             <TextBlock Style="{StaticResource H2}" Text="Quick clean" Margin="0,28,0,12"/>
             <TextBlock Style="{StaticResource Body}" Text="Safe to remove. Ticked items are included when you press Free space." Margin="0,0,0,12"/>
