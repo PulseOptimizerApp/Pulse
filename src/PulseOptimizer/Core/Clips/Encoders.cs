@@ -52,17 +52,24 @@ public static class Encoders
                ?? list.FirstOrDefault(e => e.Codec == "h264");
     }
 
-    /// <summary>FFmpeg options for an encoder at a bitrate, with a keyframe every second so clips can start anywhere.</summary>
-    public static string Options(Encoder e, int mbps, int fps)
+    /// <summary>
+    /// FFmpeg options for an encoder at a bitrate, with a keyframe every second so clips can start anywhere.
+    /// Tuned for quality per brand, but kept inside what the card's video engine does in real time at the chosen size
+    /// and frame rate: the encoder is a separate part of the chip, so this costs the game almost nothing.
+    /// </summary>
+    public static string Options(Encoder e, int mbps, int fps, long pixelsPerSecond = 1920L * 1080 * 60)
     {
         // -g alone isn't honoured the same way by every driver, so keyframes are also forced every second.
         string rate = $"-b:v {mbps}M -maxrate {mbps * 3 / 2}M -bufsize {mbps * 2}M -g {fps} -bf 0 -force_key_frames \"expr:gte(t,n_forced*1)\"";
+        // Above 1440p at 120 FPS the slower presets can fall behind real time on mid-range cards: step down one.
+        bool heavy = pixelsPerSecond > 2560L * 1440 * 120;
         return e.Vendor switch
         {
-            "NVIDIA" => $"-c:v {e.Name} -preset p4 -tune hq -rc vbr -forced-idr 1 {rate}",
-            "AMD" => $"-c:v {e.Name} -usage lowlatency -quality speed -rc vbr_peak {rate}",
-            "Intel" => $"-c:v {e.Name} -preset veryfast {rate}",
-            _ => $"-c:v {e.Name} -preset veryfast {rate}",
+            // Spatial AQ spends bits where the eye notices (flat skies, dark corners): far less blocking at the same size.
+            "NVIDIA" => $"-c:v {e.Name} -preset {(heavy ? "p4" : "p5")} -tune hq -rc vbr -spatial-aq 1 -aq-strength 8 -forced-idr 1 {rate}",
+            "AMD" => $"-c:v {e.Name} -usage transcoding -quality {(heavy ? "speed" : "balanced")} -rc vbr_peak {rate}",
+            "Intel" => $"-c:v {e.Name} -preset {(heavy ? "veryfast" : "faster")} {rate}",
+            _ => $"-c:v {e.Name} -preset veryfast -tune zerolatency {rate}",
         };
     }
 }

@@ -145,6 +145,17 @@ public class ClipsTests
         Assert.Contains("ddagrab", ReplayRecorder.Arguments(new ClipSettings(), Nvenc, null, null));
     }
 
+    [Fact]
+    public void Encoders_use_quality_settings_and_step_down_for_very_high_pixel_rates()
+    {
+        Assert.Contains("-preset p5", Encoders.Options(Nvenc, 40, 60));
+        Assert.Contains("-spatial-aq 1", Encoders.Options(Nvenc, 40, 60));
+        Assert.Contains("-preset p4", Encoders.Options(Nvenc, 80, 144, 3840L * 2160 * 144));
+        var amf = new Encoder("h264_amf", "h264", "AMD", true);
+        Assert.Contains("-quality balanced", Encoders.Options(amf, 40, 60));
+        Assert.Contains("-quality speed", Encoders.Options(amf, 80, 144, 3840L * 2160 * 144));
+    }
+
     static readonly Encoder Qsv = new("h264_qsv", "h264", "Intel", true);
 
     [Fact]

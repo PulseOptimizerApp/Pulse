@@ -148,8 +148,10 @@ public sealed class ReplayRecorder : IDisposable
 
         a.Add("-filter_complex \"" + string.Join(";", filters) + "\"");
         a.AddRange(maps);
-        a.Add(Encoders.Options(e, Math.Clamp(s.BitrateMbps, 2, 150), fps));
-        if (gameIn >= 0 || micIn >= 0) a.Add("-c:a aac -b:a 160k");
+        // Pixel rate decides how hard the encoder can work: native is assumed 1440p when not known.
+        int outH = h > 0 ? h : 1440;
+        a.Add(Encoders.Options(e, Math.Clamp(s.BitrateMbps, 2, 150), fps, (long)outH * outH * 16 / 9 * fps));
+        if (gameIn >= 0 || micIn >= 0) a.Add("-c:a aac -b:a 192k");
         a.Add("-f mpegts -mpegts_start_pid 0x100 -mpegts_flags +initial_discontinuity pipe:1");
         return string.Join(" ", a);
     }
