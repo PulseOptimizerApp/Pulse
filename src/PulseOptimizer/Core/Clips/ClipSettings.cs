@@ -62,6 +62,12 @@ public class ClipSettings
     public int BookmarkModifiers { get; set; } = 1; // Alt
     public int BookmarkKey { get; set; } = 0x7B;    // F12 → Alt+F12
 
+    /// <summary>
+    /// Record which keys, mouse and controller buttons are held, so clips can show an input overlay. Only the keys
+    /// the overlay shows are kept, only while recording. Off until the user turns it on.
+    /// </summary>
+    public bool InputOverlay { get; set; }
+
     /// <summary>Only keep a replay while a game is running (saves memory and GPU work the rest of the time).</summary>
     public bool OnlyWhileGaming { get; set; } = true;
     /// <summary>Keep clipping when the Pulse window is closed (Pulse stays in the tray).</summary>

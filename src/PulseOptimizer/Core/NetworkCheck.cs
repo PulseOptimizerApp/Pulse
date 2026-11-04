@@ -93,6 +93,19 @@ public static class NetworkCheck
         return last != null && IPAddress.TryParse(last, out var ip) ? ip : null;
     }
 
+    /// <summary>A well-known, always-on address used to test the internet beyond your router (Cloudflare's DNS).</summary>
+    public static readonly IPAddress Internet = IPAddress.Parse("1.1.1.1");
+
+    /// <summary>Plain-words verdict from the router and internet results (any game).</summary>
+    public static string InternetVerdict(PingStats router, PingStats internet, bool wifi)
+    {
+        var home = Verdict(router, null, wifi);
+        if (!home.StartsWith("Your home network is fine")) return home;
+        if (internet == null || !internet.Answered) return "Your home network is fine, but the internet isn't answering. Restart the router; if that doesn't help, it's your internet provider.";
+        if (internet.LossPercent >= 3 || internet.JitterMs >= 20) return "Your home network is fine, but your internet connection is unstable (packet loss or spikes). That's your internet provider, not your PC.";
+        return "Your PC, Wi-Fi and internet look stable. If one game still lags, the problem is likely its server.";
+    }
+
     /// <summary>Plain-words verdict from the router and server results.</summary>
     public static string Verdict(PingStats router, PingStats server, bool wifi)
     {

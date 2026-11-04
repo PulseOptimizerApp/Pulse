@@ -13,6 +13,42 @@
                     <ui:Spinner Width="20" Height="20" Brush="{StaticResource AccentGradient}"/>
                     <TextBlock Text="Finding your games…" Margin="12,0,0,0" VerticalAlignment="Center" Foreground="{StaticResource TextDimBrush}"/>
                 </StackPanel>
+                <!-- While you play: works for every game -->
+                <Border Style="{StaticResource Card}" Margin="0,22,0,0" Padding="24,18" ui:Anim.Reveal="True">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource H2}" Text="While you play"/>
+                        <Grid Style="{StaticResource Row}" Margin="0,12,0,0">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource RowLabel}" Text="Game mode"/>
+                                <TextBlock FontSize="12" Foreground="{StaticResource TextDimBrush}" Margin="0,2,0,0" TextWrapping="Wrap" MaxWidth="620"
+                                           Text="High performance power plan while a game runs, your usual one when it closes. Helps most on laptops."/>
+                            </StackPanel>
+                            <CheckBox x:Name="GameModeSwitch" Grid.Column="1" Style="{StaticResource Switch}" VerticalAlignment="Center" Click="Session_Click"/>
+                        </Grid>
+                        <Grid Style="{StaticResource Row}">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource RowLabel}" Text="FPS overlay"/>
+                                <TextBlock FontSize="12" Foreground="{StaticResource TextDimBrush}" Margin="0,2,0,0" TextWrapping="Wrap" MaxWidth="560"
+                                           Text="A small FPS, 1% low and frame time counter in a corner while you play. Shows over borderless and windowed games; it never touches the game."/>
+                            </StackPanel>
+                            <WrapPanel x:Name="CornerChips" Grid.Column="1" VerticalAlignment="Center" Margin="12,0,12,0"/>
+                            <CheckBox x:Name="OverlaySwitch" Grid.Column="2" Style="{StaticResource Switch}" VerticalAlignment="Center" Click="Session_Click"/>
+                        </Grid>
+                        <Grid Style="{StaticResource Row}">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource RowLabel}" Text="Lag check"/>
+                                <TextBlock x:Name="NetText" FontSize="12" Foreground="{StaticResource TextDimBrush}" Margin="0,2,0,0" TextWrapping="Wrap" MaxWidth="620"
+                                           Text="Is lag coming from your PC and Wi-Fi, or from your internet? Pings your router and a stable internet address for a few seconds."/>
+                                <TextBlock x:Name="NetDetail" FontSize="12" Foreground="{StaticResource TextDimBrush}" Margin="0,4,0,0" TextWrapping="Wrap"/>
+                            </StackPanel>
+                            <Button x:Name="NetBtn" Grid.Column="1" Style="{StaticResource GhostButton}" VerticalAlignment="Center" Content="Check my connection" Click="Net_Click"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
                 <TextBlock Style="{StaticResource H2}" Text="Your games" Margin="0,22,0,0"/>
                 <ItemsControl x:Name="GameGrid" Margin="0,12,0,0">
                     <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel>

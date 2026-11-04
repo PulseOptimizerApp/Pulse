@@ -287,6 +287,7 @@ public partial class ClipsPage : UserControl, IPage
         StartupSwitch.IsChecked = S.StartWithWindows;
         SeparateMicSwitch.IsChecked = S.SeparateMicTrack;
         AppTracksSwitch.IsChecked = S.AppTracks;
+        InputSwitch.IsChecked = S.InputOverlay;
         AppTracksRow.Visibility = AudioCapture.AppCaptureSupported ? Visibility.Visible : Visibility.Collapsed;
         CursorSwitch.IsChecked = S.RecordCursor;
         SoundSwitch.IsChecked = S.PlaySound;
@@ -339,6 +340,7 @@ public partial class ClipsPage : UserControl, IPage
         S.KeepRunningInTray = TraySwitch.IsChecked == true;
         S.SeparateMicTrack = SeparateMicSwitch.IsChecked == true;
         S.AppTracks = AppTracksSwitch.IsChecked == true;
+        S.InputOverlay = InputSwitch.IsChecked == true;
         S.RecordCursor = CursorSwitch.IsChecked == true;
         S.PlaySound = SoundSwitch.IsChecked == true;
         S.ShowSavedPopup = PopupSwitch.IsChecked == true;
@@ -566,6 +568,7 @@ public partial class ClipsPage : UserControl, IPage
         if (SelectToggle.IsChecked == true) { vm.Selected = !vm.Selected; UpdateSelection(); return; }
         _open = vm;
         Timeline.Markers = ClipLibrary.LoadMarks(vm.Clip.Path);
+        LoadInputs(vm.Clip.Path);
         PlayerTitle.Text = vm.Clip.Name;
         FavBtn.Content = Loc.T(vm.Clip.Favorite ? "Unfavorite" : "Favorite");
         Timeline.Strip = null;
@@ -622,6 +625,7 @@ public partial class ClipsPage : UserControl, IPage
     void PlayerTick()
     {
         if (PlayerLayer.Visibility != Visibility.Visible) return;
+        if (_inputs != null && _inputMode != "off") InputView.Frame = _inputs.At(Timeline.Position);
         // Scrubbing: seek at most once per tick, to where the pointer is now, so the picture keeps up smoothly.
         if (_pendingSeek >= 0)
         {
@@ -768,7 +772,7 @@ public partial class ClipsPage : UserControl, IPage
             Child = stack,
         };
         var root = new Grid { Background = Brushes.Black };
-        root.Children.Add(Player);
+        root.Children.Add(VideoGrid);
         root.Children.Add(_fsOverlay);
 
         _fs = new Window
@@ -824,7 +828,7 @@ public partial class ClipsPage : UserControl, IPage
         _fsIdle.Stop();
         if (fs.Content is Grid root) root.Children.Clear();
         if (_fsOverlay?.Child is StackPanel stack) stack.Children.Clear();
-        VideoBox.Child = Player;
+        VideoBox.Child = VideoGrid;
         _cardGrid.Children.Add(Timeline);
         _cardGrid.Children.Add(PlayerControls);
         Player.UnloadedBehavior = MediaState.Close;
@@ -842,6 +846,8 @@ public partial class ClipsPage : UserControl, IPage
         Player.Stop();
         Player.Close();
         Player.Source = null;
+        _inputs = null;
+        InputBox.Visibility = Visibility.Collapsed;
         _playing = false;
         _scrubbing = false;
         PlayerLayer.Visibility = Visibility.Collapsed;
@@ -860,7 +866,8 @@ public partial class ClipsPage : UserControl, IPage
         steps[0].Start();
         try
         {
-            var path = await ClipLibrary.Trim(_open.Clip.Path, Timeline.Start, Timeline.End, enc, Math.Max(S.BitrateMbps, 20), ChosenTracks());
+            var burn = await PrepareInputBurn(_open.Clip.Path, Timeline.Start, Timeline.End);
+            var path = await ClipLibrary.Trim(_open.Clip.Path, Timeline.Start, Timeline.End, enc, Math.Max(S.BitrateMbps, 20), ChosenTracks(), burn);
             await ClipLibrary.MakeThumbnail(path);
             steps[0].Finish(Format.Bytes(new FileInfo(path).Length));
             await MainWindow.Instance.FinishSteps("Trimmed copy saved", Loc.F("Saved as {0}. The original is untouched.", Path.GetFileName(path)));
@@ -885,7 +892,8 @@ public partial class ClipsPage : UserControl, IPage
         try
         {
             bool whole = Timeline.Start <= 0.01 && Timeline.End >= Timeline.Duration - 0.05;
-            var path = await ClipLibrary.ForDiscord(_open.Clip.Path, enc, whole ? 0 : Timeline.Start, whole ? 0 : Timeline.End, ChosenTracks());
+            var burn = await PrepareInputBurn(_open.Clip.Path, whole ? 0 : Timeline.Start, whole ? Timeline.Duration : Timeline.End);
+            var path = await ClipLibrary.ForDiscord(_open.Clip.Path, enc, whole ? 0 : Timeline.Start, whole ? 0 : Timeline.End, ChosenTracks(), burn);
             await ClipLibrary.MakeThumbnail(path);
             steps[0].Finish(Format.Bytes(new FileInfo(path).Length));
             // Put the file on the clipboard so it can be pasted straight into Discord.
@@ -899,6 +907,80 @@ public partial class ClipsPage : UserControl, IPage
             steps[0].Skip(Loc.T("Didn't finish"));
             await MainWindow.Instance.FinishSteps("The Discord copy didn't work", ex.Message, ok: false);
         }
+    }
+
+    // ───────── Input overlay ─────────
+
+    InputTimeline _inputs;
+    string _inputMode = "off"; // "off", "kbm", "xbox", "ps"
+
+    void LoadInputs(string clip)
+    {
+        _inputs = InputTimeline.Load(clip);
+        InputPanel.Visibility = _inputs?.HasInput == true ? Visibility.Visible : Visibility.Collapsed;
+        InputChips.Children.Clear();
+        if (_inputs?.HasInput != true) { _inputMode = "off"; InputBox.Visibility = Visibility.Collapsed; return; }
+        _inputMode = _inputs.MostUsed();
+        var pad = _inputs.PadKind == "ps" ? ("PlayStation", "ps") : ("Xbox", "xbox");
+        foreach (var (label, value) in new[] { ("Off", "off"), ("Keyboard and mouse", "kbm"), pad })
+        {
+            var rb = new RadioButton { Style = (Style)FindResource("Chip"), Content = Loc.T(label), GroupName = "clips-input", Tag = value, Margin = new Thickness(0, 0, 6, 0), IsChecked = value == _inputMode };
+            rb.Checked += (s, _) => { _inputMode = (string)((FrameworkElement)s).Tag; ShowInputMode(); };
+            InputChips.Children.Add(rb);
+        }
+        ShowInputMode();
+    }
+
+    void ShowInputMode()
+    {
+        InputBox.Visibility = _inputMode == "off" ? Visibility.Collapsed : Visibility.Visible;
+        if (_inputMode != "off") { InputView.Kind = _inputMode; InputView.Frame = _inputs?.At(Timeline.Position); }
+        VideoGrid_SizeChanged(null, null);
+    }
+
+    void VideoGrid_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        // About a quarter of the picture's height, like the burned-in copy.
+        InputBox.Height = Math.Max(60, VideoGrid.ActualHeight * 0.26);
+    }
+
+    /// <summary>
+    /// Pictures of the overlay for each change between <paramref name="from"/> and <paramref name="to"/>, and an
+    /// FFmpeg concat list that shows each for as long as it was held. Null when the overlay is off.
+    /// </summary>
+    async Task<InputBurn> PrepareInputBurn(string clip, double from, double to)
+    {
+        if (_inputs == null || _inputMode == "off") return null;
+        var (_, height) = await ClipLibrary.VideoSize(clip);
+        if (height <= 0) height = 1080;
+        var part = _inputs.Slice(from, to);
+        if (part.Frames.Count == 0) return null;
+        // Changes closer than 1/30 s apart are merged (the picture can't show them anyway).
+        var frames = new List<InputFrame>();
+        foreach (var f in part.Frames)
+        {
+            if (frames.Count > 0 && f.T - frames[^1].T < 1 / 30.0) { var c = f.Copy(); c.T = frames[^1].T; frames[^1] = c; }
+            else frames.Add(f);
+        }
+        double scale = height * 0.26 / InputOverlayView.BaseSize(_inputMode).Height;
+        var dir = Path.Combine(Path.GetTempPath(), "pulse-input-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        var list = new System.Text.StringBuilder("ffconcat version 1.0\n");
+        double length = to - from;
+        for (int i = 0; i < frames.Count; i++)
+        {
+            var png = Path.Combine(dir, $"{i:D5}.png");
+            var bmp = InputOverlayView.Render(frames[i], _inputMode, scale);
+            using (var fs = File.Create(png)) { var enc = new PngBitmapEncoder(); enc.Frames.Add(BitmapFrame.Create(bmp)); enc.Save(fs); }
+            double next = i + 1 < frames.Count ? frames[i + 1].T : length;
+            list.Append($"file '{png.Replace("\\", "/")}'\nduration {Math.Max(0.001, next - frames[i].T).ToString("0.###", CultureInfo.InvariantCulture)}\n");
+            if (i % 50 == 49) await Task.Yield(); // keep the window responsive
+        }
+        // The concat format needs the last picture listed once more.
+        list.Append($"file '{Path.Combine(dir, $"{frames.Count - 1:D5}.png").Replace("\\", "/")}'\n");
+        var listFile = Path.Combine(dir, "list.txt");
+        File.WriteAllText(listFile, list.ToString());
+        return new InputBurn(dir, listFile);
     }
 
     // ───────── Long recording ─────────

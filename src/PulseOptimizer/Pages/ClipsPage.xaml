@@ -315,6 +315,11 @@
                                 <TextBlock Style="{StaticResource RowLabel}" Text="Also save game sound and microphone on their own tracks, so either can be muted when trimming"/>
                                 <CheckBox x:Name="SeparateMicSwitch" Grid.Column="1" Style="{StaticResource Switch}" Click="Setting_Click"/>
                             </Grid>
+                            <Grid Style="{StaticResource Row}">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                <TextBlock Style="{StaticResource RowLabel}" Text="Input overlay: remember which keys, mouse and controller buttons you press, so clips can show them (keyboard and mouse, Xbox and PlayStation)"/>
+                                <CheckBox x:Name="InputSwitch" Grid.Column="1" Style="{StaticResource Switch}" Click="Setting_Click"/>
+                            </Grid>
                             <Grid x:Name="AppTracksRow" Style="{StaticResource Row}">
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                                 <TextBlock Style="{StaticResource RowLabel}" Text="Give the game, Discord and Spotify their own tracks, so you can mute any of them in a clip"/>
@@ -405,8 +410,14 @@
                         <Button Style="{StaticResource GhostButton}" Content="Close" HorizontalAlignment="Right" Click="PlayerClose_Click"/>
                     </Grid>
                     <Border x:Name="VideoBox" Grid.Row="1" Background="Black" CornerRadius="8" ClipToBounds="True">
-                        <MediaElement x:Name="Player" LoadedBehavior="Manual" UnloadedBehavior="Close" ScrubbingEnabled="True"
-                                      MediaOpened="Player_Opened" MediaEnded="Player_Ended" MouseLeftButtonUp="PlayPause_Click" MouseLeftButtonDown="Video_MouseDown"/>
+                        <Grid x:Name="VideoGrid" SizeChanged="VideoGrid_SizeChanged">
+                            <MediaElement x:Name="Player" LoadedBehavior="Manual" UnloadedBehavior="Close" ScrubbingEnabled="True"
+                                          MediaOpened="Player_Opened" MediaEnded="Player_Ended" MouseLeftButtonUp="PlayPause_Click" MouseLeftButtonDown="Video_MouseDown"/>
+                            <!-- Input overlay (keys, mouse, controller), the same one burned into copies -->
+                            <Viewbox x:Name="InputBox" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="14" Visibility="Collapsed" IsHitTestVisible="False">
+                                <ui:InputOverlayView x:Name="InputView"/>
+                            </Viewbox>
+                        </Grid>
                     </Border>
                     <!-- Timeline: drag the gradient handles to trim, drag anywhere else to scrub -->
                     <ui:ClipTimeline x:Name="Timeline" Grid.Row="2" Margin="0,14,0,0"/>
@@ -423,6 +434,11 @@
                         <StackPanel x:Name="AudioPanel" Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
                             <TextBlock Text="&#xE767;" Style="{StaticResource IconText}" FontSize="14" Foreground="{StaticResource TextDimBrush}" Margin="0,0,10,0"/>
                             <WrapPanel x:Name="TrackToggles" ToolTip="Sound to keep in the saved and Discord copies"/>
+                        </StackPanel>
+                        <StackPanel x:Name="InputPanel" Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,16,0" Visibility="Collapsed"
+                                    ToolTip="Show the keys and buttons you pressed. Saved and Discord copies include it too.">
+                            <TextBlock Text="&#xE765;" Style="{StaticResource IconText}" FontSize="14" Foreground="{StaticResource TextDimBrush}" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                            <WrapPanel x:Name="InputChips"/>
                         </StackPanel>
                         <Button x:Name="FullBtn" Grid.Column="4" Style="{StaticResource GhostButton}" Width="44" Padding="0,8" Margin="12,0,0,0" Click="Full_Click" ToolTip="Full screen (F)">
                             <TextBlock x:Name="FullGlyph" Text="&#xE740;" Style="{StaticResource IconText}" FontSize="13"/>

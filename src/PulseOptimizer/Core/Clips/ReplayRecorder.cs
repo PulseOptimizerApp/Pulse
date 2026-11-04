@@ -15,6 +15,10 @@ public sealed class ReplayRecorder : IDisposable
     readonly Encoder _encoder;
     readonly TsRing _ring = new();
     readonly Stopwatch _clock = Stopwatch.StartNew();
+    /// <summary>When the recorder's clock started, on <see cref="InputCapture.NowSeconds"/>'s clock.</summary>
+    readonly double _startAbs = InputCapture.NowSeconds;
+    /// <summary>The span of the last saved clip or recording, on <see cref="InputCapture.NowSeconds"/>'s clock.</summary>
+    public (double From, double To) LastRange { get; private set; }
     readonly CancellationTokenSource _stop = new();
     readonly List<Task> _tasks = new();
     Process _ffmpeg;
@@ -262,6 +266,7 @@ public sealed class ReplayRecorder : IDisposable
             var (code, err) = await Ffmpeg.Run($"-hide_banner -loglevel error -y -i \"{ts}\" -map 0 -c copy -t {len}{TitleArgs(TrackTitles)} -movflags +faststart \"{mp4}\"", ct, 120_000);
             if (code != 0 || !File.Exists(mp4)) throw new InvalidOperationException("FFmpeg couldn't save the clip: " + err.Trim());
             ClipLibrary.SaveMarks(mp4, MarksBetween(clipStart, Now));
+            LastRange = (_startAbs + clipStart, _startAbs + Now);
             return mp4;
         }
         finally { try { File.Delete(ts); } catch { } }
@@ -331,6 +336,7 @@ public sealed class ReplayRecorder : IDisposable
         _session = null;
         var tapped = _ring.StopTap();
         var marks = MarksBetween(_sessionStart, Now);
+        LastRange = (_startAbs + _sessionStart, _startAbs + Now);
         try { await f.FlushAsync(); } catch { }
         f.Dispose();
         try

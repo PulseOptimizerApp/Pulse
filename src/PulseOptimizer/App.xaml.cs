@@ -56,6 +56,7 @@ public partial class App : Application
         ListenForShow(window);
         SessionEnding += (_, _) => window.PrepareForExit();
         Ui.ClipsService.Init();
+        Ui.GameSessionService.Init();
 
         // Started at sign-in for Clips: stay in the tray until the user opens Pulse.
         bool tray = e.Args.Contains("--tray", StringComparer.OrdinalIgnoreCase) && Core.TweakEngine.State.Clips is { Enabled: true };
@@ -91,6 +92,7 @@ public partial class App : Application
     protected override void OnExit(ExitEventArgs e)
     {
         try { Ui.ClipsService.Shutdown(); } catch { }
+        try { Ui.GameSessionService.Shutdown(); } catch { }
         try { Ui.TrayIcon.Hide(); } catch { }
         try { _instance?.ReleaseMutex(); } catch { }
         base.OnExit(e);

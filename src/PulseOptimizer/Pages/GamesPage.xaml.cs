@@ -16,9 +16,12 @@ public partial class GamesPage : UserControl, IPage
     MonitorInfo _monitor;
     bool _loaded, _checking;
 
+    static GameSessionSettings Session => TweakEngine.State.GameSession ??= new GameSessionSettings();
+
     public GamesPage()
     {
         InitializeComponent();
+        ShowSession();
         // Esc, Backspace or the mouse's back button leave a game.
         PreviewKeyDown += (_, e) =>
         {
@@ -532,4 +535,54 @@ public partial class GamesPage : UserControl, IPage
         "PC latency" => "PC latency, reported by the game (Reflex)",
         _ => "From the start of a frame to it reaching the screen",
     };
+
+    // ───────── While you play ─────────
+
+    bool _loadingSession;
+
+    void ShowSession()
+    {
+        _loadingSession = true;
+        GameModeSwitch.IsChecked = Session.GameMode;
+        OverlaySwitch.IsChecked = Session.Overlay;
+        CornerChips.Children.Clear();
+        foreach (var (label, value) in new[] { ("Top left", "tl"), ("Top right", "tr"), ("Bottom left", "bl"), ("Bottom right", "br") })
+        {
+            var rb = new RadioButton { Style = (Style)FindResource("Chip"), Content = Loc.T(label), GroupName = "overlay-corner", Tag = value, Margin = new Thickness(0, 3, 6, 3), IsChecked = Session.OverlayCorner == value };
+            rb.Checked += (s, _) => { if (_loadingSession) return; Session.OverlayCorner = (string)((FrameworkElement)s).Tag; TweakEngine.Save(); GameSessionService.Refresh(); };
+            CornerChips.Children.Add(rb);
+        }
+        _loadingSession = false;
+    }
+
+    void Session_Click(object sender, RoutedEventArgs e)
+    {
+        if (_loadingSession) return;
+        Session.GameMode = GameModeSwitch.IsChecked == true;
+        Session.Overlay = OverlaySwitch.IsChecked == true;
+        TweakEngine.Save();
+        GameSessionService.Refresh();
+    }
+
+    async void Net_Click(object sender, RoutedEventArgs e)
+    {
+        NetBtn.IsEnabled = false;
+        NetText.Text = Loc.T("Checking for about 5 seconds…");
+        NetDetail.Text = "";
+        try
+        {
+            var gw = NetworkCheck.Gateway();
+            var routerTask = gw != null ? NetworkCheck.PingMany(gw) : Task.FromResult<PingStats>(null);
+            var netTask = NetworkCheck.PingMany(NetworkCheck.Internet);
+            var (router, net) = (await routerTask, await netTask);
+            bool wifi = NetworkCheck.OnWifi();
+            NetText.Text = Loc.T(NetworkCheck.InternetVerdict(router, net, wifi));
+            var parts = new List<string>();
+            if (router?.Answered == true) parts.Add(Loc.F("Router{0}: {1} ms, jumps {2} ms, {3}% lost", wifi ? " (Wi-Fi)" : "", Math.Round(router.AvgMs), Math.Round(router.JitterMs), Math.Round(router.LossPercent)));
+            if (net?.Answered == true) parts.Add(Loc.F("Internet: {0} ms, jumps {1} ms, {2}% lost", Math.Round(net.AvgMs), Math.Round(net.JitterMs), Math.Round(net.LossPercent)));
+            NetDetail.Text = string.Join(" · ", parts);
+        }
+        catch (Exception ex) { NetText.Text = ex.Message; }
+        finally { NetBtn.IsEnabled = true; }
+    }
 }

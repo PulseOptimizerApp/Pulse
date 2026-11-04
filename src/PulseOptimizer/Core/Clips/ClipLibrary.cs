@@ -17,6 +17,15 @@ public class ClipFile
     public string Game => Regex.Replace(Name, @"\s\d{4}-\d{2}-\d{2} \d{2}-\d{2}-\d{2}( \(\d+\))?$", "").Trim();
 }
 
+/// <summary>Pictures of the input overlay prepared for one export (deleted afterwards).</summary>
+public sealed record InputBurn(string Dir, string ListFile)
+{
+    public void Clean()
+    {
+        try { if (Directory.Exists(Dir)) Directory.Delete(Dir, true); } catch { }
+    }
+}
+
 /// <summary>The clips folder: listing, thumbnails, the storage limit, trimming and the Discord-sized export.</summary>
 public static class ClipLibrary
 {
@@ -104,6 +113,7 @@ public static class ClipLibrary
         try { if (File.Exists(ThumbFor(clip))) File.Move(ThumbFor(clip), ThumbFor(dest), true); } catch { }
         try { if (File.Exists(MarksFor(clip))) File.Move(MarksFor(clip), MarksFor(dest), true); } catch { }
         try { if (File.Exists(StripFor(clip))) File.Move(StripFor(clip), StripFor(dest), true); } catch { }
+        try { if (File.Exists(InputTimeline.FileFor(clip))) File.Move(InputTimeline.FileFor(clip), InputTimeline.FileFor(dest), true); } catch { }
         return dest;
     }
 
@@ -198,21 +208,49 @@ public static class ClipLibrary
         try { File.Delete(ThumbFor(clip)); } catch { }
         try { File.Delete(StripFor(clip)); } catch { }
         try { File.Delete(MarksFor(clip)); } catch { }
+        try { File.Delete(InputTimeline.FileFor(clip)); } catch { }
     }
 
     /// <summary>
     /// Saves the part between <paramref name="from"/> and <paramref name="to"/> as a new clip. It's re-encoded with the
     /// graphics card so the cut is exact to the frame (a plain copy could only cut on keyframes).
     /// </summary>
-    public static async Task<string> Trim(string clip, double from, double to, Encoder e, int mbps, IReadOnlyList<int> audio = null, CancellationToken ct = default)
+    public static async Task<string> Trim(string clip, double from, double to, Encoder e, int mbps, IReadOnlyList<int> audio = null, InputBurn burn = null, CancellationToken ct = default)
     {
-        if (to - from < 0.5) throw new InvalidOperationException("Pick at least half a second to keep.");
-        var dest = Sibling(clip, "trimmed");
-        var f = from.ToString("0.###", CultureInfo.InvariantCulture);
-        var d = (to - from).ToString("0.###", CultureInfo.InvariantCulture);
-        var (code, err) = await Ffmpeg.Run($"-hide_banner -loglevel error -y -ss {f} -i \"{clip}\" -t {d} -map 0:v:0 {Encoders.Options(e, mbps, 60)} {AudioArgs(audio ?? new[] { 0 })} -movflags +faststart \"{dest}\"", ct);
-        if (code != 0) throw new InvalidOperationException("Trimming didn't work: " + err.Trim());
-        return dest;
+        try
+        {
+            if (to - from < 0.5) throw new InvalidOperationException("Pick at least half a second to keep.");
+            var dest = Sibling(clip, "trimmed");
+            var f = from.ToString("0.###", CultureInfo.InvariantCulture);
+            var d = (to - from).ToString("0.###", CultureInfo.InvariantCulture);
+            var (code, err) = await Ffmpeg.Run($"-hide_banner -loglevel error -y -ss {f} -i \"{clip}\" {OverlayInput(burn)} -t {d} {VideoArgs(burn, 0)} {Encoders.Options(e, mbps, 60)} {AudioArgs(audio ?? new[] { 0 })} -movflags +faststart \"{dest}\"", ct);
+            if (code != 0) throw new InvalidOperationException("Trimming didn't work: " + err.Trim());
+            return dest;
+        }
+        finally { burn?.Clean(); }
+    }
+
+    /// <summary>The overlay pictures as a second input (FFmpeg's concat list), when an input overlay is burned in.</summary>
+    internal static string OverlayInput(InputBurn burn) => burn == null ? "" : $"-f concat -safe 0 -i \"{burn.ListFile}\"";
+
+    /// <summary>
+    /// The picture to encode: the clip's video, with the input overlay in the bottom-left corner when there is one,
+    /// scaled to <paramref name="height"/> (0 = unchanged).
+    /// </summary>
+    internal static string VideoArgs(InputBurn burn, int height)
+    {
+        string scale = height > 0 ? $"scale=-2:{height}" : "";
+        if (burn == null) return height > 0 ? $"-map 0:v:0 -vf {scale}" : "-map 0:v:0";
+        var chain = "overlay=x=main_h*0.025:y=main_h-overlay_h-main_h*0.035" + (height > 0 ? "," + scale : "") + ",format=yuv420p";
+        return $"-filter_complex \"[0:v:0][1:v]{chain}[vout]\" -map \"[vout]\"";
+    }
+
+    /// <summary>Width and height of a clip's video (0, 0 if unknown).</summary>
+    public static async Task<(int Width, int Height)> VideoSize(string clip)
+    {
+        var (_, err) = await Ffmpeg.Run($"-hide_banner -i \"{clip}\"", timeoutMs: 15_000);
+        var m = Regex.Match(err ?? "", @"Video:.*?(\d{3,5})x(\d{3,5})");
+        return m.Success ? (int.Parse(m.Groups[1].Value), int.Parse(m.Groups[2].Value)) : (0, 0);
     }
 
     /// <summary>The video bitrate (kbit/s) that makes a clip of this length fit Discord's limit with 128 kbit/s audio.</summary>
@@ -223,7 +261,13 @@ public static class ClipLibrary
     }
 
     /// <summary>Re-encodes a copy that fits in a free Discord upload (under 10 MB), lowering the resolution for long clips.</summary>
-    public static async Task<string> ForDiscord(string clip, Encoder e, double from = 0, double to = 0, IReadOnlyList<int> audioTracks = null, CancellationToken ct = default)
+    public static async Task<string> ForDiscord(string clip, Encoder e, double from = 0, double to = 0, IReadOnlyList<int> audioTracks = null, InputBurn burn = null, CancellationToken ct = default)
+    {
+        try { return await ForDiscordCore(clip, e, from, to, audioTracks, burn, ct); }
+        finally { burn?.Clean(); }
+    }
+
+    static async Task<string> ForDiscordCore(string clip, Encoder e, double from, double to, IReadOnlyList<int> audioTracks, InputBurn burn, CancellationToken ct)
     {
         double total = await Duration(clip);
         if (total <= 0) throw new InvalidOperationException("Couldn't read the clip's length.");
@@ -239,7 +283,7 @@ public static class ClipLibrary
             // H.264 plays everywhere, including Discord's own player: use the graphics card's H.264 encoder.
             var codec = e.Hardware ? $"-c:v {H264Of(e)}" : "-c:v libx264 -preset veryfast";
             var audio = AudioArgs(audioTracks ?? new[] { 0 }).Replace("-b:a 160k", "-b:a 128k");
-            var (code, err) = await Ffmpeg.Run($"-hide_banner -loglevel error -y {cut} -i \"{clip}\" -map 0:v:0 -vf scale=-2:{h} {codec} {rate} {audio} -movflags +faststart \"{dest}\"", ct);
+            var (code, err) = await Ffmpeg.Run($"-hide_banner -loglevel error -y {cut} -i \"{clip}\" {OverlayInput(burn)} {VideoArgs(burn, h)} {codec} {rate} {audio} -movflags +faststart \"{dest}\"", ct);
             if (code != 0) throw new InvalidOperationException("Making the Discord copy didn't work: " + err.Trim());
             if (new FileInfo(dest).Length <= DiscordLimitBytes) return dest;
             kbps = kbps * 80 / 100; // the encoder overshot: try again a bit smaller

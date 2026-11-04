@@ -85,6 +85,7 @@ public static class ClipsService
     {
         _timer?.Stop();
         StopRecorder();
+        _input?.Dispose(); _input = null;
         if (_hotkeyWindow != null)
         {
             foreach (var id in new[] { HotkeyId, QuickId, ShotId, SessionId, MarkId }) UnregisterHotKey(_hotkeyWindow.Handle, id);
@@ -124,7 +125,11 @@ public static class ClipsService
         if (_ticking) return;
         _ticking = true;
         try { await TickCore(); }
-        finally { _ticking = false; }
+        finally
+        {
+            _ticking = false;
+            try { SyncInput(); } catch { }
+        }
     }
 
     static async Task TickCore()
@@ -209,6 +214,23 @@ public static class ClipsService
         return e.Length > 0 ? "Recording stopped: " + e : "Recording stopped unexpectedly.";
     }
 
+    static InputCapture _input;
+
+    /// <summary>Input recording follows the replay: on while it records (if the overlay is turned on).</summary>
+    static void SyncInput()
+    {
+        bool want = S.InputOverlay && _rec != null && _rec.Running;
+        if (want && _input == null) { try { _input = new InputCapture(); _input.Start(); } catch { _input = null; } }
+        else if (!want && _input != null) { _input.Dispose(); _input = null; }
+        if (_input != null) _input.KeepSeconds = _rec?.SessionActive == true ? 6 * 3600 : S.ReplaySeconds + 60;
+    }
+
+    static void SaveInputs(string clip)
+    {
+        if (_input == null || _rec == null || clip == null) return;
+        try { var (from, to) = _rec.LastRange; _input.Slice(from, to).Save(clip); } catch { }
+    }
+
     static void StopRecorder()
     {
         var r = _rec;
@@ -232,6 +254,7 @@ public static class ClipsService
         try
         {
             var path = await _rec.Save(S.ClipsFolder, _game ?? "Clip", seconds);
+            SaveInputs(path);
             Feedback.Saved(S, seconds);
             _ = Task.Run(async () =>
             {
@@ -268,6 +291,7 @@ public static class ClipsService
             try
             {
                 _rec.StartSession(S.ClipsFolder, _game ?? "Recording");
+                SyncInput();
                 ClipToast.Show(Loc.T("Recording started"), Loc.F("Press {0} again to stop.", HotkeyText(S.SessionModifiers, S.SessionKey)), true);
                 TweakEngine.AddLog("clips", "Started a long recording");
                 Changed?.Invoke();
@@ -279,6 +303,8 @@ public static class ClipsService
         try
         {
             var path = await _rec.StopSession(S.ClipsFolder);
+            SaveInputs(path);
+            SyncInput();
             Feedback.Saved(S, 0, Loc.T("Recording saved"));
             TweakEngine.AddLog("clips", $"Saved a recording: {Path.GetFileName(path)}");
             _ = Task.Run(async () =>
