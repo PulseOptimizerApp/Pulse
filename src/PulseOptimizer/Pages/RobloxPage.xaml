@@ -71,25 +71,33 @@
             </ItemsControl>
 
             <!-- NVIDIA, Roblox only: a simple NVIDIA Profile Inspector for Roblox's profile -->
-            <Border x:Name="NvCard" Style="{StaticResource Card}" Margin="0,16,0,0" Padding="22,18" Visibility="Collapsed">
+            <Border x:Name="NvCard" Style="{StaticResource Card}" Margin="0,16,0,0" Padding="22,18">
                 <StackPanel>
                     <Grid>
                         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                         <StackPanel>
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Style="{StaticResource H2}" Text="NVIDIA settings for Roblox"/>
+                                <Border Style="{StaticResource Pill}" Background="{StaticResource InfoSoftBrush}" Margin="10,0,0,0">
+                                    <TextBlock Style="{StaticResource PillText}" Text="NVIDIA only" Foreground="{StaticResource InfoBrush}"/>
+                                </Border>
                                 <Border x:Name="NvOnPill" Style="{StaticResource Pill}" Background="{StaticResource GoodSoftBrush}" Margin="10,0,0,0" Visibility="Collapsed">
                                     <TextBlock Style="{StaticResource PillText}" Text="Applied" Foreground="{StaticResource GoodBrush}"/>
                                 </Border>
                             </StackPanel>
                             <TextBlock Style="{StaticResource Body}" Margin="0,4,0,0" MaxWidth="560" HorizontalAlignment="Left"
                                        Text="Changes NVIDIA's driver settings for Roblox only. Other games stay as they are, and Undo puts everything back."/>
+                            <TextBlock Style="{StaticResource Body}" FontSize="12" Foreground="{StaticResource TextFaintBrush}" Margin="0,4,0,0" MaxWidth="560" HorizontalAlignment="Left"
+                                       Text="Only works with NVIDIA graphics cards. AMD and Intel graphics aren't supported here."/>
+                            <TextBlock x:Name="NvNoCard" Style="{StaticResource Body}" Foreground="{StaticResource WarnBrush}" FontSize="12.5" Margin="0,8,0,0" MaxWidth="560" HorizontalAlignment="Left" Visibility="Collapsed"
+                                       Text="Pulse didn't find an NVIDIA graphics card on this PC, so this section is turned off. Everything else on this page still works."/>
                         </StackPanel>
-                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top">
+                        <StackPanel x:Name="NvPresets" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top">
                             <RadioButton x:Name="NvPresetLow" Style="{StaticResource Chip}" GroupName="NvPreset" Tag="lowlatency" Content="Recommended" Checked="NvPreset_Checked"/>
                             <RadioButton x:Name="NvPresetNone" Style="{StaticResource Chip}" GroupName="NvPreset" Tag="none" Content="Change nothing" Checked="NvPreset_Checked"/>
                         </StackPanel>
                     </Grid>
+                    <StackPanel x:Name="NvBody">
                     <TextBlock x:Name="NvReadError" Foreground="{StaticResource WarnBrush}" FontSize="12" Margin="0,8,0,0" Visibility="Collapsed" TextWrapping="Wrap"/>
 
                     <!-- Imported .nip file -->
@@ -203,6 +211,7 @@
                             <Button Style="{StaticResource PrimaryButton}" Content="Apply" Click="NvApply_Click"/>
                         </StackPanel>
                     </Grid>
+                    </StackPanel>
                 </StackPanel>
             </Border>
 
