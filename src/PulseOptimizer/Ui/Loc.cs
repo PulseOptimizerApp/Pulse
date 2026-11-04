@@ -126,7 +126,7 @@ public static class Loc
             {
                 var v = m.Groups["a" + g.Groups[1].Value];
                 if (!v.Success) return g.Value;
-                return Lookup(v.Value, false) ?? v.Value;
+                return v.Value.Length < s.Length ? Lookup(v.Value, true) ?? v.Value : v.Value;
             });
         }
         return null;

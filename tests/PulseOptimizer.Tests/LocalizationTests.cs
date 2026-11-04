@@ -22,8 +22,9 @@ public class LocalizationTests
         foreach (var (en, tr) in Read(file))
         {
             Assert.False(string.IsNullOrWhiteSpace(tr), $"{file}: '{en}' has no translation");
-            var want = Regex.Matches(en, @"\{\d\}").Select(m => m.Value).OrderBy(x => x);
-            var got = Regex.Matches(tr, @"\{\d\}").Select(m => m.Value).OrderBy(x => x);
+            // The same placeholders must be there; a translation may repeat one (Spanish plurals: "ajuste{1} recomendado{1}").
+            var want = Regex.Matches(en, @"\{\d\}").Select(m => m.Value).Distinct().OrderBy(x => x);
+            var got = Regex.Matches(tr, @"\{\d\}").Select(m => m.Value).Distinct().OrderBy(x => x);
             Assert.True(want.SequenceEqual(got), $"{file}: placeholders differ for '{en}'");
         }
     }
