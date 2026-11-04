@@ -179,6 +179,7 @@ public partial class ClipsPage : UserControl, IPage
         StatusDot.Fill = dot;
         SaveNowBtn.IsEnabled = ClipsService.State == ClipsState.Recording;
         HotkeyWarn.Text = ClipsService.HotkeyWorks ? "" : Loc.T("Another app already uses this hotkey (often NVIDIA's overlay or Medal). Pick a different one.");
+        if (ClipsService.VoiceError != null) VoiceText.Text = Loc.T(ClipsService.VoiceError);
         ExtraWarn.Text = ClipsService.QuickOk && ClipsService.ShotOk && ClipsService.SessionOk && ClipsService.MarkOk ? "" : Loc.T("Another app already uses one of these hotkeys. Pick a different one.");
         UpdateUsage();
     }
@@ -226,6 +227,7 @@ public partial class ClipsPage : UserControl, IPage
         Fill(FpsChips, "fps", new[] { ("30", "30"), ("60", "60"), ("120", "120"), ("144", "144") });
         Fill(BitrateChips, "br", new[] { ("15 Mbps", "15"), ("25 Mbps", "25"), ("40 Mbps", "40"), ("60 Mbps", "60"), ("80 Mbps", "80"), ("120 Mbps", "120") });
         Fill(QuickLenChips, "qlen", new[] { ("10 s", "10"), ("15 s", "15"), ("30 s", "30") });
+        Fill(SyncChips, "sync", new[] { ("100 ms earlier", "-100"), ("50 ms earlier", "-50"), ("In sync", "0"), ("50 ms later", "50"), ("100 ms later", "100") });
         Fill(LimitChips, "lim", new[] { ("10 GB", "10"), ("30 GB", "30"), ("100 GB", "100"), ("No limit", "0") });
         Fill(CaptureChips, "cap", new[] { ("The game", "game"), ("Whole screen", "screen") });
         int monitors = Math.Max(1, MonitorCount());
@@ -268,6 +270,7 @@ public partial class ClipsPage : UserControl, IPage
         Mark(FpsChips, S.Fps.ToString(CultureInfo.InvariantCulture));
         Mark(BitrateChips, S.BitrateMbps.ToString(CultureInfo.InvariantCulture));
         Mark(LimitChips, S.StorageLimitGb.ToString(CultureInfo.InvariantCulture));
+        Mark(SyncChips, S.AudioOffsetMs.ToString(CultureInfo.InvariantCulture));
         Mark(MonitorChips, S.Monitor.ToString(CultureInfo.InvariantCulture));
         Mark(CaptureChips, S.Capture);
         CaptureHint.Text = Environment.OSVersion.Version.Build < 22000
@@ -288,6 +291,8 @@ public partial class ClipsPage : UserControl, IPage
         SeparateMicSwitch.IsChecked = S.SeparateMicTrack;
         AppTracksSwitch.IsChecked = S.AppTracks;
         InputSwitch.IsChecked = S.InputOverlay;
+        VoiceSwitch.IsChecked = S.VoiceClip;
+        VoicePhraseBox.Text = string.IsNullOrWhiteSpace(S.VoicePhrase) ? VoiceClip.DefaultPhrase : S.VoicePhrase;
         AppTracksRow.Visibility = AudioCapture.AppCaptureSupported ? Visibility.Visible : Visibility.Collapsed;
         CursorSwitch.IsChecked = S.RecordCursor;
         SoundSwitch.IsChecked = S.PlaySound;
@@ -323,6 +328,7 @@ public partial class ClipsPage : UserControl, IPage
             case "fps": S.Fps = n; break;
             case "br": S.BitrateMbps = n; break;
             case "lim": S.StorageLimitGb = n; break;
+            case "sync": S.AudioOffsetMs = n; break;
             case "qlen": S.QuickSeconds = n; break;
             case "mon": S.Monitor = n; break;
             case "cap": S.Capture = v; ShowSettings(); break;
@@ -341,6 +347,7 @@ public partial class ClipsPage : UserControl, IPage
         S.SeparateMicTrack = SeparateMicSwitch.IsChecked == true;
         S.AppTracks = AppTracksSwitch.IsChecked == true;
         S.InputOverlay = InputSwitch.IsChecked == true;
+        S.VoiceClip = VoiceSwitch.IsChecked == true;
         S.RecordCursor = CursorSwitch.IsChecked == true;
         S.PlaySound = SoundSwitch.IsChecked == true;
         S.ShowSavedPopup = PopupSwitch.IsChecked == true;
@@ -981,6 +988,14 @@ public partial class ClipsPage : UserControl, IPage
         var listFile = Path.Combine(dir, "list.txt");
         File.WriteAllText(listFile, list.ToString());
         return new InputBurn(dir, listFile);
+    }
+
+    void VoicePhrase_LostFocus(object sender, KeyboardFocusChangedEventArgs e)
+    {
+        var p = VoicePhraseBox.Text.Trim();
+        if (p == (string.IsNullOrWhiteSpace(S.VoicePhrase) ? VoiceClip.DefaultPhrase : S.VoicePhrase)) return;
+        S.VoicePhrase = p == VoiceClip.DefaultPhrase ? "" : p;
+        Changed(restart: true);
     }
 
     // ───────── Long recording ─────────

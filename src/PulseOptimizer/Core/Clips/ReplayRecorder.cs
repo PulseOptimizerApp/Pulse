@@ -144,7 +144,9 @@ public sealed class ReplayRecorder : IDisposable
         string src = window != IntPtr.Zero ? $"[0:v]fps={fps}," : "[0:v]";
         int next = 1;
         int gameIn = -1, micIn = -1;
-        string Raw(string pipe) => $"-thread_queue_size 4096 -f f32le -ar {AudioCapture.Rate} -ac 2 -i {pipe}";
+        int offset = Math.Clamp(s.AudioOffsetMs, -500, 500);
+        string shift = offset == 0 ? "" : $"-itsoffset {(offset / 1000.0).ToString("0.###", CultureInfo.InvariantCulture)} ";
+        string Raw(string pipe) => $"-thread_queue_size 4096 {shift}-f f32le -ar {AudioCapture.Rate} -ac 2 -i {pipe}";
         if (gamePipe != null) { a.Add(Raw(gamePipe)); gameIn = next++; }
         if (micPipe != null) { a.Add(Raw(micPipe)); micIn = next++; }
 

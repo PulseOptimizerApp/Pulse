@@ -97,3 +97,56 @@ public class InputOverlayTests
         Assert.Equal("8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c", GamePowerPlan.Guid("Power Scheme GUID: 8C5E7FDA-E8BF-4A96-9A85-A6E23A8C635C  (High performance)"));
     }
 }
+
+public class StutterTests
+{
+    static List<double> Frames(int count, Func<int, double> ms) => Enumerable.Range(0, count).Select(ms).ToList();
+
+    [Fact]
+    public void Smooth_frames_have_no_hitches()
+    {
+        var f = Frames(3000, _ => 1000 / 144.0);
+        Assert.Empty(Pulse.Core.Measurement.StutterCheck.FindHitches(f));
+        Assert.StartsWith("Smooth", Pulse.Core.Measurement.StutterCheck.Explain(new(), 30, new()).Verdict);
+    }
+
+    [Fact]
+    public void Evenly_spaced_hitches_point_at_something_on_a_timer()
+    {
+        // 144 FPS with a 60 ms skip every 5 seconds.
+        var f = Frames(144 * 30, i => i % 720 == 700 ? 60 : 1000 / 144.0);
+        var h = Pulse.Core.Measurement.StutterCheck.FindHitches(f);
+        Assert.InRange(h.Count, 5, 7);
+        Assert.Contains("every 5 seconds", Pulse.Core.Measurement.StutterCheck.Explain(h, 30, new()).Verdict);
+    }
+
+    [Fact]
+    public void A_background_app_busy_at_the_hitches_is_named()
+    {
+        var hitches = new List<Pulse.Core.Measurement.Hitch> { new(3.2, 80), new(11.5, 70), new(19.1, 90), new(27.6, 75) };
+        var cpu = new double[32];
+        foreach (var s in new[] { 3, 11, 19, 27 }) cpu[s] = 90;
+        var (verdict, _) = Pulse.Core.Measurement.StutterCheck.Explain(hitches, 30, new() { ["MsMpEng"] = cpu, ["explorer"] = new double[32] });
+        Assert.Contains("MsMpEng", verdict);
+    }
+}
+
+public class UpgradeAdvisorTests
+{
+    static Pulse.Core.Finding F(string id, Pulse.Core.Severity s = Pulse.Core.Severity.Problem) => new() { Id = id, Title = "t", Detail = "d", Severity = s };
+
+    [Fact]
+    public void Single_channel_ram_is_the_first_pick()
+    {
+        var f = Pulse.Core.PcDiagnostics.UpgradeAdvice(new[] { F("ram-channels"), F("games-hdd") }, 8, 60);
+        Assert.Contains("RAM stick", f.Title);
+    }
+
+    [Fact]
+    public void Nothing_wrong_means_no_upgrade_is_pushed()
+    {
+        var f = Pulse.Core.PcDiagnostics.UpgradeAdvice(new[] { F("mon-ok:DISPLAY1", Pulse.Core.Severity.Ok) }, 32, 165);
+        Assert.Contains("No clear upgrade", f.Title);
+        Assert.Contains("monitor", Pulse.Core.PcDiagnostics.UpgradeAdvice(new Pulse.Core.Finding[0], 32, 60).Title);
+    }
+}

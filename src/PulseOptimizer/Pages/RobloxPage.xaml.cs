@@ -349,8 +349,11 @@ public partial class RobloxPage : UserControl, IPage
         var lines = list.Count == 0 ? Pulse.Ui.Loc.T("•  Nothing: Pulse's earlier changes are put back.")
             : string.Join("\n", shown.Take(6).Select(x => $"•  {Pulse.Ui.Loc.T(x.Name)}"))
               + (shown.Count > 6 ? "\n" + Pulse.Ui.Loc.F("•  and {0} more", shown.Count - 6) : "");
-        if (!await MainWindow.Instance.Confirm("Change NVIDIA settings for Roblox?",
-                lines + "\n\n" + Pulse.Ui.Loc.T("Only Roblox's profile changes. Undo puts the old values back. Takes effect the next time Roblox starts."), "Apply")) return;
+        int shared = list.Count == 0 ? 0 : await Task.Run(NvidiaProfile.AppsInRobloxProfile);
+        var where = shared > 1
+            ? Pulse.Ui.Loc.F("Heads up: NVIDIA's Roblox profile also covers {0} other programs, so these settings apply to them too. Undo puts everything back.", shared - 1)
+            : Pulse.Ui.Loc.T("Only Roblox's profile changes. Undo puts the old values back. Takes effect the next time Roblox starts.");
+        if (!await MainWindow.Instance.Confirm("Change NVIDIA settings for Roblox?", lines + "\n\n" + where, "Apply")) return;
         await ApplyNv(list);
     }
 

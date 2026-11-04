@@ -56,13 +56,15 @@ Built and merged, CI green, **not yet tested on a real PC** (the owner tests the
 - **New:** Reaction trainer (4 drills, adaptive, progress graph).
 - **UI:** Home rebuilt from the approved mockup (other pages still to do).
 
+Also built after that (same release): sound sync offset for clips, voice clipping (beta, Windows' offline speech engine), stutter detective, upgrade advisor in Diagnose, a warning when NVIDIA's Roblox profile is shared with other programs, and the hero-card look on Diagnose, Clips and Debloat. Already in the app before: the weekly report ("Keep it fresh": weekly tune-up and what changed), the driver age check (Diagnose), and one-click pro settings per game (Games page).
+
 Still to do (next sessions):
 
-- Verify everything above with the owner's screenshots; fix what breaks.
-- UI system for the remaining pages (Games, Clips, Roblox, Diagnose, Tweaks, Debloat, Settings), one per PR, plus the refined logo if the owner picks it.
-- Clips: compare quality and FPS cost against Medal and NVIDIA (needs the owner's PC); HDR tone-mapping; audio sync offset; voice clipping; in-game "clip saved" indicator for exclusive fullscreen.
-- Roblox: NVIDIA "Roblox only" own-profile split; warning when a flag stops working (needs real Roblox logs to match).
-- New features: one-click "Optimize for this game" flow, driver manager, stutter detective, upgrade advisor, weekly report.
+- Verify everything with the owner's screenshots; fix what breaks (voice clipping and the input overlay especially).
+- UI system: the rest of the pages (Games, Roblox, Tweaks, Settings) in the Home style; the refined logo if the owner picks it.
+- Clips: quality and FPS comparison against Medal and NVIDIA on the owner's PC; HDR tone-mapping (needs an HDR screen to test); a "clip saved" indicator inside exclusive fullscreen is not possible without hooking the game, so sound stays the cue there.
+- Roblox: moving Roblox into its own NVIDIA profile (needs testing on a real driver first); a warning when a Fast Flag stops working (needs real Roblox logs to match).
+- Driver manager that checks for new drivers online: needs network access, so only if the owner accepts that change to the "never downloads" promise.
 
 ## Roadmap
 

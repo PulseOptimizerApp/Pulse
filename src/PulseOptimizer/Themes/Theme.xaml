@@ -114,6 +114,23 @@
     </Style>
 
     <!-- ═════════ Card ═════════ -->
+    <!-- The one card per page that matters most: Pulse's gradient, so it's the first thing you see -->
+    <LinearGradientBrush x:Key="HeroFill" StartPoint="0,0" EndPoint="1,1">
+        <GradientStop Color="#1F22D3EE" Offset="0"/>
+        <GradientStop Color="#1F8B5CF6" Offset="1"/>
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="HeroEdge" StartPoint="0,0" EndPoint="1,1">
+        <GradientStop Color="#6622D3EE" Offset="0"/>
+        <GradientStop Color="#668B5CF6" Offset="1"/>
+    </LinearGradientBrush>
+    <Style x:Key="HeroCard" TargetType="Border">
+        <Setter Property="CornerRadius" Value="16"/>
+        <Setter Property="Padding" Value="24,20"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Background" Value="{StaticResource HeroFill}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource HeroEdge}"/>
+    </Style>
+
     <Style x:Key="Card" TargetType="Border">
         <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
         <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>

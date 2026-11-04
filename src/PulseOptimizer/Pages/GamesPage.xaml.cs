@@ -585,4 +585,29 @@ public partial class GamesPage : UserControl, IPage
         catch (Exception ex) { NetText.Text = ex.Message; }
         finally { NetBtn.IsEnabled = true; }
     }
+
+    async void Stutter_Click(object sender, RoutedEventArgs e)
+    {
+        var game = await Task.Run(GameDetector.RunningGame);
+        string exe = null;
+        try { if (game != null) using (var p = System.Diagnostics.Process.GetProcessById(GameDetector.GamePid)) exe = p.ProcessName; } catch { }
+        if (exe == null)
+        {
+            StutterText.Text = Loc.T("Start a game first, then press the button and switch back to the game within a few seconds.");
+            return;
+        }
+        StutterBtn.IsEnabled = false;
+        StutterDetail.Text = "";
+        try
+        {
+            for (int i = 5; i > 0; i--) { StutterText.Text = Loc.F("Switch to {0}: starting in {1}…", game, i); await Task.Delay(1000); }
+            StutterText.Text = Loc.F("Watching {0} for 30 seconds. Keep playing…", game);
+            var r = await Task.Run(() => StutterCheck.Run(exe, 30));
+            StutterText.Text = Loc.T(r.Verdict);
+            StutterDetail.Text = r.Detail;
+            TweakEngine.AddLog("games", $"Stutter check on {game}: {r.Hitches.Count} stutters");
+        }
+        catch (Exception ex) { StutterText.Text = ex.Message; }
+        finally { StutterBtn.IsEnabled = true; }
+    }
 }

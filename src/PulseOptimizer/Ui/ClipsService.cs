@@ -73,6 +73,7 @@ public static class ClipsService
     public static void Restart()
     {
         StopRecorder();
+        _voice?.Dispose(); _voice = null; VoiceError = null;
         _failures = 0;
         _stalls = 0;
         _screenOnly = IntPtr.Zero;
@@ -86,6 +87,7 @@ public static class ClipsService
         _timer?.Stop();
         StopRecorder();
         _input?.Dispose(); _input = null;
+        _voice?.Dispose(); _voice = null;
         if (_hotkeyWindow != null)
         {
             foreach (var id in new[] { HotkeyId, QuickId, ShotId, SessionId, MarkId }) UnregisterHotKey(_hotkeyWindow.Handle, id);
@@ -129,6 +131,7 @@ public static class ClipsService
         {
             _ticking = false;
             try { SyncInput(); } catch { }
+            try { SyncVoice(); } catch { }
         }
     }
 
@@ -215,6 +218,21 @@ public static class ClipsService
     }
 
     static InputCapture _input;
+    static VoiceClip _voice;
+    /// <summary>Why voice clipping isn't listening, if it was turned on and couldn't start.</summary>
+    public static string VoiceError { get; private set; }
+
+    /// <summary>Voice clipping listens while the replay records (if turned on).</summary>
+    static void SyncVoice()
+    {
+        bool want = S.VoiceClip && _rec != null && _rec.Running;
+        if (want && _voice == null && VoiceError == null)
+        {
+            _voice = VoiceClip.Start(S.VoicePhrase, () => _ = SaveClip(), out var err);
+            VoiceError = err;
+        }
+        else if (!want && _voice != null) { _voice.Dispose(); _voice = null; }
+    }
 
     /// <summary>Input recording follows the replay: on while it records (if the overlay is turned on).</summary>
     static void SyncInput()

@@ -39,7 +39,8 @@ public static class NvidiaProfile
     const uint ID_Initialize = 0x0150E828, ID_CreateSession = 0x0694D52E, ID_DestroySession = 0xDAD9CFF8,
                ID_LoadSettings = 0x375DBD6B, ID_SaveSettings = 0xFCBC7E14, ID_CreateProfile = 0xCC176068,
                ID_FindProfileByName = 0x7E4A9A0B, ID_CreateApplication = 0x4347A9DE, ID_FindApplicationByName = 0xEEE566B2,
-               ID_SetSetting = 0x577DD202, ID_GetSetting = 0x73BF8338, ID_DeleteProfileSetting = 0xE4A26362;
+               ID_SetSetting = 0x577DD202, ID_GetSetting = 0x73BF8338, ID_DeleteProfileSetting = 0xE4A26362,
+               ID_GetProfileInfo = 0x61CD6FD6;
 
     // Structure sizes from nvapi.h: NvAPI_UnicodeString is 2048 UTF-16 chars (4096 bytes).
     const int Str = 4096;
@@ -61,6 +62,32 @@ public static class NvidiaProfile
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate int D_SetSetting(IntPtr session, IntPtr profile, IntPtr setting);
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate int D_GetSetting(IntPtr session, IntPtr profile, uint id, IntPtr setting);
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate int D_DeleteSetting(IntPtr session, IntPtr profile, uint id);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate int D_ProfileInfo(IntPtr session, IntPtr profile, IntPtr info);
+
+    /// <summary>
+    /// How many programs share the profile Roblox runs under (1 = Roblox alone). NVIDIA's own Roblox profile can also
+    /// cover other programs; changes made for Roblox then apply to them too. 0 if it couldn't be read. Saves nothing.
+    /// </summary>
+    public static int AppsInRobloxProfile()
+    {
+        int apps = 0;
+        try
+        {
+            WithRobloxProfile((session, profile) =>
+            {
+                var info = Alloc(ProfileSize);
+                try
+                {
+                    Marshal.WriteInt32(info, 0, (int)Ver(ProfileSize, 1));
+                    if (Fn<D_ProfileInfo>(ID_GetProfileInfo)(session, profile, info) == 0)
+                        apps = Marshal.ReadInt32(info, 4 + Str + 4 + 4); // after name, gpuSupport, isPredefined
+                }
+                finally { Marshal.FreeHGlobal(info); }
+            }, save: false);
+        }
+        catch { apps = 0; }
+        return apps;
+    }
 
     static T Fn<T>(uint id) where T : Delegate
     {

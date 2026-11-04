@@ -16,11 +16,13 @@
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
 
-                <Border Style="{StaticResource Card}" ui:Anim.Reveal="True">
+                <Border Style="{StaticResource HeroCard}" ui:Anim.Reveal="True">
                     <StackPanel>
                         <TextBlock Style="{StaticResource Label}" Text="CHECKUP"/>
                         <Grid Width="150" Height="150" Margin="0,16,0,12">
-                            <ui:Ring x:Name="SummaryRing" Thickness="10" Brush="{StaticResource AccentGradient}"/>
+                            <ui:Ring x:Name="SummaryRing" Thickness="10" Brush="{StaticResource AccentGradient}">
+                                <ui:Ring.Effect><DropShadowEffect Color="#5B8CFF" BlurRadius="28" ShadowDepth="0" Opacity="0.45"/></ui:Ring.Effect>
+                            </ui:Ring>
                             <ui:Spinner x:Name="SummarySpinner" Width="150" Height="150" Thickness="10" Brush="{StaticResource AccentGradient}" Visibility="Collapsed"/>
                             <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                                 <TextBlock x:Name="SummaryBig" Text="—" FontFamily="{StaticResource DisplayFont}" FontSize="28" FontWeight="SemiBold" HorizontalAlignment="Center"/>

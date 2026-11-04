@@ -46,6 +46,16 @@
                             </StackPanel>
                             <Button x:Name="NetBtn" Grid.Column="1" Style="{StaticResource GhostButton}" VerticalAlignment="Center" Content="Check my connection" Click="Net_Click"/>
                         </Grid>
+                        <Grid Style="{StaticResource Row}">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource RowLabel}" Text="Stutter detective"/>
+                                <TextBlock x:Name="StutterText" FontSize="12" Foreground="{StaticResource TextDimBrush}" Margin="0,2,0,0" TextWrapping="Wrap" MaxWidth="620"
+                                           Text="Start a game and play normally. Pulse watches for 30 seconds, finds the stutters and tells you what's most likely causing them."/>
+                                <TextBlock x:Name="StutterDetail" FontSize="12" Foreground="{StaticResource TextDimBrush}" Margin="0,4,0,0" TextWrapping="Wrap" MaxWidth="620"/>
+                            </StackPanel>
+                            <Button x:Name="StutterBtn" Grid.Column="1" Style="{StaticResource GhostButton}" VerticalAlignment="Center" Content="Find my stutters" Click="Stutter_Click"/>
+                        </Grid>
                     </StackPanel>
                 </Border>
 

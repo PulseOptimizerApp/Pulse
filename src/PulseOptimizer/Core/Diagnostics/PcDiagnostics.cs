@@ -96,6 +96,7 @@ public static partial class PcDiagnostics
                 all.Add(new Finding { Id = label, Title = label.Replace("Checking ", ""), Severity = Severity.Unknown, Detail = ex.Message, Rank = 99 });
             }
         }
+        try { all.Add(UpgradeAdvice(all, SystemInfo.TotalRam / 1073741824.0, LastMonitors.Select(m => m.MaxHzAtCurrent).DefaultIfEmpty(0).Max())); } catch { }
         var facts = HardwareFacts.Get();
         foreach (var f in all)
         {
@@ -103,6 +104,34 @@ public static partial class PcDiagnostics
         }
         return all.OrderBy(f => f.Severity switch { Severity.Problem => 0, Severity.Check => 1, Severity.Unknown => 2, _ => 3 })
                   .ThenBy(f => f.Rank).ToList();
+    }
+
+    // ───────── Upgrade advisor ─────────
+
+    /// <summary>
+    /// The one hardware upgrade most worth the money for this PC, from what the checkup found: cheapest fix for the
+    /// biggest limit first. Honest advice: no links, no brands, and "no clear upgrade" when there isn't one.
+    /// </summary>
+    internal static Finding UpgradeAdvice(IReadOnlyList<Finding> found, double ramGb, int maxHz)
+    {
+        bool Has(string id) => found.Any(f => f.Id.StartsWith(id) && f.Severity is Severity.Problem or Severity.Check);
+        (string Title, string Detail) pick =
+            Has("ram-channels") ? ("A second, matching RAM stick",
+                "Your memory runs on one channel. A second stick of the same size and speed doubles memory bandwidth, which often gives a big FPS boost in CPU-heavy games, for the price of one stick.")
+            : ramGb > 0 && ramGb < 15 ? (Ui.Loc.F("More memory: 16 GB or more (you have {0} GB)", Math.Round(ramGb)),
+                "Modern games and Discord or a browser in the background need more than you have. Running out causes stutters that no setting fixes. Buy a matching pair so it stays dual-channel.")
+            : Has("games-hdd") ? ("An SSD for your games",
+                "Some of your games are on a hard drive. An SSD loads maps much faster and removes the stutters that happen while a game streams in new areas.")
+            : maxHz > 0 && maxHz <= 75 ? ("A high refresh rate monitor (144 Hz or more)",
+                "Your screen shows at most 60 to 75 frames a second, so any FPS above that is wasted. If your games already run above 60 FPS, a 144 Hz monitor is the biggest smoothness upgrade you can buy.")
+            : ("No clear upgrade needed",
+                "Nothing in the checkup points at one part holding your PC back. If a game runs slow, Measure shows whether the processor or the graphics card is the limit, and that's the part to upgrade.");
+        return new Finding
+        {
+            Id = "upgrade", Rank = 60, Severity = Severity.Ok,
+            Title = Ui.Loc.T("Best upgrade for your money: ") + Ui.Loc.T(pick.Title),
+            Detail = pick.Detail,
+        };
     }
 
     // ───────── Monitor refresh rate ─────────

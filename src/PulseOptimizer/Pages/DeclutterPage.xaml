@@ -27,7 +27,7 @@
                        Text="See where your space went and get it back. Your own files only ever go to the Recycle Bin, Windows' update files are cleaned with Microsoft's own tool, and you see everything before it goes."/>
 
             <!-- Hero: storage map + the one big button -->
-            <Border Style="{StaticResource Card}" Margin="0,22,0,0" Padding="26,24" ui:Anim.Reveal="True">
+            <Border Style="{StaticResource HeroCard}" Margin="0,22,0,0" Padding="26,24" ui:Anim.Reveal="True">
                 <StackPanel>
                     <Grid>
                         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>

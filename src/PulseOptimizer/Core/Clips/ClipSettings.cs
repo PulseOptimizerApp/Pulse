@@ -30,6 +30,8 @@ public class ClipSettings
     public int MicVolume { get; set; } = 100;
     /// <summary>Also put the microphone on its own second audio track (for editing). The first track is always the mix.</summary>
     public bool SeparateMicTrack { get; set; }
+    /// <summary>Moves the sound against the picture, in milliseconds (positive = sound later), if a PC's clips are out of sync.</summary>
+    public int AudioOffsetMs { get; set; }
     /// <summary>
     /// Record the game, Discord and Spotify on their own sound tracks too (Windows 10 2004+), so each can be muted
     /// in a clip afterwards. The first track is still everything mixed.
@@ -67,6 +69,11 @@ public class ClipSettings
     /// the overlay shows are kept, only while recording. Off until the user turns it on.
     /// </summary>
     public bool InputOverlay { get; set; }
+
+    /// <summary>Save a clip when you say a phrase (Windows' offline speech engine). Off by default.</summary>
+    public bool VoiceClip { get; set; }
+    /// <summary>The phrase ("" = the default for the app's language, like "clip that").</summary>
+    public string VoicePhrase { get; set; } = "";
 
     /// <summary>Only keep a replay while a game is running (saves memory and GPU work the rest of the time).</summary>
     public bool OnlyWhileGaming { get; set; } = true;
