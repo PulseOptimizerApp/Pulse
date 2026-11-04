@@ -1688,5 +1688,6 @@
  "Recording stopped:": "A gravação parou:",
  "Couldn't download FFmpeg (HTTP {0}). Check your internet connection and try again.": "Não foi possível baixar o FFmpeg (HTTP {0}). Confira sua conexão de internet e tente de novo.",
  "Pulse downloads FFmpeg, the open-source video engine, once (about 65 MB) from its own GitHub release and checks it before use. That's the only time Clips goes online.": "O Pulse baixa uma vez o FFmpeg, o motor de vídeo de código aberto (cerca de 65 MB), da própria versão no GitHub e verifica antes de usar. É a única vez que os Clipes acessam a internet.",
- "Clips is off. Your clips stay where they are. You can also delete the FFmpeg download (about 65 MB); Pulse downloads it again if you turn Clips back on.": "Os Clipes estão desativados. Seus clipes ficam onde estão. Você também pode apagar o download do FFmpeg (cerca de 65 MB); o Pulse baixa de novo se você reativar os Clipes."
+ "Clips is off. Your clips stay where they are. You can also delete the FFmpeg download (about 65 MB); Pulse downloads it again if you turn Clips back on.": "Os Clipes estão desativados. Seus clipes ficam onde estão. Você também pode apagar o download do FFmpeg (cerca de 65 MB); o Pulse baixa de novo se você reativar os Clipes.",
+ "Beta": "Beta"
 }

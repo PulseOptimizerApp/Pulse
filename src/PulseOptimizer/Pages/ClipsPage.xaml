@@ -15,7 +15,12 @@
     <Grid>
         <ScrollViewer x:Name="Scroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
             <StackPanel Margin="0,6,0,40">
-                <TextBlock Style="{StaticResource H1}" Text="Clips"/>
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Style="{StaticResource H1}" Text="Clips"/>
+                    <Border Style="{StaticResource Pill}" Background="{StaticResource InfoSoftBrush}" Margin="12,0,0,0" VerticalAlignment="Center">
+                        <TextBlock Style="{StaticResource PillText}" Text="Beta" Foreground="{StaticResource InfoBrush}"/>
+                    </Border>
+                </StackPanel>
                 <TextBlock Style="{StaticResource Sub}" Margin="0,6,0,0" MaxWidth="760" HorizontalAlignment="Left"
                            Text="Instant replay that doesn't slow your game down. Press a key and the last minute is saved."/>
 
