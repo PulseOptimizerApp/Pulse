@@ -89,6 +89,41 @@ public class ClipsTests
     }
 
     [Fact]
+    public void A_stalled_picture_does_not_turn_a_short_clip_into_minutes_of_sound()
+    {
+        // The reported bug: the picture stopped when a match loaded, sound kept going, and a 30 s clip came out 2:20.
+        var ring = new TsRing { KeepSeconds = 62 };
+        ring.Write(Pat(), 0);
+        ring.Write(Packet(0x1000, start: true), 0);
+        ring.Write(Packet(TsRing.VideoPid, true, true, fill: 1), 0);       // last keyframe before the picture stopped
+        for (int t = 1; t <= 140; t++) ring.Write(Packet(0x101, start: true, fill: 7), t); // 140 s of sound only
+        using var ms = new MemoryStream();
+        ring.SaveTo(ms, 30, 140);
+        int audio = ms.ToArray().Chunk(TsRing.PacketSize).Count(p => p[12] == 7);
+        Assert.InRange(audio, 0, (int)TsRing.StaleGroupSeconds);
+        Assert.True(ring.SecondsSinceKeyframe(140) > 100);
+    }
+
+    [Fact]
+    public void Keyframe_age_is_tracked()
+    {
+        var ring = new TsRing();
+        Assert.Equal(-1, ring.SecondsSinceKeyframe(5));
+        ring.Write(Packet(TsRing.VideoPid, true, true), 3);
+        Assert.Equal(2, ring.SecondsSinceKeyframe(5));
+    }
+
+    [Fact]
+    public void Memory_cap_drops_old_groups()
+    {
+        var ring = new TsRing { KeepSeconds = 1000, MaxBytes = 10 * TsRing.PacketSize };
+        ring.Write(Pat(), 0);
+        ring.Write(Packet(0x1000, start: true), 0);
+        for (int t = 0; t < 50; t++) ring.Write(Packet(TsRing.VideoPid, true, true, fill: (byte)t), t);
+        Assert.InRange(ring.Bytes, 1, 10 * TsRing.PacketSize);
+    }
+
+    [Fact]
     public void Nothing_to_save_before_the_first_keyframe()
     {
         var ring = new TsRing();
@@ -145,6 +180,9 @@ public class ClipsTests
     public void Keyframe_every_second_so_clips_can_start_anywhere()
     {
         Assert.Contains("-g 144", Encoders.Options(Nvenc, 40, 144));
+        Assert.Contains("-force_key_frames", Encoders.Options(Nvenc, 40, 144));
+        Assert.Contains("-forced-idr 1", Encoders.Options(Nvenc, 40, 144));
+        Assert.Contains("-force_key_frames", Encoders.Options(Qsv, 40, 60));
         Assert.Contains("-b:v 40M", Encoders.Options(Nvenc, 40, 60));
     }
 

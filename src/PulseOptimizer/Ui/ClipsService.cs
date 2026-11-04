@@ -100,6 +100,7 @@ public static class ClipsService
     }
 
     static bool _ticking;
+    static int _stalls;
 
     static async void Tick()
     {
@@ -120,9 +121,28 @@ public static class ClipsService
         bool want = !S.OnlyWhileGaming || game != null;
 
         if (!want) { StopRecorder(); Set(ClipsState.WaitingForGame); return; }
-        if (_rec != null && _rec.Running) { Set(ClipsState.Recording); return; }
+        if (_rec != null && _rec.Stalled)
+        {
+            // The picture stopped but FFmpeg is still running (usually a display mode change as a match loads, or a
+            // switch to exclusive fullscreen). Restart right away so the replay follows the new mode.
+            StopRecorder();
+            _stalls++;
+            if (_stalls >= 5)
+            {
+                Set(ClipsState.Problem, "Windows stopped giving Pulse the game's picture. Set the game to borderless or windowed fullscreen in its video settings, then turn Clips off and on.");
+                _stalls = 0;
+                _retryAfter = DateTime.Now.AddSeconds(30);
+                return;
+            }
+        }
+        else if (_rec != null && _rec.Running)
+        {
+            if (_rec.BufferSeconds > 30) _stalls = 0; // recording fine for a while: forget earlier stalls
+            Set(ClipsState.Recording);
+            return;
+        }
 
-        if (_rec != null)
+        if (_rec != null && !_rec.Running)
         {
             // FFmpeg stopped on its own (display mode change, driver reset, device lost): try again a few times.
             var why = _rec.LastError;

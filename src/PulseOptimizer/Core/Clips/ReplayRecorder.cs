@@ -26,6 +26,22 @@ public sealed class ReplayRecorder : IDisposable
         _s = settings;
         _encoder = encoder;
         _ring.KeepSeconds = settings.ReplaySeconds + 2;
+        // Memory cap: twice what the bitrate needs for the replay, plus room for sound. Stops runaway growth.
+        _ring.MaxBytes = (long)Math.Clamp(settings.BitrateMbps, 2, 150) * 125_000L * (settings.ReplaySeconds + 2) * 2 + (64L << 20);
+    }
+
+    /// <summary>
+    /// True when FFmpeg is still running but no new picture has arrived for a few seconds (the capture broke, for
+    /// example when a game switches display mode as a match loads). The caller restarts the recording.
+    /// </summary>
+    public bool Stalled
+    {
+        get
+        {
+            if (!Running || Now < 10) return false;      // give FFmpeg time to start
+            double k = _ring.SecondsSinceKeyframe(Now);
+            return k < 0 || k > 4;
+        }
     }
 
     public bool Running => _ffmpeg is { HasExited: false };
@@ -194,7 +210,9 @@ public sealed class ReplayRecorder : IDisposable
             await using (var f = File.Create(ts)) n = _ring.SaveTo(f, seconds, Now);
             if (n == 0) throw new InvalidOperationException("There's nothing in the replay yet. It fills up a few seconds after a game starts.");
             var mp4 = UniquePath(folder, name);
-            var (code, err) = await Ffmpeg.Run($"-hide_banner -loglevel error -y -i \"{ts}\" -map 0 -c copy -movflags +faststart \"{mp4}\"", ct, 120_000);
+            // -t caps the length even if keyframes were far apart (the clip starts at a keyframe, so it's never shorter).
+            string len = (seconds + 1.5).ToString("0.###", CultureInfo.InvariantCulture);
+            var (code, err) = await Ffmpeg.Run($"-hide_banner -loglevel error -y -i \"{ts}\" -map 0 -c copy -t {len} -movflags +faststart \"{mp4}\"", ct, 120_000);
             if (code != 0 || !File.Exists(mp4)) throw new InvalidOperationException("FFmpeg couldn't save the clip: " + err.Trim());
             return mp4;
         }

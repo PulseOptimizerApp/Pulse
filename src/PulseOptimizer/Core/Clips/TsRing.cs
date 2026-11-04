@@ -25,9 +25,21 @@ public sealed class TsRing
     int _pmtPid = -1;
     long _bytes;
     Group _current;
+    double _lastVideo = -1, _lastKeyframe = -1;
 
     /// <summary>Seconds of replay kept (a little more is kept so a full-length clip always starts on a keyframe).</summary>
     public double KeepSeconds { get; set; } = 60;
+    /// <summary>Hard memory cap in bytes (0 = none). Old groups are dropped past it, whatever their age.</summary>
+    public long MaxBytes { get; set; }
+
+    /// <summary>
+    /// Seconds since the last video keyframe arrived, or -1 if none has yet. Keyframes come every second while the
+    /// capture works, so a large value means the picture stopped (for example a display mode change when a match
+    /// loads) while sound kept going.
+    /// </summary>
+    public double SecondsSinceKeyframe(double now) { lock (_gate) return _lastKeyframe < 0 ? -1 : now - _lastKeyframe; }
+    /// <summary>Seconds since any video data arrived, or -1 if none has yet.</summary>
+    public double SecondsSinceVideo(double now) { lock (_gate) return _lastVideo < 0 ? -1 : now - _lastVideo; }
     /// <summary>Bytes currently held, for the "memory used" readout.</summary>
     public long Bytes { get { lock (_gate) return _bytes; } }
     /// <summary>Seconds of replay currently held.</summary>
@@ -74,8 +86,15 @@ public sealed class TsRing
         int pid = ((p[1] & 0x1F) << 8) | p[2];
         if (pid == PatPid) { _pat = p.ToArray(); _pmtPid = PmtPidFromPat(p); return; }
         if (pid == _pmtPid) { _pmt = p.ToArray(); return; }
-        if (pid == VideoPid && IsKeyframeStart(p)) _groups.AddLast(_current = new Group { Time = now });
+        if (pid == VideoPid)
+        {
+            _lastVideo = now;
+            if (IsKeyframeStart(p)) { _lastKeyframe = now; _groups.AddLast(_current = new Group { Time = now }); }
+        }
         if (_current == null) return; // nothing useful before the first keyframe
+        // No keyframe for a long time means the picture stopped: don't keep piling sound onto the last frame,
+        // or a saved clip becomes minutes of a frozen picture.
+        if (pid != VideoPid && now - _current.Time > StaleGroupSeconds) return;
         _current.Data.Write(p);
         _bytes += PacketSize;
     }
@@ -98,8 +117,16 @@ public sealed class TsRing
         return ((p[program + 2] & 0x1F) << 8) | p[program + 3];
     }
 
+    /// <summary>A group (one keyframe to the next) longer than this is treated as a stalled picture.</summary>
+    public const double StaleGroupSeconds = 5;
+
     void Prune(double now)
     {
+        while (MaxBytes > 0 && _bytes > MaxBytes && _groups.First?.Next != null)
+        {
+            _bytes -= _groups.First.Value.Data.Length;
+            _groups.RemoveFirst();
+        }
         // Keep the newest group that started at least KeepSeconds ago, drop everything before it.
         while (_groups.First?.Next != null && now - _groups.First.Next.Value.Time >= KeepSeconds)
         {

@@ -55,10 +55,11 @@ public static class Encoders
     /// <summary>FFmpeg options for an encoder at a bitrate, with a keyframe every second so clips can start anywhere.</summary>
     public static string Options(Encoder e, int mbps, int fps)
     {
-        string rate = $"-b:v {mbps}M -maxrate {mbps * 3 / 2}M -bufsize {mbps * 2}M -g {fps} -bf 0";
+        // -g alone isn't honoured the same way by every driver, so keyframes are also forced every second.
+        string rate = $"-b:v {mbps}M -maxrate {mbps * 3 / 2}M -bufsize {mbps * 2}M -g {fps} -bf 0 -force_key_frames \"expr:gte(t,n_forced*1)\"";
         return e.Vendor switch
         {
-            "NVIDIA" => $"-c:v {e.Name} -preset p4 -tune hq -rc vbr {rate}",
+            "NVIDIA" => $"-c:v {e.Name} -preset p4 -tune hq -rc vbr -forced-idr 1 {rate}",
             "AMD" => $"-c:v {e.Name} -usage lowlatency -quality speed -rc vbr_peak {rate}",
             "Intel" => $"-c:v {e.Name} -preset veryfast {rate}",
             _ => $"-c:v {e.Name} -preset veryfast {rate}",
