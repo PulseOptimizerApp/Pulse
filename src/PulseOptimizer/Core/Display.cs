@@ -19,8 +19,27 @@ public class MonitorInfo
     /// <summary>Modes the monitor itself reports (EDID). Empty if Windows couldn't read them.</summary>
     public List<ModeInfo> MonitorReported { get; set; } = new();
 
-    /// <summary>Largest resolution Windows offers: almost always the panel's native resolution.</summary>
-    public ModeInfo Native => Available.OrderByDescending(m => m.Width * m.Height).ThenByDescending(m => m.Hz).FirstOrDefault() ?? Current;
+    /// <summary>The panel's real resolution from the monitor's EDID (its preferred timing). Null if Windows couldn't give the EDID.</summary>
+    public (int Width, int Height)? EdidNative { get; set; }
+    /// <summary>True when the native resolution came from the monitor itself, not a guess from Windows' mode list.</summary>
+    public bool NativeKnown => EdidNative != null;
+
+    /// <summary>
+    /// The panel's native resolution. Uses the monitor's EDID when available; otherwise the largest mode Windows offers,
+    /// which can be a fake one (NVIDIA DSR, AMD VSR, or a 4K signal a 1080p monitor accepts and downscales).
+    /// </summary>
+    public ModeInfo Native
+    {
+        get
+        {
+            if (EdidNative is { } e)
+            {
+                int hz = MaxHzAt(e.Width, e.Height);
+                return new ModeInfo(e.Width, e.Height, hz > 0 ? hz : (Current.Width == e.Width && Current.Height == e.Height ? Current.Hz : 0));
+            }
+            return Available.OrderByDescending(m => m.Width * m.Height).ThenByDescending(m => m.Hz).FirstOrDefault() ?? Current;
+        }
+    }
     public int MaxHzAt(int w, int h) => Available.Where(m => m.Width == w && m.Height == h).Select(m => m.Hz).DefaultIfEmpty(0).Max();
     public int MonitorMaxHzAt(int w, int h) => MonitorReported.Where(m => m.Width == w && m.Height == h).Select(m => m.Hz).DefaultIfEmpty(0).Max();
     public int MaxHzAtCurrent => MaxHzAt(Current.Width, Current.Height);
@@ -109,7 +128,11 @@ public static class Displays
                 Available = modes.ToList(),
             };
             list.Add(info);
-            if (hasMon) wmiKeys[info] = WmiKeyFromInterface(mon.DeviceID);
+            if (hasMon)
+            {
+                wmiKeys[info] = WmiKeyFromInterface(mon.DeviceID);
+                try { info.EdidNative = PreferredResolution(ReadEdid(wmiKeys[info])); } catch { /* no EDID: Native falls back to the mode list */ }
+            }
         }
         try { AddWmiDetails(wmiKeys); } catch { /* WMI monitor classes unavailable: keep basics */ }
         return list;
@@ -122,6 +145,31 @@ public static class Displays
         var s = deviceInterface.StartsWith(@"\\?\") ? deviceInterface[4..] : deviceInterface;
         var parts = s.Split('#');
         return parts.Length >= 3 ? $@"{parts[0]}\{parts[1]}\{parts[2]}".ToUpperInvariant() : "";
+    }
+
+    /// <summary>Reads the monitor's EDID that Windows stores (read-only) under Enum\DISPLAY\model\instance\Device Parameters.</summary>
+    static byte[] ReadEdid(string key)
+    {
+        if (string.IsNullOrEmpty(key)) return null;
+        using var k = Microsoft.Win32.Registry.LocalMachine.OpenSubKey($@"SYSTEM\CurrentControlSet\Enum\{key}\Device Parameters");
+        return k?.GetValue("EDID") as byte[];
+    }
+
+    /// <summary>
+    /// The resolution in the EDID's first detailed timing descriptor, which the EDID standard defines as the
+    /// monitor's preferred (native) mode. Null if the EDID is missing or doesn't look valid.
+    /// </summary>
+    internal static (int Width, int Height)? PreferredResolution(byte[] edid)
+    {
+        if (edid == null || edid.Length < 128) return null;
+        byte[] header = { 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00 };
+        for (int i = 0; i < 8; i++) if (edid[i] != header[i]) return null;
+        const int d = 54;
+        if (edid[d] == 0 && edid[d + 1] == 0) return null; // not a timing descriptor (pixel clock 0)
+        int w = edid[d + 2] | ((edid[d + 4] & 0xF0) << 4);
+        int h = edid[d + 5] | ((edid[d + 7] & 0xF0) << 4);
+        if (w < 320 || h < 200) return null;
+        return (w, h);
     }
 
     internal static string ConnectionName(long tech, out bool builtIn)

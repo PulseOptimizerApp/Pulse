@@ -42,6 +42,51 @@ public class MonitorAndGamesTests
         Assert.Equal(2560, m.Native.Width);
     }
 
+    static byte[] Edid(int w, int h)
+    {
+        var e = new byte[128];
+        new byte[] { 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00 }.CopyTo(e, 0);
+        e[54] = 0x02; e[55] = 0x3A;                       // pixel clock (non-zero = timing descriptor)
+        e[56] = (byte)(w & 0xFF); e[58] = (byte)((w >> 8) << 4);
+        e[59] = (byte)(h & 0xFF); e[61] = (byte)((h >> 8) << 4);
+        return e;
+    }
+
+    [Theory]
+    [InlineData(1920, 1080)]
+    [InlineData(2560, 1440)]
+    [InlineData(3840, 2160)]
+    public void Edid_preferred_timing_gives_the_panel_resolution(int w, int h) =>
+        Assert.Equal((w, h), Displays.PreferredResolution(Edid(w, h)));
+
+    [Fact]
+    public void Bad_edid_gives_no_native_resolution()
+    {
+        Assert.Null(Displays.PreferredResolution(null));
+        Assert.Null(Displays.PreferredResolution(new byte[128]));
+    }
+
+    [Fact]
+    public void A_1080p_monitor_with_a_4K_DSR_mode_is_still_1080p()
+    {
+        // The reported case: an Acer XV240 F6 (1080p) whose mode list also has 3840×2160 at 60 Hz (DSR/VSR or downscaling).
+        var m = new MonitorInfo
+        {
+            DeviceName = @"\\.\DISPLAY1", Current = new ModeInfo(1920, 1080, 180),
+            Available = { new(1920, 1080, 180), new(1920, 1080, 60), new(3840, 2160, 60) },
+            EdidNative = Displays.PreferredResolution(Edid(1920, 1080)),
+        };
+        Assert.True(m.NativeKnown);
+        Assert.Equal(new ModeInfo(1920, 1080, 180), m.Native);
+    }
+
+    [Fact]
+    public void Without_edid_native_is_not_trusted()
+    {
+        var m = new MonitorInfo { DeviceName = @"\\.\DISPLAY1", Current = new ModeInfo(1920, 1080, 60), Available = { new(3840, 2160, 60) } };
+        Assert.False(m.NativeKnown);
+    }
+
     static readonly HardwareFacts Nvidia = new() { Gpu = GpuVendor.Nvidia, Board = BoardMaker.Msi, Windows11 = true };
     static readonly HardwareFacts Amd = new() { Gpu = GpuVendor.Amd, Board = BoardMaker.Asus, AmdCpu = true, Windows11 = false };
 

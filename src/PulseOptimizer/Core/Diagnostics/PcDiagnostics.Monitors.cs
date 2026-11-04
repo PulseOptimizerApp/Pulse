@@ -54,7 +54,9 @@ public static partial class PcDiagnostics
             }
 
             // 3. Not at native resolution (blurry text and fewer pixels than the panel has).
-            if ((cur.Width < native.Width || cur.Height < native.Height) && !m.IsBuiltIn)
+            // Only when the monitor itself says what its native resolution is: Windows' mode list can include fake modes
+            // (NVIDIA DSR, AMD VSR, or 4K signals a 1080p screen accepts), which would give wrong advice.
+            if (m.NativeKnown && (cur.Width < native.Width || cur.Height < native.Height) && !m.IsBuiltIn)
             {
                 results.Add(new Finding
                 {
