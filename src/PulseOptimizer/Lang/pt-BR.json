@@ -1716,5 +1716,11 @@
  "Windows stopped giving Pulse the game's picture. Set the game to borderless or windowed fullscreen in its video settings, then turn Clips off and on.": "O Windows parou de enviar a imagem do jogo para o Pulse. Coloque o jogo em tela cheia sem bordas ou em janela nas configurações de vídeo e depois desligue e ligue o Clips.",
  "Space play · ← → step · Shift ← → 1 s · I / O set start and end · F full screen": "Espaço tocar · ← → passo · Shift ← → 1 s · I / O início e fim · F tela cheia",
  "Full screen (F)": "Tela cheia (F)",
- "Exit full screen (Esc)": "Sair da tela cheia (Esc)"
+ "Exit full screen (Esc)": "Sair da tela cheia (Esc)",
+ "Search clips": "Buscar clipes",
+ "No clips match.": "Nenhum clipe encontrado.",
+ "Favorites": "Favoritos",
+ "Newest": "Mais recentes",
+ "Oldest": "Mais antigos",
+ "Largest": "Maiores"
 }

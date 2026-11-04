@@ -1716,5 +1716,11 @@
  "Windows stopped giving Pulse the game's picture. Set the game to borderless or windowed fullscreen in its video settings, then turn Clips off and on.": "Windows dejó de darle a Pulse la imagen del juego. Pon el juego en pantalla completa sin bordes o en ventana en sus ajustes de vídeo y luego apaga y enciende Clips.",
  "Space play · ← → step · Shift ← → 1 s · I / O set start and end · F full screen": "Espacio reproducir · ← → paso · Mayús ← → 1 s · I / O inicio y fin · F pantalla completa",
  "Full screen (F)": "Pantalla completa (F)",
- "Exit full screen (Esc)": "Salir de pantalla completa (Esc)"
+ "Exit full screen (Esc)": "Salir de pantalla completa (Esc)",
+ "Search clips": "Buscar clips",
+ "No clips match.": "Ningún clip coincide.",
+ "Favorites": "Favoritos",
+ "Newest": "Más recientes",
+ "Oldest": "Más antiguos",
+ "Largest": "Más grandes"
 }

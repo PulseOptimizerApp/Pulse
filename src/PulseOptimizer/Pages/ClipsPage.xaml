@@ -311,6 +311,14 @@
                     </StackPanel>
                     <Button Style="{StaticResource LinkButton}" Content="Open folder" HorizontalAlignment="Right" Click="OpenFolder_Click"/>
                 </Grid>
+                <!-- Find clips: search, game, favorites, order -->
+                <Grid x:Name="LibraryTools" Margin="0,0,0,14" Visibility="Collapsed">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="260"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                    <TextBox x:Name="ClipSearch" Style="{StaticResource SearchBox}" Tag="Search clips" TextChanged="ClipFilter_Changed" VerticalAlignment="Top"/>
+                    <WrapPanel x:Name="GameFilterChips" Grid.Column="1" Margin="14,0,0,0" VerticalAlignment="Center"/>
+                    <WrapPanel x:Name="SortChips" Grid.Column="2" VerticalAlignment="Center"/>
+                </Grid>
+                <TextBlock x:Name="LibraryNoMatch" Style="{StaticResource Body}" Visibility="Collapsed" Text="No clips match."/>
                 <TextBlock x:Name="LibraryEmpty" Style="{StaticResource Body}" Visibility="Collapsed"
                            Text="No clips yet. Start a game and press the hotkey after a good moment."/>
                 <ItemsControl x:Name="ClipGrid" Visibility="Collapsed">

@@ -437,7 +437,10 @@ public partial class ClipsPage : UserControl, IPage
             Image = LoadImage(c.Thumbnail),
             Info = $"{c.Created.ToString("g", CultureInfo.CurrentCulture)} · {Format.Bytes(c.Size)}",
         }).ToList();
-        ClipGrid.ItemsSource = vms;
+        _allClips = vms;
+        LibraryTools.Visibility = clips.Count > 1 ? Visibility.Visible : Visibility.Collapsed;
+        BuildLibraryFilters();
+        ApplyLibraryFilter();
 
         // Pictures for clips saved by another copy or before thumbnails existed.
         if (Ffmpeg.Installed && vms.Any(v => v.Image == null))
@@ -446,6 +449,58 @@ public partial class ClipsPage : UserControl, IPage
                 try { await ClipLibrary.MakeThumbnail(v.Clip.Path); } catch { }
             if (vms.Any(v => v.Image == null && File.Exists(ClipLibrary.ThumbFor(v.Clip.Path)))) LoadLibrary();
         }
+    }
+
+    // ───────── Library filters ─────────
+
+    List<ClipVm> _allClips = new();
+    string _gameFilter = "", _sort = "new";
+    bool _buildingFilters;
+
+    void BuildLibraryFilters()
+    {
+        _buildingFilters = true;
+        var games = _allClips.GroupBy(v => v.Clip.Game).OrderByDescending(g => g.Count()).Select(g => g.Key).Where(g => g.Length > 0).Take(8).ToList();
+        if (_gameFilter.Length > 0 && _gameFilter != "\u2605" && !games.Contains(_gameFilter)) _gameFilter = "";
+        var items = new List<(string, string)> { (Loc.T("All"), "") };
+        if (_allClips.Any(v => v.Clip.Favorite)) items.Add((Loc.T("Favorites"), "\u2605"));
+        items.AddRange(games.Select(g => (g, g)));
+        GameFilterChips.Children.Clear();
+        foreach (var (label, value) in items)
+        {
+            var rb = new RadioButton { Style = (Style)FindResource("Chip"), Content = label, GroupName = "clips-libgame", Tag = value, Margin = new Thickness(0, 3, 6, 3), IsChecked = value == _gameFilter };
+            rb.Checked += (s, _) => { if (_buildingFilters) return; _gameFilter = (string)((FrameworkElement)s).Tag; ApplyLibraryFilter(); };
+            GameFilterChips.Children.Add(rb);
+        }
+        SortChips.Children.Clear();
+        foreach (var (label, value) in new[] { ("Newest", "new"), ("Oldest", "old"), ("Largest", "big") })
+        {
+            var rb = new RadioButton { Style = (Style)FindResource("Chip"), Content = Loc.T(label), GroupName = "clips-libsort", Tag = value, Margin = new Thickness(6, 3, 0, 3), IsChecked = value == _sort };
+            rb.Checked += (s, _) => { if (_buildingFilters) return; _sort = (string)((FrameworkElement)s).Tag; ApplyLibraryFilter(); };
+            SortChips.Children.Add(rb);
+        }
+        _buildingFilters = false;
+    }
+
+    void ClipFilter_Changed(object sender, TextChangedEventArgs e) => ApplyLibraryFilter();
+
+    void ApplyLibraryFilter()
+    {
+        var q = ClipSearch.Text?.Trim() ?? "";
+        IEnumerable<ClipVm> list = _allClips;
+        if (_gameFilter == "\u2605") list = list.Where(v => v.Clip.Favorite);
+        else if (_gameFilter.Length > 0) list = list.Where(v => v.Clip.Game == _gameFilter);
+        if (q.Length > 0) list = list.Where(v => v.Clip.Name.Contains(q, StringComparison.CurrentCultureIgnoreCase));
+        list = _sort switch
+        {
+            "old" => list.OrderBy(v => v.Clip.Created),
+            "big" => list.OrderByDescending(v => v.Clip.Size),
+            _ => list.OrderByDescending(v => v.Clip.Created),
+        };
+        var shown = list.ToList();
+        ClipGrid.ItemsSource = shown;
+        ClipGrid.Visibility = shown.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        LibraryNoMatch.Visibility = _allClips.Count > 0 && shown.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
     }
 
     static ImageSource LoadImage(string path)
