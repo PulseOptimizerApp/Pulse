@@ -96,18 +96,26 @@ The owner wants Pulse's UI on the same level as the best apps in the world (thin
    - **Exports keep the quality:** trimming should cut without re-encoding when possible. When re-encoding is needed (the Discord copy, or cutting off a keyframe), use the best settings for the target size, two-pass when time allows.
    - **Audio:** AAC at 192–320 kb/s (or Opus), 48 kHz, no clipping or drift over long replays.
    - **Prove it:** compare Pulse vs Medal vs ShadowPlay on the same scene with screenshots and VMAF/SSIM scores at equal bitrate, and measure the FPS cost of each. Show the owner the results before claiming "best quality".
-2. **Full-screen player (requested).** A full-screen button in the clip player (plus double-click on the video and the `F` key, `Esc` to leave). It keeps the timeline, play/pause, volume and trim handles as an overlay that fades out when the mouse stops and comes back when it moves. It should open on the monitor the app is on, without stretching the video.
-3. **Per-app audio tracks (requested).** Record game, Discord, Spotify, browser and microphone as separate tracks, using Windows' process-loopback capture (Windows 10 2004+). The trimmer shows a toggle per app, and exports mix the ones left on. Track 1 is always the full mix, for Discord and players.
-4. **Long recording:** a start/stop hotkey for full sessions, with **bookmarks** (a hotkey adds a marker you can jump to).
-5. **Voice clipping (opt-in):** a phrase like "Pulse, clip that" saves a clip. It must run fully offline, like Vosk, with its model downloaded only when turned on.
-6. **Library:**
+2. **Lightest clipper on the market (requested, same priority as quality).** Quality must never come from hurting games. Medal and NVIDIA App are known for costing FPS, stutter and background load; Pulse must be clearly lighter while matching or beating their quality.
+   - **Performance budget, measured:** with the replay running, average FPS drops less than 2%, 1% lows less than 3%, no added stutter, CPU use under about 2% of one core outside of saving, and RAM equal to the replay buffer plus a small fixed amount. Check this with tests on real games (Roblox, Fortnite, Valorant, CS2) and show the owner the numbers.
+   - **Keep work on the GPU:** capture (ddagrab), scaling and encoding stay on the graphics card's video engine, with no copies of frames through the CPU. Run the encoder at low priority so the game always comes first.
+   - **Saving doesn't stutter:** saving a clip just copies the RAM buffer to disk at low I/O priority; any re-encode (Discord copy, trims) runs at below-normal priority and pauses while a game is in focus, or waits until the game closes.
+   - **Nothing extra in the background:** no web views, no overlay injected into games, no telemetry, one helper process (FFmpeg) only while Clips is on, and the app itself idles near 0% CPU when minimised to the tray.
+   - **Smart defaults:** pick the preset per PC from Diagnose (GPU, VRAM, RAM). Weaker PCs get a lighter default automatically, and Pulse warns, in plain words, if a chosen setting will cost FPS on this PC.
+   - **Auto-protect:** if Pulse detects the game's FPS dropping because of capture (for example the encoder is maxed out), it lowers the clip settings for that session and tells the user afterwards.
+   - **Prove it** together with quality: one comparison table of Pulse vs Medal vs NVIDIA App, showing FPS cost, 1% lows, CPU, RAM and quality score side by side.
+3. **Full-screen player (requested).** A full-screen button in the clip player (plus double-click on the video and the `F` key, `Esc` to leave). It keeps the timeline, play/pause, volume and trim handles as an overlay that fades out when the mouse stops and comes back when it moves. It should open on the monitor the app is on, without stretching the video.
+4. **Per-app audio tracks (requested).** Record game, Discord, Spotify, browser and microphone as separate tracks, using Windows' process-loopback capture (Windows 10 2004+). The trimmer shows a toggle per app, and exports mix the ones left on. Track 1 is always the full mix, for Discord and players.
+5. **Long recording:** a start/stop hotkey for full sessions, with **bookmarks** (a hotkey adds a marker you can jump to).
+6. **Voice clipping (opt-in):** a phrase like "Pulse, clip that" saves a clip. It must run fully offline, like Vosk, with its model downloaded only when turned on.
+7. **Library:**
    - search and filter by game
    - rename
    - select several clips and delete them together
    - sort by date or size
    - show duration on the cards
-7. **Overlay:** a small in-game "Clip saved" indicator for borderless games, with sound kept as the fallback.
-8. **Later, if the owner wants (these cost money or need partners):** share links or cloud hosting, and automatic kill clips through game integrations.
+8. **Overlay:** a small in-game "Clip saved" indicator for borderless games, with sound kept as the fallback.
+9. **Later, if the owner wants (these cost money or need partners):** share links or cloud hosting, and automatic kill clips through game integrations.
 
 ### 4. Roblox page additions
 
