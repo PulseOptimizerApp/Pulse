@@ -31,7 +31,6 @@ public partial class ClipsPage : UserControl, IPage
     bool _loading, _capturingHotkey, _dragging, _playing;
     List<Core.Clips.Encoder> _encoders = new();
     ClipVm _open;
-    double _trimStart, _trimEnd;
 
     public ClipsPage()
     {
@@ -41,6 +40,11 @@ public partial class ClipsPage : UserControl, IPage
         ClipsService.Changed += () => Dispatcher.InvokeAsync(UpdateStatus);
         ClipsService.Saved += _ => Dispatcher.InvokeAsync(LoadLibrary);
         Unloaded += (_, _) => _usage.Stop();
+        _playerTimer.Interval = TimeSpan.FromMilliseconds(33);
+        Timeline.Seek += Timeline_Seek;
+        Timeline.SelectionChanged += UpdateTimes;
+        Timeline.PreviewMouseLeftButtonUp += Timeline_MouseUp;
+        PlayerLayer.PreviewKeyDown += Player_KeyDown;
     }
 
     public async void OnShown(object parameter)
@@ -162,6 +166,7 @@ public partial class ClipsPage : UserControl, IPage
         StatusDot.Fill = dot;
         SaveNowBtn.IsEnabled = ClipsService.State == ClipsState.Recording;
         HotkeyWarn.Text = ClipsService.HotkeyWorks ? "" : Loc.T("Another app already uses this hotkey (often NVIDIA's overlay or Medal). Pick a different one.");
+        ExtraWarn.Text = ClipsService.QuickOk && ClipsService.ShotOk ? "" : Loc.T("Another app already uses one of these hotkeys. Pick a different one.");
         UpdateUsage();
     }
 
@@ -202,6 +207,7 @@ public partial class ClipsPage : UserControl, IPage
         Fill(ResChips, "res", new[] { ("Native", "native"), ("1440p", "1440"), ("1080p", "1080"), ("720p", "720") });
         Fill(FpsChips, "fps", new[] { ("30", "30"), ("60", "60"), ("120", "120"), ("144", "144") });
         Fill(BitrateChips, "br", new[] { ("15 Mbps", "15"), ("25 Mbps", "25"), ("40 Mbps", "40"), ("60 Mbps", "60"), ("80 Mbps", "80"), ("120 Mbps", "120") });
+        Fill(QuickLenChips, "qlen", new[] { ("10 s", "10"), ("15 s", "15"), ("30 s", "30") });
         Fill(LimitChips, "lim", new[] { ("10 GB", "10"), ("30 GB", "30"), ("100 GB", "100"), ("No limit", "0") });
         int monitors = Math.Max(1, MonitorCount());
         Fill(MonitorChips, "mon", Enumerable.Range(0, monitors).Select(i => (Loc.F("Display {0}", i + 1), i.ToString(CultureInfo.InvariantCulture))).ToArray());
@@ -260,6 +266,11 @@ public partial class ClipsPage : UserControl, IPage
         PopupSwitch.IsChecked = S.ShowSavedPopup;
         FolderText.Text = S.ClipsFolder;
         HotkeyBtn.Content = ClipsService.HotkeyText(S.HotkeyModifiers, S.HotkeyKey);
+        QuickBtn.Content = ClipsService.HotkeyText(S.QuickModifiers, S.QuickKey);
+        ShotBtn.Content = ClipsService.HotkeyText(S.ScreenshotModifiers, S.ScreenshotKey);
+        QuickSwitch.IsChecked = S.QuickClip;
+        ShotSwitch.IsChecked = S.Screenshot;
+        Mark(QuickLenChips, S.QuickSeconds.ToString(CultureInfo.InvariantCulture));
         _loading = false;
     }
 
@@ -280,10 +291,11 @@ public partial class ClipsPage : UserControl, IPage
             case "fps": S.Fps = n; break;
             case "br": S.BitrateMbps = n; break;
             case "lim": S.StorageLimitGb = n; break;
+            case "qlen": S.QuickSeconds = n; break;
             case "mon": S.Monitor = n; break;
             case "codec": S.Codec = v; break;
         }
-        Changed(restart: group is not ("lim"));
+        Changed(restart: group is not ("lim" or "qlen"));
     }
 
     void Setting_Click(object sender, RoutedEventArgs e)
@@ -297,6 +309,8 @@ public partial class ClipsPage : UserControl, IPage
         S.RecordCursor = CursorSwitch.IsChecked == true;
         S.PlaySound = SoundSwitch.IsChecked == true;
         S.ShowSavedPopup = PopupSwitch.IsChecked == true;
+        S.QuickClip = QuickSwitch.IsChecked == true;
+        S.Screenshot = ShotSwitch.IsChecked == true;
         Changed(restart: sender != TraySwitch && sender != SoundSwitch && sender != PopupSwitch);
     }
 
@@ -344,12 +358,18 @@ public partial class ClipsPage : UserControl, IPage
         Process.Start(new ProcessStartInfo("explorer.exe", $"\"{S.ClipsFolder}\"") { UseShellExecute = true });
     }
 
-    // Hotkey: click the button, then press the keys.
+    // Hotkeys: click a button, then press the keys.
+    string _hotkeyTarget;
+
+    Button HotkeyButton(string target) => target switch { "quick" => QuickBtn, "shot" => ShotBtn, _ => HotkeyBtn };
+
     void Hotkey_Click(object sender, RoutedEventArgs e)
     {
         _capturingHotkey = true;
-        HotkeyBtn.Content = Loc.T("Press the keys…");
-        HotkeyBtn.Focus();
+        _hotkeyTarget = (string)((FrameworkElement)sender).Tag;
+        var b = HotkeyButton(_hotkeyTarget);
+        b.Content = Loc.T("Press the keys…");
+        b.Focus();
     }
 
     void Hotkey_KeyDown(object sender, KeyEventArgs e)
@@ -364,10 +384,23 @@ public partial class ClipsPage : UserControl, IPage
         if ((Keyboard.Modifiers & ModifierKeys.Control) != 0) mods |= 2;
         if ((Keyboard.Modifiers & ModifierKeys.Shift) != 0) mods |= 4;
         bool fKey = key >= Key.F1 && key <= Key.F24;
-        if (mods == 0 && !fKey) { HotkeyBtn.Content = Loc.T("Add Ctrl, Alt or Shift (or use an F key)"); return; }
+        if (mods == 0 && !fKey) { HotkeyButton(_hotkeyTarget).Content = Loc.T("Add Ctrl, Alt or Shift (or use an F key)"); return; }
+        int vk = KeyInterop.VirtualKeyFromKey(key);
+        // One key combination does one thing.
+        bool taken = _hotkeyTarget switch
+        {
+            "quick" => (mods == S.HotkeyModifiers && vk == S.HotkeyKey) || (mods == S.ScreenshotModifiers && vk == S.ScreenshotKey),
+            "shot" => (mods == S.HotkeyModifiers && vk == S.HotkeyKey) || (mods == S.QuickModifiers && vk == S.QuickKey),
+            _ => (mods == S.QuickModifiers && vk == S.QuickKey && S.QuickClip) || (mods == S.ScreenshotModifiers && vk == S.ScreenshotKey && S.Screenshot),
+        };
+        if (taken) { HotkeyButton(_hotkeyTarget).Content = Loc.T("Already used by another Pulse hotkey"); return; }
         _capturingHotkey = false;
-        S.HotkeyModifiers = mods;
-        S.HotkeyKey = KeyInterop.VirtualKeyFromKey(key);
+        switch (_hotkeyTarget)
+        {
+            case "quick": S.QuickModifiers = mods; S.QuickKey = vk; S.QuickClip = true; break;
+            case "shot": S.ScreenshotModifiers = mods; S.ScreenshotKey = vk; S.Screenshot = true; break;
+            default: S.HotkeyModifiers = mods; S.HotkeyKey = vk; break;
+        }
         Changed(restart: true);
     }
 
@@ -425,15 +458,20 @@ public partial class ClipsPage : UserControl, IPage
         catch { return null; }
     }
 
-    // ───────── Player ─────────
+    // ───────── Player and trimmer ─────────
 
-    void Clip_Click(object sender, MouseButtonEventArgs e)
+    int _tracks = 1;
+    double _pendingSeek = -1;
+    bool _resumeAfterScrub;
+
+    async void Clip_Click(object sender, MouseButtonEventArgs e)
     {
         if ((sender as FrameworkElement)?.Tag is not ClipVm vm) return;
         _open = vm;
         PlayerTitle.Text = vm.Clip.Name;
         FavBtn.Content = Loc.T(vm.Clip.Favorite ? "Unfavorite" : "Favorite");
-        _trimStart = 0; _trimEnd = 0;
+        Timeline.Strip = null;
+        Timeline.Position = 0;
         PlayerLayer.Visibility = Visibility.Visible;
         PlayerLayer.BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(180)));
         Player.Source = new Uri(vm.Clip.Path);
@@ -441,29 +479,46 @@ public partial class ClipsPage : UserControl, IPage
         _playing = true;
         PlayGlyph.Text = "";
         _playerTimer.Start();
+        PlayerLayer.Focusable = true;
+        Keyboard.Focus(PlayerLayer);
+
+        // Which sounds can be chosen, and the filmstrip, load while the clip starts playing.
+        _tracks = await ClipLibrary.AudioTracks(vm.Clip.Path);
+        MicTrack.Visibility = _tracks >= 3 ? Visibility.Visible : Visibility.Collapsed;
+        GameTrack.Content = Loc.T(_tracks >= 3 ? "Game" : "Sound");
+        AudioPanel.Visibility = _tracks >= 1 ? Visibility.Visible : Visibility.Collapsed;
+        GameTrack.IsChecked = MicTrack.IsChecked = true;
     }
 
-    void Player_Opened(object sender, RoutedEventArgs e)
+    async void Player_Opened(object sender, RoutedEventArgs e)
     {
         var d = Player.NaturalDuration.HasTimeSpan ? Player.NaturalDuration.TimeSpan.TotalSeconds : 0;
-        Position.Maximum = Math.Max(d, 0.1);
-        _trimEnd = d;
-        UpdateTrimText();
+        Timeline.Duration = Math.Max(d, 0.1);
+        Timeline.Start = 0;
+        Timeline.End = Timeline.Duration;
+        UpdateTimes();
+        if (_open == null) return;
+        var path = _open.Clip.Path;
+        var strip = await ClipLibrary.Filmstrip(path, d);
+        if (_open?.Clip.Path == path && strip != null) Timeline.Strip = LoadImage(strip);
     }
 
     void Player_Ended(object sender, RoutedEventArgs e)
     {
-        Player.Pause();
-        _playing = false;
-        PlayGlyph.Text = "";
+        // Loop the kept part, like a preview of the trimmed clip.
+        Player.Position = TimeSpan.FromSeconds(Timeline.Start);
+        if (_playing) Player.Play();
     }
 
-    void PlayPause_Click(object sender, RoutedEventArgs e)
+    void PlayPause_Click(object sender, RoutedEventArgs e) => TogglePlay();
+
+    void TogglePlay()
     {
         if (_playing) { Player.Pause(); PlayGlyph.Text = ""; }
         else
         {
-            if (Player.Position.TotalSeconds >= Position.Maximum - 0.05) Player.Position = TimeSpan.FromSeconds(_trimStart);
+            var p = Player.Position.TotalSeconds;
+            if (p < Timeline.Start || p >= Timeline.End - 0.05) Player.Position = TimeSpan.FromSeconds(Timeline.Start);
             Player.Play(); PlayGlyph.Text = "";
         }
         _playing = !_playing;
@@ -471,29 +526,89 @@ public partial class ClipsPage : UserControl, IPage
 
     void PlayerTick()
     {
-        if (_dragging || PlayerLayer.Visibility != Visibility.Visible) return;
-        var p = Player.Position.TotalSeconds;
-        Position.Value = Math.Min(p, Position.Maximum);
-        TimeText.Text = $"{Clock(p)} / {Clock(Position.Maximum)}";
+        if (PlayerLayer.Visibility != Visibility.Visible) return;
+        // Scrubbing: seek at most once per tick, to where the pointer is now, so the picture keeps up smoothly.
+        if (_pendingSeek >= 0)
+        {
+            Player.Position = TimeSpan.FromSeconds(_pendingSeek);
+            _pendingSeek = -1;
+        }
+        else if (!_scrubbing)
+        {
+            var p = Player.Position.TotalSeconds;
+            if (_playing && p >= Timeline.End) { Player.Position = TimeSpan.FromSeconds(Timeline.Start); p = Timeline.Start; }
+            Timeline.Position = Math.Min(p, Timeline.Duration);
+        }
+        UpdateTimes();
     }
 
-    void Position_Down(object sender, MouseButtonEventArgs e) => _dragging = true;
-    void Position_Up(object sender, MouseButtonEventArgs e) { _dragging = false; Player.Position = TimeSpan.FromSeconds(Position.Value); }
-    void Position_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
+    bool _scrubbing;
+
+    void Timeline_Seek(double t)
     {
-        if (_dragging) { Player.Position = TimeSpan.FromSeconds(e.NewValue); TimeText.Text = $"{Clock(e.NewValue)} / {Clock(Position.Maximum)}"; }
+        if (!_scrubbing)
+        {
+            _scrubbing = true;
+            _resumeAfterScrub = _playing;
+            if (_playing) Player.Pause();
+            Mouse.Capture(Timeline);
+        }
+        _pendingSeek = t;
+    }
+
+    void Timeline_MouseUp(object sender, MouseButtonEventArgs e)
+    {
+        if (!_scrubbing) return;
+        _scrubbing = false;
+        Player.Position = TimeSpan.FromSeconds(Timeline.Position);
+        _pendingSeek = -1;
+        if (_resumeAfterScrub) Player.Play();
+    }
+
+    void UpdateTimes()
+    {
+        TimeText.Text = $"{Clock(Timeline.Position)} / {Clock(Timeline.Duration)}";
+        SelText.Text = Loc.F("Keeping {0} ({1} to {2})", Clock(Timeline.End - Timeline.Start), Clock(Timeline.Start), Clock(Timeline.End));
     }
 
     static string Clock(double s) => TimeSpan.FromSeconds(Math.Max(0, s)).ToString(s >= 3600 ? @"h\:mm\:ss" : @"m\:ss\.f", CultureInfo.InvariantCulture);
 
-    void SetStart_Click(object sender, RoutedEventArgs e) { _trimStart = Math.Min(Player.Position.TotalSeconds, _trimEnd - 0.5); UpdateTrimText(); }
-    void SetEnd_Click(object sender, RoutedEventArgs e) { _trimEnd = Math.Max(Player.Position.TotalSeconds, _trimStart + 0.5); UpdateTrimText(); }
-
-    void UpdateTrimText()
+    /// <summary>Keyboard: Space play/pause, arrows step one frame (Shift: one second), I and O set start and end, Delete deletes.</summary>
+    void Player_KeyDown(object sender, KeyEventArgs e)
     {
-        StartText.Text = Loc.F("Start {0}", Clock(_trimStart));
-        EndText.Text = Loc.F("End {0}", Clock(_trimEnd));
+        if (PlayerLayer.Visibility != Visibility.Visible) return;
+        double frame = 1.0 / 60;
+        void Step(double by)
+        {
+            if (_playing) TogglePlay();
+            var t = Math.Clamp(Timeline.Position + by, 0, Timeline.Duration);
+            Timeline.Position = t;
+            Player.Position = TimeSpan.FromSeconds(t);
+            UpdateTimes();
+        }
+        switch (e.Key)
+        {
+            case Key.Space: TogglePlay(); break;
+            case Key.Left: Step(Keyboard.Modifiers.HasFlag(ModifierKeys.Shift) ? -1 : -frame); break;
+            case Key.Right: Step(Keyboard.Modifiers.HasFlag(ModifierKeys.Shift) ? 1 : frame); break;
+            case Key.I: Timeline.Start = Math.Min(Timeline.Position, Timeline.End - Timeline.MinLength); UpdateTimes(); Timeline.InvalidateVisual(); break;
+            case Key.O: Timeline.End = Math.Max(Timeline.Position, Timeline.Start + Timeline.MinLength); UpdateTimes(); Timeline.InvalidateVisual(); break;
+            case Key.Delete: Delete_Click(sender, e); break;
+            case Key.Escape: ClosePlayer(); break;
+            default: return;
+        }
+        e.Handled = true;
     }
+
+    /// <summary>Which audio track the exported copy keeps: mix, game only, mic only or none.</summary>
+    int ChosenTrack()
+    {
+        bool game = GameTrack.IsChecked == true, mic = MicTrack.IsChecked == true;
+        if (_tracks >= 3) return game && mic ? 0 : game ? 1 : mic ? 2 : -1;
+        return _tracks >= 1 && game ? 0 : -1;
+    }
+
+    void Track_Click(object sender, RoutedEventArgs e) { /* read when exporting */ }
 
     void PlayerClose_Click(object sender, RoutedEventArgs e) => ClosePlayer();
 
@@ -504,6 +619,7 @@ public partial class ClipsPage : UserControl, IPage
         Player.Close();
         Player.Source = null;
         _playing = false;
+        _scrubbing = false;
         PlayerLayer.Visibility = Visibility.Collapsed;
     }
 
@@ -520,7 +636,7 @@ public partial class ClipsPage : UserControl, IPage
         steps[0].Start();
         try
         {
-            var path = await ClipLibrary.Trim(_open.Clip.Path, _trimStart, _trimEnd, enc, Math.Max(S.BitrateMbps, 20));
+            var path = await ClipLibrary.Trim(_open.Clip.Path, Timeline.Start, Timeline.End, enc, Math.Max(S.BitrateMbps, 20), ChosenTrack());
             await ClipLibrary.MakeThumbnail(path);
             steps[0].Finish(Format.Bytes(new FileInfo(path).Length));
             await MainWindow.Instance.FinishSteps("Trimmed copy saved", Loc.F("Saved as {0}. The original is untouched.", Path.GetFileName(path)));
@@ -544,7 +660,8 @@ public partial class ClipsPage : UserControl, IPage
         steps[0].Start();
         try
         {
-            var path = await ClipLibrary.ForDiscord(_open.Clip.Path, enc);
+            bool whole = Timeline.Start <= 0.01 && Timeline.End >= Timeline.Duration - 0.05;
+            var path = await ClipLibrary.ForDiscord(_open.Clip.Path, enc, whole ? 0 : Timeline.Start, whole ? 0 : Timeline.End, ChosenTrack());
             await ClipLibrary.MakeThumbnail(path);
             steps[0].Finish(Format.Bytes(new FileInfo(path).Length));
             // Put the file on the clipboard so it can be pasted straight into Discord.

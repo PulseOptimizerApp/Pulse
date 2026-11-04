@@ -30,6 +30,17 @@ public class ClipSettings
     public int HotkeyKey { get; set; } = 0x77;      // F8 → Alt+F8 (Alt+F10 belongs to NVIDIA's instant replay, F8 alone to Medal)
     public bool HotkeyTakenWarned { get; set; }
 
+    /// <summary>A second clip hotkey with its own length (for example a quick 15 s clip). Off until the user sets it.</summary>
+    public bool QuickClip { get; set; }
+    public int QuickModifiers { get; set; } = 1;   // Alt
+    public int QuickKey { get; set; } = 0x75;      // F6 → Alt+F6
+    public int QuickSeconds { get; set; } = 15;
+
+    /// <summary>Screenshot hotkey: saves the current frame as a PNG in the clips folder's Screenshots folder.</summary>
+    public bool Screenshot { get; set; } = true;
+    public int ScreenshotModifiers { get; set; } = 1; // Alt
+    public int ScreenshotKey { get; set; } = 0x76;    // F7 → Alt+F7
+
     /// <summary>Only keep a replay while a game is running (saves memory and GPU work the rest of the time).</summary>
     public bool OnlyWhileGaming { get; set; } = true;
     /// <summary>Keep clipping when the Pulse window is closed (Pulse stays in the tray).</summary>
@@ -49,4 +60,5 @@ public class ClipSettings
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyVideos), "Pulse Clips");
 
     public string ClipsFolder => string.IsNullOrWhiteSpace(Folder) ? DefaultFolder : Folder;
+    public string ScreenshotsFolder => Path.Combine(ClipsFolder, "Screenshots");
 }

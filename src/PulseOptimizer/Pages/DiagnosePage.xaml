@@ -3,13 +3,13 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:ui="clr-namespace:Pulse.Ui">
     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-        <StackPanel Margin="0,6,0,32">
+        <StackPanel Margin="0,6,0,40">
             <TextBlock Style="{StaticResource H1}" Text="Diagnose"/>
             <TextBlock Style="{StaticResource Sub}" Margin="0,6,0,0" MaxWidth="760" HorizontalAlignment="Left"
                        Text="Pulse looks for real problems on this PC first — a monitor stuck at 60 Hz or RAM at its slow default speed is a bigger win than any tweak. Nothing changes until you choose to fix it."/>
 
             <!-- Summary + live usage -->
-            <Grid Margin="0,24,0,0">
+            <Grid Margin="0,22,0,0">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="320"/>
                     <ColumnDefinition Width="16"/>
@@ -101,8 +101,8 @@
                                                     <DataTemplate>
                                                         <Grid Margin="0,0,0,10">
                                                             <Grid.ColumnDefinitions><ColumnDefinition Width="30"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                                                            <Border Width="22" Height="22" CornerRadius="11" Background="{StaticResource AccentGradient}" VerticalAlignment="Top" HorizontalAlignment="Left">
-                                                                <TextBlock Text="{Binding Number}" Foreground="White" FontSize="11.5" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                            <Border Width="22" Height="22" CornerRadius="10" Background="{StaticResource AccentGradient}" VerticalAlignment="Top" HorizontalAlignment="Left">
+                                                                <TextBlock Text="{Binding Number}" Foreground="White" FontSize="12" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                                             </Border>
                                                             <TextBlock Grid.Column="1" Text="{Binding Text}" Style="{StaticResource Body}" Foreground="{StaticResource TextBrush}" Margin="0,1,0,0"/>
                                                         </Grid>
@@ -142,7 +142,7 @@
             </ItemsControl>
 
             <!-- Next steps -->
-            <TextBlock Style="{StaticResource H2}" Text="Next steps" Margin="0,24,0,12"/>
+            <TextBlock Style="{StaticResource H2}" Text="Next steps" Margin="0,28,0,12"/>
             <UniformGrid Columns="3">
                 <Button Style="{StaticResource GhostButton}" Margin="0,0,12,0" Padding="18,16" HorizontalContentAlignment="Stretch" Click="Recommended_Click">
                     <StackPanel>

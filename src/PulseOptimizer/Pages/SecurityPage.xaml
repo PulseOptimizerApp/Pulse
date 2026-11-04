@@ -3,7 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:ui="clr-namespace:Pulse.Ui">
     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-        <StackPanel Margin="0,6,0,32">
+        <StackPanel Margin="0,6,0,40">
             <TextBlock Style="{StaticResource H1}" Text="Security"/>
             <TextBlock Style="{StaticResource Sub}" Margin="0,6,0,0" MaxWidth="760" HorizontalAlignment="Left"
                        Text="Pulse uses Microsoft Defender's engine to scan — it's updated several times a day and already on your PC — and adds a check of every place malware hides to start with Windows. No scanner catches 100% of malware, so the startup check also flags anything unusual for you to review."/>

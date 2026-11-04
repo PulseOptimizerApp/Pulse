@@ -3,7 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:ui="clr-namespace:Pulse.Ui">
     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-        <StackPanel Margin="0,6,0,36">
+        <StackPanel Margin="0,6,0,40">
             <TextBlock Style="{StaticResource H1}" Text="Keep it fresh"/>
             <TextBlock Style="{StaticResource Sub}" Margin="0,6,0,0" MaxWidth="760" HorizontalAlignment="Left"
                        Text="PCs rarely slow down because of one thing. They drift: apps add themselves to startup, background processes pile up, and temp files fill the drive. Pulse saves a snapshot of your PC at its best, then shows you exactly what changed since."/>
@@ -12,7 +12,7 @@
                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="16"/><ColumnDefinition Width="340"/></Grid.ColumnDefinitions>
 
                 <!-- Status -->
-                <Border Style="{StaticResource Card}" Padding="24,22" ui:Anim.Reveal="True">
+                <Border Style="{StaticResource Card}" Padding="24,20" ui:Anim.Reveal="True">
                     <StackPanel>
                         <TextBlock Style="{StaticResource Label}" Text="YOUR BASELINE"/>
                         <TextBlock x:Name="StatusTitle" Style="{StaticResource H2}" Margin="0,8,0,0" Text="No snapshot yet"/>
@@ -35,15 +35,15 @@
                 </Border>
 
                 <!-- Weekly tune-up -->
-                <Border Grid.Column="2" Style="{StaticResource Card}" Padding="22,20" ui:Anim.Reveal="True">
+                <Border Grid.Column="2" Style="{StaticResource Card}" Padding="24,20" ui:Anim.Reveal="True">
                     <StackPanel>
                         <Grid>
                             <TextBlock Style="{StaticResource CardTitle}" Text="Weekly tune-up" VerticalAlignment="Center"/>
                             <CheckBox x:Name="WeeklySwitch" Style="{StaticResource Switch}" HorizontalAlignment="Right" Click="Weekly_Click"/>
                         </Grid>
-                        <TextBlock x:Name="WeeklyText" Style="{StaticResource Body}" FontSize="12.5" Margin="0,8,0,0"
+                        <TextBlock x:Name="WeeklyText" Style="{StaticResource Body}" FontSize="13" Margin="0,8,0,0"
                                    Text="Once a week at noon, Pulse quietly clears temporary files, Windows Update leftovers and crash dumps, then checks for drift. Nothing else changes on its own; you see the results here next time you open Pulse."/>
-                        <TextBlock Style="{StaticResource Body}" FontSize="11.5" Margin="0,8,0,0" Foreground="{StaticResource TextFaintBrush}"
+                        <TextBlock Style="{StaticResource Body}" FontSize="12" Margin="0,8,0,0" Foreground="{StaticResource TextFaintBrush}"
                                    Text="Uses Windows Task Scheduler. Turn it off any time and the task is removed."/>
                     </StackPanel>
                 </Border>
@@ -60,7 +60,7 @@
                                 <Ellipse Width="8" Height="8" Fill="{Binding KindBrush}" VerticalAlignment="Top" Margin="0,7,0,0" HorizontalAlignment="Left"/>
                                 <StackPanel Grid.Column="1">
                                     <TextBlock Style="{StaticResource CardTitle}" Text="{Binding Title}"/>
-                                    <TextBlock Style="{StaticResource Body}" FontSize="12.5" Margin="0,3,0,0" Text="{Binding Detail}"/>
+                                    <TextBlock Style="{StaticResource Body}" FontSize="13" Margin="0,3,0,0" Text="{Binding Detail}"/>
                                 </StackPanel>
                                 <Button Grid.Column="2" Style="{StaticResource GhostButton}" Margin="16,0,0,0" VerticalAlignment="Center" Content="{Binding ActionText}" Tag="{Binding ActionKey}"
                                         Click="Action_Click" Visibility="{Binding HasAction, Converter={StaticResource BoolToVis}}"/>
@@ -71,18 +71,18 @@
             </ItemsControl>
 
             <!-- History -->
-            <TextBlock x:Name="HistoryHeader" Style="{StaticResource H2}" Text="Over time" Margin="0,24,0,12" Visibility="Collapsed"/>
-            <Border x:Name="HistoryCard" Style="{StaticResource Card}" Padding="20,14" Visibility="Collapsed">
+            <TextBlock x:Name="HistoryHeader" Style="{StaticResource H2}" Text="Over time" Margin="0,28,0,12" Visibility="Collapsed"/>
+            <Border x:Name="HistoryCard" Style="{StaticResource Card}" Padding="18,14" Visibility="Collapsed">
                 <ItemsControl x:Name="HistoryList">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
                             <Grid Margin="0,5">
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="180"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                                <TextBlock Text="{Binding When}" FontWeight="SemiBold" FontSize="12.5"/>
-                                <TextBlock Grid.Column="1" Text="{Binding Startup}" FontSize="12.5" Foreground="{StaticResource TextDimBrush}"/>
-                                <TextBlock Grid.Column="2" Text="{Binding Boot}" FontSize="12.5" Foreground="{StaticResource TextDimBrush}"/>
-                                <TextBlock Grid.Column="3" Text="{Binding Procs}" FontSize="12.5" Foreground="{StaticResource TextDimBrush}"/>
-                                <TextBlock Grid.Column="4" Text="{Binding Free}" FontSize="12.5" Foreground="{StaticResource TextDimBrush}"/>
+                                <TextBlock Text="{Binding When}" FontWeight="SemiBold" FontSize="13"/>
+                                <TextBlock Grid.Column="1" Text="{Binding Startup}" FontSize="13" Foreground="{StaticResource TextDimBrush}"/>
+                                <TextBlock Grid.Column="2" Text="{Binding Boot}" FontSize="13" Foreground="{StaticResource TextDimBrush}"/>
+                                <TextBlock Grid.Column="3" Text="{Binding Procs}" FontSize="13" Foreground="{StaticResource TextDimBrush}"/>
+                                <TextBlock Grid.Column="4" Text="{Binding Free}" FontSize="13" Foreground="{StaticResource TextDimBrush}"/>
                             </Grid>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>

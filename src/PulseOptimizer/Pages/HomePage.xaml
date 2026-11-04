@@ -43,7 +43,7 @@
     </UserControl.Resources>
 
     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-        <StackPanel Margin="0,6,0,36">
+        <StackPanel Margin="0,6,0,40">
             <TextBlock x:Name="Greeting" Style="{StaticResource H1}" Text="Home"/>
             <TextBlock x:Name="PcLine" Style="{StaticResource Sub}" Margin="0,4,0,0"/>
 
@@ -51,7 +51,7 @@
             <Grid Margin="0,22,0,0">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="340"/><ColumnDefinition Width="16"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
 
-                <Border Style="{StaticResource Card}" Padding="22,20" ui:Anim.Reveal="True">
+                <Border Style="{StaticResource Card}" Padding="24,20" ui:Anim.Reveal="True">
                     <StackPanel>
                         <TextBlock Style="{StaticResource Label}" Text="PC HEALTH"/>
                         <Grid Margin="0,14,0,0">
@@ -60,12 +60,12 @@
                                 <ui:Ring x:Name="HealthRing" Thickness="8" Brush="{StaticResource AccentGradient}"/>
                                 <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                                     <TextBlock x:Name="HealthBig" Text="—" FontFamily="{StaticResource DisplayFont}" FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Center"/>
-                                    <TextBlock x:Name="HealthSmall" Text="not checked" FontSize="10.5" Foreground="{StaticResource TextDimBrush}" HorizontalAlignment="Center"/>
+                                    <TextBlock x:Name="HealthSmall" Text="not checked" FontSize="11" Foreground="{StaticResource TextDimBrush}" HorizontalAlignment="Center"/>
                                 </StackPanel>
                             </Grid>
                             <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="6,0,0,0">
                                 <TextBlock x:Name="HealthTitle" Style="{StaticResource CardTitle}" Text="Run a checkup"/>
-                                <TextBlock x:Name="HealthText" Style="{StaticResource Body}" FontSize="12.5" Margin="0,4,0,0"
+                                <TextBlock x:Name="HealthText" Style="{StaticResource Body}" FontSize="13" Margin="0,4,0,0"
                                            Text="About a minute. Pulse looks for real problems like a monitor stuck at 60 Hz or slow RAM."/>
                             </StackPanel>
                         </Grid>
@@ -75,7 +75,7 @@
                                     <Grid Margin="0,0,0,8" ui:Anim.Reveal="True">
                                         <Grid.ColumnDefinitions><ColumnDefinition Width="18"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                         <Ellipse x:Name="Dot" Width="7" Height="7" Fill="{StaticResource WarnBrush}" VerticalAlignment="Top" Margin="0,6,0,0" HorizontalAlignment="Left"/>
-                                        <TextBlock Grid.Column="1" Text="{Binding Title}" FontSize="12.5" TextWrapping="Wrap"/>
+                                        <TextBlock Grid.Column="1" Text="{Binding Title}" FontSize="13" TextWrapping="Wrap"/>
                                     </Grid>
                                     <DataTemplate.Triggers>
                                         <DataTrigger Binding="{Binding Severity}" Value="Problem"><Setter TargetName="Dot" Property="Fill" Value="{StaticResource BadBrush}"/></DataTrigger>
@@ -92,7 +92,7 @@
                     </StackPanel>
                 </Border>
 
-                <Border Grid.Column="2" Style="{StaticResource Card}" Padding="22,20" ui:Anim.Reveal="True">
+                <Border Grid.Column="2" Style="{StaticResource Card}" Padding="24,20" ui:Anim.Reveal="True">
                     <Grid>
                         <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
                         <Grid>

@@ -6,9 +6,9 @@
         <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
         <StackPanel>
             <TextBlock Style="{StaticResource H1}" Text="Startup apps"/>
-            <TextBlock Style="{StaticResource Sub}" Margin="0,6,0,0" MaxWidth="740" HorizontalAlignment="Left"
+            <TextBlock Style="{StaticResource Sub}" Margin="0,6,0,0" MaxWidth="760" HorizontalAlignment="Left"
                        Text="Programs that launch when you sign in, using memory and CPU in the background while you play. Turning one off doesn't uninstall it — it just stops it starting automatically. It's the same switch as Task Manager's Startup tab, so both always agree."/>
-            <TextBlock x:Name="CountText" Style="{StaticResource Body}" Margin="0,8,0,0"/>
+            <TextBlock x:Name="CountText" Style="{StaticResource Body}" Margin="0,22,0,0"/>
         </StackPanel>
 
         <Grid Grid.Row="1" Margin="0,18,0,0">
