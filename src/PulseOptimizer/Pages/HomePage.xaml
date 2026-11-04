@@ -6,6 +6,8 @@
         <!-- Dashboard shortcut tile -->
         <Style x:Key="DashTile" TargetType="Button">
             <Setter Property="Cursor" Value="Hand"/>
+            <!-- Without this the titles fall back to Windows' default black text, nearly invisible on the dark tiles. -->
+            <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
             <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
             <Setter Property="Template">
                 <Setter.Value>

@@ -81,9 +81,9 @@ public static class Loc
                 int n = m.Groups[1].Value[0] - '0';
                 if (seen.Contains(n)) return $@"\k<a{n}>";
                 seen.Add(n);
-                return $"(?<a{n}>.*?)";
+                return $"(?<a{n}>[^\n]*?)";
             }) + "$";
-            try { list.Add((new Regex(rx, RegexOptions.Singleline | RegexOptions.CultureInvariant), tr, seen.ToArray(), literal.Length)); }
+            try { list.Add((new Regex(rx, RegexOptions.CultureInvariant), tr, seen.ToArray(), literal.Length)); }
             catch (ArgumentException) { }
         }
         // Most specific first, so "{0} freed · {1} in use" wins over "{0} freed".
@@ -99,7 +99,10 @@ public static class Loc
     {
         if (string.IsNullOrEmpty(english) || _map.Count == 0) return english;
         lock (_cache) if (_cache.TryGetValue(english, out var hit)) return hit;
-        var result = Lookup(english, true) ?? Pieces(english) ?? english;
+        // Whole-text match first; for joined sentences prefer translating every piece, so a pattern like
+        // "Freed {0}" can't swallow the sentences after it as its value.
+        var result = (_map.TryGetValue(english, out var exact) && !string.IsNullOrEmpty(exact) ? exact : null)
+                     ?? Pieces(english, all: true) ?? Lookup(english, true) ?? Pieces(english, all: false) ?? english;
         lock (_cache) { if (_cache.Count > 20000) _cache.Clear(); _cache[english] = result; }
         return result;
     }
@@ -132,18 +135,18 @@ public static class Loc
     static readonly Regex Separators = new(@"(\n+|(?<=[.!?:…)])[ ]+|[ ]·[ ]|[ ]—[ ])", RegexOptions.CultureInvariant);
 
     /// <summary>Text joined from several sentences or lines: translate each piece that has an entry.</summary>
-    static string Pieces(string s)
+    static string Pieces(string s, bool all)
     {
         var parts = Separators.Split(s);
         if (parts.Length < 3) return null;
-        bool any = false;
+        bool any = false, missed = false;
         for (int i = 0; i < parts.Length; i += 2)
         {
-            if (parts[i].Length == 0) continue;
+            if (parts[i].Length == 0 || !Regex.IsMatch(parts[i], @"\p{L}")) continue;
             var t = Lookup(parts[i], true);
-            if (t != null) { parts[i] = t; any = true; }
+            if (t != null) { parts[i] = t; any = true; } else missed = true;
         }
-        return any ? string.Concat(parts) : null;
+        return any && (!all || !missed) ? string.Concat(parts) : null;
     }
 
     /// <summary>A translated pattern with values filled in, e.g. F("{0} min ago", 5).</summary>
