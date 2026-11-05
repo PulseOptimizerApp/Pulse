@@ -34,6 +34,11 @@ public class RobloxSettings
     public bool AutoClean { get; set; }
     /// <summary>Settings for single experiences: place ID → preset key ("maxfps", "balanced", "default").</summary>
     public Dictionary<string, string> PlacePresets { get; set; } = new();
+    /// <summary>Pulse's copy of the font Roblox should use (null = Roblox's own fonts).</summary>
+    public string CustomFont { get; set; }
+    /// <summary>The font's name, for the page.</summary>
+    public string CustomFontName { get; set; }
+    public string CustomFontFamily { get; set; }
 }
 
 /// <summary>One setting on the Roblox page, shown as a row of choices.</summary>
@@ -337,6 +342,7 @@ public static class RobloxBoost
         foreach (var v in PlayerVersions()) { try { WriteFlags(v, flags); n++; } catch { } }
         try { WriteFpsCap(options.First(o => o.Key == "fps").Value); } catch { }
         try { ApplyGpuPreference(Settings.HighPerformanceGpu, PlayerVersions()); } catch { }
+        try { RobloxFont.ApplyAll(); } catch { }
         return n;
     }
 
@@ -521,6 +527,7 @@ public static class RobloxBoost
                         {
                             try { WriteFlags(d, flags); known.Add(d); } catch { }
                             if (settings.HighPerformanceGpu) try { ApplyGpuPreference(true, new[] { d }); } catch { }
+                            if (!string.IsNullOrEmpty(settings.CustomFont)) try { RobloxFont.Apply(d, settings.CustomFont); } catch { }
                         }
                 }
                 catch { }

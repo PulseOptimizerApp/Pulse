@@ -2366,5 +2366,22 @@
  "The anti-cheat closed, so your macros work again.": "O anticheat fechou, então seus macros voltaram a funcionar.",
  "{0} is running, so macros are paused. They carry on by themselves when it closes. If your game allows macros, switch on \"Allow in games with anti-cheat\" below.": "{0} está rodando, então os macros estão pausados. Eles voltam sozinhos quando ele fechar. Se o seu jogo permite macros, ligue \"Permitir em jogos com anticheat\" abaixo.",
  "{0} stops what's playing": "{0} para o que está tocando",
- "Stops whatever is playing and lets go of every key it held. Macros stay on.": "Para o que estiver tocando e solta todas as teclas que estavam seguradas. Os macros continuam ligados."
+ "Stops whatever is playing and lets go of every key it held. Macros stay on.": "Para o que estiver tocando e solta todas as teclas que estavam seguradas. Os macros continuam ligados.",
+ "Custom font": "Fonte personalizada",
+ "Change the font Roblox uses for its menus, chat and game text. Pick one of your Windows fonts or add your own .ttf / .otf file. Only you see it. Emojis keep working.": "Mude a fonte que o Roblox usa nos menus, no chat e no texto dos jogos. Escolha uma das suas fontes do Windows ou adicione seu próprio arquivo .ttf / .otf. Só você vê. Os emojis continuam funcionando.",
+ "Use Roblox's font": "Usar a fonte do Roblox",
+ "Add a font file…": "Adicionar um arquivo de fonte…",
+ "The quick brown fox jumps over the lazy dog 0123456789": "Jane quer LP, fax, CD, giz, TV e bom whisky 0123456789",
+ "Using {0}. Restart Roblox to see it.": "Usando {0}. Reinicie o Roblox para ver.",
+ "Using Roblox's own font.": "Usando a fonte do próprio Roblox.",
+ "Pick a Windows font…": "Escolha uma fonte do Windows…",
+ "Loading fonts…": "Carregando fontes…",
+ "Pick a font": "Escolha uma fonte",
+ "Fonts": "Fontes",
+ "Pick a .ttf or .otf font file.": "Escolha um arquivo de fonte .ttf ou .otf.",
+ "That doesn't look like a font file.": "Isso não parece um arquivo de fonte.",
+ "Saved. It goes in as soon as Roblox is installed.": "Salvo. Entra assim que o Roblox estiver instalado.",
+ "Roblox will use {0}. Restart Roblox to see it.": "O Roblox vai usar {0}. Reinicie o Roblox para ver.",
+ "Couldn't change the font: {0}": "Não foi possível mudar a fonte: {0}",
+ "Roblox's own font is back. Restart Roblox to see it.": "A fonte do Roblox voltou. Reinicie o Roblox para ver."
 }

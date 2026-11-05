@@ -4,6 +4,7 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using Pulse.Core;
 using Pulse.Core.Roblox;
+using Loc = Pulse.Ui.Loc;
 
 namespace Pulse.Pages;
 
@@ -34,6 +35,7 @@ public partial class RobloxPage : UserControl, IPage
         GpuSwitch.IsChecked = S.HighPerformanceGpu;
         GameModeSwitch.IsChecked = S.GameMode;
         AutoCleanSwitch.IsChecked = S.AutoClean;
+        ShowFont();
         ShowPlaces();
         _loading = false;
         ShowCustom();
@@ -165,6 +167,91 @@ public partial class RobloxPage : UserControl, IPage
         S.AutoClean = AutoCleanSwitch.IsChecked == true;
         RobloxBoost.Save();
         if (S.AutoClean && !S.LaunchThroughPulse) MainWindow.Instance.Toast("Turn on Launch through Pulse too, so the cleanup runs before Roblox starts.", ToastKind.Info);
+    }
+
+    // ───────── Custom font ─────────
+
+    bool _fontsLoaded, _fontLoading;
+
+    void ShowFont()
+    {
+        bool custom = !string.IsNullOrEmpty(S.CustomFont) && File.Exists(S.CustomFont);
+        FontStatus.Text = custom ? Loc.F("Using {0}. Restart Roblox to see it.", S.CustomFontName ?? Path.GetFileName(S.CustomFont)) : Loc.T("Using Roblox's own font.");
+        FontResetBtn.Visibility = custom ? Visibility.Visible : Visibility.Collapsed;
+        try { FontPreview.FontFamily = custom ? new System.Windows.Media.FontFamily(new Uri(S.CustomFont), "./#" + (S.CustomFontFamily ?? S.CustomFontName)) : new System.Windows.Media.FontFamily("Segoe UI"); } catch { }
+        if (!_fontsLoaded && FontPick.Items.Count == 0)
+            FontPick.Items.Add(new ComboBoxItem { Content = Loc.T("Pick a Windows font…"), IsEnabled = false, Tag = null });
+        if (FontPick.SelectedIndex < 0) { _fontLoading = true; FontPick.SelectedIndex = 0; _fontLoading = false; }
+    }
+
+    async void FontPick_Opened(object sender, EventArgs e)
+    {
+        if (_fontsLoaded) return;
+        _fontsLoaded = true;
+        _fontLoading = true;
+        FontPick.Items.Clear();
+        FontPick.Items.Add(new ComboBoxItem { Content = Loc.T("Loading fonts…"), IsEnabled = false, Tag = null });
+        FontPick.SelectedIndex = 0;
+        var fonts = await Task.Run(RobloxFont.WindowsFonts);
+        FontPick.Items.Clear();
+        FontPick.Items.Add(new ComboBoxItem { Content = Loc.T("Pick a Windows font…"), IsEnabled = false, Tag = null });
+        foreach (var (name, file) in fonts)
+            FontPick.Items.Add(new ComboBoxItem { Content = name, Tag = file, FontFamily = new System.Windows.Media.FontFamily(new Uri(file), "./#" + name) });
+        FontPick.SelectedIndex = 0;
+        _fontLoading = false;
+    }
+
+    void FontPick_Changed(object sender, SelectionChangedEventArgs e)
+    {
+        if (_fontLoading || (FontPick.SelectedItem as ComboBoxItem)?.Tag is not string file) return;
+        UseFont(file, (string)((ComboBoxItem)FontPick.SelectedItem).Content);
+    }
+
+    void FontFile_Click(object sender, RoutedEventArgs e)
+    {
+        var dlg = new Microsoft.Win32.OpenFileDialog { Title = Loc.T("Pick a font"), Filter = Loc.T("Fonts") + " (*.ttf;*.otf)|*.ttf;*.otf", CheckFileExists = true };
+        if (dlg.ShowDialog(Window.GetWindow(this)) != true) return;
+        string name = Path.GetFileNameWithoutExtension(dlg.FileName);
+        try
+        {
+            var gt = new System.Windows.Media.GlyphTypeface(new Uri(dlg.FileName));
+            name = gt.Win32FamilyNames.Values.FirstOrDefault() ?? name;
+        }
+        catch { }
+        UseFont(dlg.FileName, name);
+    }
+
+    void UseFont(string file, string name)
+    {
+        if (!RobloxFont.IsFontFile(file, out var why)) { MainWindow.Instance.Toast(Loc.T(why), ToastKind.Warning); return; }
+        try
+        {
+            string family = name;
+            try { family = new System.Windows.Media.GlyphTypeface(new Uri(file)).Win32FamilyNames.Values.FirstOrDefault() ?? name; } catch { }
+            S.CustomFont = RobloxFont.Store(file);
+            S.CustomFontName = name;
+            S.CustomFontFamily = family;
+            RobloxBoost.Save();
+            int n = RobloxFont.ApplyAll();
+            TweakEngine.AddLog("roblox", $"Roblox font: {name}");
+            ShowFont();
+            if (n == 0 && !RobloxBoost.Installed) MainWindow.Instance.Toast("Saved. It goes in as soon as Roblox is installed.", ToastKind.Info);
+            else MainWindow.Instance.Toast(Loc.F("Roblox will use {0}. Restart Roblox to see it.", name));
+        }
+        catch (Exception ex) { MainWindow.Instance.Toast(Loc.F("Couldn't change the font: {0}", ex.Message), ToastKind.Warning); }
+    }
+
+    void FontReset_Click(object sender, RoutedEventArgs e)
+    {
+        S.CustomFont = null;
+        S.CustomFontName = null;
+        S.CustomFontFamily = null;
+        RobloxBoost.Save();
+        RobloxFont.ApplyAll();
+        TweakEngine.AddLog("roblox", "Roblox font: back to Roblox's own");
+        _fontLoading = true; FontPick.SelectedIndex = 0; _fontLoading = false;
+        ShowFont();
+        MainWindow.Instance.Toast("Roblox's own font is back. Restart Roblox to see it.");
     }
 
     // ───────── Settings for one game ─────────
