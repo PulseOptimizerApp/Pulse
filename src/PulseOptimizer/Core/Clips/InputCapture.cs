@@ -41,6 +41,7 @@ public sealed class InputCapture : IDisposable
             new RAWINPUTDEVICE { UsagePage = 1, Usage = 5, Flags = RIDEV_INPUTSINK, Target = _window.Handle }, // gamepad (PlayStation)
         };
         RegisterRawInputDevices(devices, devices.Length, Marshal.SizeOf<RAWINPUTDEVICE>());
+        Pulse.Core.Input.PhysicalInput.OtherStarted(); // macros now get their input through us
         _xinput = new Thread(PollXInput) { IsBackground = true, Name = "Pulse controller input", Priority = ThreadPriority.BelowNormal };
         _xinput.Start();
     }
@@ -82,6 +83,7 @@ public sealed class InputCapture : IDisposable
     IntPtr WndProc(IntPtr hwnd, int msg, IntPtr w, IntPtr l, ref bool handled)
     {
         if (msg != WM_INPUT) return IntPtr.Zero;
+        Pulse.Core.Input.PhysicalInput.FromOtherWindow(l);
         try { Handle(l); } catch { }
         return IntPtr.Zero;
     }
@@ -271,6 +273,7 @@ public sealed class InputCapture : IDisposable
                 };
                 RegisterRawInputDevices(off, off.Length, Marshal.SizeOf<RAWINPUTDEVICE>());
                 _window.Dispose();
+                Pulse.Core.Input.PhysicalInput.OtherStopped();
             }
         }
         catch { }

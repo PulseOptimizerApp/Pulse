@@ -140,10 +140,12 @@ public sealed class MousePollingMeter : IDisposable
         var dev = new[] { new RAWINPUTDEVICE { usUsagePage = 0x01, usUsage = 0x02, dwFlags = RIDEV_INPUTSINK, hwndTarget = _source.Handle } };
         if (!RegisterRawInputDevices(dev, 1, (uint)Marshal.SizeOf<RAWINPUTDEVICE>()))
             throw new InvalidOperationException("Couldn't listen to raw mouse input (error " + Marshal.GetLastWin32Error() + ").");
+        Pulse.Core.Input.PhysicalInput.OtherStarted();
     }
 
     IntPtr Hook(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
+        if (msg == WM_INPUT) Pulse.Core.Input.PhysicalInput.FromOtherWindow(lParam);
         if (msg == WM_INPUT && _recording) _stamps.Add(_sw.Elapsed.TotalMilliseconds);
         return IntPtr.Zero;
     }
@@ -164,6 +166,7 @@ public sealed class MousePollingMeter : IDisposable
             RegisterRawInputDevices(dev, 1, (uint)Marshal.SizeOf<RAWINPUTDEVICE>());
         }
         catch { }
+        Pulse.Core.Input.PhysicalInput.OtherStopped();
         _source.RemoveHook(Hook);
         _source.Dispose();
     }

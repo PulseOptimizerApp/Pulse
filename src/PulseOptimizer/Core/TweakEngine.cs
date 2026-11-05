@@ -61,7 +61,11 @@ public class AppState
     /// <summary>The Clips page: instant replay settings and favorite clips.</summary>
     public Pulse.Core.Clips.ClipSettings Clips { get; set; } = new();
     public Pulse.Core.Reaction.ReactionSettings Reaction { get; set; } = new();
+    /// <summary>The first version's single click macro. Kept so older settings carry over into <see cref="MacroList"/>.</summary>
     public Pulse.Core.Input.MacroSettings Macros { get; set; } = new();
+    /// <summary>The Macros page: every macro (null until the old click macro has been carried over).</summary>
+    public List<Pulse.Core.Input.MacroDef> MacroList { get; set; }
+    public Pulse.Core.Input.MacroOptions MacroOptions { get; set; } = new();
     public Pulse.Core.Games.GameSessionSettings GameSession { get; set; } = new();
 }
 

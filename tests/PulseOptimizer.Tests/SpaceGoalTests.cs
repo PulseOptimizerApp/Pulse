@@ -218,6 +218,6 @@ public class ClickMacroTests
     public void Kernel_anti_cheats_are_on_the_block_list()
     {
         foreach (var name in new[] { "vgc", "EasyAntiCheat", "BEService", "FACEIT" })
-            Assert.Contains(name, Pulse.Core.Input.ClickMacro.AntiCheatProcesses);
+            Assert.Contains(name, Pulse.Core.Input.MacroPolicy.AntiCheatProcesses);
     }
 }
