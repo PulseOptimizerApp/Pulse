@@ -163,9 +163,9 @@ public sealed class ReplayRecorder : IDisposable
         // working when the game changes display mode or moves screens; no yellow border, size kept and rounded to even
         // numbers for the encoder), or the whole display (Desktop Duplication).
         if (window != IntPtr.Zero)
-            a.Add($"-f lavfi -i gfxcapture=hwnd={(long)window}:capture_cursor={cursor}:capture_border=0:display_border=0:max_framerate={fps}:resize_mode=scale_aspect:width=-2:height=-2");
+            a.Add($"-thread_queue_size 256 -f lavfi -i gfxcapture=hwnd={(long)window}:capture_cursor={cursor}:capture_border=0:display_border=0:max_framerate={fps}:resize_mode=scale_aspect:width=-2:height=-2");
         else
-            a.Add($"-f lavfi -i ddagrab=output_idx={Math.Max(0, s.Monitor)}:framerate={fps}:draw_mouse={cursor}");
+            a.Add($"-thread_queue_size 256 -f lavfi -i ddagrab=output_idx={Math.Max(0, s.Monitor)}:framerate={fps}:draw_mouse={cursor}");
         // Window capture sends a frame when the game draws one; make it a steady frame rate like the screen capture.
         string src = window != IntPtr.Zero ? $"[0:v]fps={fps}," : "[0:v]";
         int next = 1;
@@ -211,7 +211,11 @@ public sealed class ReplayRecorder : IDisposable
         if (gameTrack) { maps.AddRange(new[] { "-map", "[g2]" }); titles.Add("Game"); }
         if (micTrack) { maps.AddRange(new[] { "-map", micIn >= 0 && gameIn < 0 ? $"{micIn}:a" : "[m2]" }); titles.Add("Microphone"); }
 
-        a.Add("-filter_complex \"" + string.Join(";", filters) + "\"");
+        // The picture gets its own filter graph (FFmpeg runs each graph on its own thread), so the picture never waits
+        // on a sound source. In one shared graph, a sound source arriving a little late held up the video, its short
+        // queue (8 frames) overflowed and frames were thrown away: clips stuttered with steady 150 ms gaps.
+        a.Add("-filter_complex \"" + filters[0] + "\"");
+        if (filters.Count > 1) a.Add("-filter_complex \"" + string.Join(";", filters.Skip(1)) + "\"");
         a.AddRange(maps);
         // Pixel rate decides how hard the encoder can work: native is assumed 1440p when not known.
         int outH = h > 0 ? h : 1440;
