@@ -86,6 +86,7 @@ public partial class MacrosPage : UserControl, IPage, IReleasable
         NotifySwitch.IsChecked = O.Notifications;
         AutoSwitch.IsChecked = O.OnAtStart;
         AntiCheatSwitch.IsChecked = O.AllowWithAntiCheat;
+        ShooterMoveSwitch.IsChecked = O.AllowMoveInShooters;
         PanicHost.Content = KeyButton(() => O.PanicKey, vk => { O.PanicKey = vk; MacroService.Save(); ShowState(); }, mouse: false);
         _loading = false;
         FillList(_sel?.Id);
@@ -114,7 +115,13 @@ public partial class MacrosPage : UserControl, IPage, IReleasable
             BlockText.Text = Loc.F("{0} is running, so macros stay off. If your game allows macros, switch on \"Allow in games with anti-cheat\" below.", MacroService.BlockedBy);
         var shooter = MacroService.Shooter;
         ShooterText.Visibility = armed && shooter != null ? Visibility.Visible : Visibility.Collapsed;
-        if (shooter != null) ShooterText.Text = Loc.F("{0} is open: mouse-moving macros are paused. Keys and clicks still work.", shooter);
+        if (shooter != null)
+        {
+            ShooterText.Foreground = (Brush)FindResource(O.AllowMoveInShooters ? "WarnBrush" : "InfoBrush");
+            ShooterText.Text = O.AllowMoveInShooters
+                ? Loc.F("{0} is open and mouse-moving macros are allowed. We strongly advise against it: it's unfair to other players and can get your account banned.", shooter)
+                : Loc.F("{0} is open: mouse-moving macros are paused. Keys and clicks still work.", shooter);
+        }
     }
 
     void Arm_Click(object sender, RoutedEventArgs e)
@@ -140,7 +147,7 @@ public partial class MacrosPage : UserControl, IPage, IReleasable
         if (AntiCheatSwitch.IsChecked == true)
         {
             var ok = MessageBox.Show(Window.GetWindow(this),
-                Loc.T("Only do this for games whose rules allow macros (like League of Legends or Fortnite).\n\nGames with Riot Vanguard, Easy Anti-Cheat, BattlEye or FACEIT can ban accounts for macro input if their rules don't allow it, and Pulse can't tell which games do. You take that risk.\n\nMouse-moving macros still won't run in competitive shooters.\n\nAllow macros while an anti-cheat is running?"),
+                Loc.T("Only do this for games whose rules allow macros (like League of Legends or Fortnite).\n\nGames with Riot Vanguard, Easy Anti-Cheat, BattlEye or FACEIT can ban accounts for macro input if their rules don't allow it, and Pulse can't tell which games do. You take that risk.\n\nMouse-moving macros still pause in competitive shooters unless you allow that separately.\n\nAllow macros while an anti-cheat is running?"),
                 Loc.T("Allow in games with anti-cheat"), MessageBoxButton.YesNo, MessageBoxImage.Warning, MessageBoxResult.No);
             if (ok != MessageBoxResult.Yes) { AntiCheatSwitch.IsChecked = false; return; }
         }
@@ -148,6 +155,23 @@ public partial class MacrosPage : UserControl, IPage, IReleasable
         if (O.AllowWithAntiCheat) MacroService.Disarm(); // re-arm to re-check with the new rule
         MacroService.Save();
         TweakEngine.AddLog("macro", O.AllowWithAntiCheat ? "Macros allowed while an anti-cheat runs (user's choice)" : "Macros off while an anti-cheat runs");
+        ShowState();
+    }
+
+    void ShooterMove_Click(object sender, RoutedEventArgs e)
+    {
+        if (_loading) return;
+        if (ShooterMoveSwitch.IsChecked == true)
+        {
+            var ok = MessageBox.Show(Window.GetWindow(this),
+                Loc.T("We strongly advise against this, and we don't recommend it.\n\nIn competitive shooters, a macro that moves the mouse is recoil control or aim help. That's unfair to the people you play against, it's against those games' rules, and anti-cheats ban accounts for it, often permanently. Pulse can't protect your account if you turn this on.\n\nKey macros (like lean spam) already work without this.\n\nAllow mouse-moving macros in competitive shooters anyway?"),
+                Loc.T("Allow mouse movement in competitive shooters (not recommended)"), MessageBoxButton.YesNo, MessageBoxImage.Warning, MessageBoxResult.No);
+            if (ok != MessageBoxResult.Yes) { ShooterMoveSwitch.IsChecked = false; return; }
+        }
+        O.AllowMoveInShooters = ShooterMoveSwitch.IsChecked == true;
+        MacroService.OptionsChanged();
+        MacroService.Save();
+        TweakEngine.AddLog("macro", O.AllowMoveInShooters ? "Mouse-moving macros allowed in competitive shooters (user's choice, advised against)" : "Mouse-moving macros paused in competitive shooters");
         ShowState();
     }
 
@@ -518,7 +542,7 @@ public partial class MacrosPage : UserControl, IPage, IReleasable
     {
         Editor.Children.Add(Section("Steps"));
         if (m.Steps.Any(s => s.Moves))
-            Editor.Children.Add(Note("This macro moves the mouse. It never runs in competitive shooters. In other games, only use it where the rules allow it (like auto-farming in games that permit it).", top: 0, brush: "WarnBrush"));
+            Editor.Children.Add(Note("This macro moves the mouse. It pauses in competitive shooters unless you allow that in Settings (we strongly advise against it). In other games, only use it where the rules allow it, like auto-farming in games that permit it.", top: 0, brush: "WarnBrush"));
         var list = new StackPanel { Margin = new Thickness(0, 6, 0, 0) };
         if (m.Steps.Count == 0)
             list.Children.Add(Note("No steps yet. Add some below, or record what you press.", top: 0));
@@ -707,7 +731,7 @@ public partial class MacrosPage : UserControl, IPage, IReleasable
         bar.Children.Add(SmallButton("Example: G-key combo", (_, _) => SetScript(m, ExampleCombo), 0, right: 6));
         Editor.Children.Add(bar);
         if (MacroPolicy.MovesMouse(m))
-            Editor.Children.Add(Note("This script moves the mouse. Movement never runs in competitive shooters. In other games, only use it where the rules allow it.", top: 8, brush: "WarnBrush"));
+            Editor.Children.Add(Note("This script moves the mouse. Movement pauses in competitive shooters unless you allow that in Settings (we strongly advise against it). In other games, only use it where the rules allow it.", top: 8, brush: "WarnBrush"));
 
         // G-keys
         Editor.Children.Add(Section("G-keys"));

@@ -182,7 +182,7 @@ public sealed class WindowsInput : IInputSink, IDisposable
         if (Stopped || !Allowed) return false;
         var game = MoveBlockedBy();
         if (game == null) { _toldMoveBlocked = false; return true; }
-        if (!_toldMoveBlocked) { _toldMoveBlocked = true; Log($"Mouse movement is off while {game} is running (competitive shooters ban for it)."); }
+        if (!_toldMoveBlocked) { _toldMoveBlocked = true; Log($"Mouse movement is paused while {game} is open (competitive shooters ban for it). You can change this in Settings, but we strongly advise against it."); }
         return false;
     }
 

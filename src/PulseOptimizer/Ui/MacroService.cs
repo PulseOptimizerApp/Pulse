@@ -39,8 +39,17 @@ public static class MacroService
 
     /// <summary>The anti-cheat that's keeping macros off, or null.</summary>
     public static string BlockedBy { get; private set; }
-    /// <summary>The competitive shooter that's blocking mouse movement, or null.</summary>
-    public static string Shooter => _engine?.MoveBlockedBy;
+    /// <summary>The competitive shooter that's open, or null (mouse movement is paused there unless the user allowed it).</summary>
+    public static string Shooter { get; private set; }
+
+    static void SetShooter(string shooter)
+    {
+        Shooter = shooter;
+        if (_engine != null) _engine.MoveBlockedBy = Options.AllowMoveInShooters ? null : shooter;
+    }
+
+    /// <summary>Re-applies the settings (after the user changes one).</summary>
+    public static void OptionsChanged() => SetShooter(Shooter);
     public static bool Armed => _engine?.Armed == true;
     public static MacroEngine Engine => _engine;
     /// <summary>Raised on the UI thread when macros turn on or off, or one starts or stops.</summary>
@@ -73,7 +82,7 @@ public static class MacroService
             return Loc.F("{0} is running, so macros stay off. Some games with it allow macros (League of Legends, Fortnite) and some ban for them: if yours allows them, switch on \"Allow in games with anti-cheat\" below.", ac);
         }
         BlockedBy = null;
-        _engine.MoveBlockedBy = MacroPolicy.ShooterIn(running);
+        SetShooter(MacroPolicy.ShooterIn(running));
         _engine.Arm();
         _guard.Change(2000, 2000);
         var list = Snapshot();
@@ -116,9 +125,9 @@ public static class MacroService
             return;
         }
         string shooter = MacroPolicy.ShooterIn(running);
-        if (shooter != _engine.MoveBlockedBy)
+        if (shooter != Shooter)
         {
-            _engine.MoveBlockedBy = shooter;
+            SetShooter(shooter);
             System.Windows.Application.Current?.Dispatcher.BeginInvoke(() => Changed?.Invoke());
         }
         if (Snapshot().Any(m => m.Enabled && m.Where == "game"))

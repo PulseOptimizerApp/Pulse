@@ -321,6 +321,7 @@ public class MacroPolicyTests
     {
         Assert.False(new MacroOptions().AllowWithAntiCheat);
         Assert.Equal(0x1B, new MacroOptions().PanicKey);
+        Assert.False(new MacroOptions().AllowMoveInShooters); // movement in shooters stays paused unless the user turns it on
     }
 
     [Fact]

@@ -67,6 +67,11 @@ public class MacroOptions
     public bool Notifications { get; set; } = true;
     /// <summary>Let macros run while a kernel anti-cheat is running. Off by default; the user takes the risk.</summary>
     public bool AllowWithAntiCheat { get; set; }
+    /// <summary>
+    /// Let mouse-moving macros run while a competitive shooter is open. Off by default and strongly advised against:
+    /// there it's aim or recoil help, which is unfair to other players and gets accounts banned.
+    /// </summary>
+    public bool AllowMoveInShooters { get; set; }
     /// <summary>Turn macros on when Pulse starts.</summary>
     public bool OnAtStart { get; set; }
 }
@@ -78,8 +83,8 @@ public static class MacroPolicy
     public static readonly string[] AntiCheatProcesses = { "vgc", "vgtray", "EasyAntiCheat", "EasyAntiCheat_EOS", "BEService", "FACEIT", "faceitservice", "faceit_ac" };
 
     /// <summary>
-    /// Competitive shooters, where moving the mouse with a macro is aim or recoil help: that's cheating, and they ban
-    /// for it. Mouse movement never runs while one is running (keys and clicks still follow the anti-cheat setting).
+    /// Competitive shooters, where moving the mouse with a macro is aim or recoil help: unfair, and they ban for it.
+    /// Mouse movement is paused while one is running unless the user turns on AllowMoveInShooters (strongly advised against).
     /// </summary>
     public static readonly (string Process, string Game)[] Shooters =
     {
