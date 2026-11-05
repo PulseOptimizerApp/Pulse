@@ -162,3 +162,62 @@ public class ReactionPopulationTests
         Assert.True(d(256) > d(200) && d(256) > d(350));
     }
 }
+
+public class ClickMacroTests
+{
+    static List<(double Gap, double Hold)> Run(Pulse.Core.Input.MacroSettings s, int n)
+    {
+        var p = new Pulse.Core.Input.ClickPattern(s, seed: 7);
+        return Enumerable.Range(0, n).Select(_ => p.Next()).ToList();
+    }
+
+    [Theory]
+    [InlineData("steady", 12)]
+    [InlineData("butterfly", 18)]
+    [InlineData("jitter", 14)]
+    public void Average_speed_matches_what_was_picked(string mode, double cps)
+    {
+        var clicks = Run(new Pulse.Core.Input.MacroSettings { Mode = mode, Cps = cps, Variation = 0.08 }, 2000);
+        double actual = 1000 / clicks.Average(c => c.Gap);
+        Assert.InRange(actual, cps * 0.95, cps * 1.05);
+    }
+
+    [Fact]
+    public void Exact_timing_is_a_metronome()
+    {
+        var clicks = Run(new Pulse.Core.Input.MacroSettings { Mode = "steady", Cps = 10, Variation = 0 }, 50);
+        Assert.All(clicks, c => Assert.Equal(100, c.Gap, 6));
+    }
+
+    [Fact]
+    public void Butterfly_comes_in_pairs()
+    {
+        var clicks = Run(new Pulse.Core.Input.MacroSettings { Mode = "butterfly", Cps = 16, Variation = 0 }, 400);
+        // Every other gap is short (the second finger) and the others long (both fingers coming back).
+        double odd = clicks.Where((_, i) => i % 2 == 1).Average(c => c.Gap), even = clicks.Where((_, i) => i % 2 == 0).Average(c => c.Gap);
+        Assert.True(Math.Max(odd, even) > 1.4 * Math.Min(odd, even));
+    }
+
+    [Fact]
+    public void Each_press_is_released_before_the_next()
+    {
+        foreach (var mode in new[] { "steady", "butterfly", "jitter" })
+            Assert.All(Run(new Pulse.Core.Input.MacroSettings { Mode = mode, Cps = 25, Variation = 0.15 }, 500), c => Assert.True(c.Hold < c.Gap));
+    }
+
+    [Fact]
+    public void A_recorded_rhythm_is_replayed_gap_for_gap()
+    {
+        var rhythm = new List<double[]> { new[] { 40.0, 12 }, new[] { 90.0, 15 }, new[] { 45.0, 11 }, new[] { 85.0, 14 } };
+        var clicks = Run(new Pulse.Core.Input.MacroSettings { Mode = "rhythm", Rhythm = rhythm }, 8);
+        Assert.Equal(new[] { 40.0, 90, 45, 85, 40, 90, 45, 85 }, clicks.Select(c => c.Gap));
+        Assert.Equal(1000 * 4 / 260.0, Pulse.Core.Input.ClickPattern.RhythmCps(rhythm), 3);
+    }
+
+    [Fact]
+    public void Kernel_anti_cheats_are_on_the_block_list()
+    {
+        foreach (var name in new[] { "vgc", "EasyAntiCheat", "BEService", "FACEIT" })
+            Assert.Contains(name, Pulse.Core.Input.ClickMacro.AntiCheatProcesses);
+    }
+}

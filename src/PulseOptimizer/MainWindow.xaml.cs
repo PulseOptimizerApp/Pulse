@@ -156,6 +156,7 @@ public partial class MainWindow : Window
                 "tweaks" => new TweaksPage(),
                 "measure" => new MeasurePage(),
                 "reaction" => new ReactionPage(),
+                "macros" => new MacrosPage(),
                 "games" => new GamesPage(),
                 "cleanup" => new DeclutterPage(),
                 "startup" => new StartupPage(),
@@ -476,6 +477,7 @@ public partial class MainWindow : Window
         }
         base.OnClosing(e);
         Ui.ClipsService.Shutdown();
+        Ui.MacroService.Shutdown();
         Ui.GameSessionService.Shutdown();
         Ui.TrayIcon.Hide();
         Application.Current.Shutdown();

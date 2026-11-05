@@ -196,6 +196,11 @@
                             <WrapPanel x:Name="MicVolChips" Grid.Column="1"/>
                             <CheckBox x:Name="MicSwitch" Grid.Column="2" Style="{StaticResource Switch}" Click="Setting_Click"/>
                         </Grid>
+                        <Grid x:Name="MicDeviceRow" Style="{StaticResource Row}">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="200"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <TextBlock Style="{StaticResource RowLabel}" Text="Which microphone"/>
+                            <WrapPanel x:Name="MicDeviceChips" Grid.Column="1"/>
+                        </Grid>
                         <Grid Style="{StaticResource Row}">
                             <Grid.ColumnDefinitions><ColumnDefinition Width="200"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                             <TextBlock Style="{StaticResource RowLabel}" Text="Save hotkey"/>

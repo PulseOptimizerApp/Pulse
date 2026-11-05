@@ -61,6 +61,7 @@ public class AppState
     /// <summary>The Clips page: instant replay settings and favorite clips.</summary>
     public Pulse.Core.Clips.ClipSettings Clips { get; set; } = new();
     public Pulse.Core.Reaction.ReactionSettings Reaction { get; set; } = new();
+    public Pulse.Core.Input.MacroSettings Macros { get; set; } = new();
     public Pulse.Core.Games.GameSessionSettings GameSession { get; set; } = new();
 }
 

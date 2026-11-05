@@ -85,9 +85,8 @@ public sealed class ReplayRecorder : IDisposable
     /// <summary>True once any picture has arrived (false means the video path never worked on this PC).</summary>
     public bool HadVideo => _ring.SecondsSinceVideo(Now) >= 0;
     /// <summary>
-    /// 0 = fastest (resized and converted by the graphics card's video processor), 1 = frames handed to the encoder as
-    /// they are, 2 = frames copied once and converted on the processor (works with every driver and window size),
-    /// 3 = that at 1080p. Pulse steps down when a level gives no picture.
+    /// 0 = fastest (frames handed to the encoder as they are), 1 = frames copied once and converted on the processor
+    /// (works with every driver and window size), 2 = that at 1080p. Pulse steps down when a level gives no picture.
     /// </summary>
     public int VideoLevel { get; init; }
     /// <summary>True when the recorder was given priority on the graphics card.</summary>
@@ -140,7 +139,7 @@ public sealed class ReplayRecorder : IDisposable
         }
         if (_s.Microphone)
         {
-            _mic = AudioCapture.Microphone();
+            _mic = AudioCapture.Microphone(_s.MicDevice);
             _mic.Volume = _s.MicVolume / 100f;
             _mic.Start();
             micPipe = new NamedPipeServerStream(id + "-mic", PipeDirection.Out, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous, 0, 1 << 16);
@@ -212,19 +211,15 @@ public sealed class ReplayRecorder : IDisposable
         int h = s.Resolution switch { "1440" => 1440, "1080" => 1080, "720" => 720, _ => 0 };
         // Pulse lowered the size on this PC because it couldn't keep up (see ClipSettings.FitHeight).
         if (s.FitHeight > 0 && (h == 0 || h > s.FitHeight)) h = s.FitHeight;
-        if (videoLevel >= 3 && (h == 0 || h > 1080)) h = 1080;
-        string size = h > 0 ? $"width=-2:height={h}:" : "";
+        if (videoLevel >= 2 && (h == 0 || h > 1080)) h = 1080;
         string v;
-        // Level 0: resized and converted for the encoder by the graphics card's video processor (scale_d3d11), a
-        // separate part of the chip from the one the game draws with. Nothing goes through the processor, which is
-        // what keeps clips smooth on weak PCs and integrated graphics.
-        if (videoLevel == 0 && e.TakesGpuFrames) v = src + $"scale_d3d11={size}format=nv12[v]";
-        else if (videoLevel == 0 && e.Vendor == "Intel") v = src + $"scale_d3d11={size}format=nv12,hwmap=derive_device=qsv,format=qsv[v]";
-        else if (videoLevel == 0) v = src + $"scale_d3d11={size}format=nv12,hwdownload,format=nv12[v]"; // processor encoder: still no conversion on the CPU
-        // Level 1: frames handed to the encoder as they are (the previous fast path).
-        else if (videoLevel == 1 && h == 0 && e.TakesGpuFrames) v = src + "null[v]";
-        else if (videoLevel == 1 && h == 0 && e.Vendor == "Intel") v = src + "hwmap=derive_device=qsv,format=qsv[v]";
-        // Level 2+: copied once and converted on the processor; works with every driver.
+        // Level 0, native size: frames go straight from the capture to the graphics card's encoder (the path that's
+        // been smooth since the start). Level 1+: copied once and converted on the processor, which works with every
+        // driver and window size. Resizing is done once on the processor (bilinear), which is proven on every PC.
+        // (FFmpeg's scale_d3d11 was tried here in 0.3.5–0.4.0 and made clips drop to a few frames a second on some
+        // drivers: it keeps too few frames in hand for the encoder, so the two wait on each other.)
+        if (h == 0 && videoLevel == 0 && e.TakesGpuFrames) v = src + "null[v]";
+        else if (h == 0 && videoLevel == 0 && e.Vendor == "Intel") v = src + "hwmap=derive_device=qsv,format=qsv[v]";
         // Native size, rounded to even numbers (a game window can be any size; encoders need even ones).
         else if (h == 0) v = src + "hwdownload,format=bgra,scale=trunc(iw/2)*2:trunc(ih/2)*2,format=nv12[v]";
         else v = src + $"hwdownload,format=bgra,scale=-2:{h}:flags=bilinear,format=nv12[v]";

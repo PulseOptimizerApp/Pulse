@@ -24,10 +24,47 @@ public sealed class AudioCapture : IDisposable
     public float Volume { get; set; } = 1f;
     public string Error { get; private set; }
 
-    AudioCapture(bool loopback, int pid = 0) { _loopback = loopback; _pid = pid; }
+    readonly string _deviceId; // a chosen microphone ("" or null = Windows' default)
+
+    AudioCapture(bool loopback, int pid = 0, string deviceId = null) { _loopback = loopback; _pid = pid; _deviceId = deviceId; }
 
     public static AudioCapture GameSound() => new(true);
-    public static AudioCapture Microphone() => new(false);
+    /// <param name="deviceId">A microphone from <see cref="Microphones"/>, or null for Windows' default one.</param>
+    public static AudioCapture Microphone(string deviceId = null) => new(false, 0, deviceId);
+
+    /// <summary>The microphones plugged in and turned on, by Windows' id and the name Windows shows.</summary>
+    public static List<(string Id, string Name)> Microphones()
+    {
+        var list = new List<(string, string)>();
+        try
+        {
+            var enumerator = (IMMDeviceEnumerator)new MMDeviceEnumerator();
+            if (enumerator.EnumAudioEndpoints(1 /*eCapture*/, 1 /*DEVICE_STATE_ACTIVE*/, out var devices) != 0) return list;
+            devices.GetCount(out var count);
+            for (uint i = 0; i < count; i++)
+            {
+                if (devices.Item(i, out var d) != 0) continue;
+                d.GetId(out var id);
+                list.Add((id, FriendlyName(d) ?? id));
+            }
+        }
+        catch { }
+        return list;
+    }
+
+    static string FriendlyName(IMMDevice d)
+    {
+        try
+        {
+            if (d.OpenPropertyStore(0 /*STGM_READ*/, out var store) != 0) return null;
+            var key = new PROPERTYKEY { fmtid = new Guid("a45c254e-df1c-4efd-8020-67d146a850e0"), pid = 14 }; // PKEY_Device_FriendlyName
+            var v = new PROPVARIANT();
+            if (store.GetValue(ref key, out v) != 0) return null;
+            try { return v.vt == 31 /*VT_LPWSTR*/ ? Marshal.PtrToStringUni(v.p) : null; }
+            finally { PropVariantClear(ref v); }
+        }
+        catch { return null; }
+    }
     /// <summary>
     /// Only what one app plays (it and the processes it started), with Windows' process loopback (Windows 10 2004+).
     /// Used for separate game, Discord and music tracks.
@@ -102,7 +139,10 @@ public sealed class AudioCapture : IDisposable
         var enumerator = (IMMDeviceEnumerator)new MMDeviceEnumerator();
         try
         {
-            Check(enumerator.GetDefaultAudioEndpoint(_loopback ? 0 /*eRender*/ : 1 /*eCapture*/, 0 /*eConsole*/, out var device));
+            // The chosen microphone if it's still there, otherwise Windows' default (it may have been unplugged).
+            IMMDevice device = null;
+            if (!_loopback && !string.IsNullOrEmpty(_deviceId) && enumerator.GetDevice(_deviceId, out var chosen) == 0) device = chosen;
+            if (device == null) Check(enumerator.GetDefaultAudioEndpoint(_loopback ? 0 /*eRender*/ : 1 /*eCapture*/, 0 /*eConsole*/, out device));
             var iid = typeof(IAudioClient).GUID;
             Check(device.Activate(ref iid, CLSCTX_ALL, IntPtr.Zero, out var clientObj));
             var client = (IAudioClient)clientObj;
@@ -381,15 +421,41 @@ public sealed class AudioCapture : IDisposable
     [ComImport, Guid("A95664D2-9614-4F35-A746-DE8DB63617E6"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
     interface IMMDeviceEnumerator
     {
-        [PreserveSig] int EnumAudioEndpoints(int dataFlow, int stateMask, out IntPtr devices);
+        [PreserveSig] int EnumAudioEndpoints(int dataFlow, int stateMask, out IMMDeviceCollection devices);
         [PreserveSig] int GetDefaultAudioEndpoint(int dataFlow, int role, out IMMDevice device);
+        [PreserveSig] int GetDevice([MarshalAs(UnmanagedType.LPWStr)] string id, out IMMDevice device);
+    }
+
+    [ComImport, Guid("0BD7A1BE-7A1A-44DB-8397-CC5392387B5E"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    interface IMMDeviceCollection
+    {
+        [PreserveSig] int GetCount(out uint count);
+        [PreserveSig] int Item(uint index, out IMMDevice device);
     }
 
     [ComImport, Guid("D666063F-1587-4E43-81F1-B948E807363F"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
     interface IMMDevice
     {
         [PreserveSig] int Activate(ref Guid iid, int clsCtx, IntPtr activationParams, [MarshalAs(UnmanagedType.IUnknown)] out object iface);
+        [PreserveSig] int OpenPropertyStore(int access, out IPropertyStore store);
+        [PreserveSig] int GetId([MarshalAs(UnmanagedType.LPWStr)] out string id);
+        [PreserveSig] int GetState(out int state);
     }
+
+    [ComImport, Guid("886d8eeb-8cf2-4446-8d02-cdba1dbdcf99"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    interface IPropertyStore
+    {
+        [PreserveSig] int GetCount(out uint count);
+        [PreserveSig] int GetAt(uint index, out PROPERTYKEY key);
+        [PreserveSig] int GetValue(ref PROPERTYKEY key, out PROPVARIANT value);
+    }
+
+    [StructLayout(LayoutKind.Sequential)] struct PROPERTYKEY { public Guid fmtid; public int pid; }
+
+    [StructLayout(LayoutKind.Sequential)]
+    struct PROPVARIANT { public ushort vt, r1, r2, r3; public IntPtr p; public IntPtr p2; }
+
+    [DllImport("ole32.dll")] static extern int PropVariantClear(ref PROPVARIANT v);
 
     [ComImport, Guid("1CB9AD4C-DBFA-4c32-B178-C2F568A703B2"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
     interface IAudioClient

@@ -278,6 +278,12 @@ public partial class ClipsPage : UserControl, IPage, IReleasable
         Fill(QualityChips, "q", Presets.Select(p => (p.Label, p.Label)).ToArray());
         Fill(GameVolChips, "gv", new[] { ("50%", "50"), ("75%", "75"), ("100%", "100"), ("150%", "150") });
         Fill(MicVolChips, "mv", new[] { ("50%", "50"), ("75%", "75"), ("100%", "100"), ("150%", "150") });
+        // Microphones plugged in now; a chosen one that's unplugged stays listed so the choice isn't lost.
+        var mics = AudioCapture.Microphones();
+        var micChips = new List<(string, string)> { ("Windows default", "") };
+        micChips.AddRange(mics.Select(m => (m.Name, m.Id)));
+        if (!string.IsNullOrEmpty(S.MicDevice) && !mics.Any(m => m.Id == S.MicDevice)) micChips.Add(("Chosen microphone (unplugged)", S.MicDevice));
+        Fill(MicDeviceChips, "micdev", micChips.ToArray());
         Fill(ResChips, "res", new[] { ("Native", "native"), ("1440p", "1440"), ("1080p", "1080"), ("720p", "720") });
         Fill(FpsChips, "fps", new[] { ("30", "30"), ("60", "60"), ("120", "120"), ("144", "144") });
         Fill(BitrateChips, "br", new[] { ("15 Mbps", "15"), ("25 Mbps", "25"), ("40 Mbps", "40"), ("60 Mbps", "60"), ("80 Mbps", "80"), ("120 Mbps", "120") });
@@ -321,6 +327,8 @@ public partial class ClipsPage : UserControl, IPage, IReleasable
         Mark(LengthChips, S.ReplaySeconds.ToString(CultureInfo.InvariantCulture));
         Mark(GameVolChips, S.GameVolume.ToString(CultureInfo.InvariantCulture));
         Mark(MicVolChips, S.MicVolume.ToString(CultureInfo.InvariantCulture));
+        Mark(MicDeviceChips, S.MicDevice ?? "");
+        MicDeviceRow.Visibility = S.Microphone ? Visibility.Visible : Visibility.Collapsed;
         Mark(ResChips, S.Resolution);
         Mark(FpsChips, S.Fps.ToString(CultureInfo.InvariantCulture));
         Mark(BitrateChips, S.BitrateMbps.ToString(CultureInfo.InvariantCulture));
@@ -392,6 +400,7 @@ public partial class ClipsPage : UserControl, IPage, IReleasable
                 break;
             case "gv": S.GameVolume = n; break;
             case "mv": S.MicVolume = n; break;
+            case "micdev": S.MicDevice = v; break;
             case "res": S.Resolution = v; S.FitHeight = S.FitFps = 0; break;
             case "fps": S.Fps = n; S.FitHeight = S.FitFps = 0; break;
             case "br": S.BitrateMbps = n; break;

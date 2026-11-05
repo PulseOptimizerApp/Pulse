@@ -54,8 +54,7 @@ public static class SystemInfo
     /// True when games and recording share one small graphics chip: no separate graphics card (integrated graphics,
     /// like AMD "Radeon(TM) Graphics" or Intel UHD/Iris), or a card with under 3 GB of its own memory.
     /// </summary>
-    public static bool SharedGraphicsOnly => Gpus.Count > 0 && !Gpus.Any(g =>
-        PcDiagnostics.IsDiscrete(g.Name) && (g.MemoryBytes == 0 || g.MemoryBytes >= 3L << 30));
+    public static bool SharedGraphicsOnly => Gpus.Count > 0 && !Gpus.Any(g => PcDiagnostics.IsDiscrete(g.Name));
 
     public static bool HasNvidia => Gpus.Any(g => g.Name.Contains("NVIDIA", StringComparison.OrdinalIgnoreCase));
     public static bool HasAmd => Gpus.Any(g => g.Name.Contains("AMD", StringComparison.OrdinalIgnoreCase) || g.Name.Contains("Radeon", StringComparison.OrdinalIgnoreCase));

@@ -186,7 +186,7 @@ public class ClipsTests
         var a = ReplayRecorder.Arguments(new ClipSettings { Fps = 120 }, Nvenc, null, null, (IntPtr)0x1234);
         Assert.Contains("gfxcapture=hwnd=4660", a);
         Assert.Contains("display_border=0", a);
-        Assert.Contains("[0:v]fps=120,scale_d3d11=format=nv12[v]", a);
+        Assert.Contains("[0:v]fps=120,null[v]", a);
         Assert.DoesNotContain("ddagrab", a);
         Assert.Contains("ddagrab", ReplayRecorder.Arguments(new ClipSettings(), Nvenc, null, null));
     }
@@ -261,7 +261,7 @@ public class ClipsTests
     {
         var a = ReplayRecorder.Arguments(new ClipSettings(), Nvenc, @"\\.\pipe\g", null);
         Assert.Contains("ddagrab=output_idx=0:framerate=60", a);
-        Assert.Contains("[0:v]scale_d3d11=format=nv12[v]", a); // stays on the graphics card
+        Assert.Contains("[0:v]null[v]", a); // stays on the graphics card
         Assert.DoesNotContain("hwdownload", a);
         Assert.Contains("-c:v h264_nvenc", a);
         Assert.Contains("-map 1:a", a);
@@ -273,7 +273,7 @@ public class ClipsTests
     {
         var s = new ClipSettings { Resolution = "720", Microphone = true };
         var a = ReplayRecorder.Arguments(s, Nvenc, "G", "M");
-        Assert.Contains("scale_d3d11=width=-2:height=720:format=nv12", a);
+        Assert.Contains("scale=-2:720", a);
         Assert.Contains("[1:a][2:a]amix=inputs=2", a);
         Assert.Contains("-map [mix]", a);
         Assert.DoesNotContain("asplit", a);
@@ -510,13 +510,11 @@ public class ReplayStoreTests
     {
         var s = new Pulse.Core.Clips.ClipSettings { Resolution = "native" };
         var e = new Pulse.Core.Clips.Encoder("h264_nvenc", "h264", "NVIDIA", true);
-        var gpu = Pulse.Core.Clips.ReplayRecorder.Arguments(s, e, null, null);
-        var direct = Pulse.Core.Clips.ReplayRecorder.Arguments(s, e, null, null, videoLevel: 1);
-        var safe = Pulse.Core.Clips.ReplayRecorder.Arguments(s, e, null, null, videoLevel: 2);
-        var small = Pulse.Core.Clips.ReplayRecorder.Arguments(s, e, null, null, videoLevel: 3);
-        Assert.Contains("scale_d3d11=format=nv12", gpu);
-        Assert.DoesNotContain("hwdownload", gpu); // nothing goes through the processor
-        Assert.Contains("null[v]", direct);
+        var fast = Pulse.Core.Clips.ReplayRecorder.Arguments(s, e, null, null);
+        var safe = Pulse.Core.Clips.ReplayRecorder.Arguments(s, e, null, null, videoLevel: 1);
+        var small = Pulse.Core.Clips.ReplayRecorder.Arguments(s, e, null, null, videoLevel: 2);
+        Assert.Contains("[0:v]null[v]", fast);          // straight to the encoder, the proven path
+        Assert.DoesNotContain("scale_d3d11", fast);     // it starved the encoder on some drivers
         Assert.Contains("trunc(iw/2)*2", safe);
         Assert.Contains("scale=-2:1080", small);
     }
@@ -527,7 +525,7 @@ public class ReplayStoreTests
         var s = new Pulse.Core.Clips.ClipSettings { Resolution = "native", Fps = 60, FitHeight = 720, FitFps = 30 };
         var e = new Pulse.Core.Clips.Encoder("h264_amf", "h264", "AMD", true);
         var a = Pulse.Core.Clips.ReplayRecorder.Arguments(s, e, null, null);
-        Assert.Contains("scale_d3d11=width=-2:height=720:format=nv12", a);
+        Assert.Contains("scale=-2:720", a);
         Assert.Contains("framerate=30", a);
     }
 
@@ -590,10 +588,24 @@ public class WeakPcTests
         {
             var a = Pulse.Core.Clips.ReplayRecorder.Arguments(s, amd, null, null);
             Assert.Contains("ddagrab=output_idx=0:framerate=30", a); // the screen is copied 30 times a second, not every game frame
-            Assert.Contains("height=720", a);
+            Assert.Contains("scale=-2:720", a);
             Assert.Contains("-quality speed", a);
             Assert.Contains("-b:v 8M", a);
         }
         finally { Pulse.Core.Clips.ReplayRecorder.SharedGraphics = false; }
+    }
+}
+
+public class MicrophoneListTests
+{
+    [Fact]
+    public void Listing_microphones_never_throws_even_with_none_plugged_in() =>
+        Assert.NotNull(Pulse.Core.Clips.AudioCapture.Microphones());
+
+    [Fact]
+    public void The_chosen_microphone_is_recorded()
+    {
+        var src = File.ReadAllText(Path.Combine(Repo.Root, "src", "PulseOptimizer", "Core", "Clips", "ReplayRecorder.cs"));
+        Assert.Contains("AudioCapture.Microphone(_s.MicDevice)", src);
     }
 }

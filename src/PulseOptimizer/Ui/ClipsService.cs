@@ -194,7 +194,7 @@ public static class ClipsService
             StopRecorder();
             window = WantWindow(game);
         }
-        else if (_rec != null && (_rec.Stalled || !_rec.Running) && !_rec.HadVideo && _videoLevel < 3)
+        else if (_rec != null && (_rec.Stalled || !_rec.Running) && !_rec.HadVideo && _videoLevel < 2)
         {
             // No picture at all at this quality (some drivers or window sizes don't take the fastest path, which
             // used to leave Balanced and High recording nothing): try the next, more compatible way.
@@ -225,7 +225,15 @@ public static class ClipsService
                 return;
             }
         }
-        else if (_rec != null && _rec.Running && _rec.FallingBehind && StepDown())
+        else if (_rec != null && _rec.Running && _rec.FallingBehind && !SystemInfo.SharedGraphicsOnly && _videoLevel == 0)
+        {
+            // A graphics card that can't keep up means the video path is the problem, not the PC: try the other one
+            // before lowering anything.
+            TweakEngine.AddLog("clips", $"Recording made {_rec.Frames.Rate(_rec.Seconds, 10):0} of {_rec.TargetFps} FPS: trying the compatible video path");
+            StopRecorder();
+            _videoLevel = 1;
+        }
+        else if (_rec != null && _rec.Running && _rec.FallingBehind && SystemInfo.SharedGraphicsOnly && StepDown())
         {
             // This PC can't make every frame at these settings (the clip would stutter): record a little smaller,
             // then at 30 FPS, so clips stay smooth. Remembered for this PC; picking a quality again clears it.
@@ -296,6 +304,18 @@ public static class ClipsService
     /// </summary>
     static void ApplyWeakPcStart()
     {
+        // 0.3.5–0.4.0 could lower a strong PC's quality by mistake (a slow video path looked like a slow PC): undo
+        // that once on PCs with a graphics card, so they're back to what was picked.
+        if (!S.FitResetDone)
+        {
+            S.FitResetDone = true;
+            if (!SystemInfo.SharedGraphicsOnly && (S.FitHeight > 0 || S.FitFps > 0))
+            {
+                S.FitHeight = S.FitFps = 0;
+                TweakEngine.AddLog("clips", "Put the clip quality back to what was picked (an earlier version lowered it by mistake)");
+            }
+            TweakEngine.Save();
+        }
         if (S.WeakPcStartApplied || !SystemInfo.SharedGraphicsOnly) return;
         S.WeakPcStartApplied = true;
         if (S.FitHeight == 0 || S.FitHeight > 720) S.FitHeight = 720;

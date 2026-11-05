@@ -30,6 +30,8 @@ public class ClipSettings
     public int GameVolume { get; set; } = 100;
     public bool Microphone { get; set; }
     public int MicVolume { get; set; } = 100;
+    /// <summary>Which microphone to record (Windows' device id); "" = whatever Windows uses as the default.</summary>
+    public string MicDevice { get; set; } = "";
     /// <summary>Also put the microphone on its own second audio track (for editing). The first track is always the mix.</summary>
     public bool SeparateMicTrack { get; set; }
     /// <summary>Moves the sound against the picture, in milliseconds (positive = sound later), if a PC's clips are out of sync.</summary>
@@ -92,6 +94,7 @@ public class ClipSettings
     public int FitFps { get; set; }
     /// <summary>The light start for PCs with integrated graphics (720p, 30 FPS) has been set once.</summary>
     public bool WeakPcStartApplied { get; set; }
+    public bool FitResetDone { get; set; }
 
     /// <summary>
     /// The bitrate actually used: the chosen one, capped for the smaller size or frame rate Pulse lowered to (a 720p
