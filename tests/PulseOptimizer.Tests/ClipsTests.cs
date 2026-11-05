@@ -520,44 +520,6 @@ public class ReplayStoreTests
     }
 
     [Fact]
-    public void A_pc_that_cant_keep_up_records_smaller_on_the_graphics_card()
-    {
-        var s = new Pulse.Core.Clips.ClipSettings { Resolution = "native", Fps = 60, FitHeight = 720, FitFps = 30 };
-        var e = new Pulse.Core.Clips.Encoder("h264_amf", "h264", "AMD", true);
-        var a = Pulse.Core.Clips.ReplayRecorder.Arguments(s, e, null, null);
-        Assert.Contains("scale=-2:720", a);
-        Assert.Contains("framerate=30", a);
-    }
-
-    [Fact]
-    public void Frame_rate_is_measured_over_the_last_seconds()
-    {
-        var m = new Pulse.Core.Clips.FrameRateMeter();
-        for (int t = 0; t <= 20; t++) m.Add(t, t < 10 ? t * 60 : 600 + (t - 10) * 20); // 60 FPS, then only 20
-        Assert.Equal(20, m.Rate(20, 10)!.Value, 1);
-        Assert.Null(new Pulse.Core.Clips.FrameRateMeter().Rate(5, 10));
-    }
-
-    [Theory]
-    [InlineData("frame=120", false)]
-    [InlineData("speed=1.01x", true)]
-    [InlineData("progress=continue", true)]
-    [InlineData("stream_0_0_q=23.0", true)]
-    [InlineData("[h264_amf @ 0x1] Encoder error", false)]
-    public void Progress_lines_stay_out_of_the_error_log(string line, bool progress) =>
-        Assert.Equal(progress, Pulse.Core.Clips.ReplayRecorder.IsProgressLine(line));
-}
-
-public class ClipMixerTests
-{
-    [Fact]
-    public void Sources_are_summed_and_clipped_like_playback()
-    {
-        var m = Pulse.Core.Clips.ClipMixer.MixForTest(new short[] { 1000, 30000, -30000 }, new short[] { 500, 10000, -10000 });
-        Assert.Equal(new short[] { 1500, short.MaxValue, short.MinValue }, m);
-    }
-
-    [Fact]
     public void Tracks_are_extracted_as_raw_audio_for_the_mixer()
     {
         var src = File.ReadAllText(Path.Combine(Repo.Root, "src", "PulseOptimizer", "Core", "Clips", "ClipLibrary.cs"));
@@ -565,36 +527,6 @@ public class ClipMixerTests
     }
 }
 
-public class WeakPcTests
-{
-    [Fact]
-    public void Lowered_recordings_use_a_bitrate_that_fits_their_size()
-    {
-        var s = new Pulse.Core.Clips.ClipSettings { BitrateMbps = 40, FitHeight = 720, FitFps = 30 };
-        Assert.Equal(8, s.EffectiveBitrate());
-        s.FitFps = 0;
-        Assert.Equal(12, s.EffectiveBitrate());
-        s.FitHeight = 0;
-        Assert.Equal(40, s.EffectiveBitrate()); // nothing lowered: exactly what was picked
-    }
-
-    [Fact]
-    public void Integrated_graphics_record_720p_30_with_the_fastest_encoder_setting()
-    {
-        var s = new Pulse.Core.Clips.ClipSettings { Resolution = "native", Fps = 60, BitrateMbps = 20, FitHeight = 720, FitFps = 30 };
-        var amd = new Pulse.Core.Clips.Encoder("h264_amf", "h264", "AMD", true);
-        Pulse.Core.Clips.ReplayRecorder.SharedGraphics = true;
-        try
-        {
-            var a = Pulse.Core.Clips.ReplayRecorder.Arguments(s, amd, null, null);
-            Assert.Contains("ddagrab=output_idx=0:framerate=30", a); // the screen is copied 30 times a second, not every game frame
-            Assert.Contains("scale=-2:720", a);
-            Assert.Contains("-quality speed", a);
-            Assert.Contains("-b:v 8M", a);
-        }
-        finally { Pulse.Core.Clips.ReplayRecorder.SharedGraphics = false; }
-    }
-}
 
 public class MicrophoneListTests
 {
@@ -615,7 +547,6 @@ public class GraphicsCardRecordingTests
     [Fact]
     public void A_pc_with_a_graphics_card_records_exactly_like_0_3_4()
     {
-        Pulse.Core.Clips.ReplayRecorder.SharedGraphics = false;
         var nvenc = new Pulse.Core.Clips.Encoder("h264_nvenc", "h264", "NVIDIA", true);
         var a = Pulse.Core.Clips.ReplayRecorder.Arguments(new Pulse.Core.Clips.ClipSettings { Resolution = "native", Fps = 60, BitrateMbps = 70 }, nvenc, null, null);
         Assert.StartsWith("-hide_banner -loglevel warning -nostats -f lavfi -i ddagrab", a);
@@ -623,5 +554,15 @@ public class GraphicsCardRecordingTests
         Assert.Contains("-b:v 70M", a);
         Assert.Contains("-preset p5", a);
         Assert.DoesNotContain("-progress", a);
+    }
+}
+
+public class ClipMixerTests
+{
+    [Fact]
+    public void Sources_are_summed_and_clipped_like_playback()
+    {
+        var m = Pulse.Core.Clips.ClipMixer.MixForTest(new short[] { 1000, 30000, -30000 }, new short[] { 500, 10000, -10000 });
+        Assert.Equal(new short[] { 1500, short.MaxValue, short.MinValue }, m);
     }
 }

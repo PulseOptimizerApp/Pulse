@@ -37,6 +37,9 @@ public static class ClipsService
     public static bool HotkeyWorks => _hotkeyOk;
     public static bool QuickOk { get; private set; } = true;
     public static bool ShotOk { get; private set; } = true;
+    /// <summary>Kept for the Clips page: recording quality is never lowered automatically (as in 0.3.4).</summary>
+    public static string FitNote => null;
+
     public static long BufferBytes => _rec?.BufferBytes ?? 0;
     public static long MemoryBytes => _rec?.MemoryBytes ?? 0;
     /// <summary>Everything clipping costs in memory right now: Pulse itself plus its recorder, as Task Manager counts it.</summary>
@@ -105,7 +108,6 @@ public static class ClipsService
         _screenOnly = IntPtr.Zero;
         _videoLevel = 0;
         _giveUps = 0;
-        _weakTriedWindow = false;
         _retryAfter = default;
         RegisterHotkey();
         Tick();
@@ -143,15 +145,9 @@ public static class ClipsService
     /// <summary>Windows 11 can record a window without the yellow border Windows 10 forces, so window capture is 11+ only.</summary>
     static bool CanRecordWindow => Environment.OSVersion.Version.Build >= 22000;
 
-    // Integrated graphics: record the screen (Desktop Duplication copies only 30 or 60 frames a second), not the game's
-    // window (window capture can copy every frame the game draws, 350 a second in Roblox, which a small chip can't spare).
-    // If the screen gives no picture for this game, window capture is tried after all.
-    static bool _weakTriedWindow;
-
     static IntPtr WantWindow(string game)
     {
         if (game == null || S.Capture != "game" || !CanRecordWindow) return IntPtr.Zero;
-        if (SystemInfo.SharedGraphicsOnly && !_weakTriedWindow) return IntPtr.Zero;
         var w = GameDetector.GameWindow;
         return w == _screenOnly ? IntPtr.Zero : w;
     }
@@ -176,8 +172,6 @@ public static class ClipsService
         if (!Ffmpeg.Installed) { StopRecorder(); Set(ClipsState.NeedsSetup); return; }
         if (Paused) { StopRecorder(); return; } // the "what Clips costs" test is measuring without it
 
-        ApplyWeakPcStart();
-        ReplayRecorder.SharedGraphics = SystemInfo.SharedGraphicsOnly;
         var game = await Task.Run(GameDetector.RunningGame);
         _game = game;
         bool want = !S.OnlyWhileGaming || game != null;
@@ -188,13 +182,7 @@ public static class ClipsService
         if (_rec != null && _rec.Window != IntPtr.Zero && window != _rec.Window && !_rec.Stalled && _rec.Running)
             StopRecorder(); // the game opened a new window (or a different game started): follow it
 
-        if (_rec != null && _rec.Stalled && _rec.Window == IntPtr.Zero && SystemInfo.SharedGraphicsOnly && !_weakTriedWindow && game != null && CanRecordWindow)
-        {
-            _weakTriedWindow = true; // the screen gave no picture (exclusive fullscreen): try the game's window
-            StopRecorder();
-            window = WantWindow(game);
-        }
-        else if (_rec != null && (_rec.Stalled || !_rec.Running) && !_rec.HadVideo && _videoLevel < 2)
+        if (_rec != null && (_rec.Stalled || !_rec.Running) && !_rec.HadVideo && _videoLevel < 2)
         {
             // No picture at all at this quality (some drivers or window sizes don't take the fastest path, which
             // used to leave Balanced and High recording nothing): try the next, more compatible way.
@@ -225,15 +213,6 @@ public static class ClipsService
                 return;
             }
         }
-        else if (_rec != null && _rec.Running && _rec.FallingBehind && SystemInfo.SharedGraphicsOnly && StepDown())
-        {
-            // This PC can't make every frame at these settings (the clip would stutter): record a little smaller,
-            // then at 30 FPS, so clips stay smooth. Remembered for this PC; picking a quality again clears it.
-            TweakEngine.AddLog("clips", $"Recording couldn't keep up ({_rec.Frames.Rate(_rec.Seconds, 10):0} of {_rec.TargetFps} FPS): now {(S.FitHeight > 0 ? S.FitHeight + "p" : "full size")}{(S.FitFps > 0 ? $" at {S.FitFps} FPS" : "")}");
-            TweakEngine.Save();
-            StopRecorder();
-            Changed?.Invoke();
-        }
         else if (_rec != null && _rec.Running)
         {
             if (_rec.BufferSeconds > 30) _stalls = 0; // recording fine for a while: forget earlier stalls
@@ -257,11 +236,7 @@ public static class ClipsService
             var encoders = await Encoders.Available();
             var enc = Encoders.Pick(encoders, S.Codec);
             if (enc == null) { Set(ClipsState.Problem, "FFmpeg didn't find a video encoder that works on this PC."); return; }
-            _rec = new ReplayRecorder(S, enc, window, game != null ? GameDetector.GamePid : 0)
-            {
-                ScreenAspect = _screenAspect, VideoLevel = _videoLevel,
-                TargetFps = Math.Clamp(S.FitFps > 0 ? Math.Min(S.Fps, S.FitFps) : S.Fps, 24, 240),
-            };
+            _rec = new ReplayRecorder(S, enc, window, game != null ? GameDetector.GamePid : 0) { ScreenAspect = _screenAspect, VideoLevel = _videoLevel };
             _rec.Start();
             Set(ClipsState.Recording);
         }
@@ -271,49 +246,6 @@ public static class ClipsService
             _failures++;
             Set(ClipsState.Problem, ex.Message);
         }
-    }
-
-    /// <summary>One step smaller: 1080p, then 720p, then 720p at 30 FPS. False when there's nothing left to lower.</summary>
-    static bool StepDown()
-    {
-        int h = S.FitHeight > 0 ? S.FitHeight : S.Resolution switch { "1440" => 1440, "1080" => 1080, "720" => 720, _ => 1440 };
-        if (h > 1080) { S.FitHeight = 1080; return true; }
-        if (h > 720) { S.FitHeight = 720; return true; }
-        if (S.FitFps == 0 && S.Fps > 30) { S.FitFps = 30; return true; }
-        return false;
-    }
-
-    /// <summary>What Pulse lowered on this PC to keep clips smooth, for the Clips page (or null).</summary>
-    public static string FitNote => S.FitHeight == 0 && S.FitFps == 0 ? null
-        : Loc.F("Lowered to {0} so clips stay smooth on this PC. Pick a quality again to try higher.",
-            (S.FitHeight > 0 ? S.FitHeight + "p" : Loc.T("full size")) + (S.FitFps > 0 ? $" · {S.FitFps} FPS" : ""))
-          + (SystemInfo.SharedGraphicsOnly ? "\n" + Loc.T("Your PC has integrated graphics, so the game and recording share one chip. Capping the game's FPS to your screen's refresh rate (the Roblox page can do it for Roblox) leaves room for both: the game stays smooth and so do your clips.") : "");
-
-    /// <summary>
-    /// The first time Clips runs on a PC with integrated graphics, start light: 720p at 30 FPS, the most a shared chip
-    /// records smoothly while a game uses it. Picking a quality on the Clips page tries higher, and Pulse steps back
-    /// down by itself if that stutters.
-    /// </summary>
-    static void ApplyWeakPcStart()
-    {
-        // 0.3.5–0.4.0 could lower a strong PC's quality by mistake (a slow video path looked like a slow PC): undo
-        // that once on PCs with a graphics card, so they're back to what was picked.
-        if (!S.FitResetDone)
-        {
-            S.FitResetDone = true;
-            if (!SystemInfo.SharedGraphicsOnly && (S.FitHeight > 0 || S.FitFps > 0))
-            {
-                S.FitHeight = S.FitFps = 0;
-                TweakEngine.AddLog("clips", "Put the clip quality back to what was picked (an earlier version lowered it by mistake)");
-            }
-            TweakEngine.Save();
-        }
-        if (S.WeakPcStartApplied || !SystemInfo.SharedGraphicsOnly) return;
-        S.WeakPcStartApplied = true;
-        if (S.FitHeight == 0 || S.FitHeight > 720) S.FitHeight = 720;
-        if (S.FitFps == 0 || S.FitFps > 30) S.FitFps = 30;
-        TweakEngine.AddLog("clips", "Integrated graphics: Clips starts at 720p, 30 FPS so games keep their FPS and clips stay smooth");
-        TweakEngine.Save();
     }
 
     static string Explain(string ffmpegError)

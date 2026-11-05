@@ -57,13 +57,12 @@ public static class Encoders
     /// Tuned for quality per brand, but kept inside what the card's video engine does in real time at the chosen size
     /// and frame rate: the encoder is a separate part of the chip, so this costs the game almost nothing.
     /// </summary>
-    /// <param name="light">Integrated graphics: the encoder's fastest preset, so it never holds up the game.</param>
-    public static string Options(Encoder e, int mbps, int fps, long pixelsPerSecond = 1920L * 1080 * 60, bool light = false)
+    public static string Options(Encoder e, int mbps, int fps, long pixelsPerSecond = 1920L * 1080 * 60)
     {
         // -g alone isn't honoured the same way by every driver, so keyframes are also forced every second.
         string rate = $"-b:v {mbps}M -maxrate {mbps * 3 / 2}M -bufsize {mbps * 2}M -g {fps} -bf 0 -force_key_frames \"expr:gte(t,n_forced*1)\"";
         // Above 1440p at 120 FPS the slower presets can fall behind real time on mid-range cards: step down one.
-        bool heavy = light || pixelsPerSecond > 2560L * 1440 * 120;
+        bool heavy = pixelsPerSecond > 2560L * 1440 * 120;
         return e.Vendor switch
         {
             // Spatial AQ spends bits where the eye notices (flat skies, dark corners): far less blocking at the same size.
