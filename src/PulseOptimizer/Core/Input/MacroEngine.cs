@@ -439,24 +439,49 @@ public sealed class MacroRecorder : IDisposable
         _phys.Scrolled += OnScrolled;
     }
 
+    /// <summary>Raised (on the input thread) when the stop key is pressed: the page then finishes the recording.</summary>
+    public event Action StopRequested;
+
     void OnChanged(int vk, bool down)
     {
-        if (vk == _ignore) return;
+        if (vk == _ignore) { if (down) StopRequested?.Invoke(); return; }
+        // Clicks on Pulse's own window (the Stop button, anything else on the page) are never part of the macro.
+        if (Keys.IsMouse(vk) && PointerOverPulse()) return;
         lock (_events) { _events.Add((_clock.Elapsed.TotalMilliseconds, vk, down, 0)); EventCount?.Invoke(_events.Count); }
     }
 
     void OnScrolled(int n)
     {
+        if (PointerOverPulse()) return;
         lock (_events) { _events.Add((_clock.Elapsed.TotalMilliseconds, 0, false, n)); EventCount?.Invoke(_events.Count); }
     }
 
-    /// <summary>Stops and returns the steps. The click on Pulse's own Stop button (the last left click) is left out.</summary>
+    static bool PointerOverPulse()
+    {
+        if (!OperatingSystem.IsWindows()) return false;
+        try
+        {
+            if (!GetCursorPos(out var p)) return false;
+            var w = WindowFromPoint(p);
+            if (w == IntPtr.Zero) return false;
+            GetWindowThreadProcessId(w, out var pid);
+            return pid == (uint)Environment.ProcessId;
+        }
+        catch { return false; }
+    }
+
+    [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)] struct POINT { public int X, Y; }
+    [System.Runtime.InteropServices.DllImport("user32.dll")] static extern bool GetCursorPos(out POINT p);
+    [System.Runtime.InteropServices.DllImport("user32.dll")] static extern IntPtr WindowFromPoint(POINT p);
+    [System.Runtime.InteropServices.DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint pid);
+
+    /// <summary>Stops and returns the steps. Clicks on Pulse's own window (like the Stop button) were never recorded.</summary>
     public List<MacroStep> Finish(string delays = "recorded", double fixedMs = 50, bool mouse = true)
     {
         Dispose();
         List<(double, int, bool, int)> ev;
         lock (_events) ev = _events.ToList();
-        return ToSteps(ev, dropLastLeftClick: true, delays, fixedMs, mouse);
+        return ToSteps(ev, dropLastLeftClick: false, delays, fixedMs, mouse);
     }
 
     public void Dispose()

@@ -15,7 +15,13 @@ public sealed class PhysicalInput : IDisposable
     readonly bool[] _down = new bool[256];
     Thread _thread;
     IntPtr _hwnd;
-    WndProc _proc; // kept alive: Windows calls it
+    // One window class for the whole run, with one delegate that lives forever: Windows keeps calling the class's
+    // window procedure, so it must never be a delegate that can be garbage-collected (that crashed Pulse when
+    // macros were turned on a second time).
+    static readonly WndProc ClassProc = StaticProc;
+    static readonly Dictionary<IntPtr, PhysicalInput> Windows = new();
+    static bool _classRegistered;
+    static readonly object ClassGate = new();
     readonly ManualResetEventSlim _ready = new();
 
     /// <summary>Raised on the input thread for every physical press and release (virtual-key code, down).</summary>
@@ -104,17 +110,23 @@ public sealed class PhysicalInput : IDisposable
     {
         try
         {
-            _proc = Proc;
             var hInst = GetModuleHandleW(null);
-            var cls = new WNDCLASSEXW
+            lock (ClassGate)
             {
-                cbSize = (uint)Marshal.SizeOf<WNDCLASSEXW>(),
-                lpfnWndProc = Marshal.GetFunctionPointerForDelegate(_proc),
-                hInstance = hInst,
-                lpszClassName = "PulsePhysicalInput",
-            };
-            RegisterClassExW(ref cls); // fails harmlessly if already registered by an earlier start
+                if (!_classRegistered)
+                {
+                    var cls = new WNDCLASSEXW
+                    {
+                        cbSize = (uint)Marshal.SizeOf<WNDCLASSEXW>(),
+                        lpfnWndProc = Marshal.GetFunctionPointerForDelegate(ClassProc),
+                        hInstance = hInst,
+                        lpszClassName = "PulsePhysicalInput",
+                    };
+                    _classRegistered = RegisterClassExW(ref cls) != 0;
+                }
+            }
             _hwnd = CreateWindowExW(0, "PulsePhysicalInput", "", 0, 0, 0, 0, 0, new IntPtr(-3) /* HWND_MESSAGE */, IntPtr.Zero, hInst, IntPtr.Zero);
+            if (_hwnd != IntPtr.Zero) lock (Windows) Windows[_hwnd] = this;
             if (_hwnd != IntPtr.Zero)
             {
                 _current = this;
@@ -134,6 +146,20 @@ public sealed class PhysicalInput : IDisposable
     }
 
     byte[] _buf = new byte[128];
+
+    static IntPtr StaticProc(IntPtr hwnd, uint msg, IntPtr wParam, IntPtr lParam)
+    {
+        PhysicalInput me;
+        lock (Windows) Windows.TryGetValue(hwnd, out me);
+        if (msg == WM_DESTROY)
+        {
+            lock (Windows) Windows.Remove(hwnd);
+            PostQuitMessage(0);
+            return IntPtr.Zero;
+        }
+        try { if (me != null) return me.Proc(hwnd, msg, wParam, lParam); } catch { }
+        return DefWindowProcW(hwnd, msg, wParam, lParam);
+    }
 
     IntPtr Proc(IntPtr hwnd, uint msg, IntPtr wParam, IntPtr lParam)
     {
@@ -155,9 +181,6 @@ public sealed class PhysicalInput : IDisposable
                 };
                 RegisterRawInputDevices(off, 2, (uint)Marshal.SizeOf<RAWINPUTDEVICE>());
                 DestroyWindow(hwnd);
-                return IntPtr.Zero;
-            case WM_DESTROY:
-                PostQuitMessage(0);
                 return IntPtr.Zero;
         }
         return DefWindowProcW(hwnd, msg, wParam, lParam);

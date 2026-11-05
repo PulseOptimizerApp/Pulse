@@ -109,6 +109,11 @@ public static class MacroService
     /// <summary>Every 2 seconds while on (on a background thread): anti-cheats and shooters.</summary>
     static void Guard()
     {
+        try { GuardNow(); } catch (Exception ex) { try { TweakEngine.AddLog("macro", "Macro check failed: " + ex.Message); } catch { } }
+    }
+
+    static void GuardNow()
+    {
         if (_engine == null || !_engine.Armed) return;
         HashSet<string> running;
         try { running = MacroPolicy.RunningProcesses(); } catch { return; }

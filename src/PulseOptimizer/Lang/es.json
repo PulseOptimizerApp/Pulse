@@ -2328,5 +2328,10 @@
  "+ random up to": "+ al azar hasta",
  "Insert an action after this": "Insertar una acción después de esta",
  "Where it works": "Dónde funciona",
- "Click to set": "Haz clic para elegir"
+ "Click to set": "Haz clic para elegir",
+ "Record more": "Grabar más",
+ "Delays when recording:": "Retrasos al grabar:",
+ "Fixed": "Fijo",
+ "Record mouse buttons": "Grabar botones del ratón",
+ "Recording. Go to your game or app and press what you want. Click this bar or press {0} to finish. Clicks on Pulse's window aren't recorded.": "Grabando. Ve a tu juego o app y pulsa lo que quieras. Haz clic en esta barra o pulsa {0} para terminar. Los clics en la ventana de Pulse no se graban."
 }

@@ -38,7 +38,6 @@ public partial class MacrosPage : UserControl, IPage, IReleasable
 
     // Sequence recording
     MacroRecorder _recorder;
-    Button _recordBtn;
 
     // Script editor
     TextBox _scriptBox, _logBox;
@@ -688,37 +687,63 @@ public partial class MacrosPage : UserControl, IPage, IReleasable
 
     void BuildSequence(MacroDef m)
     {
-        // Toolbar: Record (with its options) and Insert, like Synapse and iCUE
-        var bar = new Grid { Margin = new Thickness(0, 0, 0, 10) };
-        bar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        bar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        bar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        var left = new StackPanel { Orientation = Orientation.Horizontal };
-        _recordBtn = new Button { Style = (Style)FindResource("PrimaryButton"), Padding = new Thickness(16, 8, 18, 8) };
-        SetRecordLabel(_recorder != null ? Loc.T("Stop recording") : Loc.T("Record"));
-        _recordBtn.Click += (_, _) => ToggleRecord(m);
-        left.Children.Add(_recordBtn);
-        var opts = SmallButton(RecordSummary(), null, 8);
-        opts.Click += (_, _) => ShowRecordOptions(opts);
-        opts.ToolTip = Loc.T("Recording options");
-        left.Children.Add(opts);
-        bar.Children.Add(left);
-        var right = new StackPanel { Orientation = Orientation.Horizontal };
-        var add = SmallButton("+  Insert action", null, 0);
-        add.Click += (_, _) => ShowInsertMenu(m, add, -1);
-        right.Children.Add(add);
-        if (m.Steps.Count > 0)
-            right.Children.Add(SmallButton("Clear", (_, _) =>
-            {
-                if (MessageBox.Show(Window.GetWindow(this), Loc.T("Remove every action of this macro?"), Loc.T("Clear"), MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) != MessageBoxResult.Yes) return;
-                m.Steps.Clear(); MacroService.Save(); BuildEditor();
-            }, 6));
-        Grid.SetColumn(right, 2);
-        bar.Children.Add(right);
-        Editor.Children.Add(bar);
-
         if (_recorder != null)
-            Editor.Children.Add(Note(Loc.F("Recording… press the keys and buttons you want, then click Stop. {0} isn't recorded.", Loc.T(Keys.Display(O.PanicKey))), top: 0, brush: "AccentBrush"));
+        {
+            // While recording: one big Stop bar. Clicks on Pulse's window are never recorded, so it can't add junk.
+            var stop = new Border
+            {
+                CornerRadius = new CornerRadius(12), Padding = new Thickness(18, 14, 18, 14), Cursor = Cursors.Hand, Margin = new Thickness(0, 0, 0, 10),
+                Background = new SolidColorBrush(Color.FromRgb(0xE5, 0x3E, 0x52)),
+            };
+            var sp = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center };
+            sp.Children.Add(new Border { Width = 12, Height = 12, CornerRadius = new CornerRadius(2), Background = Brushes.White, Margin = new Thickness(0, 0, 10, 0), VerticalAlignment = VerticalAlignment.Center });
+            _recCount = new TextBlock { Text = Loc.T("Stop recording"), Foreground = Brushes.White, FontWeight = FontWeights.Bold, FontSize = 15, VerticalAlignment = VerticalAlignment.Center };
+            sp.Children.Add(_recCount);
+            stop.Child = sp;
+            stop.PreviewMouseLeftButtonDown += (_, e) => { e.Handled = true; ToggleRecord(m); };
+            Editor.Children.Add(stop);
+            Editor.Children.Add(Note(Loc.F("Recording. Go to your game or app and press what you want. Click this bar or press {0} to finish. Clicks on Pulse's window aren't recorded.", Loc.T(Keys.Display(O.PanicKey))), top: 0, brush: "AccentBrush"));
+        }
+        else
+        {
+            // Toolbar: Record and Insert, like Synapse and iCUE
+            var bar = new Grid { Margin = new Thickness(0, 0, 0, 8) };
+            bar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            bar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            bar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            var rec = new Button { Style = (Style)FindResource("PrimaryButton"), Padding = new Thickness(16, 8, 18, 8) };
+            var rsp = new StackPanel { Orientation = Orientation.Horizontal };
+            rsp.Children.Add(new Ellipse { Width = 10, Height = 10, Fill = new SolidColorBrush(Color.FromRgb(0xFF, 0x4D, 0x5E)), Margin = new Thickness(0, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center });
+            rsp.Children.Add(new TextBlock { Text = Loc.T(m.Steps.Count > 0 ? "Record more" : "Record"), VerticalAlignment = VerticalAlignment.Center });
+            rec.Content = rsp;
+            rec.Click += (_, _) => ToggleRecord(m);
+            bar.Children.Add(rec);
+            var right = new StackPanel { Orientation = Orientation.Horizontal };
+            var add = SmallButton("+  Insert action", null, 0);
+            add.Click += (_, _) => ShowInsertMenu(m, add, -1);
+            right.Children.Add(add);
+            if (m.Steps.Count > 0)
+                right.Children.Add(SmallButton("Clear", (_, _) =>
+                {
+                    if (MessageBox.Show(Window.GetWindow(this), Loc.T("Remove every action of this macro?"), Loc.T("Clear"), MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) != MessageBoxResult.Yes) return;
+                    m.Steps.Clear(); MacroService.Save(); BuildEditor();
+                }, 6));
+            Grid.SetColumn(right, 2);
+            bar.Children.Add(right);
+            Editor.Children.Add(bar);
+
+            // Delay options, always visible (pick your own delay)
+            var opts = new WrapPanel { Margin = new Thickness(0, 0, 0, 10) };
+            opts.Children.Add(Dim(Loc.T("Delays when recording:"), 0));
+            opts.Children.Add(Chips(new[] { ("As I press them", "recorded"), ("Fixed", "fixed"), ("None", "none") }, O.RecordDelays, v => { O.RecordDelays = v; MacroService.Save(); BuildEditor(); }));
+            if (O.RecordDelays == "fixed")
+            {
+                opts.Children.Add(NumBox(O.FixedDelay, v => O.FixedDelay = Math.Clamp(v, 1, 60_000), 64));
+                opts.Children.Add(Dim("ms", 4));
+            }
+            opts.Children.Add(ToggleChip(Loc.T("Record mouse buttons"), O.RecordMouse, v => O.RecordMouse = v));
+            Editor.Children.Add(opts);
+        }
 
         if (m.Steps.Count == 0)
         {
@@ -744,47 +769,7 @@ public partial class MacrosPage : UserControl, IPage, IReleasable
             Editor.Children.Add(Note("This macro moves the mouse. It pauses in competitive shooters unless you allow that in Settings (we strongly advise against it). In other games, only use it where the rules allow it, like auto-farming in games that permit it.", top: 8, brush: "WarnBrush"));
     }
 
-    void SetRecordLabel(string text)
-    {
-        if (_recordBtn == null) return;
-        var sp = new StackPanel { Orientation = Orientation.Horizontal };
-        sp.Children.Add(new Ellipse { Width = 10, Height = 10, Fill = _recorder != null ? Brushes.White : new SolidColorBrush(Color.FromRgb(0xFF, 0x4D, 0x5E)), Margin = new Thickness(0, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center });
-        sp.Children.Add(new TextBlock { Text = text, VerticalAlignment = VerticalAlignment.Center });
-        _recordBtn.Content = sp;
-    }
-
-    static string RecordSummary()
-    {
-        string d = O.RecordDelays switch
-        {
-            "fixed" => Loc.F("Fixed {0} ms delays", O.FixedDelay),
-            "none" => Loc.T("No delays"),
-            _ => Loc.T("Delays as recorded"),
-        };
-        return d + " · " + Loc.T(O.RecordMouse ? "mouse on" : "keys only") + "  ▾";
-    }
-
-    void ShowRecordOptions(Button anchor)
-    {
-        var menu = new ContextMenu { PlacementTarget = anchor, Placement = PlacementMode.Bottom };
-        menu.Items.Add(new MenuItem { Header = new TextBlock { Text = Loc.T("DELAYS BETWEEN ACTIONS"), FontSize = 11, FontWeight = FontWeights.SemiBold, Foreground = (Brush)FindResource("TextFaintBrush") }, IsEnabled = false });
-        void Opt(string label, string desc, bool on, Action pick)
-        {
-            var sp = new StackPanel();
-            sp.Children.Add(new TextBlock { Text = (on ? "✓  " : "     ") + Loc.T(label), FontWeight = on ? FontWeights.SemiBold : FontWeights.Normal });
-            if (desc != null) sp.Children.Add(new TextBlock { Text = "     " + Loc.T(desc), FontSize = 11.5, Foreground = (Brush)FindResource("TextDimBrush") });
-            var item = new MenuItem { Header = sp };
-            item.Click += (_, _) => { pick(); MacroService.Save(); BuildEditor(); };
-            menu.Items.Add(item);
-        }
-        Opt("As I press them", "Keeps your real timing", O.RecordDelays == "recorded", () => O.RecordDelays = "recorded");
-        foreach (var ms in new[] { 10, 25, 50, 100 })
-            Opt(Loc.F("Fixed {0} ms", ms), ms == 50 ? "Same as G Hub's standard delay" : null, O.RecordDelays == "fixed" && Math.Abs(O.FixedDelay - ms) < 0.5, () => { O.RecordDelays = "fixed"; O.FixedDelay = ms; });
-        Opt("No delays", "As fast as possible (some games miss inputs)", O.RecordDelays == "none", () => O.RecordDelays = "none");
-        menu.Items.Add(new Separator());
-        Opt("Record mouse buttons and scrolling", null, O.RecordMouse, () => O.RecordMouse = !O.RecordMouse);
-        menu.IsOpen = true;
-    }
+    TextBlock _recCount;
 
     void ToggleRecord(MacroDef m)
     {
@@ -792,20 +777,23 @@ public partial class MacrosPage : UserControl, IPage, IReleasable
         {
             if (MacroService.Armed) MacroService.Disarm(); // macros off while recording, so they don't record each other
             _recorder = new MacroRecorder(MacroService.Engine.Phys, O.PanicKey);
-            _recorder.EventCount += n => Dispatcher.BeginInvoke(() => { if (_recordBtn != null && _recorder != null) SetRecordLabel(Loc.F("Stop recording ({0})", n)); });
+            _recorder.EventCount += n => Dispatcher.BeginInvoke(() => { if (_recCount != null && _recorder != null) _recCount.Text = Loc.F("Stop recording ({0})", n); });
+            _recorder.StopRequested += () => Dispatcher.BeginInvoke(() => { if (_recorder != null && _sel == m) ToggleRecord(m); });
             BuildEditor();
             ShowState();
             return;
         }
-        var steps = _recorder.Finish(O.RecordDelays, O.FixedDelay, O.RecordMouse);
+        var r = _recorder;
         _recorder = null;
+        _recCount = null;
+        var steps = r.Finish(O.RecordDelays, O.FixedDelay, O.RecordMouse);
         if (steps.Count == 0) { MainWindow.Instance.Toast("Nothing was recorded. Press some keys or buttons, then Stop.", ToastKind.Info); BuildEditor(); return; }
-        if (m.Steps.Count > 0 && steps[0].Do != "wait" && m.Steps[^1].Do != "wait")
-            m.Steps.Add(new MacroStep { Do = "wait", Ms = O.RecordDelays == "fixed" ? O.FixedDelay : 50 });
+        if (m.Steps.Count > 0 && steps[0].Do != "wait" && m.Steps[^1].Do != "wait" && O.RecordDelays != "none")
+            m.Steps.Add(new MacroStep { Do = "wait", Ms = O.FixedDelay > 0 ? O.FixedDelay : 50 });
         m.Steps.AddRange(steps);
         MacroService.Save();
         BuildEditor();
-        MainWindow.Instance.Toast(Loc.F("Recorded {0} steps.", steps.Count(s => s.Do != "wait")));
+        MainWindow.Instance.Toast(Loc.F("Recorded {0} steps.", steps.Count(x => x.Do != "wait")));
     }
 
     static readonly string[] ButtonNames = { "Left click", "Right click", "Middle mouse", "Mouse 4", "Mouse 5" };
