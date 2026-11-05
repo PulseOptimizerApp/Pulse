@@ -70,7 +70,7 @@
                         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                         <StackPanel>
                             <TextBlock Style="{StaticResource RowLabel}" Text="Stop key"/>
-                            <TextBlock Style="{StaticResource Body}" FontSize="12" Foreground="{StaticResource TextDimBrush}" TextWrapping="Wrap" Text="Stops every macro at once and lets go of everything they're holding."/>
+                            <TextBlock Style="{StaticResource Body}" FontSize="12" Foreground="{StaticResource TextDimBrush}" TextWrapping="Wrap" Text="Stops whatever is playing and lets go of every key it held. Macros stay on."/>
                         </StackPanel>
                         <ContentControl x:Name="PanicHost" Grid.Column="1" VerticalAlignment="Center"/>
                     </Grid>

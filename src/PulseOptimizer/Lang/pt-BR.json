@@ -2357,5 +2357,14 @@
  "Start Pulse with Windows": "Iniciar o Pulse com o Windows",
  "Opens quietly in the tray when you sign in, with macros on.": "Abre discretamente na bandeja quando você entra, com os macros ligados.",
  "Turn macros on when Pulse opens": "Ligar os macros quando o Pulse abrir",
- "Your macros are still on": "Seus macros continuam ligados"
+ "Your macros are still on": "Seus macros continuam ligados",
+ "Stopped what was playing": "O que estava tocando parou",
+ "You pressed {0}. Macros are still on.": "Você apertou {0}. Os macros continuam ligados.",
+ "Macros paused": "Macros pausados",
+ "{0} is running. They carry on by themselves when it closes.": "{0} está rodando. Eles voltam sozinhos quando ele fechar.",
+ "Macros back on": "Macros ligados de novo",
+ "The anti-cheat closed, so your macros work again.": "O anticheat fechou, então seus macros voltaram a funcionar.",
+ "{0} is running, so macros are paused. They carry on by themselves when it closes. If your game allows macros, switch on \"Allow in games with anti-cheat\" below.": "{0} está rodando, então os macros estão pausados. Eles voltam sozinhos quando ele fechar. Se o seu jogo permite macros, ligue \"Permitir em jogos com anticheat\" abaixo.",
+ "{0} stops what's playing": "{0} para o que está tocando",
+ "Stops whatever is playing and lets go of every key it held. Macros stay on.": "Para o que estiver tocando e solta todas as teclas que estavam seguradas. Os macros continuam ligados."
 }

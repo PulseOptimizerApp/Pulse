@@ -49,7 +49,13 @@ public static class MacroService
     }
 
     /// <summary>Re-applies the settings (after the user changes one).</summary>
-    public static void OptionsChanged() => SetShooter(Shooter);
+    public static void OptionsChanged()
+    {
+        SetShooter(Shooter);
+        if (Options.AllowWithAntiCheat && BlockedBy != null) { BlockedBy = null; if (_engine != null) _engine.PausedBy = null; }
+        if (Armed) _guard?.Change(0, 2000); // re-check now with the new rules
+        Changed?.Invoke();
+    }
     public static bool Armed => _engine?.Armed == true;
     public static MacroEngine Engine => _engine;
     /// <summary>Raised on the UI thread when macros turn on or off, or one starts or stops.</summary>
@@ -63,7 +69,11 @@ public static class MacroService
         _engine.Changed += reason => System.Windows.Application.Current?.Dispatcher.BeginInvoke(() =>
         {
             if (reason == "panic" && Options.Notifications)
-                ClipToast.Show(Loc.T("Macros stopped"), Loc.F("You pressed {0}. Turn them back on from the Macros page.", Loc.T(Keys.Display(Options.PanicKey))), true);
+                ClipToast.Show(Loc.T("Stopped what was playing"), Loc.F("You pressed {0}. Macros are still on.", Loc.T(Keys.Display(Options.PanicKey))), true);
+            if (reason == "paused" && Options.Notifications && BlockedBy != null)
+                ClipToast.Show(Loc.T("Macros paused"), Loc.F("{0} is running. They carry on by themselves when it closes.", BlockedBy), false);
+            if (reason == "resumed" && Options.Notifications)
+                ClipToast.Show(Loc.T("Macros back on"), Loc.T("The anti-cheat closed, so your macros work again."), true);
             if (!_engine.Armed) _guard?.Change(Timeout.Infinite, Timeout.Infinite);
             Changed?.Invoke();
         });
@@ -76,12 +86,9 @@ public static class MacroService
     {
         var running = MacroPolicy.RunningProcesses();
         var ac = MacroPolicy.AntiCheatIn(running);
-        if (ac != null && !Options.AllowWithAntiCheat)
-        {
-            BlockedBy = ac;
-            return Loc.F("{0} is running, so macros stay off. Some games with it allow macros (League of Legends, Fortnite) and some ban for them: if yours allows them, switch on \"Allow in games with anti-cheat\" below.", ac);
-        }
-        BlockedBy = null;
+        // An anti-cheat the user hasn't allowed doesn't stop macros turning on: they wait, paused, until it closes.
+        BlockedBy = ac != null && !Options.AllowWithAntiCheat ? ac : null;
+        _engine.PausedBy = BlockedBy;
         SetShooter(MacroPolicy.ShooterIn(running));
         _engine.Arm();
         _guard.Change(2000, 2000);
@@ -118,16 +125,13 @@ public static class MacroService
         HashSet<string> running;
         try { running = MacroPolicy.RunningProcesses(); } catch { return; }
         var ac = MacroPolicy.AntiCheatIn(running);
-        if (ac != null && !Options.AllowWithAntiCheat)
+        string pause = ac != null && !Options.AllowWithAntiCheat ? ac : null;
+        if (pause != BlockedBy)
         {
-            _engine.Disarm("anticheat");
-            BlockedBy = ac;
-            System.Windows.Application.Current?.Dispatcher.BeginInvoke(() =>
-            {
-                ClipToast.Show(Loc.T("Macros off"), Loc.F("{0} started. Pulse turned macros off to keep your account safe.", ac), false);
-                Changed?.Invoke();
-            });
-            return;
+            // Paused while it runs, back by itself when it closes: macros never switch off on their own.
+            BlockedBy = pause;
+            _engine.PausedBy = pause;
+            TweakEngine.AddLog("macro", pause != null ? $"Macros paused: {pause} is running" : "Macros resumed");
         }
         string shooter = MacroPolicy.ShooterIn(running);
         if (shooter != Shooter)

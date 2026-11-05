@@ -42,6 +42,12 @@ public sealed class MacroEngine : IDisposable
     public Func<MacroDef, bool> AllowedHere = _ => true;
     /// <summary>The competitive shooter running (mouse movement is blocked), or null.</summary>
     public volatile string MoveBlockedBy;
+    /// <summary>
+    /// Set while macros are paused (an anti-cheat the user hasn't allowed is running). Macros stay on and carry on
+    /// by themselves once it closes.
+    /// </summary>
+    public volatile string PausedBy;
+    bool _panicWasDown, _wasPaused;
 
     Thread _super;
     volatile bool _stop;
@@ -148,13 +154,26 @@ public sealed class MacroEngine : IDisposable
     void Tick()
     {
         var opts = _options();
-        if (opts.PanicKey != 0 && Phys.IsDown(opts.PanicKey))
+        // The stop key ends whatever is playing (and lets go of everything) but leaves macros on: Esc is pressed
+        // all the time in games, and it shouldn't switch macros off each time.
+        bool panic = opts.PanicKey != 0 && Phys.IsDown(opts.PanicKey);
+        bool pressedPanic = panic && !_panicWasDown;
+        _panicWasDown = panic;
+        if (pressedPanic)
         {
-            ThreadPool.QueueUserWorkItem(_ => Disarm("panic"));
-            _stop = true;
+            bool wasPlaying = _runs.Values.Any(r => !r.Done) || _scripts.Values.Any(s => s.Busy);
             StopAll();
+            lock (_trig) _trig.Clear();
+            if (wasPlaying) Changed?.Invoke("panic");
             return;
         }
+        if (panic) return; // while it's held, nothing starts
+        if (PausedBy != null)
+        {
+            if (!_wasPaused) { _wasPaused = true; StopAll(); lock (_trig) _trig.Clear(); Changed?.Invoke("paused"); }
+            return;
+        }
+        if (_wasPaused) { _wasPaused = false; Changed?.Invoke("resumed"); }
         var list = _macros();
         var ids = new HashSet<string>();
         bool changed = false;
@@ -344,6 +363,8 @@ public sealed class MacroEngine : IDisposable
         Thread _thread;
         public volatile bool Allowed = true;
         public volatile bool Alive;
+        /// <summary>Running an event right now (not just waiting for buttons).</summary>
+        public volatile bool Busy;
 
         public ScriptRunner(MacroDef def, WindowsInput sink)
         {
@@ -402,7 +423,9 @@ public sealed class MacroEngine : IDisposable
                 foreach (var (ev, arg, family) in _queue.GetConsumingEnumerable())
                 {
                     if (_vm.Stopped) break;
-                    _vm.CallGlobal("OnEvent", ev, arg, family);
+                    Busy = true;
+                    try { _vm.CallGlobal("OnEvent", ev, arg, family); }
+                    finally { Busy = false; }
                 }
             }
             catch (LuaStopped) { }

@@ -66,6 +66,7 @@ public partial class MacrosPage : UserControl, IPage, IReleasable
         DetachLog();
         _recorder?.Dispose();
         _recorder = null;
+        if (_rearm) { _rearm = false; MacroService.Arm(quiet: true); }
         FlushSave();
     }
 
@@ -106,14 +107,19 @@ public partial class MacrosPage : UserControl, IPage, IReleasable
         MacroDef[] list;
         lock (MacroService.Gate) list = MacroService.List.ToArray();
         int on = list.Count(m => m.Enabled);
-        string stop = Loc.F("{0} stops everything", Loc.T(Keys.Display(O.PanicKey)));
+        string stop = Loc.F("{0} stops what's playing", Loc.T(Keys.Display(O.PanicKey)));
         StateText.Text = armed
             ? Loc.F("{0} of {1} macros ready.", on, list.Length) + " " + stop + "."
             : Loc.T("Turn macros on, then use their keys in any game or window.") + " " + stop + ".";
         ArmBtn.Content = Loc.T(armed ? "Turn off" : "Turn on");
-        BlockText.Visibility = MacroService.BlockedBy != null && !armed ? Visibility.Visible : Visibility.Collapsed;
-        if (MacroService.BlockedBy != null)
-            BlockText.Text = Loc.F("{0} is running, so macros stay off. If your game allows macros, switch on \"Allow in games with anti-cheat\" below.", MacroService.BlockedBy);
+        bool paused = armed && MacroService.BlockedBy != null;
+        BlockText.Visibility = paused ? Visibility.Visible : Visibility.Collapsed;
+        if (paused)
+        {
+            StateTitle.Text = Loc.T("Macros paused");
+            StateDot.Fill = (Brush)FindResource("WarnBrush");
+            BlockText.Text = Loc.F("{0} is running, so macros are paused. They carry on by themselves when it closes. If your game allows macros, switch on \"Allow in games with anti-cheat\" below.", MacroService.BlockedBy);
+        }
         var shooter = MacroService.Shooter;
         ShooterText.Visibility = armed && shooter != null ? Visibility.Visible : Visibility.Collapsed;
         if (shooter != null)
@@ -179,7 +185,7 @@ public partial class MacrosPage : UserControl, IPage, IReleasable
             if (ok != MessageBoxResult.Yes) { AntiCheatSwitch.IsChecked = false; return; }
         }
         O.AllowWithAntiCheat = AntiCheatSwitch.IsChecked == true;
-        if (O.AllowWithAntiCheat) MacroService.Disarm(); // re-arm to re-check with the new rule
+        MacroService.OptionsChanged();
         MacroService.Save();
         TweakEngine.AddLog("macro", O.AllowWithAntiCheat ? "Macros allowed while an anti-cheat runs (user's choice)" : "Macros off while an anti-cheat runs");
         ShowState();
@@ -265,6 +271,7 @@ public partial class MacrosPage : UserControl, IPage, IReleasable
         FlushSave();
         _recorder?.Dispose();
         _recorder = null;
+        if (_rearm) { _rearm = false; MacroService.Arm(quiet: true); ShowState(); }
         _sel = m;
         BuildEditor();
     }
@@ -836,12 +843,15 @@ public partial class MacrosPage : UserControl, IPage, IReleasable
 
     TextBlock _recCount;
     static bool _recOptsOpen;
+    bool _rearm;
 
     void ToggleRecord(MacroDef m)
     {
         if (_recorder == null)
         {
-            if (MacroService.Armed) MacroService.Disarm(); // macros off while recording, so they don't record each other
+            // Macros pause while recording, so they don't record each other, and come back on afterwards.
+            _rearm = MacroService.Armed;
+            if (_rearm) MacroService.Disarm();
             _recorder = new MacroRecorder(MacroService.Engine.Phys, O.PanicKey);
             _recorder.EventCount += n => Dispatcher.BeginInvoke(() => { if (_recCount != null && _recorder != null) _recCount.Text = Loc.F("Stop recording ({0})", n); });
             _recorder.StopRequested += () => Dispatcher.BeginInvoke(() => { if (_recorder != null && _sel == m) ToggleRecord(m); });
@@ -853,6 +863,7 @@ public partial class MacrosPage : UserControl, IPage, IReleasable
         _recorder = null;
         _recCount = null;
         var steps = r.Finish(O.RecordDelays, O.FixedDelay, O.RecordMouse);
+        if (_rearm) { _rearm = false; MacroService.Arm(quiet: true); ShowState(); }
         if (steps.Count == 0) { MainWindow.Instance.Toast("Nothing was recorded. Press some keys or buttons, then Stop.", ToastKind.Info); BuildEditor(); return; }
         if (m.Steps.Count > 0 && steps[0].Do != "wait" && m.Steps[^1].Do != "wait" && O.RecordDelays != "none")
             m.Steps.Add(new MacroStep { Do = "wait", Ms = O.FixedDelay > 0 ? O.FixedDelay : 50 });
