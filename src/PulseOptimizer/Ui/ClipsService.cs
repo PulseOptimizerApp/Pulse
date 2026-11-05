@@ -80,6 +80,12 @@ public static class ClipsService
 
     public static void Init()
     {
+        try
+        {
+            int left = Ffmpeg.EndLeftovers();
+            if (left > 0) TweakEngine.AddLog("clips", $"Ended {left} recorder(s) an earlier Pulse left running");
+        }
+        catch { }
         if (_timer != null) return;
         // The screen's real shape, for stretched resolutions (read once; reading monitors takes a moment).
         _ = Task.Run(() =>
@@ -116,7 +122,11 @@ public static class ClipsService
     public static void Shutdown()
     {
         _timer?.Stop();
-        StopRecorder();
+        // Wait for the recorder to really stop (it used to be stopped in the background, and when Pulse closed right
+        // away, for an update for example, the recorder could be left running on its own).
+        var r = _rec;
+        _rec = null;
+        try { r?.Dispose(); } catch { }
         _input?.Dispose(); _input = null;
         _voice?.Dispose(); _voice = null;
         if (_hotkeyWindow != null)

@@ -18,6 +18,31 @@ public static class Ffmpeg
 
     public static string Dir => Path.Combine(TweakEngine.DataDir, "ffmpeg");
     public static string Exe => Path.Combine(Dir, "ffmpeg.exe");
+
+    /// <summary>
+    /// Ends recorders an earlier Pulse left running (only Pulse's own ffmpeg.exe, never anyone else's). A leftover keeps
+    /// holding the screen capture and the encoder, so every new recording only gets a frame now and then. Returns how
+    /// many were ended. Call at start-up, before Clips starts its own recorder.
+    /// </summary>
+    public static int EndLeftovers()
+    {
+        int ended = 0;
+        foreach (var p in System.Diagnostics.Process.GetProcessesByName("ffmpeg"))
+        {
+            try
+            {
+                if (string.Equals(p.MainModule?.FileName, Exe, StringComparison.OrdinalIgnoreCase))
+                {
+                    p.Kill(true);
+                    p.WaitForExit(3000);
+                    ended++;
+                }
+            }
+            catch { }
+            finally { p.Dispose(); }
+        }
+        return ended;
+    }
     public static bool Installed => File.Exists(Exe);
 
     /// <summary>Pulse's own version ("0.2.7"); "0.0.0" for test builds.</summary>

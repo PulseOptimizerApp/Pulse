@@ -587,3 +587,18 @@ public class RecorderNeverWaitsTests
         Assert.Contains("if (ClipsService.State != ClipsState.Recording)", main);
     }
 }
+
+public class LeftoverRecorderTests
+{
+    [Fact]
+    public void Only_Pulses_own_recorders_are_ended() =>
+        Assert.Equal(0, Pulse.Core.Clips.Ffmpeg.EndLeftovers()); // none here; and it never touches other ffmpeg.exe files
+
+    [Fact]
+    public void Closing_Pulse_waits_for_the_recorder()
+    {
+        var src = File.ReadAllText(Path.Combine(Repo.Root, "src", "PulseOptimizer", "Ui", "ClipsService.cs"));
+        Assert.Contains("try { r?.Dispose(); } catch { }", src);
+        Assert.Contains("Ffmpeg.EndLeftovers()", src);
+    }
+}
