@@ -2039,5 +2039,7 @@
  "Slow today": "Lento hoy",
  "Average {0} ms": "Promedio {0} ms",
  "You, without the PC delay": "Tú, sin el retraso del PC",
- "You · {0} ms": "Tú · {0} ms"
+ "You · {0} ms": "Tú · {0} ms",
+ "Save copy without muted sounds": "Guardar copia sin los sonidos silenciados",
+ "Save a copy": "Guardar una copia"
 }

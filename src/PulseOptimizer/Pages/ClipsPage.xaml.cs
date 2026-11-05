@@ -760,6 +760,16 @@ public partial class ClipsPage : UserControl, IPage, IReleasable
     {
         TimeText.Text = $"{Clock(Timeline.Position)} / {Clock(Timeline.Duration)}";
         SelText.Text = Loc.F("Keeping {0} ({1} to {2})", Clock(Timeline.End - Timeline.Start), Clock(Timeline.Start), Clock(Timeline.End));
+        UpdateSaveLabel();
+    }
+
+    /// <summary>The save button says what it will make: a shorter copy, a copy without the muted sounds, or both.</summary>
+    void UpdateSaveLabel()
+    {
+        if (SaveCopyBtn == null) return;
+        bool trimmed = Timeline.Start > 0.05 || Timeline.End < Timeline.Duration - 0.05;
+        bool muted = _trackOn.Any(x => !x);
+        SaveCopyBtn.Content = Loc.T(trimmed ? "Save trimmed copy" : muted ? "Save copy without muted sounds" : "Save a copy");
     }
 
     static string Clock(double s) => TimeSpan.FromSeconds(Math.Max(0, s)).ToString(s >= 3600 ? @"h\:mm\:ss" : @"m\:ss\.f", CultureInfo.InvariantCulture);
@@ -797,11 +807,8 @@ public partial class ClipsPage : UserControl, IPage, IReleasable
     // on you hear (and copies keep) the original mix; with some muted, the parts left on are played (and mixed) instead.
 
     List<bool> _trackOn = new();
-    List<MediaPlayer> _parts = new();
+    ClipMixer _mixer;   // plays every source itself, so each can be muted live (null until loaded, or for one-track clips)
     string _partsDir;
-    bool _partsPlaying;
-    int _partsReady;
-    DateTime _partsSynced;
     double _lastPos = -1;
 
     void BuildTrackToggles()
@@ -837,73 +844,52 @@ public partial class ClipsPage : UserControl, IPage, IReleasable
 
     void AudioBtn_Click(object sender, RoutedEventArgs e) => AudioPopup.IsOpen = !AudioPopup.IsOpen;
 
-    /// <summary>Plays what the copy will keep: the original mix, the parts left on, or nothing.</summary>
+    /// <summary>Plays what the copy will keep: everything as recorded, only the sources left on, or nothing.</summary>
     void ApplyAudio()
     {
         var chosen = ChosenTracks() ?? new List<int> { 0 };
         int muted = _trackOn.Count(x => !x);
         AudioBtnText.Text = muted == 0 ? Loc.T("Audio") : Loc.F("Audio ({0} muted)", muted);
         AudioGlyph.Text = chosen.Count == 0 ? "\uE74F" : "\uE767";
-        // The separate sounds are only used once they're all ready; until then you hear the clip's own mix.
-        bool useParts = chosen.Count > 0 && !(chosen.Count == 1 && chosen[0] == 0) && _parts.Count > 0 && _partsReady >= _parts.Count;
-        Player.IsMuted = chosen.Count == 0 || useParts;
-        for (int i = 0; i < _parts.Count; i++) _parts[i].Volume = useParts && i < _trackOn.Count && _trackOn[i] ? 1 : 0;
+        UpdateSaveLabel();
+        if (_mixer != null)
+        {
+            // Pulse's mixer plays the sound; the video player stays silent.
+            _mixer.SetChosen(chosen);
+            Player.IsMuted = true;
+            return;
+        }
+        // Before the mixer is ready (a second or so) only "everything" can be played as it is.
+        bool everything = chosen.Count == 1 && chosen[0] == 0;
+        Player.IsMuted = !everything;
     }
 
-    /// <summary>Each part as its own sound file, so it can be muted while you watch. Loads in the background.</summary>
+    /// <summary>Loads every source into Pulse's mixer in the background (a second or so), then switches to it.</summary>
     async Task LoadParts(string clip)
     {
         StopParts();
-        if (_trackNames.Count < 2) return;
-        var (dir, files) = await ClipLibrary.ExtractParts(clip, _trackNames.Count - 1);
+        if (_trackNames.Count < 2) return; // one track: the video player's own sound is all there is
+        var (dir, files) = await ClipLibrary.ExtractTracks(clip, _trackNames.Count);
         if (_open?.Clip.Path != clip || files.Count == 0) { ClipLibrary.CleanParts(dir); return; }
+        ClipMixer mixer = null;
+        try { mixer = new ClipMixer(files); } catch { }
+        if (mixer is not { Ready: true }) { mixer?.Dispose(); ClipLibrary.CleanParts(dir); return; }
         _partsDir = dir;
-        foreach (var f in files)
-        {
-            var mp = new MediaPlayer { Volume = 0 };
-            mp.MediaOpened += (_, _) => { _partsReady++; ApplyAudio(); };
-            mp.MediaEnded += (_, _) => _partsPlaying = false; // started again (from the right spot) on the next tick
-            mp.Open(new Uri(f));
-            _parts.Add(mp);
-        }
-        _partsPlaying = false;
+        _mixer = mixer;
+        _mixer.Sync(Player.Position.TotalSeconds, _playing && !_scrubbing);
         ApplyAudio();
     }
 
     void StopParts()
     {
-        foreach (var p in _parts) { try { p.Stop(); p.Close(); } catch { } }
-        _parts.Clear();
-        _partsReady = 0;
-        _partsPlaying = false;
+        var m = _mixer;
+        _mixer = null;
+        m?.Dispose();
         if (_partsDir != null) { var d = _partsDir; _partsDir = null; _ = Task.Delay(300).ContinueWith(_ => ClipLibrary.CleanParts(d)); }
     }
 
-    /// <summary>Keeps the separate sounds in step with the video (called by the player's timer).</summary>
-    void SyncParts()
-    {
-        if (_parts.Count == 0 || _partsReady < _parts.Count) return;
-        var pos = Player.Position;
-        // A jump (the trimmed part looping back, a seek): restart the sounds from the new spot.
-        bool jumped = _lastPos >= 0 && Math.Abs(pos.TotalSeconds - _lastPos) > 0.5;
-        _lastPos = pos.TotalSeconds;
-        if (_playing && !_scrubbing)
-        {
-            if (!_partsPlaying || jumped)
-            {
-                foreach (var p in _parts) { p.Position = pos; p.Play(); }
-                _partsPlaying = true;
-                _partsSynced = DateTime.UtcNow;
-                return;
-            }
-            // Small drift is fixed now and then, not every tick: seeking a sound over and over makes it go quiet.
-            if (DateTime.UtcNow - _partsSynced < TimeSpan.FromMilliseconds(800)) return;
-            foreach (var p in _parts)
-                if (Math.Abs((p.Position - pos).TotalMilliseconds) > 150) { p.Position = pos; _partsSynced = DateTime.UtcNow; }
-        }
-        else if (_partsPlaying) { foreach (var p in _parts) p.Pause(); _partsPlaying = false; }
-        else if (jumped) foreach (var p in _parts) p.Position = pos;
-    }
+    /// <summary>Tells the mixer where the picture is (called by the player's timer); it follows seeks and loops by itself.</summary>
+    void SyncParts() => _mixer?.Sync(Player.Position.TotalSeconds, _playing && !_scrubbing);
 
     void ShowFavorite(bool on)
     {

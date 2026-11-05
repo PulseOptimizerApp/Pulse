@@ -549,3 +549,20 @@ public class ReplayStoreTests
     public void Progress_lines_stay_out_of_the_error_log(string line, bool progress) =>
         Assert.Equal(progress, Pulse.Core.Clips.ReplayRecorder.IsProgressLine(line));
 }
+
+public class ClipMixerTests
+{
+    [Fact]
+    public void Sources_are_summed_and_clipped_like_playback()
+    {
+        var m = Pulse.Core.Clips.ClipMixer.MixForTest(new short[] { 1000, 30000, -30000 }, new short[] { 500, 10000, -10000 });
+        Assert.Equal(new short[] { 1500, short.MaxValue, short.MinValue }, m);
+    }
+
+    [Fact]
+    public void Tracks_are_extracted_as_raw_audio_for_the_mixer()
+    {
+        var src = File.ReadAllText(Path.Combine(Repo.Root, "src", "PulseOptimizer", "Core", "Clips", "ClipLibrary.cs"));
+        Assert.Contains("-map 0:a:{i} -f s16le", src); // track 0 (everything) included, so "all on" plays exactly what was recorded
+    }
+}

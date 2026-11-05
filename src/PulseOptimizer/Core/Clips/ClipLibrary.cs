@@ -126,6 +126,21 @@ public static class ClipLibrary
         return (dir, files);
     }
 
+    /// <summary>
+    /// Every sound track of a clip (0 = everything as recorded, then each source) as raw 16-bit stereo at 48 kHz,
+    /// for the editor's mixer. Returns the temp folder and one file per track, or nothing if it didn't work.
+    /// </summary>
+    public static async Task<(string Dir, List<string> Files)> ExtractTracks(string clip, int tracks)
+    {
+        var dir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "pulse-parts-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        var files = Enumerable.Range(0, tracks).Select(i => System.IO.Path.Combine(dir, $"{i}.raw")).ToList();
+        var outs = string.Join(" ", files.Select((f, i) => $"-map 0:a:{i} -f s16le -acodec pcm_s16le -ar {ClipMixer.Rate} -ac 2 \"{f}\""));
+        var (code, _) = await Ffmpeg.Run($"-hide_banner -loglevel error -y -i \"{clip}\" {outs}", timeoutMs: 120_000);
+        if (code != 0 || !files.All(File.Exists)) { CleanParts(dir); return (null, new()); }
+        return (dir, files);
+    }
+
     public static void CleanParts(string dir)
     {
         try { if (dir != null && Directory.Exists(dir)) Directory.Delete(dir, true); } catch { }

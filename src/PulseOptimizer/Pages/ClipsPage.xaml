@@ -546,7 +546,7 @@
                             </Border>
                         </StackPanel>
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                            <Button Style="{StaticResource GhostButton}" Content="Save trimmed copy" Click="Trim_Click" Margin="0,0,8,0"/>
+                            <Button x:Name="SaveCopyBtn" Style="{StaticResource GhostButton}" Content="Save trimmed copy" Click="Trim_Click" Margin="0,0,8,0"/>
                             <Button x:Name="DiscordBtn" Style="{StaticResource PrimaryButton}" Click="Discord_Click">
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Text="&#xE72D;" Style="{StaticResource IconText}" FontSize="13"/>
