@@ -177,6 +177,9 @@ public sealed class ReplayRecorder : IDisposable
     }
 
     /// <summary>The FFmpeg command line. Exposed for tests.</summary>
+    /// <summary>Set for PCs with integrated graphics: the encoder uses its fastest setting (see Encoders.Options).</summary>
+    internal static bool SharedGraphics;
+
     internal static string Arguments(ClipSettings s, Encoder e, string gamePipe, string micPipe, IntPtr window = default,
         IReadOnlyList<(string Title, string Pipe)> apps = null, List<string> titles = null, int videoLevel = 0)
     {
@@ -255,7 +258,7 @@ public sealed class ReplayRecorder : IDisposable
         a.AddRange(maps);
         // Pixel rate decides how hard the encoder can work: native is assumed 1440p when not known.
         int outH = h > 0 ? h : 1440;
-        a.Add(Encoders.Options(e, Math.Clamp(s.BitrateMbps, 2, 150), fps, (long)outH * outH * 16 / 9 * fps));
+        a.Add(Encoders.Options(e, Math.Clamp(s.EffectiveBitrate(), 2, 150), fps, (long)outH * outH * 16 / 9 * fps, light: SharedGraphics));
         // 256 kb/s per track: clean at any volume. Each extra app track is a copy of part of the sound.
         if (gameIn >= 0 || micIn >= 0) a.Add("-c:a aac -b:a 256k");
         a.Add("-f mpegts -mpegts_start_pid 0x100 -mpegts_flags +initial_discontinuity pipe:1");

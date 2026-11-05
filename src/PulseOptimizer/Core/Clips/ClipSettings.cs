@@ -90,6 +90,20 @@ public class ClipSettings
     /// </summary>
     public int FitHeight { get; set; }
     public int FitFps { get; set; }
+    /// <summary>The light start for PCs with integrated graphics (720p, 30 FPS) has been set once.</summary>
+    public bool WeakPcStartApplied { get; set; }
+
+    /// <summary>
+    /// The bitrate actually used: the chosen one, capped for the smaller size or frame rate Pulse lowered to (a 720p
+    /// 30 FPS clip doesn't need 20 Mbps, and fewer bits is less work for a small graphics chip).
+    /// </summary>
+    public int EffectiveBitrate()
+    {
+        if (FitHeight == 0 && FitFps == 0) return BitrateMbps;
+        bool slow = FitFps is > 0 and <= 30;
+        int cap = FitHeight is > 0 and <= 720 ? (slow ? 8 : 12) : FitHeight is > 0 and <= 1080 ? (slow ? 14 : 20) : (slow ? 20 : 40);
+        return Math.Min(BitrateMbps, cap);
+    }
     /// <summary>Keep clipping when the Pulse window is closed (Pulse stays in the tray).</summary>
     public bool KeepRunningInTray { get; set; } = true;
     /// <summary>Start Pulse in the tray when you sign in, so clips work without opening Pulse.</summary>

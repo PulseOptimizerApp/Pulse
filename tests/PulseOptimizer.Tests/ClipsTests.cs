@@ -566,3 +566,34 @@ public class ClipMixerTests
         Assert.Contains("-map 0:a:{i} -f s16le", src); // track 0 (everything) included, so "all on" plays exactly what was recorded
     }
 }
+
+public class WeakPcTests
+{
+    [Fact]
+    public void Lowered_recordings_use_a_bitrate_that_fits_their_size()
+    {
+        var s = new Pulse.Core.Clips.ClipSettings { BitrateMbps = 40, FitHeight = 720, FitFps = 30 };
+        Assert.Equal(8, s.EffectiveBitrate());
+        s.FitFps = 0;
+        Assert.Equal(12, s.EffectiveBitrate());
+        s.FitHeight = 0;
+        Assert.Equal(40, s.EffectiveBitrate()); // nothing lowered: exactly what was picked
+    }
+
+    [Fact]
+    public void Integrated_graphics_record_720p_30_with_the_fastest_encoder_setting()
+    {
+        var s = new Pulse.Core.Clips.ClipSettings { Resolution = "native", Fps = 60, BitrateMbps = 20, FitHeight = 720, FitFps = 30 };
+        var amd = new Pulse.Core.Clips.Encoder("h264_amf", "h264", "AMD", true);
+        Pulse.Core.Clips.ReplayRecorder.SharedGraphics = true;
+        try
+        {
+            var a = Pulse.Core.Clips.ReplayRecorder.Arguments(s, amd, null, null);
+            Assert.Contains("ddagrab=output_idx=0:framerate=30", a); // the screen is copied 30 times a second, not every game frame
+            Assert.Contains("height=720", a);
+            Assert.Contains("-quality speed", a);
+            Assert.Contains("-b:v 8M", a);
+        }
+        finally { Pulse.Core.Clips.ReplayRecorder.SharedGraphics = false; }
+    }
+}

@@ -2041,5 +2041,6 @@
  "You, without the PC delay": "Você, sem o atraso do PC",
  "You · {0} ms": "Você · {0} ms",
  "Save copy without muted sounds": "Salvar cópia sem os sons silenciados",
- "Save a copy": "Salvar uma cópia"
+ "Save a copy": "Salvar uma cópia",
+ "Your PC has integrated graphics, so the game and recording share one chip. Capping the game's FPS to your screen's refresh rate (the Roblox page can do it for Roblox) leaves room for both: the game stays smooth and so do your clips.": "Seu PC tem gráficos integrados, então o jogo e a gravação dividem o mesmo chip. Limitar o FPS do jogo à taxa de atualização da sua tela (a página do Roblox faz isso para o Roblox) deixa espaço para os dois: o jogo fica fluido e seus clipes também."
 }
