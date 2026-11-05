@@ -72,6 +72,11 @@ public class MacroOptions
     /// there it's aim or recoil help, which is unfair to other players and gets accounts banned.
     /// </summary>
     public bool AllowMoveInShooters { get; set; }
+    /// <summary>Recording: "recorded" (keep your timing), "fixed" (<see cref="FixedDelay"/> between every action) or "none".</summary>
+    public string RecordDelays { get; set; } = "recorded";
+    public double FixedDelay { get; set; } = 50;
+    /// <summary>Recording also keeps mouse buttons and scrolling.</summary>
+    public bool RecordMouse { get; set; } = true;
     /// <summary>Turn macros on when Pulse starts.</summary>
     public bool OnAtStart { get; set; }
 }

@@ -310,51 +310,141 @@ public partial class MacrosPage : UserControl, IPage, IReleasable
         Editor.Children.Add(head);
         Editor.Children.Add(Note(KindBlurb(m.Kind), top: 8));
 
-        if (m.Kind != "script")
+        if (m.Kind == "script")
         {
-            Editor.Children.Add(Section("Start it"));
-            var trig = new WrapPanel();
-            trig.Children.Add(KeyButton(() => m.TriggerKey, vk => { m.TriggerKey = vk; RefreshListRow(); }, mouse: true));
-            trig.Children.Add(ToggleChip("Ctrl", m.Ctrl, v => { m.Ctrl = v; RefreshListRow(); }));
-            trig.Children.Add(ToggleChip("Shift", m.Shift, v => { m.Shift = v; RefreshListRow(); }));
-            trig.Children.Add(ToggleChip("Alt", m.Alt, v => { m.Alt = v; RefreshListRow(); }));
-            Editor.Children.Add(Row("Key or button", trig));
-            var modes = m.Kind == "clicker"
-                ? new[] { ("While held", "hold"), ("Press to start / stop", "toggle") }
-                : new[] { ("Each press", "once"), ("While held (repeats)", "hold"), ("Press to start / stop", "toggle") };
-            if (m.Kind == "clicker" && m.Mode == "once") m.Mode = "hold";
-            var modeText = Note(ModeBlurb(m), top: 0);
-            Editor.Children.Add(Row("Runs", Chips(modes, m.Mode, v => { m.Mode = v; RefreshListRow(); BuildEditor(); })));
-            Editor.Children.Add(Indent(modeText));
-            if (m.Kind == "sequence")
-            {
-                var rep = new WrapPanel();
-                if (m.Mode == "once")
-                {
-                    rep.Children.Add(NumBox(m.Repeat, v => m.Repeat = (int)Math.Clamp(v, 1, 10000), 60));
-                    rep.Children.Add(Dim(Loc.T("times, with"), 8));
-                }
-                rep.Children.Add(NumBox(m.RepeatGap, v => m.RepeatGap = Math.Clamp(v, 0, 3_600_000), 70));
-                rep.Children.Add(Dim(Loc.T("ms between repeats"), 8));
-                Editor.Children.Add(Row(m.Mode == "once" ? "Play it" : "Repeats", rep));
-            }
-            Editor.Children.Add(Row("Works in", WhereEditor(m)));
-            if (m.Kind == "sequence")
-                Editor.Children.Add(Row("Timing", Chips(new[] { ("Exact", "0"), ("Light variation", "0.05"), ("Human", "0.1"), ("Loose", "0.2") },
-                    m.Humanize.ToString(CultureInfo.InvariantCulture), v => m.Humanize = double.Parse(v, CultureInfo.InvariantCulture))));
+            Editor.Children.Add(StepHeader(1, "Script", "Paste or import a Logitech G Hub script."));
+            BuildScript(m);
+            return;
+        }
+
+        // 1. What it does (like Synapse / G Hub: the actions come first)
+        if (m.Kind == "clicker")
+        {
+            Editor.Children.Add(StepHeader(1, "How it clicks", "Pick a pattern and a speed."));
+            BuildClicker(m);
         }
         else
         {
-            Editor.Children.Add(Section("Works in"));
-            Editor.Children.Add(Row("Buttons reach it in", WhereEditor(m)));
+            Editor.Children.Add(StepHeader(1, "What it does", "Record what you press, or add actions one by one. They play from top to bottom."));
+            BuildSequence(m);
         }
 
-        switch (m.Kind)
+        // 2. The key that starts it
+        Editor.Children.Add(StepHeader(2, "Start it with", "Any key or mouse button. Side buttons (Mouse 4 / 5) work best, since they still do their normal job too."));
+        var trig = new WrapPanel();
+        var kb = KeyButton(() => m.TriggerKey, vk => { m.TriggerKey = vk; RefreshListRow(); BuildEditor(); }, mouse: true);
+        kb.MinWidth = 180;
+        kb.FontSize = 14;
+        trig.Children.Add(kb);
+        trig.Children.Add(Dim("+", 6));
+        trig.Children.Add(ToggleChip("Ctrl", m.Ctrl, v => { m.Ctrl = v; RefreshListRow(); }));
+        trig.Children.Add(ToggleChip("Shift", m.Shift, v => { m.Shift = v; RefreshListRow(); }));
+        trig.Children.Add(ToggleChip("Alt", m.Alt, v => { m.Alt = v; RefreshListRow(); }));
+        Editor.Children.Add(trig);
+        if (m.TriggerKey == 0)
+            Editor.Children.Add(Note("Click the box above, then press the key or mouse button you want.", top: 4, brush: "WarnBrush"));
+        else if (m.TriggerKey == Keys.VK_LBUTTON)
+            Editor.Children.Add(Note("Left click as the trigger means the macro starts every time you click. That's usually not what you want: pick a side button instead.", top: 4, brush: "WarnBrush"));
+
+        // 3. How it plays (G Hub's macro types)
+        Editor.Children.Add(StepHeader(3, "How it plays", null));
+        if (m.Kind == "clicker" && m.Mode == "once") m.Mode = "hold";
+        var cards = m.Kind == "clicker"
+            ? new[]
+            {
+                ("hold", "", "Repeat while holding", "Clicks while you hold the key."),
+                ("toggle", "", "Toggle", "Press once to start clicking, again to stop."),
+            }
+            : new[]
+            {
+                ("once", "", "No repeat", "Plays once each time you press the key."),
+                ("hold", "", "Repeat while holding", "Loops while you hold the key, stops when you let go."),
+                ("toggle", "", "Toggle", "Press to start looping, press again to stop."),
+            };
+        Editor.Children.Add(PlayCards(cards, m.Mode, v => { m.Mode = v; RefreshListRow(); BuildEditor(); }));
+        if (m.Kind == "sequence")
         {
-            case "clicker": BuildClicker(m); break;
-            case "script": BuildScript(m); break;
-            default: BuildSequence(m); break;
+            var rep = new WrapPanel { Margin = new Thickness(0, 8, 0, 0) };
+            if (m.Mode == "once")
+            {
+                rep.Children.Add(Dim(Loc.T("Play it"), 0));
+                rep.Children.Add(NumBox(m.Repeat, v => m.Repeat = (int)Math.Clamp(v, 1, 10000), 56));
+                rep.Children.Add(Dim(Loc.T("time(s) per press, with"), 6));
+            }
+            else rep.Children.Add(Dim(Loc.T("Wait"), 0));
+            rep.Children.Add(NumBox(m.RepeatGap, v => m.RepeatGap = Math.Clamp(v, 0, 3_600_000), 70));
+            rep.Children.Add(Dim(Loc.T("ms between loops"), 6));
+            Editor.Children.Add(rep);
         }
+
+        // More options, folded away like the others do
+        Editor.Children.Add(MoreOptions(m));
+
+        if (m.Kind == "clicker") BuildTestPad(m);
+    }
+
+    UIElement StepHeader(int n, string title, string sub)
+    {
+        var g = new Grid { Margin = new Thickness(0, 24, 0, 10) };
+        g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        var badge = new Border { Width = 26, Height = 26, CornerRadius = new CornerRadius(13), Background = (Brush)FindResource("AccentGradient"), VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 0, 12, 0) };
+        badge.Child = new TextBlock { Text = n.ToString(CultureInfo.CurrentCulture), Foreground = Brushes.White, FontWeight = FontWeights.Bold, FontSize = 13, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+        g.Children.Add(badge);
+        var sp = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+        sp.Children.Add(new TextBlock { Style = (Style)FindResource("CardTitle"), Text = Loc.T(title), FontSize = 15 });
+        if (sub != null) sp.Children.Add(new TextBlock { Text = Loc.T(sub), FontSize = 12, Foreground = (Brush)FindResource("TextDimBrush"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 2, 0, 0) });
+        Grid.SetColumn(sp, 1);
+        g.Children.Add(sp);
+        return g;
+    }
+
+    UIElement PlayCards((string Value, string Glyph, string Title, string Desc)[] items, string current, Action<string> set)
+    {
+        var panel = new WrapPanel();
+        foreach (var (value, glyph, title, desc) in items)
+        {
+            bool on = value == current;
+            var card = new Border
+            {
+                Width = 200, Margin = new Thickness(0, 0, 10, 10), Padding = new Thickness(14, 12, 14, 12), CornerRadius = new CornerRadius(12), Cursor = Cursors.Hand,
+                Background = (Brush)FindResource(on ? "Surface2Brush" : "SurfaceBrush"), BorderThickness = new Thickness(on ? 2 : 1),
+                BorderBrush = (Brush)FindResource(on ? "AccentGradient" : "BorderBrush"),
+            };
+            var sp = new StackPanel();
+            var top = new StackPanel { Orientation = Orientation.Horizontal };
+            top.Children.Add(new TextBlock { Style = (Style)FindResource("IconText"), Text = glyph, FontSize = 15, Foreground = (Brush)FindResource(on ? "AccentBrush" : "TextDimBrush"), Margin = new Thickness(0, 0, 8, 0) });
+            top.Children.Add(new TextBlock { Text = Loc.T(title), FontWeight = FontWeights.SemiBold, FontSize = 13.5, VerticalAlignment = VerticalAlignment.Center });
+            sp.Children.Add(top);
+            sp.Children.Add(new TextBlock { Text = Loc.T(desc), FontSize = 12, Foreground = (Brush)FindResource("TextDimBrush"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 0) });
+            card.Child = sp;
+            card.MouseLeftButtonUp += (_, _) => { if (!on) { set(value); MacroService.Save(); } };
+            panel.Children.Add(card);
+        }
+        return panel;
+    }
+
+    static bool _moreOpen;
+
+    UIElement MoreOptions(MacroDef m)
+    {
+        var sp = new StackPanel { Margin = new Thickness(0, 18, 0, 0) };
+        var toggle = new Button { Style = (Style)FindResource("LinkButton"), Content = Loc.T(_moreOpen ? "▾  Fewer options" : "▸  More options (where it works, timing)"), HorizontalAlignment = HorizontalAlignment.Left };
+        toggle.Click += (_, _) => { _moreOpen = !_moreOpen; BuildEditor(); };
+        sp.Children.Add(toggle);
+        if (!_moreOpen) return sp;
+        var box = new Border { CornerRadius = new CornerRadius(12), BorderBrush = (Brush)FindResource("BorderBrush"), BorderThickness = new Thickness(1), Padding = new Thickness(16, 10, 16, 10), Margin = new Thickness(0, 8, 0, 0) };
+        var inner = new StackPanel();
+        inner.Children.Add(Row("Works in", WhereEditor(m)));
+        if (m.Kind == "sequence")
+        {
+            inner.Children.Add(Row("Timing", Chips(new[] { ("Exact", "0"), ("Light variation", "0.05"), ("Human", "0.1"), ("Loose", "0.2") },
+                m.Humanize.ToString(CultureInfo.InvariantCulture), v => m.Humanize = double.Parse(v, CultureInfo.InvariantCulture))));
+            inner.Children.Add(Indent(Note("Varies every delay a little each time it plays, so it doesn't look robotic.", top: 0)));
+        }
+        box.Child = inner;
+        sp.Children.Add(box);
+        return sp;
     }
 
     static string KindBlurb(string kind) => Loc.T(kind switch
@@ -362,13 +452,6 @@ public partial class MacrosPage : UserControl, IPage, IReleasable
         "clicker" => "Clicks for you on a precise rhythm: steady, butterfly, jitter, or your own recorded clicking.",
         "script" => "Runs a Logitech G Hub Lua script on any mouse: paste one in or import a .lua file. Mouse buttons 1–5 are your left, right, middle and two side buttons.",
         _ => "Plays keys, clicks, waits, typed text and mouse movement in order, from any key or mouse button.",
-    });
-
-    static string ModeBlurb(MacroDef m) => Loc.T(m.Mode switch
-    {
-        "hold" => m.Kind == "clicker" ? "Clicks while you hold the key." : "Plays over and over while you hold the key, and stops the moment you let go.",
-        "toggle" => "Press once to start, press again to stop.",
-        _ => "Plays once each time you press the key. Pressing it while it's playing stops it.",
     });
 
     UIElement WhereEditor(MacroDef m)
@@ -424,7 +507,6 @@ public partial class MacrosPage : UserControl, IPage, IReleasable
     void BuildClicker(MacroDef m)
     {
         var s = m.Clicker ??= new MacroSettings();
-        Editor.Children.Add(Section("How it clicks"));
         var modeNote = Note(ClickerBlurb(s), top: 0);
         Editor.Children.Add(Row("Pattern", Chips(new[] { ("Steady", "steady"), ("Butterfly", "butterfly"), ("Jitter", "jitter"), ("My rhythm", "rhythm") }, s.Mode, v =>
         {
@@ -448,8 +530,11 @@ public partial class MacrosPage : UserControl, IPage, IReleasable
         else
             Editor.Children.Add(SwitchRow("Play my rhythm at the speed above (instead of its own)", s.ScaleRhythm, v => { s.ScaleRhythm = v; BuildEditor(); }));
         Editor.Children.Add(Row("Button", Chips(new[] { ("Left click", "left"), ("Right click", "right") }, s.Button, v => s.Button = v)));
+    }
 
-        // Test pad
+    void BuildTestPad(MacroDef m)
+    {
+        var s = m.Clicker ??= new MacroSettings();
         Editor.Children.Add(Section("Test pad"));
         var top = new Grid();
         top.Children.Add(Note("Click here yourself, or point at it and use the macro, to see the speed and rhythm. Record your own clicking to replay it exactly.", top: 0));
@@ -538,45 +623,167 @@ public partial class MacrosPage : UserControl, IPage, IReleasable
 
     // ───────── sequence ─────────
 
+    static readonly (string Do, string Glyph, string Title, string Desc)[] ActionKinds =
+    {
+        ("tap", "", "Key press", "Press and let go of a key"),
+        ("down", "", "Key down", "Hold a key until a Key up"),
+        ("up", "", "Key up", "Let go of a held key"),
+        ("-", null, null, null),
+        ("click", "", "Mouse click", "Click a mouse button"),
+        ("press", "", "Mouse button down", "Hold a button until a Mouse button up"),
+        ("release", "", "Mouse button up", "Let go of a held button"),
+        ("-", null, null, null),
+        ("wait", "", "Delay", "Wait before the next action"),
+        ("text", "", "Type text", "Types a word or message"),
+        ("-", null, null, null),
+        ("move", "", "Move mouse by", "Moves the pointer a set distance"),
+        ("moveto", "", "Move mouse to", "Moves the pointer to a spot on screen"),
+        ("scroll", "", "Scroll", "Scrolls the wheel up or down"),
+    };
+
+    static MacroStep NewStep(string kind) => kind switch
+    {
+        "tap" => new MacroStep { Do = "tap", Key = 0x45 },
+        "down" => new MacroStep { Do = "down", Key = 0x57 },
+        "up" => new MacroStep { Do = "up", Key = 0x57 },
+        "click" => new MacroStep { Do = "click" },
+        "press" => new MacroStep { Do = "press" },
+        "release" => new MacroStep { Do = "release" },
+        "wait" => new MacroStep { Do = "wait", Ms = 50 },
+        "text" => new MacroStep { Do = "text", Text = "gg" },
+        "move" => new MacroStep { Do = "move", X = 100 },
+        "moveto" => new MacroStep { Do = "moveto", X = 32768, Y = 32768 },
+        _ => new MacroStep { Do = "scroll", Y = 1 },
+    };
+
+    /// <summary>The Insert menu (like Synapse): adds an action at <paramref name="at"/> (or the end), with a delay before it.</summary>
+    void ShowInsertMenu(MacroDef m, FrameworkElement anchor, int at)
+    {
+        var menu = new ContextMenu { PlacementTarget = anchor, Placement = PlacementMode.Bottom };
+        foreach (var (kind, glyph, title, desc) in ActionKinds)
+        {
+            if (kind == "-") { menu.Items.Add(new Separator()); continue; }
+            var header = new StackPanel { Orientation = Orientation.Horizontal };
+            header.Children.Add(new TextBlock { Style = (Style)FindResource("IconText"), Text = glyph, FontSize = 13, Width = 24, Foreground = (Brush)FindResource("AccentBrush") });
+            var t = new StackPanel();
+            t.Children.Add(new TextBlock { Text = Loc.T(title), FontWeight = FontWeights.SemiBold });
+            t.Children.Add(new TextBlock { Text = Loc.T(desc), FontSize = 11.5, Foreground = (Brush)FindResource("TextDimBrush") });
+            header.Children.Add(t);
+            var item = new MenuItem { Header = header };
+            item.Click += (_, _) =>
+            {
+                int pos = at < 0 || at > m.Steps.Count ? m.Steps.Count : at;
+                var step = NewStep(kind);
+                // Like the others: a short delay goes between actions automatically (except next to another delay).
+                bool prevIsWait = pos > 0 && m.Steps[pos - 1].Do == "wait";
+                if (kind != "wait" && pos > 0 && !prevIsWait) { m.Steps.Insert(pos, new MacroStep { Do = "wait", Ms = O.FixedDelay > 0 ? O.FixedDelay : 50 }); pos++; }
+                m.Steps.Insert(pos, step);
+                MacroService.Save();
+                BuildEditor();
+            };
+            menu.Items.Add(item);
+        }
+        menu.IsOpen = true;
+    }
+
     void BuildSequence(MacroDef m)
     {
-        Editor.Children.Add(Section("Steps"));
-        if (m.Steps.Any(s => s.Moves))
-            Editor.Children.Add(Note("This macro moves the mouse. It pauses in competitive shooters unless you allow that in Settings (we strongly advise against it). In other games, only use it where the rules allow it, like auto-farming in games that permit it.", top: 0, brush: "WarnBrush"));
-        var list = new StackPanel { Margin = new Thickness(0, 6, 0, 0) };
-        if (m.Steps.Count == 0)
-            list.Children.Add(Note("No steps yet. Add some below, or record what you press.", top: 0));
-        for (int i = 0; i < m.Steps.Count; i++) list.Children.Add(StepRow(m, i));
-        Editor.Children.Add(list);
-
-        Editor.Children.Add(new TextBlock { Style = (Style)FindResource("Label"), Text = Loc.T("ADD A STEP"), Margin = new Thickness(0, 12, 0, 6) });
-        var add = new WrapPanel();
-        void A(string label, Func<MacroStep> make) => add.Children.Add(SmallButton(label, (_, _) => { m.Steps.Add(make()); MacroService.Save(); BuildEditor(); }, 0, right: 6));
-        A("Tap a key", () => new MacroStep { Do = "tap", Key = 0x45 });
-        A("Hold a key down", () => new MacroStep { Do = "down", Key = 0x57 });
-        A("Let go of a key", () => new MacroStep { Do = "up", Key = 0x57 });
-        A("Click", () => new MacroStep { Do = "click", Button = 0 });
-        A("Hold a mouse button", () => new MacroStep { Do = "press", Button = 0 });
-        A("Let go of a mouse button", () => new MacroStep { Do = "release", Button = 0 });
-        A("Wait", () => new MacroStep { Do = "wait", Ms = 100 });
-        A("Type text", () => new MacroStep { Do = "text", Text = "gg" });
-        A("Move the mouse", () => new MacroStep { Do = "move", X = 100, Y = 0 });
-        A("Move the mouse to", () => new MacroStep { Do = "moveto", X = 32768, Y = 32768 });
-        A("Scroll", () => new MacroStep { Do = "scroll", Y = 1 });
-        Editor.Children.Add(add);
-
-        var rec = new WrapPanel { Margin = new Thickness(0, 10, 0, 0) };
-        _recordBtn = new Button { Style = (Style)FindResource("PrimaryButton"), Content = Loc.T(_recorder != null ? "Stop recording" : "Record what I press") };
+        // Toolbar: Record (with its options) and Insert, like Synapse and iCUE
+        var bar = new Grid { Margin = new Thickness(0, 0, 0, 10) };
+        bar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        bar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        bar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        var left = new StackPanel { Orientation = Orientation.Horizontal };
+        _recordBtn = new Button { Style = (Style)FindResource("PrimaryButton"), Padding = new Thickness(16, 8, 18, 8) };
+        SetRecordLabel(_recorder != null ? Loc.T("Stop recording") : Loc.T("Record"));
         _recordBtn.Click += (_, _) => ToggleRecord(m);
-        rec.Children.Add(_recordBtn);
+        left.Children.Add(_recordBtn);
+        var opts = SmallButton(RecordSummary(), null, 8);
+        opts.Click += (_, _) => ShowRecordOptions(opts);
+        opts.ToolTip = Loc.T("Recording options");
+        left.Children.Add(opts);
+        bar.Children.Add(left);
+        var right = new StackPanel { Orientation = Orientation.Horizontal };
+        var add = SmallButton("+  Insert action", null, 0);
+        add.Click += (_, _) => ShowInsertMenu(m, add, -1);
+        right.Children.Add(add);
         if (m.Steps.Count > 0)
-            rec.Children.Add(SmallButton("Clear all steps", (_, _) =>
+            right.Children.Add(SmallButton("Clear", (_, _) =>
             {
-                if (MessageBox.Show(Window.GetWindow(this), Loc.T("Remove every step of this macro?"), Loc.T("Clear all steps"), MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) != MessageBoxResult.Yes) return;
+                if (MessageBox.Show(Window.GetWindow(this), Loc.T("Remove every action of this macro?"), Loc.T("Clear"), MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) != MessageBoxResult.Yes) return;
                 m.Steps.Clear(); MacroService.Save(); BuildEditor();
-            }, 8));
-        Editor.Children.Add(rec);
-        Editor.Children.Add(Note(Loc.F("Recording keeps your keys, clicks, scrolls and the time between them. {0} isn't recorded, and the click on Stop is left out.", Loc.T(Keys.Display(O.PanicKey))), top: 6));
+            }, 6));
+        Grid.SetColumn(right, 2);
+        bar.Children.Add(right);
+        Editor.Children.Add(bar);
+
+        if (_recorder != null)
+            Editor.Children.Add(Note(Loc.F("Recording… press the keys and buttons you want, then click Stop. {0} isn't recorded.", Loc.T(Keys.Display(O.PanicKey))), top: 0, brush: "AccentBrush"));
+
+        if (m.Steps.Count == 0)
+        {
+            var empty = new Border { CornerRadius = new CornerRadius(12), BorderBrush = (Brush)FindResource("BorderBrush"), BorderThickness = new Thickness(1), Padding = new Thickness(20), Margin = new Thickness(0, 4, 0, 0), Background = (Brush)FindResource("SurfaceBrush") };
+            var es = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center };
+            es.Children.Add(new TextBlock { Style = (Style)FindResource("IconText"), Text = "", FontSize = 26, HorizontalAlignment = HorizontalAlignment.Center, Foreground = (Brush)FindResource("TextFaintBrush") });
+            es.Children.Add(new TextBlock { Text = Loc.T("No actions yet"), FontWeight = FontWeights.SemiBold, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 8, 0, 0) });
+            es.Children.Add(new TextBlock { Text = Loc.T("Click Record and press your keys, or use Insert action to build it step by step."), FontSize = 12, Foreground = (Brush)FindResource("TextDimBrush"), HorizontalAlignment = HorizontalAlignment.Center, TextAlignment = TextAlignment.Center, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 4, 0, 0) });
+            empty.Child = es;
+            Editor.Children.Add(empty);
+        }
+        else
+        {
+            var list = new StackPanel();
+            int n = 0;
+            for (int i = 0; i < m.Steps.Count; i++)
+                list.Children.Add(m.Steps[i].Do == "wait" ? DelayRow(m, i) : ActionRow(m, i, ++n));
+            Editor.Children.Add(list);
+            double total = m.Steps.Sum(s => s.Do == "wait" ? s.Ms + s.RandomMs / 2 : s.Do is "tap" ? (s.Ms > 0 ? s.Ms : 25) : s.Do == "click" ? (s.Ms > 0 ? s.Ms : 20) : 0);
+            Editor.Children.Add(Note(Loc.F("{0} actions · takes about {1} ms", n, Math.Round(total)), top: 4));
+        }
+        if (m.Steps.Any(s => s.Moves))
+            Editor.Children.Add(Note("This macro moves the mouse. It pauses in competitive shooters unless you allow that in Settings (we strongly advise against it). In other games, only use it where the rules allow it, like auto-farming in games that permit it.", top: 8, brush: "WarnBrush"));
+    }
+
+    void SetRecordLabel(string text)
+    {
+        if (_recordBtn == null) return;
+        var sp = new StackPanel { Orientation = Orientation.Horizontal };
+        sp.Children.Add(new Ellipse { Width = 10, Height = 10, Fill = _recorder != null ? Brushes.White : new SolidColorBrush(Color.FromRgb(0xFF, 0x4D, 0x5E)), Margin = new Thickness(0, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center });
+        sp.Children.Add(new TextBlock { Text = text, VerticalAlignment = VerticalAlignment.Center });
+        _recordBtn.Content = sp;
+    }
+
+    static string RecordSummary()
+    {
+        string d = O.RecordDelays switch
+        {
+            "fixed" => Loc.F("Fixed {0} ms delays", O.FixedDelay),
+            "none" => Loc.T("No delays"),
+            _ => Loc.T("Delays as recorded"),
+        };
+        return d + " · " + Loc.T(O.RecordMouse ? "mouse on" : "keys only") + "  ▾";
+    }
+
+    void ShowRecordOptions(Button anchor)
+    {
+        var menu = new ContextMenu { PlacementTarget = anchor, Placement = PlacementMode.Bottom };
+        menu.Items.Add(new MenuItem { Header = new TextBlock { Text = Loc.T("DELAYS BETWEEN ACTIONS"), FontSize = 11, FontWeight = FontWeights.SemiBold, Foreground = (Brush)FindResource("TextFaintBrush") }, IsEnabled = false });
+        void Opt(string label, string desc, bool on, Action pick)
+        {
+            var sp = new StackPanel();
+            sp.Children.Add(new TextBlock { Text = (on ? "✓  " : "     ") + Loc.T(label), FontWeight = on ? FontWeights.SemiBold : FontWeights.Normal });
+            if (desc != null) sp.Children.Add(new TextBlock { Text = "     " + Loc.T(desc), FontSize = 11.5, Foreground = (Brush)FindResource("TextDimBrush") });
+            var item = new MenuItem { Header = sp };
+            item.Click += (_, _) => { pick(); MacroService.Save(); BuildEditor(); };
+            menu.Items.Add(item);
+        }
+        Opt("As I press them", "Keeps your real timing", O.RecordDelays == "recorded", () => O.RecordDelays = "recorded");
+        foreach (var ms in new[] { 10, 25, 50, 100 })
+            Opt(Loc.F("Fixed {0} ms", ms), ms == 50 ? "Same as G Hub's standard delay" : null, O.RecordDelays == "fixed" && Math.Abs(O.FixedDelay - ms) < 0.5, () => { O.RecordDelays = "fixed"; O.FixedDelay = ms; });
+        Opt("No delays", "As fast as possible (some games miss inputs)", O.RecordDelays == "none", () => O.RecordDelays = "none");
+        menu.Items.Add(new Separator());
+        Opt("Record mouse buttons and scrolling", null, O.RecordMouse, () => O.RecordMouse = !O.RecordMouse);
+        menu.IsOpen = true;
     }
 
     void ToggleRecord(MacroDef m)
@@ -584,74 +791,100 @@ public partial class MacrosPage : UserControl, IPage, IReleasable
         if (_recorder == null)
         {
             if (MacroService.Armed) MacroService.Disarm(); // macros off while recording, so they don't record each other
-            var phys = MacroService.Engine.Phys;
-            _recorder = new MacroRecorder(phys, O.PanicKey);
-            _recorder.EventCount += n => Dispatcher.BeginInvoke(() => { if (_recordBtn != null && _recorder != null) _recordBtn.Content = Loc.F("Stop recording ({0})", n); });
-            _recordBtn.Content = Loc.T("Stop recording");
+            _recorder = new MacroRecorder(MacroService.Engine.Phys, O.PanicKey);
+            _recorder.EventCount += n => Dispatcher.BeginInvoke(() => { if (_recordBtn != null && _recorder != null) SetRecordLabel(Loc.F("Stop recording ({0})", n)); });
+            BuildEditor();
             ShowState();
             return;
         }
-        var steps = _recorder.Finish();
+        var steps = _recorder.Finish(O.RecordDelays, O.FixedDelay, O.RecordMouse);
         _recorder = null;
         if (steps.Count == 0) { MainWindow.Instance.Toast("Nothing was recorded. Press some keys or buttons, then Stop.", ToastKind.Info); BuildEditor(); return; }
+        if (m.Steps.Count > 0 && steps[0].Do != "wait" && m.Steps[^1].Do != "wait")
+            m.Steps.Add(new MacroStep { Do = "wait", Ms = O.RecordDelays == "fixed" ? O.FixedDelay : 50 });
         m.Steps.AddRange(steps);
         MacroService.Save();
         BuildEditor();
-        MainWindow.Instance.Toast(Loc.F("Recorded {0} steps.", steps.Count));
+        MainWindow.Instance.Toast(Loc.F("Recorded {0} steps.", steps.Count(s => s.Do != "wait")));
     }
 
     static readonly string[] ButtonNames = { "Left click", "Right click", "Middle mouse", "Mouse 4", "Mouse 5" };
 
-    UIElement StepRow(MacroDef m, int i)
+    /// <summary>A key or mouse button drawn as a key cap.</summary>
+    Border KeyCap(UIElement content) => new()
+    {
+        CornerRadius = new CornerRadius(7), Background = (Brush)FindResource("Surface2Brush"), BorderBrush = (Brush)FindResource("BorderBrush"),
+        BorderThickness = new Thickness(1, 1, 1, 3), Padding = new Thickness(2, 0, 2, 0), Child = content, VerticalAlignment = VerticalAlignment.Center,
+    };
+
+    UIElement ActionRow(MacroDef m, int i, int number)
     {
         var s = m.Steps[i];
-        var bd = new Border { CornerRadius = new CornerRadius(10), Background = (Brush)FindResource("SurfaceBrush"), BorderBrush = (Brush)FindResource("BorderBrush"), BorderThickness = new Thickness(1), Padding = new Thickness(10, 6, 6, 6), Margin = new Thickness(0, 0, 0, 6) };
+        var bd = new Border { CornerRadius = new CornerRadius(10), Background = (Brush)FindResource("SurfaceBrush"), BorderBrush = (Brush)FindResource("BorderBrush"), BorderThickness = new Thickness(1), Padding = new Thickness(12, 6, 6, 6), Margin = new Thickness(0, 0, 0, 0) };
         var g = new Grid();
-        g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(26) });
-        g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(150) });
+        g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(24) });
+        g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(30) });
+        g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(140) });
         g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        g.Children.Add(new TextBlock { Text = (i + 1).ToString(CultureInfo.CurrentCulture), Foreground = (Brush)FindResource("TextFaintBrush"), VerticalAlignment = VerticalAlignment.Center, FontSize = 12 });
-        var label = new TextBlock { Text = Loc.T(StepName(s.Do)), VerticalAlignment = VerticalAlignment.Center, FontWeight = FontWeights.SemiBold };
-        Grid.SetColumn(label, 1);
+        g.Children.Add(new TextBlock { Text = number.ToString(CultureInfo.CurrentCulture), Foreground = (Brush)FindResource("TextFaintBrush"), VerticalAlignment = VerticalAlignment.Center, FontSize = 12 });
+
+        var kind = ActionKinds.First(k => k.Do == s.Do);
+        // Down / up arrows like the recorders show, so a held key reads at a glance.
+        string arrow = s.Do is "down" or "press" ? "" : s.Do is "up" or "release" ? "" : kind.Glyph;
+        var icon = new TextBlock { Style = (Style)FindResource("IconText"), Text = arrow, FontSize = 14, Foreground = (Brush)FindResource(s.Do is "up" or "release" ? "TextDimBrush" : "AccentBrush") };
+        Grid.SetColumn(icon, 1);
+        g.Children.Add(icon);
+        var label = new TextBlock { Text = Loc.T(kind.Title), VerticalAlignment = VerticalAlignment.Center, FontWeight = FontWeights.SemiBold, FontSize = 13 };
+        Grid.SetColumn(label, 2);
         g.Children.Add(label);
 
         var fields = new WrapPanel { VerticalAlignment = VerticalAlignment.Center };
         switch (s.Do)
         {
             case "tap":
-                fields.Children.Add(KeyButton(() => s.Key, vk => s.Key = vk, mouse: false));
-                fields.Children.Add(Dim(Loc.T("held"), 8));
-                fields.Children.Add(NumBox(s.Ms > 0 ? s.Ms : 25, v => s.Ms = Math.Clamp(v, 1, 60_000), 56));
-                fields.Children.Add(Dim("ms", 4));
-                break;
             case "down":
             case "up":
-                fields.Children.Add(KeyButton(() => s.Key, vk => s.Key = vk, mouse: false));
+            {
+                var k = KeyButton(() => s.Key, vk => s.Key = vk, mouse: false);
+                k.MinWidth = 70;
+                k.Margin = new Thickness(0);
+                fields.Children.Add(k);
+                if (s.Do == "tap")
+                {
+                    fields.Children.Add(Dim(Loc.T("held for"), 10));
+                    fields.Children.Add(NumBox(s.Ms > 0 ? s.Ms : 25, v => s.Ms = Math.Clamp(v, 1, 60_000), 56));
+                    fields.Children.Add(Dim("ms", 4));
+                }
                 break;
+            }
             case "click":
             case "press":
             case "release":
             {
-                var b = SmallButton(ButtonNames[Math.Clamp(s.Button, 0, 4)], null, 0);
+                var b = SmallButton(ButtonNames[Math.Clamp(s.Button, 0, 4)] + "  ▾", null, 0);
                 b.MinWidth = 120;
-                b.Click += (_, _) => { s.Button = (s.Button + 1) % 5; b.Content = Loc.T(ButtonNames[s.Button]); SaveSoon(); };
-                b.ToolTip = Loc.T("Click to change the button");
+                b.Click += (_, _) =>
+                {
+                    var menu = new ContextMenu { PlacementTarget = b, Placement = PlacementMode.Bottom };
+                    for (int x = 0; x < ButtonNames.Length; x++)
+                    {
+                        int idx = x;
+                        var item = new MenuItem { Header = (idx == s.Button ? "✓  " : "     ") + Loc.T(ButtonNames[idx]) };
+                        item.Click += (_, _) => { s.Button = idx; MacroService.Save(); BuildEditor(); };
+                        menu.Items.Add(item);
+                    }
+                    menu.IsOpen = true;
+                };
                 fields.Children.Add(b);
                 if (s.Do == "click")
                 {
-                    fields.Children.Add(Dim(Loc.T("held"), 8));
+                    fields.Children.Add(Dim(Loc.T("held for"), 10));
                     fields.Children.Add(NumBox(s.Ms > 0 ? s.Ms : 20, v => s.Ms = Math.Clamp(v, 1, 60_000), 56));
                     fields.Children.Add(Dim("ms", 4));
                 }
                 break;
             }
-            case "wait":
-                fields.Children.Add(NumBox(s.Ms, v => s.Ms = Math.Clamp(v, 0, 3_600_000), 70));
-                fields.Children.Add(Dim(Loc.T("ms, plus up to"), 6));
-                fields.Children.Add(NumBox(s.RandomMs, v => s.RandomMs = Math.Clamp(v, 0, 3_600_000), 60));
-                fields.Children.Add(Dim(Loc.T("ms random"), 6));
-                break;
             case "text":
             {
                 var t = new TextBox { Style = (Style)FindResource("SearchBox"), Text = s.Text ?? "", Width = 260, Tag = Loc.T("Text to type") };
@@ -660,11 +893,11 @@ public partial class MacrosPage : UserControl, IPage, IReleasable
                 break;
             }
             case "move":
-                fields.Children.Add(Dim(Loc.T("right"), 0));
-                fields.Children.Add(NumBox(s.X, v => s.X = (int)Math.Clamp(v, -10000, 10000), 60, left: 6));
-                fields.Children.Add(Dim(Loc.T("down"), 8));
-                fields.Children.Add(NumBox(s.Y, v => s.Y = (int)Math.Clamp(v, -10000, 10000), 60, left: 6));
-                fields.Children.Add(Dim(Loc.T("(negative = left / up)"), 6));
+                fields.Children.Add(Dim("→", 0));
+                fields.Children.Add(NumBox(s.X, v => s.X = (int)Math.Clamp(v, -10000, 10000), 60, left: 2));
+                fields.Children.Add(Dim("↓", 10));
+                fields.Children.Add(NumBox(s.Y, v => s.Y = (int)Math.Clamp(v, -10000, 10000), 60, left: 2));
+                fields.Children.Add(Dim(Loc.T("pixels (negative = left / up)"), 6));
                 break;
             case "moveto":
                 fields.Children.Add(Dim(Loc.T("across"), 0));
@@ -679,36 +912,66 @@ public partial class MacrosPage : UserControl, IPage, IReleasable
                 fields.Children.Add(Dim(Loc.T("clicks (negative = down)"), 6));
                 break;
         }
-        Grid.SetColumn(fields, 2);
+        Grid.SetColumn(fields, 3);
         g.Children.Add(fields);
-
-        var btns = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-        btns.Children.Add(IconButton("", "Move up", i > 0, () => { (m.Steps[i - 1], m.Steps[i]) = (m.Steps[i], m.Steps[i - 1]); MacroService.Save(); BuildEditor(); }));
-        btns.Children.Add(IconButton("", "Move down", i < m.Steps.Count - 1, () => { (m.Steps[i + 1], m.Steps[i]) = (m.Steps[i], m.Steps[i + 1]); MacroService.Save(); BuildEditor(); }));
-        btns.Children.Add(IconButton("", "Copy this step", true, () =>
-        {
-            var c = System.Text.Json.JsonSerializer.Deserialize<MacroStep>(System.Text.Json.JsonSerializer.Serialize(s));
-            m.Steps.Insert(i + 1, c); MacroService.Save(); BuildEditor();
-        }));
-        btns.Children.Add(IconButton("", "Remove", true, () => { m.Steps.RemoveAt(i); MacroService.Save(); BuildEditor(); }));
-        Grid.SetColumn(btns, 3);
+        var btns = RowButtons(m, i);
+        Grid.SetColumn(btns, 4);
         g.Children.Add(btns);
         bd.Child = g;
         return bd;
     }
 
-    static string StepName(string d) => d switch
+    /// <summary>A delay between actions: small and indented, the way G Hub and Synapse show them.</summary>
+    UIElement DelayRow(MacroDef m, int i)
     {
-        "tap" => "Tap key", "down" => "Hold key down", "up" => "Let go of key", "click" => "Click",
-        "press" => "Hold mouse button", "release" => "Let go of mouse button", "wait" => "Wait", "text" => "Type text",
-        "move" => "Move mouse", "moveto" => "Move mouse to", "scroll" => "Scroll", _ => d,
-    };
+        var s = m.Steps[i];
+        var g = new Grid { Margin = new Thickness(36, 0, 0, 0), MinHeight = 34 };
+        g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        var line = new Border { Width = 2, Background = (Brush)FindResource("BorderBrush"), Margin = new Thickness(0, 0, 14, 0) };
+        g.Children.Add(line);
+        var fields = new WrapPanel { VerticalAlignment = VerticalAlignment.Center };
+        fields.Children.Add(new TextBlock { Style = (Style)FindResource("IconText"), Text = "", FontSize = 12, Foreground = (Brush)FindResource("TextDimBrush"), Margin = new Thickness(0, 0, 8, 0) });
+        var ms = NumBox(s.Ms, v => s.Ms = Math.Clamp(v, 0, 3_600_000), 64);
+        ms.FontSize = 12;
+        fields.Children.Add(ms);
+        fields.Children.Add(Dim(Loc.T("ms delay"), 4));
+        fields.Children.Add(Dim(Loc.T("+ random up to"), 8));
+        var r = NumBox(s.RandomMs, v => s.RandomMs = Math.Clamp(v, 0, 3_600_000), 56);
+        r.FontSize = 12;
+        fields.Children.Add(r);
+        fields.Children.Add(Dim("ms", 4));
+        Grid.SetColumn(fields, 1);
+        g.Children.Add(fields);
+        var btns = RowButtons(m, i);
+        btns.Opacity = 0.8;
+        Grid.SetColumn(btns, 2);
+        g.Children.Add(btns);
+        return g;
+    }
+
+    StackPanel RowButtons(MacroDef m, int i)
+    {
+        var btns = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+        Button ins = null;
+        ins = IconButton("", "Insert an action after this", true, () => ShowInsertMenu(m, ins, i + 1));
+        btns.Children.Add(ins);
+        btns.Children.Add(IconButton("", "Move up", i > 0, () => { (m.Steps[i - 1], m.Steps[i]) = (m.Steps[i], m.Steps[i - 1]); MacroService.Save(); BuildEditor(); }));
+        btns.Children.Add(IconButton("", "Move down", i < m.Steps.Count - 1, () => { (m.Steps[i + 1], m.Steps[i]) = (m.Steps[i], m.Steps[i + 1]); MacroService.Save(); BuildEditor(); }));
+        btns.Children.Add(IconButton("", "Copy this step", true, () =>
+        {
+            var c = System.Text.Json.JsonSerializer.Deserialize<MacroStep>(System.Text.Json.JsonSerializer.Serialize(m.Steps[i]));
+            m.Steps.Insert(i + 1, c); MacroService.Save(); BuildEditor();
+        }));
+        btns.Children.Add(IconButton("", "Remove", true, () => { m.Steps.RemoveAt(i); MacroService.Save(); BuildEditor(); }));
+        return btns;
+    }
 
     // ───────── Logitech script ─────────
 
     void BuildScript(MacroDef m)
     {
-        Editor.Children.Add(Section("Script"));
         _scriptBox = new TextBox
         {
             Style = (Style)FindResource("SearchBox"), Text = m.Script ?? "", AcceptsReturn = true, AcceptsTab = true, TextWrapping = TextWrapping.NoWrap,
@@ -749,6 +1012,9 @@ public partial class MacrosPage : UserControl, IPage, IReleasable
         Editor.Children.Add(gk);
         if (m.GKeys.Count < 18)
             Editor.Children.Add(SmallButton(Loc.F("Add G{0}", m.GKeys.Count + 1), (_, _) => { m.GKeys.Add(m.GKeys.Count < 12 ? 0x7C + m.GKeys.Count : 0); /* F13, F14… (keys most keyboards lack, so remap software can send them) */ MacroService.Save(); BuildEditor(); }, 0));
+
+        Editor.Children.Add(StepHeader(2, "Where it works", null));
+        Editor.Children.Add(WhereEditor(m));
 
         // Log
         var logHead = new Grid { Margin = new Thickness(0, 18, 0, 6) };
@@ -945,7 +1211,7 @@ end
     Button KeyButton(Func<int> get, Action<int> set, bool mouse)
     {
         var b = new Button { Style = (Style)FindResource("GhostButton"), MinWidth = 120, Margin = new Thickness(0, 3, 6, 3), Padding = new Thickness(14, 7, 14, 7) };
-        string Label() => Loc.T(Keys.Display(get()));
+        string Label() => get() == 0 ? Loc.T("Click to set") : Loc.T(Keys.Display(get()));
         b.Content = Label();
         b.ToolTip = Loc.T(mouse ? "Click, then press a key or mouse button" : "Click, then press a key");
         b.Click += (_, _) =>

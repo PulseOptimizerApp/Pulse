@@ -451,12 +451,12 @@ public sealed class MacroRecorder : IDisposable
     }
 
     /// <summary>Stops and returns the steps. The click on Pulse's own Stop button (the last left click) is left out.</summary>
-    public List<MacroStep> Finish()
+    public List<MacroStep> Finish(string delays = "recorded", double fixedMs = 50, bool mouse = true)
     {
         Dispose();
         List<(double, int, bool, int)> ev;
         lock (_events) ev = _events.ToList();
-        return ToSteps(ev, dropLastLeftClick: true);
+        return ToSteps(ev, dropLastLeftClick: true, delays, fixedMs, mouse);
     }
 
     public void Dispose()
@@ -466,10 +466,16 @@ public sealed class MacroRecorder : IDisposable
         if (_ownsPhys) _phys.Stop();
     }
 
-    /// <summary>Turns recorded presses into steps: quick press-and-release becomes a tap or click, gaps become waits.</summary>
-    public static List<MacroStep> ToSteps(List<(double T, int Vk, bool Down, int Scroll)> events, bool dropLastLeftClick = false)
+    /// <summary>
+    /// Turns recorded presses into steps: quick press-and-release becomes a tap or click, gaps become waits.
+    /// Delays like other macro recorders: "recorded" (as you pressed them), "fixed" (every gap is <paramref name="fixedMs"/>)
+    /// or "none" (as fast as possible).
+    /// </summary>
+    public static List<MacroStep> ToSteps(List<(double T, int Vk, bool Down, int Scroll)> events, bool dropLastLeftClick = false,
+        string delays = "recorded", double fixedMs = 50, bool includeMouse = true)
     {
         var ev = events.ToList();
+        if (!includeMouse) { ev = ev.Where(e => e.Scroll == 0 && !Keys.IsMouse(e.Vk)).ToList(); dropLastLeftClick = false; }
         if (dropLastLeftClick)
         {
             int up = ev.FindLastIndex(e => e.Vk == Keys.VK_LBUTTON && !e.Down);
@@ -492,14 +498,15 @@ public sealed class MacroRecorder : IDisposable
         {
             var e = ev[i];
             double gap = e.T - last;
-            if (steps.Count > 0 && gap >= 1) steps.Add(new MacroStep { Do = "wait", Ms = Math.Round(gap) });
+            if (steps.Count > 0 && gap >= 1 && delays != "none")
+                steps.Add(new MacroStep { Do = "wait", Ms = delays == "fixed" ? fixedMs : Math.Round(gap) });
             last = e.T;
             if (e.Scroll != 0) { steps.Add(new MacroStep { Do = "scroll", Y = e.Scroll }); continue; }
             bool mouse = Keys.IsMouse(e.Vk);
             // Pressed and let go with nothing in between: one tap/click holding for that long.
             if (e.Down && i + 1 < ev.Count && ev[i + 1].Vk == e.Vk && !ev[i + 1].Down && ev[i + 1].Scroll == 0)
             {
-                double hold = Math.Max(Math.Round(ev[i + 1].T - e.T), 1);
+                double hold = delays switch { "fixed" => fixedMs, "none" => 0, _ => Math.Max(Math.Round(ev[i + 1].T - e.T), 1) };
                 steps.Add(mouse ? new MacroStep { Do = "click", Button = Keys.ButtonOfVk(e.Vk), Ms = hold } : new MacroStep { Do = "tap", Key = e.Vk, Ms = hold });
                 last = ev[i + 1].T;
                 i++;

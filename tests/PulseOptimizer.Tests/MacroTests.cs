@@ -403,6 +403,24 @@ public class MacroRecorderTests
     }
 
     [Fact]
+    public void Recording_delay_options_work_like_other_recorders()
+    {
+        var ev = new List<(double, int, bool, int)>
+        {
+            (0, 0x45, true, 0), (40, 0x45, false, 0),
+            (300, Keys.VK_RBUTTON, true, 0), (320, Keys.VK_RBUTTON, false, 0),
+            (700, 0x51, true, 0), (730, 0x51, false, 0),
+        };
+        var fixedSteps = MacroRecorder.ToSteps(ev, delays: "fixed", fixedMs: 50);
+        Assert.All(fixedSteps.Where(s => s.Do == "wait"), s => Assert.Equal(50, s.Ms));
+        var none = MacroRecorder.ToSteps(ev, delays: "none");
+        Assert.DoesNotContain(none, s => s.Do == "wait");
+        var keysOnly = MacroRecorder.ToSteps(ev, includeMouse: false);
+        Assert.Equal(new[] { "tap", "wait", "tap" }, keysOnly.Select(s => s.Do));
+        Assert.Equal(700 - 40, keysOnly[1].Ms);
+    }
+
+    [Fact]
     public void The_click_on_Stop_is_left_out()
     {
         var ev = new List<(double, int, bool, int)>
