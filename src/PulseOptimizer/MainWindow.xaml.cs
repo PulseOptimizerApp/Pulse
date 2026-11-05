@@ -517,14 +517,21 @@ public partial class MainWindow : Window
         }
         // The deep memory clean-up pauses Pulse for a moment, which would make a running recording drop frames (the
         // recorder waits on Pulse): only do it when Clips isn't recording.
-        if (ClipsService.State != ClipsState.Recording)
-            Dispatcher.BeginInvoke(Native.GiveBackMemory, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+        // While recording: the gentle version, now and every 2 minutes while Pulse stays hidden.
+        Dispatcher.BeginInvoke(ClipsService.State != ClipsState.Recording ? Native.GiveBackMemory : Native.GiveBackMemoryGently,
+            System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+        _leanTrim ??= new System.Windows.Threading.DispatcherTimer(TimeSpan.FromMinutes(2), System.Windows.Threading.DispatcherPriority.ApplicationIdle,
+            (_, _) => { if (_lean) Native.GiveBackMemoryGently(); }, Dispatcher);
+        _leanTrim.Start();
     }
+
+    System.Windows.Threading.DispatcherTimer _leanTrim;
 
     void LeaveLean()
     {
         if (!_lean) return;
         _lean = false;
+        _leanTrim?.Stop();
         LiveStats.Updated += UpdateMini;
         LiveStats.Start();
         Glow.BeginAnimation(OpacityProperty, new DoubleAnimation(0.45, 0.7, TimeSpan.FromSeconds(5))

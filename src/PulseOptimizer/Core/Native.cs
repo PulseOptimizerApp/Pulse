@@ -54,6 +54,21 @@ public static class Native
         catch { return false; }
     }
 
+    /// <summary>
+    /// The light version, safe while a recording runs: a background collection (it doesn't stop Pulse's threads) and
+    /// the working-set trim. No compaction, so the recorder is never held up.
+    /// </summary>
+    public static void GiveBackMemoryGently()
+    {
+        try
+        {
+            GC.Collect(2, GCCollectionMode.Optimized, false, false);
+            using var me = System.Diagnostics.Process.GetCurrentProcess();
+            SetProcessWorkingSetSize(me.Handle, (IntPtr)(-1), (IntPtr)(-1));
+        }
+        catch { }
+    }
+
     public static void GiveBackMemory()
     {
         try

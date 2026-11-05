@@ -549,7 +549,7 @@ public class GraphicsCardRecordingTests
     {
         var nvenc = new Pulse.Core.Clips.Encoder("h264_nvenc", "h264", "NVIDIA", true);
         var a = Pulse.Core.Clips.ReplayRecorder.Arguments(new Pulse.Core.Clips.ClipSettings { Resolution = "native", Fps = 60, BitrateMbps = 70 }, nvenc, null, null);
-        Assert.StartsWith("-hide_banner -loglevel warning -nostats -thread_queue_size 256 -f lavfi -i ddagrab", a);
+        Assert.StartsWith("-hide_banner -loglevel warning -nostats -thread_queue_size 64 -f lavfi -i ddagrab", a);
         Assert.Contains("[0:v]null[v]", a);
         Assert.Contains("-b:v 70M", a);
         Assert.Contains("-preset p5", a);
@@ -584,7 +584,7 @@ public class RecorderNeverWaitsTests
         var csproj = File.ReadAllText(Path.Combine(Repo.Root, "src", "PulseOptimizer", "PulseOptimizer.csproj"));
         Assert.DoesNotContain("ConserveMemory", csproj);  // forced extra compacting collections
         var main = File.ReadAllText(Path.Combine(Repo.Root, "src", "PulseOptimizer", "MainWindow.xaml.cs"));
-        Assert.Contains("if (ClipsService.State != ClipsState.Recording)", main);
+        Assert.Contains("ClipsService.State != ClipsState.Recording ? Native.GiveBackMemory : Native.GiveBackMemoryGently", main); // the pausing clean-up never runs while recording
     }
 }
 
@@ -613,6 +613,6 @@ public class VideoNeverWaitsOnSoundTests
         Assert.Contains("-filter_complex \"[0:v]null[v]\"", a);            // video alone
         Assert.Contains("amix=inputs=2", a);                                // sound in a second graph
         Assert.Equal(2, System.Text.RegularExpressions.Regex.Matches(a, "-filter_complex").Count);
-        Assert.Contains("-thread_queue_size 256 -f lavfi -i ddagrab", a);   // a few seconds of room, not 8 frames
+        Assert.Contains("-thread_queue_size 64 -f lavfi -i ddagrab", a);    // about a second of room, not 8 frames
     }
 }

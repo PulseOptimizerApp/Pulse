@@ -163,16 +163,16 @@ public sealed class ReplayRecorder : IDisposable
         // working when the game changes display mode or moves screens; no yellow border, size kept and rounded to even
         // numbers for the encoder), or the whole display (Desktop Duplication).
         if (window != IntPtr.Zero)
-            a.Add($"-thread_queue_size 256 -f lavfi -i gfxcapture=hwnd={(long)window}:capture_cursor={cursor}:capture_border=0:display_border=0:max_framerate={fps}:resize_mode=scale_aspect:width=-2:height=-2");
+            a.Add($"-thread_queue_size 64 -f lavfi -i gfxcapture=hwnd={(long)window}:capture_cursor={cursor}:capture_border=0:display_border=0:max_framerate={fps}:resize_mode=scale_aspect:width=-2:height=-2");
         else
-            a.Add($"-thread_queue_size 256 -f lavfi -i ddagrab=output_idx={Math.Max(0, s.Monitor)}:framerate={fps}:draw_mouse={cursor}");
+            a.Add($"-thread_queue_size 64 -f lavfi -i ddagrab=output_idx={Math.Max(0, s.Monitor)}:framerate={fps}:draw_mouse={cursor}");
         // Window capture sends a frame when the game draws one; make it a steady frame rate like the screen capture.
         string src = window != IntPtr.Zero ? $"[0:v]fps={fps}," : "[0:v]";
         int next = 1;
         int gameIn = -1, micIn = -1;
         int offset = Math.Clamp(s.AudioOffsetMs, -500, 500);
         string shift = offset == 0 ? "" : $"-itsoffset {(offset / 1000.0).ToString("0.###", CultureInfo.InvariantCulture)} ";
-        string Raw(string pipe) => $"-thread_queue_size 512 {shift}-f f32le -ar {AudioCapture.Rate} -ac 2 -i {pipe}";
+        string Raw(string pipe) => $"-thread_queue_size 128 {shift}-f f32le -ar {AudioCapture.Rate} -ac 2 -i {pipe}";
         if (gamePipe != null) { a.Add(Raw(gamePipe)); gameIn = next++; }
         if (micPipe != null) { a.Add(Raw(micPipe)); micIn = next++; }
 
@@ -265,7 +265,7 @@ public sealed class ReplayRecorder : IDisposable
     /// </summary>
     Task ReadVideo()
     {
-        var queue = new System.Collections.Concurrent.BlockingCollection<(byte[] Data, int Length, double At)>(4096);
+        var queue = new System.Collections.Concurrent.BlockingCollection<(byte[] Data, int Length, double At)>(1024);
         var store = new Thread(() =>
         {
             try
