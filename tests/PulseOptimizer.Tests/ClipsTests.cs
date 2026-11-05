@@ -609,3 +609,19 @@ public class MicrophoneListTests
         Assert.Contains("AudioCapture.Microphone(_s.MicDevice)", src);
     }
 }
+
+public class GraphicsCardRecordingTests
+{
+    [Fact]
+    public void A_pc_with_a_graphics_card_records_exactly_like_0_3_4()
+    {
+        Pulse.Core.Clips.ReplayRecorder.SharedGraphics = false;
+        var nvenc = new Pulse.Core.Clips.Encoder("h264_nvenc", "h264", "NVIDIA", true);
+        var a = Pulse.Core.Clips.ReplayRecorder.Arguments(new Pulse.Core.Clips.ClipSettings { Resolution = "native", Fps = 60, BitrateMbps = 70 }, nvenc, null, null);
+        Assert.StartsWith("-hide_banner -loglevel warning -nostats -f lavfi -i ddagrab", a);
+        Assert.Contains("[0:v]null[v]", a);
+        Assert.Contains("-b:v 70M", a);
+        Assert.Contains("-preset p5", a);
+        Assert.DoesNotContain("-progress", a);
+    }
+}

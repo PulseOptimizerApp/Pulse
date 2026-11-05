@@ -225,14 +225,6 @@ public static class ClipsService
                 return;
             }
         }
-        else if (_rec != null && _rec.Running && _rec.FallingBehind && !SystemInfo.SharedGraphicsOnly && _videoLevel == 0)
-        {
-            // A graphics card that can't keep up means the video path is the problem, not the PC: try the other one
-            // before lowering anything.
-            TweakEngine.AddLog("clips", $"Recording made {_rec.Frames.Rate(_rec.Seconds, 10):0} of {_rec.TargetFps} FPS: trying the compatible video path");
-            StopRecorder();
-            _videoLevel = 1;
-        }
         else if (_rec != null && _rec.Running && _rec.FallingBehind && SystemInfo.SharedGraphicsOnly && StepDown())
         {
             // This PC can't make every frame at these settings (the clip would stutter): record a little smaller,

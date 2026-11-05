@@ -165,8 +165,15 @@ public sealed class ReplayRecorder : IDisposable
         _ffmpeg = Process.Start(Ffmpeg.Start(args, redirectOut: true))!;
         // Normal CPU priority: "below normal" next to a game using every core (weak PCs) starved the recorder and clips
         // came out at a few FPS. The recorder's CPU work is small, so the game doesn't notice.
-        try { _ffmpeg.PriorityClass = ProcessPriorityClass.Normal; } catch { }
-        GpuPriority = Native.RaiseGpuPriority(_ffmpeg);
+        // PCs with a graphics card record exactly as in 0.3.4 (smooth there): below-normal priority, nothing else.
+        // Integrated graphics share one chip with the game, so there the recorder gets normal CPU priority and goes
+        // first on the GPU, or it's starved and clips stutter.
+        if (SharedGraphics)
+        {
+            try { _ffmpeg.PriorityClass = ProcessPriorityClass.Normal; } catch { }
+            GpuPriority = Native.RaiseGpuPriority(_ffmpeg);
+        }
+        else try { _ffmpeg.PriorityClass = ProcessPriorityClass.BelowNormal; } catch { }
 
         if (gamePipe != null) _tasks.Add(Pump(gamePipe, _game));
         if (micPipe != null) _tasks.Add(Pump(micPipe, _mic));
@@ -186,7 +193,10 @@ public sealed class ReplayRecorder : IDisposable
         titles ??= new List<string>();
         titles.Clear();
         // -progress: FFmpeg reports its frame count every second, so Pulse can tell when a PC can't keep up.
-        var a = new List<string> { "-hide_banner", "-loglevel", "warning", "-nostats", "-stats_period", "1", "-progress", "pipe:2" };
+        var a = new List<string> { "-hide_banner", "-loglevel", "warning", "-nostats" };
+        // Integrated graphics: FFmpeg reports its frame count every second, so Pulse can lower the quality if the chip
+        // can't keep up. (Not on PCs with a graphics card: there it's not needed and stays exactly as in 0.3.4.)
+        if (SharedGraphics) a.AddRange(new[] { "-stats_period", "1", "-progress", "pipe:2" });
         int fps = Math.Clamp(s.FitFps > 0 ? Math.Min(s.Fps, s.FitFps) : s.Fps, 24, 240);
         int cursor = s.RecordCursor ? 1 : 0;
 
