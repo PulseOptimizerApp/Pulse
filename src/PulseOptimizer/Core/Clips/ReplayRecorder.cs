@@ -144,7 +144,7 @@ public sealed class ReplayRecorder : IDisposable
         if (gamePipe != null) _tasks.Add(Pump(gamePipe, _game));
         if (micPipe != null) _tasks.Add(Pump(micPipe, _mic));
         foreach (var a in appPipes) _tasks.Add(Pump(a.Server, a.Capture));
-        _tasks.Add(Task.Run(ReadVideo));
+        _tasks.Add(ReadVideo());
         _tasks.Add(Task.Run(ReadLog));
     }
 
@@ -253,18 +253,48 @@ public sealed class ReplayRecorder : IDisposable
         finally { try { pipe.Dispose(); } catch { } }
     });
 
-    async Task ReadVideo()
+    /// <summary>
+    /// Takes FFmpeg's output as fast as it comes, on its own high-priority thread, and hands it to a second thread
+    /// that stores it (memory or disk). FFmpeg's output pipe is small: if Pulse stops reading for even a few
+    /// milliseconds (a slow disk moment, a busy thread pool), FFmpeg has to wait, the frames it captures meanwhile are
+    /// lost, and clips stutter with 80-150 ms gaps. Reading never waits on storing now.
+    /// </summary>
+    Task ReadVideo()
     {
-        var buf = new byte[1 << 16];
-        try
+        var queue = new System.Collections.Concurrent.BlockingCollection<(byte[] Data, int Length, double At)>(4096);
+        var store = new Thread(() =>
         {
-            var s = _ffmpeg.StandardOutput.BaseStream;
-            int n;
-            while ((n = await s.ReadAsync(buf, _stop.Token)) > 0) _ring.Write(buf.AsSpan(0, n), Now);
-        }
-        catch (OperationCanceledException) { }
-        catch (IOException) { }
-        catch (ObjectDisposedException) { }
+            try
+            {
+                foreach (var (data, length, at) in queue.GetConsumingEnumerable())
+                {
+                    _ring.Write(data.AsSpan(0, length), at);
+                    System.Buffers.ArrayPool<byte>.Shared.Return(data);
+                }
+            }
+            catch { }
+        }) { IsBackground = true, Name = "Pulse replay store", Priority = ThreadPriority.AboveNormal };
+        store.Start();
+        var done = new TaskCompletionSource();
+        var read = new Thread(() =>
+        {
+            try
+            {
+                var s = _ffmpeg.StandardOutput.BaseStream;
+                while (!_stop.IsCancellationRequested)
+                {
+                    var buf = System.Buffers.ArrayPool<byte>.Shared.Rent(1 << 16);
+                    int n = s.Read(buf, 0, 1 << 16);
+                    if (n <= 0) { System.Buffers.ArrayPool<byte>.Shared.Return(buf); break; }
+                    // The time it arrived, so a slow store doesn't shift the replay's clock.
+                    if (!queue.TryAdd((buf, n, Now))) System.Buffers.ArrayPool<byte>.Shared.Return(buf); // storage stuck for seconds: drop, never block FFmpeg
+                }
+            }
+            catch { }
+            finally { queue.CompleteAdding(); store.Join(2000); done.TrySetResult(); }
+        }) { IsBackground = true, Name = "Pulse replay reader", Priority = ThreadPriority.Highest };
+        read.Start();
+        return done.Task;
     }
 
     async Task ReadLog()

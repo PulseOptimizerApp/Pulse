@@ -566,3 +566,24 @@ public class ClipMixerTests
         Assert.Equal(new short[] { 1500, short.MaxValue, short.MinValue }, m);
     }
 }
+
+public class RecorderNeverWaitsTests
+{
+    [Fact]
+    public void Reading_ffmpeg_never_waits_on_storing()
+    {
+        var src = File.ReadAllText(Path.Combine(Repo.Root, "src", "PulseOptimizer", "Core", "Clips", "ReplayRecorder.cs"));
+        Assert.Contains("\"Pulse replay reader\"", src);   // its own thread, highest priority
+        Assert.Contains("\"Pulse replay store\"", src);    // storing (memory or disk) happens on another
+        Assert.Contains("queue.TryAdd", src);              // a stuck disk drops data instead of blocking FFmpeg
+    }
+
+    [Fact]
+    public void Nothing_pauses_Pulse_while_clips_record()
+    {
+        var csproj = File.ReadAllText(Path.Combine(Repo.Root, "src", "PulseOptimizer", "PulseOptimizer.csproj"));
+        Assert.DoesNotContain("ConserveMemory", csproj);  // forced extra compacting collections
+        var main = File.ReadAllText(Path.Combine(Repo.Root, "src", "PulseOptimizer", "MainWindow.xaml.cs"));
+        Assert.Contains("if (ClipsService.State != ClipsState.Recording)", main);
+    }
+}

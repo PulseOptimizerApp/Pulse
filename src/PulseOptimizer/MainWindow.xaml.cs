@@ -515,7 +515,10 @@ public partial class MainWindow : Window
             foreach (var p in _pages.Values) if (p is IReleasable r) try { r.Release(); } catch { }
             _pages.Clear();
         }
-        Dispatcher.BeginInvoke(Native.GiveBackMemory, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+        // The deep memory clean-up pauses Pulse for a moment, which would make a running recording drop frames (the
+        // recorder waits on Pulse): only do it when Clips isn't recording.
+        if (ClipsService.State != ClipsState.Recording)
+            Dispatcher.BeginInvoke(Native.GiveBackMemory, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
     }
 
     void LeaveLean()
