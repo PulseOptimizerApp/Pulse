@@ -486,9 +486,13 @@ public static class ClipsService
 
     const string TaskName = "Pulse Optimizer clips";
 
-    /// <summary>Starts Pulse in the tray at sign-in (with the admin rights it already has, so no prompt).</summary>
+    /// <summary>
+    /// Starts Pulse in the tray at sign-in (with the admin rights it already has, so no prompt). Clips and Macros share
+    /// it: turning it off for one keeps it while the other still wants it.
+    /// </summary>
     public static bool SetStartWithWindows(bool on)
     {
+        if (!on && (TweakEngine.State.Clips?.StartWithWindows == true || TweakEngine.State.MacroOptions?.StartWithWindows == true)) return true;
         var schtasks = Path.Combine(Environment.SystemDirectory, "schtasks.exe");
         var exe = Environment.ProcessPath;
         var r = on

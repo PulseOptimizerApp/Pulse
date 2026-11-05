@@ -86,7 +86,8 @@ public partial class App : Application
         Ui.GameSessionService.Init();
 
         // Started at sign-in for Clips: stay in the tray until the user opens Pulse.
-        bool tray = e.Args.Contains("--tray", StringComparer.OrdinalIgnoreCase) && Core.TweakEngine.State.Clips is { Enabled: true };
+        bool tray = e.Args.Contains("--tray", StringComparer.OrdinalIgnoreCase) &&
+                    (Core.TweakEngine.State.Clips is { Enabled: true } || Ui.MacroService.Options.StartWithWindows);
         if (tray) Ui.TrayIcon.Show();
         else window.Show();
     }

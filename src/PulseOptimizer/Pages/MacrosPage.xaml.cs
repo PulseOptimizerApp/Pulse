@@ -84,6 +84,8 @@ public partial class MacrosPage : UserControl, IPage, IReleasable
         _loading = true;
         NotifySwitch.IsChecked = O.Notifications;
         AutoSwitch.IsChecked = O.OnAtStart;
+        TraySwitch.IsChecked = O.KeepRunningInTray;
+        StartupSwitch.IsChecked = O.StartWithWindows;
         AntiCheatSwitch.IsChecked = O.AllowWithAntiCheat;
         ShooterMoveSwitch.IsChecked = O.AllowMoveInShooters;
         PanicHost.Content = KeyButton(() => O.PanicKey, vk => { O.PanicKey = vk; MacroService.Save(); ShowState(); }, mouse: false);
@@ -137,7 +139,33 @@ public partial class MacrosPage : UserControl, IPage, IReleasable
         if (_loading) return;
         O.Notifications = NotifySwitch.IsChecked == true;
         O.OnAtStart = AutoSwitch.IsChecked == true;
+        O.KeepRunningInTray = TraySwitch.IsChecked == true;
+        if (!O.KeepRunningInTray && O.StartWithWindows) { O.StartWithWindows = false; StartupSwitch.IsChecked = false; ClipsService.SetStartWithWindows(false); }
         MacroService.Save();
+    }
+
+    void Startup_Click(object sender, RoutedEventArgs e)
+    {
+        if (_loading) return;
+        bool on = StartupSwitch.IsChecked == true;
+        O.StartWithWindows = on;
+        if (!ClipsService.SetStartWithWindows(on))
+        {
+            O.StartWithWindows = false;
+            StartupSwitch.IsChecked = false;
+            MainWindow.Instance.Toast("Windows didn't allow adding Pulse to startup.", ToastKind.Warning);
+            return;
+        }
+        if (on)
+        {
+            // Starting with Windows is for having macros ready: they come on, and stay on in the tray.
+            O.OnAtStart = true;
+            O.KeepRunningInTray = true;
+            AutoSwitch.IsChecked = true;
+            TraySwitch.IsChecked = true;
+        }
+        MacroService.Save();
+        TweakEngine.AddLog("macro", on ? "Pulse starts with Windows for macros" : "Pulse no longer starts with Windows for macros");
     }
 
     void AntiCheat_Click(object sender, RoutedEventArgs e)

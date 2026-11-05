@@ -2351,5 +2351,11 @@
  "Macros are off, so this won't run yet.": "Los macros están apagados, así que esto aún no funcionará.",
  "A key or mouse button. Side buttons work best.": "Una tecla o un botón del ratón. Los laterales funcionan mejor.",
  "time(s) each press": "vez/veces por pulsación",
- "· wait": "· esperar"
+ "· wait": "· esperar",
+ "Keep macros running when you close Pulse": "Mantener los macros activos al cerrar Pulse",
+ "Pulse stays in the tray by the clock. Right-click its icon there to quit.": "Pulse se queda en la bandeja junto al reloj. Haz clic derecho en su icono para salir.",
+ "Start Pulse with Windows": "Iniciar Pulse con Windows",
+ "Opens quietly in the tray when you sign in, with macros on.": "Se abre discretamente en la bandeja al iniciar sesión, con los macros activados.",
+ "Turn macros on when Pulse opens": "Activar los macros al abrir Pulse",
+ "Your macros are still on": "Tus macros siguen activados"
 }

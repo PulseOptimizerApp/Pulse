@@ -462,7 +462,9 @@ public partial class MainWindow : Window
     protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
     {
         var clips = TweakEngine.State.Clips;
-        if (!_quitting && clips is { Enabled: true, KeepRunningInTray: true })
+        bool forClips = clips is { Enabled: true, KeepRunningInTray: true };
+        bool forMacros = Ui.MacroService.Armed && Ui.MacroService.Options.KeepRunningInTray;
+        if (!_quitting && (forClips || forMacros))
         {
             e.Cancel = true;
             Hide();
@@ -471,7 +473,7 @@ public partial class MainWindow : Window
             if (!_trayHintShown)
             {
                 _trayHintShown = true;
-                Ui.ClipToast.Show(Ui.Loc.T("Pulse is still clipping"), Ui.Loc.T("It's by the clock. Right-click it to quit."), true);
+                Ui.ClipToast.Show(Ui.Loc.T(forClips ? "Pulse is still clipping" : "Your macros are still on"), Ui.Loc.T("It's by the clock. Right-click it to quit."), true);
             }
             return;
         }

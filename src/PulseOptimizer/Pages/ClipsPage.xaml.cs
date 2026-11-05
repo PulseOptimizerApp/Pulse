@@ -170,7 +170,7 @@ public partial class ClipsPage : UserControl, IPage, IReleasable
         S.Enabled = false;
         TweakEngine.Save();
         ClipsService.Restart();
-        if (S.StartWithWindows) { ClipsService.SetStartWithWindows(false); S.StartWithWindows = false; TweakEngine.Save(); }
+        if (S.StartWithWindows) { S.StartWithWindows = false; ClipsService.SetStartWithWindows(false); TweakEngine.Save(); }
         TweakEngine.AddLog("clips", "Turned off Clips");
         UpdateStatus();
         if (await MainWindow.Instance.Confirm("Remove the recording engine too?",
@@ -449,6 +449,7 @@ public partial class ClipsPage : UserControl, IPage, IReleasable
     void Startup_Click(object sender, RoutedEventArgs e)
     {
         bool on = StartupSwitch.IsChecked == true;
+        if (!on) S.StartWithWindows = false; // so the shared startup entry knows Clips no longer wants it
         if (!ClipsService.SetStartWithWindows(on))
         {
             StartupSwitch.IsChecked = !on;

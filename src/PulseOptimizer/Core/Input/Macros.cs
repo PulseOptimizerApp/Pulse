@@ -77,6 +77,10 @@ public class MacroOptions
     public double FixedDelay { get; set; } = 50;
     /// <summary>Recording also keeps mouse buttons and scrolling.</summary>
     public bool RecordMouse { get; set; } = true;
+    /// <summary>Closing Pulse's window keeps it running in the tray (by the clock) while macros are on.</summary>
+    public bool KeepRunningInTray { get; set; } = true;
+    /// <summary>Start Pulse in the tray when you sign in to Windows, with macros on.</summary>
+    public bool StartWithWindows { get; set; }
     /// <summary>Turn macros on when Pulse starts.</summary>
     public bool OnAtStart { get; set; }
 }

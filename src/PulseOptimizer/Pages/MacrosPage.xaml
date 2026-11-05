@@ -81,7 +81,23 @@
                     </Grid>
                     <Grid Style="{StaticResource Row}">
                         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                        <TextBlock Style="{StaticResource RowLabel}" Text="Turn macros on when Pulse starts"/>
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource RowLabel}" Text="Keep macros running when you close Pulse"/>
+                            <TextBlock Style="{StaticResource Body}" FontSize="12" Foreground="{StaticResource TextDimBrush}" TextWrapping="Wrap" Text="Pulse stays in the tray by the clock. Right-click its icon there to quit."/>
+                        </StackPanel>
+                        <CheckBox x:Name="TraySwitch" Grid.Column="1" Style="{StaticResource Switch}" Click="Option_Click" VerticalAlignment="Center"/>
+                    </Grid>
+                    <Grid Style="{StaticResource Row}">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource RowLabel}" Text="Start Pulse with Windows"/>
+                            <TextBlock Style="{StaticResource Body}" FontSize="12" Foreground="{StaticResource TextDimBrush}" TextWrapping="Wrap" Text="Opens quietly in the tray when you sign in, with macros on."/>
+                        </StackPanel>
+                        <CheckBox x:Name="StartupSwitch" Grid.Column="1" Style="{StaticResource Switch}" Click="Startup_Click" VerticalAlignment="Center"/>
+                    </Grid>
+                    <Grid Style="{StaticResource Row}">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <TextBlock Style="{StaticResource RowLabel}" Text="Turn macros on when Pulse opens"/>
                         <CheckBox x:Name="AutoSwitch" Grid.Column="1" Style="{StaticResource Switch}" Click="Option_Click"/>
                     </Grid>
                     <Grid Style="{StaticResource Row}">
