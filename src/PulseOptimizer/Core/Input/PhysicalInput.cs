@@ -33,6 +33,9 @@ public sealed class PhysicalInput : IDisposable
     /// <summary>True when raw input is working (otherwise <see cref="IsDown"/> also sees injected input).</summary>
     public bool Working { get; private set; }
     public bool Running => _thread != null;
+    /// <summary>Raw input has delivered at least one physical event since starting.</summary>
+    public bool Heard => _heard;
+    volatile bool _heard;
 
     // Windows gives each program one raw-input listener per device type. Pulse's other listeners (the clip input
     // overlay, the mouse polling check) take it over while they run and pass every message on through
@@ -74,7 +77,9 @@ public sealed class PhysicalInput : IDisposable
     public bool IsDown(int vk)
     {
         if (vk <= 0 || vk > 255) return false;
-        if (!Working) return (GetAsyncKeyState(vk) & 0x8000) != 0;
+        // Until raw input has actually delivered something, read Windows' key state instead, so a trigger never
+        // silently does nothing if raw input isn't reaching us on this PC.
+        if (!Working || !_heard) return (GetAsyncKeyState(vk) & 0x8000) != 0;
         return vk switch
         {
             0x10 => _down[0xA0] || _down[0xA1],
@@ -88,6 +93,7 @@ public sealed class PhysicalInput : IDisposable
     {
         if (_thread != null) return;
         _ready.Reset();
+        _heard = false;
         _thread = new Thread(Loop) { IsBackground = true, Name = "Pulse physical input", Priority = ThreadPriority.AboveNormal };
         _thread.Start();
         _ready.Wait(2000);
@@ -125,7 +131,9 @@ public sealed class PhysicalInput : IDisposable
                     _classRegistered = RegisterClassExW(ref cls) != 0;
                 }
             }
-            _hwnd = CreateWindowExW(0, "PulsePhysicalInput", "", 0, 0, 0, 0, 0, new IntPtr(-3) /* HWND_MESSAGE */, IntPtr.Zero, hInst, IntPtr.Zero);
+            // A hidden top-level window (never shown): background raw input is delivered reliably to these, which isn't
+            // always true for message-only windows.
+            _hwnd = CreateWindowExW(0x80 /* TOOLWINDOW */ | 0x08000000 /* NOACTIVATE */, "PulsePhysicalInput", "", 0x80000000 /* POPUP */, 0, 0, 0, 0, IntPtr.Zero, IntPtr.Zero, hInst, IntPtr.Zero);
             if (_hwnd != IntPtr.Zero) lock (Windows) Windows[_hwnd] = this;
             if (_hwnd != IntPtr.Zero)
             {
@@ -203,6 +211,7 @@ public sealed class PhysicalInput : IDisposable
         // Input sent by a program comes from no device: that's not the user.
         long device = IntPtr.Size == 8 ? BitConverter.ToInt64(_buf, 8) : BitConverter.ToInt32(_buf, 8);
         if (device == 0) return;
+        _heard = true;
         int h = headerSize;
         if (type == RIM_TYPEMOUSE)
         {
