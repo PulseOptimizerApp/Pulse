@@ -40,6 +40,7 @@ public partial class MousePage : UserControl, IPage, IReleasable
         public int? Battery => Status?["batteryPercent"] is JsonValue v && v.TryGetValue<double>(out var b) ? (int)Math.Round(b) : null;
         public bool Charging => ((string)Status?["batteryState"] ?? "").StartsWith("Charging", StringComparison.Ordinal);
         public bool? Wireless => (string)Status?["connectionType"] switch { "Wireless" => true, "Wired" => false, _ => Raw?.Wireless };
+        public int? Dpi => Status?["dpi"] is JsonValue d && d.TryGetValue<double>(out var x) && x > 0 ? (int)x : null;
         public int? Hz => Status?["pollingRateHz"] is JsonValue v && v.TryGetValue<double>(out var h) && h > 0 ? (int)h : null;
         public bool Can(string method) => Status?["__methods"] is JsonArray a && a.Any(x => (string)x == method);
         public string PhotoKey => string.Concat((Driver?.VendorId.ToString("X4") + Driver?.ProductId.ToString("X4") + Name).Where(char.IsLetterOrDigit));
@@ -61,6 +62,7 @@ public partial class MousePage : UserControl, IPage, IReleasable
     {
         InitializeComponent();
         _tick.Tick += (_, _) => _onTick?.Invoke();
+        PreviewKeyDown += DpiKey;
         // The drivers run in a hidden browser engine: shut it down a little after leaving this page.
         Unloaded += (_, _) => { StopMeasuring(); StopLater.Start(); };
         Loaded += (_, _) => StopLater.Stop();
@@ -744,6 +746,9 @@ public partial class MousePage : UserControl, IPage, IReleasable
         grid.Children.Add(note);
         card.Children.Add(grid);
         root.Children.Add(Panel(card));
+        root.Children.Add(Panel(DpiCheck(m)));
+        root.Children.Add(Panel(ClickTest()));
+        root.Children.Add(Panel(SensConverter(m)));
         if (_meter == null) { note.Text = Loc.T("Pulse couldn't listen to the mouse right now. Close the Measure page's test and try again."); return root; }
         double peak = 0;
         var handles = m.Raw?.Handles ?? new List<IntPtr>();
@@ -752,6 +757,12 @@ public partial class MousePage : UserControl, IPage, IReleasable
             double now = _meter.Now;
             var mine = handles.Count > 0 ? _meter.Devices.Where(x => handles.Contains(x.Key)).Select(x => x.Value) : _meter.Devices.Values;
             foreach (var s in mine) { double hz = MouseMeter.Rate(s, now); if (hz > 0) peak = Math.Max(peak, hz); }
+            if (_dpiRunning && _dpiText != null)
+            {
+                if (_dpiDevice == IntPtr.Zero && _meter.Devices.Count > 0) _dpiDevice = _meter.Devices.OrderByDescending(x => x.Value.LastAt).First().Key;
+                if (_meter.Devices.TryGetValue(_dpiDevice, out var ds))
+                    _dpiText.Text = Loc.F("Moving… {0} counts so far. Press Space at the mark.", Math.Abs(ds.CountX).ToString("#,0", CultureInfo.CurrentCulture));
+            }
             if (peak <= 0) { note.Text = Loc.T("Waiting for movement…"); return; }
             int nearest = MouseMeter.Nearest(peak);
             gauge.Value = nearest;
@@ -761,6 +772,192 @@ public partial class MousePage : UserControl, IPage, IReleasable
         };
         _tick.Start();
         return root;
+    }
+
+    // ───────── DPI check: move a known distance, count what the mouse reports ─────────
+
+    bool _dpiArmed, _dpiRunning;
+    double _dpiDistance = RegionInfo.CurrentRegion.IsMetric ? 5 / 2.54 : 2;
+    TextBlock _dpiText;
+    IntPtr _dpiDevice;
+    int? _dpiSet;
+
+    StackPanel DpiCheck(Mouse m)
+    {
+        _dpiSet = m.Dpi;
+        var sp = Head("DPI, measured", "Check that the mouse really moves at the DPI it's set to. Sensors are often a few percent off.");
+        bool metric = RegionInfo.CurrentRegion.IsMetric;
+        sp.Children.Add(T(Loc.T("1. Put a ruler next to your mouse and pick how far you'll move it:"), 12.5, null, "TextDimBrush"));
+        var dist = new WrapPanel { Margin = new Thickness(0, 8, 0, 10) };
+        foreach (var (inches, label) in metric ? new[] { (5 / 2.54, "5 cm"), (10 / 2.54, "10 cm") } : new[] { (2.0, "2 in"), (4.0, "4 in") })
+        {
+            var rb = new RadioButton { Style = (Style)FindResource("Chip"), Content = label, GroupName = "dpi-dist", IsChecked = Math.Abs(inches - _dpiDistance) < 0.01, Margin = new Thickness(0, 0, 6, 0) };
+            rb.Checked += (_, _) => _dpiDistance = inches;
+            dist.Children.Add(rb);
+        }
+        sp.Children.Add(dist);
+        sp.Children.Add(T(Loc.T("2. Line the mouse's edge up with 0, press Space, move it straight to the mark, then press Space again."), 12.5, null, "TextDimBrush"));
+        var go = new Button { Style = (Style)FindResource("GhostButton"), Content = Loc.T("Get ready"), HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 12, 0, 0) };
+        _dpiText = T("", 13.5, FontWeights.SemiBold);
+        _dpiText.Margin = new Thickness(0, 10, 0, 0);
+        _dpiText.TextWrapping = TextWrapping.Wrap;
+        go.Click += (_, _) => { _dpiArmed = true; _dpiRunning = false; Focusable = true; Focus(); _dpiText.Text = Loc.T("Ready: press Space to start."); };
+        sp.Children.Add(go);
+        sp.Children.Add(_dpiText);
+        return sp;
+    }
+
+    void DpiKey(object sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Space || !_dpiArmed || _meter == null || _dpiText == null) return;
+        e.Handled = true;
+        if (!_dpiRunning)
+        {
+            _meter.Reset();
+            _dpiDevice = IntPtr.Zero;
+            _dpiRunning = true;
+            _dpiText.Text = Loc.T("Go: move the mouse straight to the mark, then press Space.");
+            return;
+        }
+        _dpiRunning = _dpiArmed = false;
+        if (_dpiDevice == IntPtr.Zero || !_meter.Devices.TryGetValue(_dpiDevice, out var s) || Math.Abs(s.CountX) < 50)
+        {
+            _dpiText.Text = Loc.T("Didn't see enough movement. Click Get ready to try again.");
+            return;
+        }
+        double counts = Math.Sqrt((double)s.CountX * s.CountX + (double)s.CountY * s.CountY);
+        double measured = counts / _dpiDistance;
+        if (_dpiSet is int set && set > 0)
+        {
+            double off = (measured - set) / set * 100;
+            _dpiText.Text = Loc.F("About {0} DPI, set to {1} ({2:+0;-0;0}%). Try twice more; within 5% is normal for a hand measurement.",
+                Math.Round(measured).ToString("#,0", CultureInfo.CurrentCulture), set.ToString("#,0", CultureInfo.CurrentCulture), off);
+        }
+        else
+        {
+            int[] common = { 400, 800, 1000, 1200, 1600, 1800, 2000, 2400, 3200, 4000, 6400 };
+            int near = common.OrderBy(c => Math.Abs(c - measured)).First();
+            _dpiText.Text = Loc.F("About {0} DPI (closest common setting: {1}). Try twice more; within 5% is normal for a hand measurement.",
+                Math.Round(measured).ToString("#,0", CultureInfo.CurrentCulture), near.ToString("#,0", CultureInfo.CurrentCulture));
+        }
+    }
+
+    // ───────── click test: worn switches double-click ─────────
+
+    StackPanel ClickTest()
+    {
+        var sp = Head("Click test", "Click here as fast as you like. A worn switch sends two clicks for one press (\"double-clicking\"); Pulse spots clicks closer together than a finger can make.");
+        var pad = new Border { Height = 120, CornerRadius = new CornerRadius(10), Background = Res("Surface2Brush"), BorderBrush = Res("BorderBrush"), BorderThickness = new Thickness(1), Margin = new Thickness(0, 4, 0, 10), Cursor = Cursors.Hand };
+        var inner = new TextBlock { Text = Loc.T("Click with any button"), FontSize = 14, Foreground = Res("TextDimBrush"), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+        pad.Child = inner;
+        var result = T("", 12.5, null, "TextDimBrush");
+        result.TextWrapping = TextWrapping.Wrap;
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        var last = new Dictionary<MouseButton, double>();
+        var counts = new Dictionary<MouseButton, int>();
+        var doubles = new Dictionary<MouseButton, int>();
+        var recent = new Queue<double>();
+        double fastest = double.MaxValue;
+        string Name(MouseButton b) => b switch { MouseButton.Left => Loc.T("Left"), MouseButton.Right => Loc.T("Right"), MouseButton.Middle => Loc.T("Middle"), MouseButton.XButton1 => Loc.T("Back"), _ => Loc.T("Forward") };
+        pad.PreviewMouseDown += (_, e) =>
+        {
+            e.Handled = true;
+            double now = sw.Elapsed.TotalMilliseconds;
+            var b = e.ChangedButton;
+            counts[b] = counts.GetValueOrDefault(b) + 1;
+            if (last.TryGetValue(b, out var prev))
+            {
+                double gap = now - prev;
+                // Under 20 ms is faster than any finger (even butterfly clicking is ~40 ms): that's the switch bouncing.
+                if (gap < 20) doubles[b] = doubles.GetValueOrDefault(b) + 1;
+                else fastest = Math.Min(fastest, gap);
+            }
+            last[b] = now;
+            recent.Enqueue(now);
+            while (recent.Count > 0 && now - recent.Peek() > 1000) recent.Dequeue();
+            inner.Text = Loc.F("{0} clicks per second", recent.Count);
+            var parts = counts.Select(kv => $"{Name(kv.Key)} {kv.Value}").ToList();
+            string text = string.Join(" · ", parts);
+            if (fastest < double.MaxValue) text += "  ·  " + Loc.F("fastest {0} ms apart", Math.Round(fastest));
+            var bad = doubles.Where(kv => kv.Value > 0).ToList();
+            if (bad.Count > 0)
+            {
+                text += "\n" + Loc.F("{0} button: {1} double-clicks from one press. The switch is wearing out; cleaning or replacing it, or the maker's debounce setting, can fix it.",
+                    string.Join(", ", bad.Select(kv => Name(kv.Key))), bad.Sum(kv => kv.Value));
+                result.Foreground = Res("WarnBrush");
+            }
+            else result.Foreground = Res("TextDimBrush");
+            result.Text = text;
+        };
+        pad.PreviewMouseUp += (_, e) => e.Handled = true;
+        pad.ContextMenuOpening += (_, e) => e.Handled = true;
+        sp.Children.Add(pad);
+        sp.Children.Add(result);
+        return sp;
+    }
+
+    // ───────── sensitivity converter ─────────
+
+    /// <summary>Degrees the camera turns per mouse count at sensitivity 1 (well known for these engines).</summary>
+    internal static readonly (string Game, double Yaw)[] SensGames =
+    {
+        ("Counter-Strike 2", 0.022), ("VALORANT", 0.07), ("Apex Legends", 0.022), ("Overwatch 2", 0.0066),
+        ("Call of Duty", 0.0066), ("Destiny 2", 0.0066), ("Team Fortress 2", 0.022),
+    };
+
+    /// <summary>Centimeters of mouse movement for one full turn.</summary>
+    internal static double Cm360(double yaw, double sens, double dpi) => sens <= 0 || dpi <= 0 ? 0 : 360 / (yaw * sens * dpi) * 2.54;
+
+    /// <summary>The sensitivity in another game that turns the same amount for the same movement.</summary>
+    internal static double ConvertSens(double sens, double fromYaw, double toYaw) => sens * fromYaw / toYaw;
+
+    StackPanel SensConverter(Mouse m)
+    {
+        var sp = Head("Sensitivity converter", "Keep the same aim in every game: Pulse turns your sensitivity into the matching one for each game.");
+        var g = new Grid();
+        g.ColumnDefinitions.Add(new ColumnDefinition());
+        g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(12) });
+        g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(120) });
+        g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(12) });
+        g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(110) });
+        var game = new ComboBox { Height = 34 };
+        foreach (var (name, _) in SensGames) game.Items.Add(name);
+        game.SelectedIndex = 1;
+        var sens = new TextBox { Style = (Style)FindResource("SearchBox"), Text = "0.35", Tag = Loc.T("Sensitivity") };
+        var dpi = new TextBox { Style = (Style)FindResource("SearchBox"), Text = (m.Dpi ?? 800).ToString(CultureInfo.InvariantCulture), Tag = "DPI" };
+        Grid.SetColumn(sens, 2); Grid.SetColumn(dpi, 4);
+        g.Children.Add(game); g.Children.Add(sens); g.Children.Add(dpi);
+        sp.Children.Add(g);
+        var table = new StackPanel { Margin = new Thickness(0, 12, 0, 0) };
+        sp.Children.Add(table);
+        void Update()
+        {
+            table.Children.Clear();
+            if (game.SelectedIndex < 0 || !double.TryParse(sens.Text.Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture, out var sv) || sv <= 0
+                || !double.TryParse(dpi.Text, NumberStyles.Float, CultureInfo.InvariantCulture, out var dv) || dv <= 0)
+            {
+                table.Children.Add(T(Loc.T("Type your sensitivity and DPI."), 12.5, null, "TextFaintBrush"));
+                return;
+            }
+            var from = SensGames[game.SelectedIndex];
+            table.Children.Add(T(Loc.F("{0} cm for a full turn ({1} in)", Cm360(from.Yaw, sv, dv).ToString("0.#", CultureInfo.CurrentCulture), (Cm360(from.Yaw, sv, dv) / 2.54).ToString("0.#", CultureInfo.CurrentCulture)), 13, FontWeights.SemiBold));
+            foreach (var (name, yaw) in SensGames)
+            {
+                if (name == from.Game) continue;
+                var row = new Grid { Margin = new Thickness(0, 6, 0, 0) };
+                row.Children.Add(T(name, 12.5, null, "TextDimBrush"));
+                var v = T(ConvertSens(sv, from.Yaw, yaw).ToString("0.###", CultureInfo.InvariantCulture), 12.5, FontWeights.SemiBold);
+                v.HorizontalAlignment = HorizontalAlignment.Right;
+                row.Children.Add(v);
+                table.Children.Add(row);
+            }
+            table.Children.Add(T(Loc.T("Same DPI in every game. Turn off mouse acceleration in each game for this to match."), 11.5, null, "TextFaintBrush").Also(x => x.Margin = new Thickness(0, 10, 0, 0)));
+        }
+        game.SelectionChanged += (_, _) => Update();
+        sens.TextChanged += (_, _) => Update();
+        dpi.TextChanged += (_, _) => Update();
+        Update();
+        return sp;
     }
 
     UIElement WindowsTab()
