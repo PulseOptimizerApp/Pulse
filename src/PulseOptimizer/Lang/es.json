@@ -3159,5 +3159,18 @@
  "deleted": "eliminada",
  "Save a crosshair first (My crosshairs), then link it to a game here.": "Primero guarda una mira (Mis miras) y luego vincúlala a un juego aquí.",
  "Link": "Vincular",
- "Double-click to rename": "Doble clic para renombrar"
+ "Double-click to rename": "Doble clic para renombrar",
+ "Vertical, slow motion, GIF, picture": "Vertical, cámara lenta, GIF, imagen",
+ "More ways to save": "Más formas de guardar",
+ "Vertical for TikTok / Shorts": "Vertical para TikTok / Shorts",
+ "9:16, the middle of the screen": "9:16, el centro de la pantalla",
+ "Slow motion (0.5×)": "Cámara lenta (0,5×)",
+ "The selected part at half speed": "La parte elegida a media velocidad",
+ "Super slow (0.25×)": "Súper lenta (0,25×)",
+ "Best from clips recorded at 120 fps or more": "Queda mejor con clips grabados a 120 fps o más",
+ "GIF": "GIF",
+ "Up to 15 seconds, small enough to post anywhere": "Hasta 15 segundos, lo bastante pequeño para publicarlo en cualquier sitio",
+ "Save this frame as a picture": "Guardar este fotograma como imagen",
+ "Full size PNG of where the video is paused": "PNG a tamaño completo de donde está pausado el vídeo",
+ "{0} is copied: paste it into a chat with Ctrl+V.": "{0} está copiado: pégalo en un chat con Ctrl+V."
 }

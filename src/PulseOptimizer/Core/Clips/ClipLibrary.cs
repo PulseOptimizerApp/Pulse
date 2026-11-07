@@ -476,12 +476,66 @@ public static class ClipLibrary
 
     internal static string H264Of(Encoder e) => e.Codec == "h264" ? e.Name : "h264_" + e.Name[(e.Name.IndexOf('_') + 1)..];
 
-    static string Sibling(string clip, string tag)
+    static string Sibling(string clip, string tag, string ext = ".mp4")
     {
         var dir = System.IO.Path.GetDirectoryName(clip)!;
         var name = System.IO.Path.GetFileNameWithoutExtension(clip) + $" ({tag})";
-        var path = System.IO.Path.Combine(dir, name + ".mp4");
-        for (int i = 2; File.Exists(path); i++) path = System.IO.Path.Combine(dir, $"{name} {i}.mp4");
+        var path = System.IO.Path.Combine(dir, name + ext);
+        for (int i = 2; File.Exists(path); i++) path = System.IO.Path.Combine(dir, $"{name} {i}{ext}");
         return path;
+    }
+
+    static string Secs(double v) => v.ToString("0.###", CultureInfo.InvariantCulture);
+
+    /// <summary>FFmpeg filter that crops the middle of the picture to 9:16 and sizes it 1080×1920 (TikTok, Shorts, Reels).</summary>
+    internal const string VerticalFilter = SquarePixels + ",crop=trunc(ih*9/16/2)*2:ih,scale=1080:1920:flags=lanczos,setsar=1";
+
+    /// <summary>A vertical 9:16 copy of the selection for TikTok, YouTube Shorts and Reels (the middle of the screen).</summary>
+    public static async Task<string> Vertical(string clip, double from, double to, Encoder e, CancellationToken ct = default)
+    {
+        if (to - from < 0.5) throw new InvalidOperationException("Pick at least half a second to keep.");
+        var dest = Sibling(clip, "vertical");
+        var codec = e.Hardware ? $"-c:v {H264Of(e)} -b:v 12M -maxrate 16M -bufsize 24M" : "-c:v libx264 -preset veryfast -crf 20";
+        var (code, err) = await Ffmpeg.Run($"-hide_banner -loglevel error -y -ss {Secs(from)} -i \"{clip}\" -t {Secs(to - from)} -map 0:v:0 -vf \"{VerticalFilter}\" {codec} -pix_fmt yuv420p {AudioArgs(0)} -movflags +faststart \"{dest}\"", ct);
+        if (code != 0) throw new InvalidOperationException("Making the vertical copy didn't work: " + err.Trim());
+        return dest;
+    }
+
+    /// <summary>FFmpeg audio filter for a speed (atempo takes 0.5–2 per step, so slower speeds chain two).</summary>
+    internal static string Tempo(double speed) => speed >= 0.5 ? $"atempo={speed.ToString("0.###", CultureInfo.InvariantCulture)}"
+        : $"atempo=0.5,atempo={(speed / 0.5).ToString("0.###", CultureInfo.InvariantCulture)}";
+
+    /// <summary>A slow-motion copy of the selection (0.25–0.75×), sound slowed to match without changing its pitch.</summary>
+    public static async Task<string> SlowMotion(string clip, double from, double to, Encoder e, double speed = 0.5, CancellationToken ct = default)
+    {
+        if (to - from < 0.3) throw new InvalidOperationException("Pick at least half a second to keep.");
+        speed = Math.Clamp(speed, 0.25, 0.75);
+        var dest = Sibling(clip, "slow motion");
+        var pts = (1 / speed).ToString("0.###", CultureInfo.InvariantCulture);
+        var codec = e.Hardware ? $"-c:v {H264Of(e)} -b:v 20M -maxrate 30M -bufsize 40M" : "-c:v libx264 -preset veryfast -crf 19";
+        var (code, err) = await Ffmpeg.Run($"-hide_banner -loglevel error -y -ss {Secs(from)} -i \"{clip}\" -t {Secs(to - from)} -map 0:v:0 -map 0:a:0? -vf \"{SquarePixels},setpts={pts}*PTS\" -af \"{Tempo(speed)}\" {codec} -pix_fmt yuv420p -c:a aac -b:a 192k -movflags +faststart \"{dest}\"", ct);
+        if (code != 0) throw new InvalidOperationException("Making the slow-motion copy didn't work: " + err.Trim());
+        return dest;
+    }
+
+    /// <summary>A GIF of the selection (up to 15 seconds, 480 wide, 15 fps, with its own color palette so it looks clean).</summary>
+    public static async Task<string> Gif(string clip, double from, double to, CancellationToken ct = default)
+    {
+        to = Math.Min(to, from + 15);
+        if (to - from < 0.3) throw new InvalidOperationException("Pick at least half a second to keep.");
+        var dest = Sibling(clip, "GIF", ".gif");
+        var vf = $"{SquarePixels},fps=15,scale=480:-2:flags=lanczos,split[a][b];[a]palettegen=stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=4";
+        var (code, err) = await Ffmpeg.Run($"-hide_banner -loglevel error -y -ss {Secs(from)} -t {Secs(to - from)} -i \"{clip}\" -filter_complex \"{vf}\" -loop 0 \"{dest}\"", ct);
+        if (code != 0) throw new InvalidOperationException("Making the GIF didn't work: " + err.Trim());
+        return dest;
+    }
+
+    /// <summary>Saves the frame at <paramref name="at"/> seconds as a full-size PNG next to the clip.</summary>
+    public static async Task<string> Frame(string clip, double at, CancellationToken ct = default)
+    {
+        var dest = Sibling(clip, "frame " + TimeSpan.FromSeconds(at).ToString(@"m\.ss"), ".png");
+        var (code, err) = await Ffmpeg.Run($"-hide_banner -loglevel error -y -ss {Secs(Math.Max(0, at))} -i \"{clip}\" -frames:v 1 -vf \"{SquarePixels}\" \"{dest}\"", ct);
+        if (code != 0 || !File.Exists(dest)) throw new InvalidOperationException("Saving the picture didn't work: " + err.Trim());
+        return dest;
     }
 }

@@ -1346,6 +1346,58 @@ public partial class ClipsPage : UserControl, IPage, IReleasable
         }
     }
 
+    /// <summary>Medal-style extras: a vertical copy for TikTok / Shorts, slow motion, a GIF, or the current frame as a picture.</summary>
+    void ExportMore_Click(object sender, RoutedEventArgs e)
+    {
+        if (_open == null) return;
+        var menu = new ContextMenu { PlacementTarget = ExportMoreBtn, Placement = System.Windows.Controls.Primitives.PlacementMode.Top };
+        void Item(string glyph, string title, string note, Func<Task<string>> make, bool copyFile = false)
+        {
+            var sp = new StackPanel { Orientation = Orientation.Horizontal };
+            sp.Children.Add(new TextBlock { Text = glyph, FontFamily = (FontFamily)FindResource("IconFont"), FontSize = 13, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 10, 0) });
+            var tx = new StackPanel();
+            tx.Children.Add(new TextBlock { Text = Loc.T(title), FontWeight = FontWeights.SemiBold });
+            tx.Children.Add(new TextBlock { Text = Loc.T(note), FontSize = 11.5, Opacity = 0.7 });
+            sp.Children.Add(tx);
+            var mi = new MenuItem { Header = sp };
+            mi.Click += async (_, _) => await Export(title, make, copyFile);
+            menu.Items.Add(mi);
+        }
+        double from = Timeline.Start, to = Timeline.End;
+        var enc = BestEncoder();
+        if (enc != null)
+        {
+            Item("\uE8C4", "Vertical for TikTok / Shorts", "9:16, the middle of the screen", () => ClipLibrary.Vertical(_open.Clip.Path, from, to, enc));
+            Item("\uE916", "Slow motion (0.5×)", "The selected part at half speed", () => ClipLibrary.SlowMotion(_open.Clip.Path, from, to, enc, 0.5));
+            Item("\uE916", "Super slow (0.25×)", "Best from clips recorded at 120 fps or more", () => ClipLibrary.SlowMotion(_open.Clip.Path, from, to, enc, 0.25));
+        }
+        Item("\uE8B9", "GIF", "Up to 15 seconds, small enough to post anywhere", () => ClipLibrary.Gif(_open.Clip.Path, from, to), copyFile: true);
+        double at = Player.Position.TotalSeconds;
+        Item("\uE722", "Save this frame as a picture", "Full size PNG of where the video is paused", () => ClipLibrary.Frame(_open.Clip.Path, at), copyFile: true);
+        menu.IsOpen = true;
+    }
+
+    async Task Export(string title, Func<Task<string>> make, bool copyFile)
+    {
+        Player.Pause(); _playing = false; PlayGlyph.Text = "\uE768";
+        var steps = new List<ProgressStep> { new(title) };
+        MainWindow.Instance.ShowSteps(title, "", steps, "");
+        steps[0].Start();
+        try
+        {
+            var path = await make();
+            steps[0].Finish(Format.Bytes(new FileInfo(path).Length));
+            if (path.EndsWith(".mp4", StringComparison.OrdinalIgnoreCase)) { await ClipLibrary.MakeThumbnail(path); LoadLibrary(); }
+            if (copyFile) try { Clipboard.SetFileDropList(new System.Collections.Specialized.StringCollection { path }); } catch { }
+            await MainWindow.Instance.FinishSteps("Saved", copyFile ? Loc.F("{0} is copied: paste it into a chat with Ctrl+V.", Path.GetFileName(path)) : Loc.F("Saved as {0}. The original is untouched.", Path.GetFileName(path)));
+        }
+        catch (Exception ex)
+        {
+            steps[0].Skip(Loc.T("Didn't finish"));
+            await MainWindow.Instance.FinishSteps("That didn't work", ex.Message, ok: false);
+        }
+    }
+
     // ───────── Input overlay ─────────
 
     InputTimeline _inputs;
