@@ -24,21 +24,21 @@ Pulse is an open-source, evidence-based Windows optimizer. It finds what's actua
 ## What it never does
 - Never changes a setting without saving the exact previous value first.
 - Never uploads anything. It only downloads from its own GitHub releases: FFmpeg when you turn on Clips (below), and new versions of Pulse when you press Install on the update card. The lag checks only send pings. Match recaps read each game's own official data: Counter-Strike 2 and Dota 2 send it to Pulse on your PC, League of Legends serves it on your PC, and for VALORANT Pulse asks Riot for your own last match using the Riot Client's sign-in on your PC.
-- Never reads, writes or injects into games or other processes.
+- Never reads, writes or injects into running games or other processes.
 - Never turns off your antivirus or adds exclusions.
 - Never applies tweaks that Microsoft documents as unused, or undocumented ones as speed boosts.
 
 Automated tests check these promises on every build (see [SECURITY.md](SECURITY.md)).
 
-It asks for admin because tweaks change system-wide settings, and scans and restore points need it.
+It asks for admin because tweaks change system-wide settings, and scans and restore points need it. You can turn on *Skip the admin prompt* (a Windows scheduled task that starts Pulse with admin rights), and turn it off again on the Safety page.
 
 ## Tweaks deliberately left out
 | Tweak | Why |
 | --- | --- |
 | MMCSS "GPU Priority" / "SFIO Priority" | Microsoft documents them as "not yet used" / "not used" |
-| NetworkThrottlingIndex | No Microsoft documentation; the limit it targets was described for Windows Vista |
-| TCPNoDelay | Not in Microsoft's TCP/IP documentation |
 | Timer resolution registry tweaks | Timer resolution has been per-process since Windows 10 2004 |
+
+NetworkThrottlingIndex and TCPNoDelay (Nagle's algorithm) aren't in Microsoft's documentation, but many players ask for them. Pulse offers them as optional, labelled *Helps only on some PCs*, with that explained, and Measure shows whether they help on your PC.
 
 ## Verify your download
 Every release lists the SHA-256 of `PulseOptimizer.exe`, and carries a **build attestation**: signed proof from GitHub that it was built from this repository's public code. To check it, install the [GitHub CLI](https://cli.github.com) and run:
