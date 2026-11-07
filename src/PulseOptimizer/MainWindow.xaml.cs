@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
@@ -599,23 +600,40 @@ public partial class MainWindow : Window
 
     void StartUpdateChecks()
     {
-        _checkForUpdate = Check;
-        async Task Check()
-        {
-            _lastUpdateCheck = DateTime.UtcNow;
-            var st = TweakEngine.State.Settings;
-            if (!st.CheckForUpdates || UpdateBar.Visibility == Visibility.Visible) return;
-            var latest = await Updater.LatestVersion();
-            if (latest == null || !Updater.IsNewer(latest, Updater.CurrentVersion) || latest == st.SkippedVersion) return;
-            _newVersion = latest;
-            UpdateTitle.Text = Loc.F("Pulse {0} is out", latest);
-            UpdateText.Text = Loc.F("You have {0}. Your settings and clips stay as they are, and Pulse restarts by itself.", Updater.CurrentVersion);
-            UpdateBar.Visibility = Visibility.Visible;
-        }
+        _checkForUpdate = () => CheckForUpdate(false);
+        Task Check() => CheckForUpdate(false);
         var t = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromHours(12) };
         t.Tick += async (_, _) => await Check();
         t.Start();
         _ = Task.Delay(8000).ContinueWith(_ => Dispatcher.InvokeAsync(Check));
+    }
+
+    /// <summary>Clicking the version number checks for an update right away (even one you skipped).</summary>
+    async void Version_Click(object sender, MouseButtonEventArgs e)
+    {
+        if (UpdateBar.Visibility == Visibility.Visible) return;
+        Toast(Loc.T("Checking for updates…"), ToastKind.Info);
+        var found = await CheckForUpdate(true);
+        if (found == null) Toast(Loc.T("Couldn't check for updates. Check your internet connection and try again."), ToastKind.Warning);
+        else if (found == false) Toast(Loc.F("You have the newest Pulse ({0}).", Updater.CurrentVersion));
+    }
+
+    /// <summary>Shows the update bar when a newer Pulse is out. True: found one; false: up to date; null: couldn't check.</summary>
+    async Task<bool?> CheckForUpdate(bool manual)
+    {
+        {
+            _lastUpdateCheck = DateTime.UtcNow;
+            var st = TweakEngine.State.Settings;
+            if ((!manual && !st.CheckForUpdates) || UpdateBar.Visibility == Visibility.Visible) return false;
+            var latest = await Updater.LatestVersion();
+            if (latest == null) return null;
+            if (!Updater.IsNewer(latest, Updater.CurrentVersion) || (!manual && latest == st.SkippedVersion)) return false;
+            _newVersion = latest;
+            UpdateTitle.Text = Loc.F("Pulse {0} is out", latest);
+            UpdateText.Text = Loc.F("You have {0}. Your settings and clips stay as they are, and Pulse restarts by itself.", Updater.CurrentVersion);
+            UpdateBar.Visibility = Visibility.Visible;
+            return true;
+        }
     }
 
     async void Update_Click(object sender, RoutedEventArgs e)

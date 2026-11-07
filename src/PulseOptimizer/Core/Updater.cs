@@ -31,6 +31,8 @@ public static class Updater
                 // GitHub answers /releases/latest with a redirect to /releases/tag/vX.Y.Z.
                 using var r = await http.GetAsync($"https://github.com/{repo}/releases/latest", ct);
                 var v = TagFromUrl(r.Headers.Location?.ToString());
+                // A new release takes a few minutes to build its files: only offer it once they're attached.
+                if (v != null && !await Ready(http, repo, v, ct)) v = null;
                 if (v != null && (best == null || Version.Parse(v) > Version.Parse(best)))
                 {
                     best = v;
@@ -40,6 +42,17 @@ public static class Updater
             catch { }
         }
         return best;
+    }
+
+    /// <summary>True once the release has its checksums (and so its exe) attached.</summary>
+    static async Task<bool> Ready(HttpClient http, string repo, string version, CancellationToken ct)
+    {
+        try
+        {
+            using var r = await http.GetAsync($"https://github.com/{repo}/releases/download/v{version}/SHA256SUMS.txt", HttpCompletionOption.ResponseHeadersRead, ct);
+            return (int)r.StatusCode is >= 200 and < 400; // GitHub answers with a redirect to the file
+        }
+        catch { return false; }
     }
 
     internal static string TagFromUrl(string url)

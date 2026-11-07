@@ -2537,5 +2537,10 @@
  "Played {0}": "Jugaste {0}",
  "Session": "Sesión",
  "Played": "Jugado",
- "Started": "Empezó"
+ "Started": "Empezó",
+ "Check for updates": "Buscar actualizaciones",
+ "Checking for updates…": "Buscando actualizaciones…",
+ "Couldn't check for updates. Check your internet connection and try again.": "No se pudo buscar actualizaciones. Revisa tu conexión a internet e inténtalo de nuevo.",
+ "You have the newest Pulse ({0}).": "Tienes el Pulse más reciente ({0}).",
+ "GAMING PC COMPANION": "TU COMPAÑERO PARA PC GAMER"
 }
