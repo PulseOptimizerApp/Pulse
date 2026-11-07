@@ -19,17 +19,24 @@ public sealed class InputOverlayView : FrameworkElement
     /// <summary>"kbm", "xbox" or "ps".</summary>
     public string Kind { get => _kind; set { _kind = value ?? "kbm"; InvalidateMeasure(); InvalidateVisual(); } }
 
-    public static Size BaseSize(string kind) => kind == "kbm" ? new Size(KbW + 22 + 104, 5 * U + 4 * G) : new Size(330, 196);
+    /// <summary>How tall the overlay is, as a share of the picture's height (on screen and in exported copies).</summary>
+    public const double Share = 0.17;
+
+    public static Size BaseSize(string kind) => kind == "kbm" ? new Size(Pad + KbW + 12 + MouseW + Pad, Pad + KbH + Pad) : new Size(330, 196);
 
     protected override Size MeasureOverride(Size available) => BaseSize(_kind);
 
     // ───────── palette ─────────
 
-    static readonly Brush KeyFill = Frozen(new SolidColorBrush(Color.FromArgb(0xCC, 0x16, 0x18, 0x20)));
-    static readonly Brush KeyText = Brushes.White;
-    static readonly Pen KeyEdge = FrozenPen(new SolidColorBrush(Color.FromArgb(0x55, 0xFF, 0xFF, 0xFF)), 1.2);
-    static readonly Brush Lit = Frozen(new LinearGradientBrush(Color.FromRgb(0x22, 0xD3, 0xEE), Color.FromRgb(0x5B, 0x8C, 0xFF), 45));
-    static readonly Pen LitEdge = FrozenPen(new SolidColorBrush(Color.FromRgb(0x9E, 0xE7, 0xFF)), 1.6);
+    // A soft dark plate behind everything, so it reads over any game without hiding much of it.
+    static readonly Brush Plate = Frozen(new SolidColorBrush(Color.FromArgb(0x8C, 0x08, 0x09, 0x0C)));
+    static readonly Pen PlateEdge = FrozenPen(new SolidColorBrush(Color.FromArgb(0x26, 0xFF, 0xFF, 0xFF)), 1);
+    static readonly Brush KeyFill = Frozen(new SolidColorBrush(Color.FromArgb(0x59, 0x2A, 0x2D, 0x36)));
+    static readonly Brush KeyText = Frozen(new SolidColorBrush(Color.FromArgb(0xD9, 0xFF, 0xFF, 0xFF)));
+    static readonly Pen KeyEdge = FrozenPen(new SolidColorBrush(Color.FromArgb(0x30, 0xFF, 0xFF, 0xFF)), 1);
+    static readonly Brush Lit = Frozen(new SolidColorBrush(Color.FromRgb(0xF2, 0xF4, 0xF8)));
+    static readonly Brush LitText = Frozen(new SolidColorBrush(Color.FromRgb(0x0B, 0x0C, 0x10)));
+    static readonly Pen LitEdge = FrozenPen(new SolidColorBrush(Color.FromRgb(0xFF, 0xFF, 0xFF)), 1);
     static readonly Typeface Face = new(new FontFamily("Segoe UI"), FontStyles.Normal, FontWeights.SemiBold, FontStretches.Normal);
 
     static Brush Frozen(Brush b) { b.Freeze(); return b; }
@@ -42,63 +49,66 @@ public sealed class InputOverlayView : FrameworkElement
 
     // ───────── keyboard + mouse ─────────
 
-    const double U = 40, G = 6;
-    // Each row: (label, virtual key, width in key units)
+    const double U = 30, G = 4, Pad = 10, MouseW = 62;
+    // The keys games use, in their real positions. Each: (label, virtual key, width in key units); vk -1 = gap.
     static readonly (string L, int Vk, double W)[][] Rows =
     {
-        new[] { ("Esc", 0x1B, 1.0), ("1", 0x31, 1), ("2", 0x32, 1), ("3", 0x33, 1), ("4", 0x34, 1), ("5", 0x35, 1) },
-        new[] { ("⇥", 0x09, 1.5), ("Q", 0x51, 1), ("W", 0x57, 1), ("E", 0x45, 1), ("R", 0x52, 1), ("T", 0x54, 1) },
-        new[] { ("⇪", 0x14, 1.75), ("A", 0x41, 1), ("S", 0x53, 1), ("D", 0x44, 1), ("F", 0x46, 1), ("G", 0x47, 1) },
-        new[] { ("⇧", 0x10, 2.25), ("Z", 0x5A, 1), ("X", 0x58, 1), ("C", 0x43, 1), ("V", 0x56, 1), ("B", 0x42, 1) },
-        new[] { ("Ctrl", 0x11, 1.25), ("Alt", 0x12, 1.25), ("", 0x20, 4.75) },
+        new[] { ("Esc", 0x1B, 1.3), ("1", 0x31, 1), ("2", 0x32, 1), ("3", 0x33, 1), ("4", 0x34, 1), ("5", 0x35, 1) },
+        new[] { ("Tab", 0x09, 1.3), ("Q", 0x51, 1), ("W", 0x57, 1), ("E", 0x45, 1), ("R", 0x52, 1), ("T", 0x54, 1) },
+        new[] { ("Shift", 0x10, 1.6), ("A", 0x41, 1), ("S", 0x53, 1), ("D", 0x44, 1), ("F", 0x46, 1), ("G", 0x47, 1) },
+        new[] { ("Ctrl", 0x11, 1.3), ("Z", 0x5A, 1), ("X", 0x58, 1), ("C", 0x43, 1), ("V", 0x56, 1), ("B", 0x42, 1) },
+        new[] { ("Alt", 0x12, 1.3), ("", 0x20, 4.7) },
     };
     static readonly double KbW = Rows.Max(r => r.Sum(k => k.W * U) + (r.Length - 1) * G);
+    static readonly double KbH = Rows.Length * U + (Rows.Length - 1) * G;
 
     void DrawKeyboardAndMouse(DrawingContext dc)
     {
+        var size = BaseSize("kbm");
+        dc.DrawRoundedRectangle(Plate, PlateEdge, new Rect(0, 0, size.Width, size.Height), 12, 12);
         var held = new HashSet<int>(_frame?.Keys ?? Array.Empty<int>());
         double dip = VisualTreeHelper.GetDpi(this).PixelsPerDip;
         for (int r = 0; r < Rows.Length; r++)
         {
-            double x = 0, y = r * (U + G);
+            double x = Pad, y = Pad + r * (U + G);
             foreach (var (label, vk, w) in Rows[r])
             {
                 var rect = new Rect(x, y, w * U, U);
+                x += w * U + G;
+                if (vk < 0) continue;
                 bool on = held.Contains(vk);
-                dc.DrawRoundedRectangle(on ? Lit : KeyFill, on ? LitEdge : KeyEdge, rect, 7, 7);
+                dc.DrawRoundedRectangle(on ? Lit : KeyFill, on ? LitEdge : KeyEdge, rect, 6, 6);
                 if (label.Length > 0)
                 {
-                    var ft = new FormattedText(label, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, Face, label.Length > 1 && label[0] < 128 ? 12 : 15, KeyText, dip);
+                    var ft = new FormattedText(label, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, Face, label.Length > 1 ? 9.5 : 12.5, on ? LitText : KeyText, dip);
                     dc.DrawText(ft, new Point(rect.X + (rect.Width - ft.Width) / 2, rect.Y + (rect.Height - ft.Height) / 2));
                 }
-                x += w * U + G;
             }
         }
-        DrawMouse(dc, KbW + 22, 6, (MouseButton)(_frame?.Mouse ?? 0));
+        DrawMouse(dc, Pad + KbW + 12, Pad, (MouseButton)(_frame?.Mouse ?? 0));
     }
 
     static void DrawMouse(DrawingContext dc, double x, double y, MouseButton m)
     {
-        double w = 104, h = 196;
-        var body = new Rect(x, y, w, h - 12);
-        var shell = new RectangleGeometry(body, 46, 52);
+        double w = MouseW, h = KbH;
+        var body = new Rect(x, y, w, h);
+        var shell = new RectangleGeometry(body, w / 2, w / 2 + 4);
         dc.DrawGeometry(KeyFill, KeyEdge, shell);
-        double split = y + 78;
-        // Left and right buttons: the top half, split down the middle.
-        var left = new RectangleGeometry(new Rect(x, y, w / 2, split - y));
-        var right = new RectangleGeometry(new Rect(x + w / 2, y, w / 2, split - y));
+        double split = y + h * 0.42;
+        // Left and right buttons: the top part, split down the middle.
         dc.PushClip(shell);
-        if (m.HasFlag(MouseButton.Left)) dc.DrawGeometry(Lit, null, left);
-        if (m.HasFlag(MouseButton.Right)) dc.DrawGeometry(Lit, null, right);
+        if (m.HasFlag(MouseButton.Left)) dc.DrawRectangle(Lit, null, new Rect(x, y, w / 2, split - y));
+        if (m.HasFlag(MouseButton.Right)) dc.DrawRectangle(Lit, null, new Rect(x + w / 2, y, w / 2, split - y));
         dc.Pop();
         dc.DrawLine(KeyEdge, new Point(x + w / 2, y), new Point(x + w / 2, split));
-        dc.DrawLine(KeyEdge, new Point(x + 4, split), new Point(x + w - 4, split));
+        dc.DrawLine(KeyEdge, new Point(x + 3, split), new Point(x + w - 3, split));
         // Wheel.
         bool wheel = m.HasFlag(MouseButton.Middle) || m.HasFlag(MouseButton.WheelUp) || m.HasFlag(MouseButton.WheelDown);
-        dc.DrawRoundedRectangle(wheel ? Lit : Frozen(new SolidColorBrush(Color.FromArgb(0xFF, 0x0B, 0x0C, 0x10))), wheel ? LitEdge : KeyEdge, new Rect(x + w / 2 - 8, y + 22, 16, 34), 8, 8);
+        dc.DrawRoundedRectangle(wheel ? Lit : Plate, wheel ? LitEdge : KeyEdge, new Rect(x + w / 2 - 5, y + 14, 10, 22), 5, 5);
         // Side buttons on the left edge.
-        dc.DrawRoundedRectangle(m.HasFlag(MouseButton.Forward) ? Lit : KeyFill, m.HasFlag(MouseButton.Forward) ? LitEdge : KeyEdge, new Rect(x - 4, split + 10, 12, 24), 4, 4);
-        dc.DrawRoundedRectangle(m.HasFlag(MouseButton.Back) ? Lit : KeyFill, m.HasFlag(MouseButton.Back) ? LitEdge : KeyEdge, new Rect(x - 4, split + 40, 12, 24), 4, 4);
+        double sy = split + 10;
+        dc.DrawRoundedRectangle(m.HasFlag(MouseButton.Forward) ? Lit : KeyFill, m.HasFlag(MouseButton.Forward) ? LitEdge : KeyEdge, new Rect(x - 3, sy, 8, 18), 3, 3);
+        dc.DrawRoundedRectangle(m.HasFlag(MouseButton.Back) ? Lit : KeyFill, m.HasFlag(MouseButton.Back) ? LitEdge : KeyEdge, new Rect(x - 3, sy + 22, 8, 18), 3, 3);
     }
 
     // ───────── controller ─────────
@@ -144,7 +154,7 @@ public sealed class InputOverlayView : FrameworkElement
             var center = new Point(face.X + dx, face.Y + dy);
             bool on = On(b);
             dc.DrawEllipse(on ? Lit : Frozen(new SolidColorBrush(Color.FromArgb(0xFF, 0x0E, 0x10, 0x16))), on ? LitEdge : KeyEdge, center, 12, 12);
-            var ink = on ? Brushes.White : new SolidColorBrush(ps ? PsColor(b) : c);
+            var ink = on ? LitText : new SolidColorBrush(ps ? PsColor(b) : c);
             if (ps) PsShape(dc, b, center, new Pen(ink, 2));
             else
             {
@@ -203,7 +213,7 @@ public sealed class InputOverlayView : FrameworkElement
     {
         dc.DrawRoundedRectangle(on ? Lit : KeyFill, on ? LitEdge : KeyEdge, r, r.Height / 2, r.Height / 2);
         if (label.Length == 0) return;
-        var ft = new FormattedText(label, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, Face, 8.5, Brushes.White, dip);
+        var ft = new FormattedText(label, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, Face, 8.5, on ? LitText : KeyText, dip);
         dc.DrawText(ft, new Point(r.X + (r.Width - ft.Width) / 2, r.Y + (r.Height - ft.Height) / 2));
     }
 

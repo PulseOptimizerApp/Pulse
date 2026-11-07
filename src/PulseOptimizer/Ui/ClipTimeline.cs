@@ -33,6 +33,25 @@ public class ClipTimeline : FrameworkElement
     /// <summary>Bookmarked moments (seconds), drawn as small markers on the ruler. Click near one to jump there.</summary>
     public List<double> Markers { get => _markers; set { _markers = value ?? new(); InvalidateVisual(); } }
 
+    List<(double T, string Kind)> _moments = new();
+    const double LaneTop = StripTop + StripH + 8, LaneH = 18;
+
+    /// <summary>Kills and deaths in the clip (seconds, "kill"/"death"), drawn in a lane under the filmstrip.</summary>
+    public List<(double T, string Kind)> Moments
+    {
+        get => _moments;
+        set
+        {
+            _moments = value ?? new();
+            Height = _moments.Count > 0 ? LaneTop + LaneH + 4 : StripTop + StripH + 4;
+            InvalidateVisual();
+        }
+    }
+
+    static readonly Brush KillFill = Freeze(new SolidColorBrush(Color.FromRgb(0x34, 0xD3, 0x99)));
+    static readonly Brush DeathFill = Freeze(new SolidColorBrush(Color.FromRgb(0xF8, 0x71, 0x71)));
+    static Brush Freeze(Brush b) { b.Freeze(); return b; }
+
     /// <summary>The user scrubbed to a time (seconds).</summary>
     public event Action<double> Seek;
     /// <summary>The user moved a trim handle.</summary>
@@ -115,6 +134,33 @@ public class ClipTimeline : FrameworkElement
             dc.DrawGeometry(amber, null, g);
         }
 
+        // Kills (green, crosshair) and deaths (red, cross) in their own lane, like Medal's.
+        if (_moments.Count > 0)
+        {
+            var mark = new Pen(Brushes.White, 1.6); mark.Freeze();
+            var tick = new Pen(new SolidColorBrush(Color.FromArgb(0x55, 0xFF, 0xFF, 0xFF)), 1); tick.Freeze();
+            foreach (var (t, kind) in _moments.Where(x => x.T >= 0 && x.T <= Duration))
+            {
+                double xm = X(t), cy = LaneTop + LaneH / 2;
+                bool kill = kind == "kill";
+                dc.DrawLine(tick, new Point(xm, StripTop + StripH - 6), new Point(xm, LaneTop + 1));
+                dc.DrawEllipse(kill ? KillFill : DeathFill, null, new Point(xm, cy), 8, 8);
+                if (kill)
+                {
+                    dc.DrawEllipse(null, mark, new Point(xm, cy), 3.6, 3.6);
+                    dc.DrawLine(mark, new Point(xm - 6, cy), new Point(xm - 3.6, cy));
+                    dc.DrawLine(mark, new Point(xm + 3.6, cy), new Point(xm + 6, cy));
+                    dc.DrawLine(mark, new Point(xm, cy - 6), new Point(xm, cy - 3.6));
+                    dc.DrawLine(mark, new Point(xm, cy + 3.6), new Point(xm, cy + 6));
+                }
+                else
+                {
+                    dc.DrawLine(mark, new Point(xm - 3.5, cy - 3.5), new Point(xm + 3.5, cy + 3.5));
+                    dc.DrawLine(mark, new Point(xm + 3.5, cy - 3.5), new Point(xm - 3.5, cy + 3.5));
+                }
+            }
+        }
+
         // Playhead: white, so it stands out against the gradient frame.
         double xp = X(Position);
         var head = new Pen(Brushes.White, 2); head.Freeze();
@@ -136,7 +182,13 @@ public class ClipTimeline : FrameworkElement
     protected override void OnMouseLeftButtonDown(MouseButtonEventArgs e)
     {
         var p = e.GetPosition(this);
-        bool onStrip = p.Y >= StripTop - 4;
+        // A click on a kill or death jumps to just before it, so you see it happen.
+        if (_moments.Count > 0 && p.Y >= LaneTop - 2)
+        {
+            var near = _moments.OrderBy(m => Math.Abs(X(m.T) - p.X)).First();
+            if (Math.Abs(X(near.T) - p.X) <= 10) { _drag = Drag.Playhead; Apply(X(Math.Max(0, near.T - 1.5))); _drag = Drag.None; e.Handled = true; return; }
+        }
+        bool onStrip = p.Y >= StripTop - 4 && p.Y <= StripTop + StripH + 4;
         if (onStrip && Math.Abs(p.X - X(Start)) <= HandleW) _drag = Drag.Start;
         else if (onStrip && Math.Abs(p.X - X(End)) <= HandleW) _drag = Drag.End;
         else _drag = Drag.Playhead;

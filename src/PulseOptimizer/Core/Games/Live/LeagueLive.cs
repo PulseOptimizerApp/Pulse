@@ -96,6 +96,16 @@ public sealed class LeagueLive : IDisposable
             _lastEventId = id;
             switch (e.Str("EventName"))
             {
+                case "ChampionKill":
+                {
+                    // Event times are game seconds: place them on this PC's clock from the current game time.
+                    double now = root.Get("gameData", "gameTime") is { ValueKind: JsonValueKind.Number } g ? g.GetDouble() : 0;
+                    double at = e.Get("EventTime") is { ValueKind: JsonValueKind.Number } et ? et.GetDouble() : now;
+                    var when = DateTime.Now.AddSeconds(-Math.Max(0, now - at));
+                    if (IsMe(e.Str("KillerName"), me)) MatchEvents.RaiseMoment("League of Legends", Moment.Kill, when);
+                    if (IsMe(e.Str("VictimName"), me)) MatchEvents.RaiseMoment("League of Legends", Moment.Death, when);
+                    break;
+                }
                 case "Multikill" when IsMe(e.Str("KillerName"), me):
                 {
                     int streak = e.Int("KillStreak");

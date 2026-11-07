@@ -148,6 +148,7 @@ public sealed class Cs2Tracker
     int _round = -1, _roundKills, _roundHs, _totalHs, _best3k;
     DateTime _firstKillAt, _lastKillAt;
     bool _pending, _finished, _savedThisRound;
+    int _lastHealth = -1;
     readonly List<string> _highlights = new();
     JsonElement _lastStats;
     string _team = "";
@@ -180,8 +181,12 @@ public sealed class Cs2Tracker
             if (root.Get("player", "match_stats") is { } ms) _lastStats = ms.Clone();
             int k = root.Int("player", "state", "round_kills");
             int hs = root.Int("player", "state", "round_killhs");
+            int health = root.Int("player", "state", "health");
+            if (_lastHealth > 0 && health == 0) MatchEvents.RaiseMoment("Counter-Strike 2", Moment.Death);
+            _lastHealth = health;
             if (k > _roundKills)
             {
+                for (int i = _roundKills; i < k; i++) MatchEvents.RaiseMoment("Counter-Strike 2", Moment.Kill);
                 if (_roundKills == 0) _firstKillAt = DateTime.Now;
                 _lastKillAt = DateTime.Now;
                 _roundKills = k;
@@ -253,7 +258,7 @@ public sealed class DotaTracker
     bool _finished;
     string _matchId = "";
     readonly List<string> _highlights = new();
-    int _pendingStreak;
+    int _pendingStreak, _lastDeaths = -1;
     System.Threading.Timer _timer;
 
     void FlushStreak()
@@ -268,11 +273,13 @@ public sealed class DotaTracker
     public void Update(JsonElement root)
     {
         var id = root.Str("map", "matchid");
-        if (id != _matchId) { _matchId = id; _start = DateTime.Now; _lastKills = 0; _finished = false; _kills.Clear(); _highlights.Clear(); }
-        int kills = root.Int("player", "kills");
+        if (id != _matchId) { _matchId = id; _start = DateTime.Now; _lastKills = 0; _lastDeaths = -1; _finished = false; _kills.Clear(); _highlights.Clear(); }
+        int kills = root.Int("player", "kills"), deaths = root.Int("player", "deaths");
+        if (_lastDeaths >= 0 && deaths > _lastDeaths) MatchEvents.RaiseMoment("Dota 2", Moment.Death);
+        _lastDeaths = deaths;
         if (kills > _lastKills)
         {
-            for (int i = _lastKills; i < kills; i++) _kills.Add(DateTime.Now);
+            for (int i = _lastKills; i < kills; i++) { _kills.Add(DateTime.Now); MatchEvents.RaiseMoment("Dota 2", Moment.Kill); }
             _lastKills = kills;
             // Dota's multi-kill window is 18 seconds between kills.
             int streak = 1;

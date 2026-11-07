@@ -331,11 +331,13 @@ public static class ClipsService
             return null;
         }
         _saving = true;
+        var pressedAt = DateTime.Now; // the replay ends here
         if (title == null) Feedback.Pressed(S, seconds); // the sound and "Clipping…" popup come the moment the key is pressed (auto clips show when saved)
         try
         {
             var path = await _rec.Save(S.ClipsFolder, _game ?? "Clip", seconds);
             SaveInputs(path);
+            ClipLibrary.SaveEnd(path, pressedAt);
             if (title != null)
             {
                 S.Titles[Path.GetFileNameWithoutExtension(path)] = title;

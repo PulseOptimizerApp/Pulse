@@ -73,7 +73,7 @@ public static class ClipLibrary
         var thumb = ThumbFor(clip);
         Directory.CreateDirectory(System.IO.Path.GetDirectoryName(thumb)!);
         try { File.SetAttributes(System.IO.Path.GetDirectoryName(thumb)!, FileAttributes.Hidden | FileAttributes.Directory); } catch { }
-        var (code, _) = await Ffmpeg.Run($"-hide_banner -loglevel error -y -ss 1 -i \"{clip}\" -frames:v 1 -vf scale=480:-2 -q:v 4 \"{thumb}\"", timeoutMs: 30_000);
+        var (code, _) = await Ffmpeg.Run($"-hide_banner -loglevel error -y -ss 1 -i \"{clip}\" -frames:v 1 -vf {SquarePixels},scale=480:-2 -q:v 4 \"{thumb}\"", timeoutMs: 30_000);
         return code == 0 && File.Exists(thumb) ? thumb : null;
     }
 
@@ -87,7 +87,7 @@ public static class ClipLibrary
         Directory.CreateDirectory(System.IO.Path.GetDirectoryName(strip)!);
         // Slightly fewer frames per second than needed so the tile always fills before the clip ends.
         var rate = (frames / Math.Max(seconds, 1) * 0.98).ToString("0.#####", CultureInfo.InvariantCulture);
-        var (code, _) = await Ffmpeg.Run($"-hide_banner -loglevel error -y -i \"{clip}\" -an -vf fps={rate},scale=160:-2,tile={frames}x1 -frames:v 1 -q:v 5 \"{strip}\"", timeoutMs: 60_000);
+        var (code, _) = await Ffmpeg.Run($"-hide_banner -loglevel error -y -i \"{clip}\" -an -vf fps={rate},{SquarePixels},scale=160:-2,tile={frames}x1 -frames:v 1 -q:v 5 \"{strip}\"", timeoutMs: 60_000);
         return code == 0 && File.Exists(strip) ? strip : null;
     }
 
@@ -99,6 +99,27 @@ public static class ClipLibrary
     }
 
     internal static int CountAudio(string ffmpegOutput) => Regex.Matches(ffmpegOutput ?? "", @"Stream #\d+:\d+[^:]*: Audio:").Count;
+
+    // ───────── When the clip ends (for kills and deaths on its timeline) ─────────
+
+    static string EndFor(string clip) => System.IO.Path.ChangeExtension(clip, ".end");
+
+    /// <summary>Notes the moment the clip's last frame was recorded (when its key was pressed).</summary>
+    public static void SaveEnd(string clip, DateTime end)
+    {
+        try { File.WriteAllText(EndFor(clip), end.ToUniversalTime().Ticks.ToString(System.Globalization.CultureInfo.InvariantCulture)); } catch { }
+    }
+
+    /// <summary>When the clip's last frame was recorded, or null (trimmed copies, older clips).</summary>
+    public static DateTime? LoadEnd(string clip)
+    {
+        try
+        {
+            return File.Exists(EndFor(clip)) && long.TryParse(File.ReadAllText(EndFor(clip)).Trim(), out var t)
+                ? new DateTime(t, DateTimeKind.Utc).ToLocalTime() : null;
+        }
+        catch { return null; }
+    }
 
     // ───────── Bookmarks (a small file next to the clip) ─────────
 
@@ -164,6 +185,7 @@ public static class ClipLibrary
         File.Move(clip, dest);
         try { if (File.Exists(ThumbFor(clip))) File.Move(ThumbFor(clip), ThumbFor(dest), true); } catch { }
         try { if (File.Exists(MarksFor(clip))) File.Move(MarksFor(clip), MarksFor(dest), true); } catch { }
+        try { if (File.Exists(EndFor(clip))) File.Move(EndFor(clip), EndFor(dest), true); } catch { }
         try { if (File.Exists(StripFor(clip))) File.Move(StripFor(clip), StripFor(dest), true); } catch { }
         try { if (File.Exists(InputTimeline.FileFor(clip))) File.Move(InputTimeline.FileFor(clip), InputTimeline.FileFor(dest), true); } catch { }
         return dest;
@@ -260,6 +282,7 @@ public static class ClipLibrary
         try { File.Delete(ThumbFor(clip)); } catch { }
         try { File.Delete(StripFor(clip)); } catch { }
         try { File.Delete(MarksFor(clip)); } catch { }
+        try { File.Delete(EndFor(clip)); } catch { }
         try { File.Delete(InputTimeline.FileFor(clip)); } catch { }
     }
 
@@ -286,14 +309,14 @@ public static class ClipLibrary
     internal static string OverlayInput(InputBurn burn) => burn == null ? "" : $"-f concat -safe 0 -i \"{burn.ListFile}\"";
 
     /// <summary>
-    /// The picture to encode: the clip's video, with the input overlay in the bottom-left corner when there is one,
+    /// The picture to encode: the clip's video, with the input overlay in the top-right corner when there is one,
     /// scaled to <paramref name="height"/> (0 = unchanged).
     /// </summary>
     internal static string VideoArgs(InputBurn burn, int height)
     {
         string scale = height > 0 ? $"scale=-2:{height}" : "";
         if (burn == null) return $"-map 0:v:0 -vf {SquarePixels}" + (height > 0 ? "," + scale : "");
-        var chain = "overlay=x=main_h*0.025:y=main_h-overlay_h-main_h*0.035" + (height > 0 ? "," + scale : "") + ",format=yuv420p";
+        var chain = "overlay=x=main_w-overlay_w-main_h*0.025:y=main_h*0.025" + (height > 0 ? "," + scale : "") + ",format=yuv420p";
         return $"-filter_complex \"[0:v:0]{SquarePixels}[base];[base][1:v]{chain}[vout]\" -map \"[vout]\"";
     }
 
@@ -338,6 +361,19 @@ public static class ClipLibrary
         var (_, err) = await Ffmpeg.Run($"-hide_banner -i \"{clip}\"", timeoutMs: 15_000);
         var m = Regex.Match(err ?? "", @"Video:.*?(\d{3,5})x(\d{3,5})");
         return m.Success ? (int.Parse(m.Groups[1].Value), int.Parse(m.Groups[2].Value)) : (0, 0);
+    }
+
+    /// <summary>How wide the clip is meant to be shown (its display aspect, which a stretched-resolution clip sets), or 0.</summary>
+    public static async Task<double> DisplayAspect(string clip)
+    {
+        var (_, err) = await Ffmpeg.Run($"-hide_banner -i \"{clip}\"", timeoutMs: 15_000);
+        return ParseDisplayAspect(err);
+    }
+
+    internal static double ParseDisplayAspect(string ffmpegOutput)
+    {
+        var m = Regex.Match(ffmpegOutput ?? "", @"Video:.*?DAR (\d+):(\d+)");
+        return m.Success && int.Parse(m.Groups[2].Value) > 0 ? int.Parse(m.Groups[1].Value) / (double)int.Parse(m.Groups[2].Value) : 0;
     }
 
     /// <summary>The video bitrate (kbit/s) that makes a clip of this length fit Discord's limit with 160 kbit/s audio.</summary>

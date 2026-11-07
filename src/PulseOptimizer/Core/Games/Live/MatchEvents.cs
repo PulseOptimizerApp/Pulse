@@ -6,6 +6,17 @@ public static class MatchEvents
     /// <summary>(game, label like "3K" or "Triple kill", seconds back to cover the whole play).</summary>
     public static event Action<string, string, int> Highlight;
     public static event Action<MatchRecord> Finished;
+    /// <summary>Kills and deaths (game, kind, when), for the clip timeline.</summary>
+    public static event Action<IReadOnlyList<Moment>> Moments;
+
+    internal static void RaiseMoment(string game, string kind, DateTime? when = null) =>
+        RaiseMoments(new[] { new Moment(when ?? DateTime.Now, kind, game) });
+
+    internal static void RaiseMoments(IReadOnlyList<Moment> list)
+    {
+        if (list.Count == 0) return;
+        try { Moments?.Invoke(list); } catch { }
+    }
 
     internal static void RaiseHighlight(string game, string label, int seconds)
     {

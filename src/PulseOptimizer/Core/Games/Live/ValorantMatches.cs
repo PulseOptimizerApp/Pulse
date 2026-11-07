@@ -132,6 +132,7 @@ public sealed class ValorantMatches : IDisposable
         await LoadNames(s);
         using var doc = await Get(s, $"https://pd.{s.Shard}.a.pvp.net/match-details/v1/matches/{id}");
         if (doc == null) return null;
+        MatchEvents.RaiseMoments(KillsAndDeaths(doc.RootElement, s.Puuid));
         return Parse(doc.RootElement, s.Puuid, _agents, _maps, "val-" + id);
     }
 
@@ -241,6 +242,32 @@ public sealed class ValorantMatches : IDisposable
         };
         rec.Extras.Add($"Score {me.Int("stats", "score")}");
         return rec;
+    }
+
+    /// <summary>
+    /// Your kills and deaths with when they happened (the match's start plus each kill's game time), so clips from the
+    /// match can show them on their timeline.
+    /// </summary>
+    public static List<Moment> KillsAndDeaths(JsonElement root, string puuid)
+    {
+        var list = new List<Moment>();
+        var info = root.Get("matchInfo") ?? default;
+        if (info.Get("gameStartMillis") is not { ValueKind: JsonValueKind.Number } sm) return list;
+        var start = DateTimeOffset.FromUnixTimeMilliseconds(sm.GetInt64()).LocalDateTime;
+        IEnumerable<JsonElement> kills = Enumerable.Empty<JsonElement>();
+        if (root.Get("kills") is { ValueKind: JsonValueKind.Array } top && top.GetArrayLength() > 0) kills = top.EnumerateArray();
+        else if (root.Get("roundResults") is { ValueKind: JsonValueKind.Array } rounds)
+            kills = rounds.EnumerateArray()
+                .SelectMany(r => r.Get("playerStats") is { ValueKind: JsonValueKind.Array } ps ? ps.EnumerateArray() : Enumerable.Empty<JsonElement>())
+                .SelectMany(p => p.Get("kills") is { ValueKind: JsonValueKind.Array } k ? k.EnumerateArray() : Enumerable.Empty<JsonElement>());
+        foreach (var k in kills)
+        {
+            if (k.Get("gameTime") is not { ValueKind: JsonValueKind.Number } gt) continue;
+            var when = start.AddMilliseconds(gt.GetInt64());
+            if (k.Str("killer") == puuid && k.Str("victim") != puuid) list.Add(new Moment(when, Moment.Kill, "VALORANT"));
+            if (k.Str("victim") == puuid) list.Add(new Moment(when, Moment.Death, "VALORANT"));
+        }
+        return list;
     }
 
     /// <summary>Agent IDs → names, used when Riot's content service can't be reached.</summary>

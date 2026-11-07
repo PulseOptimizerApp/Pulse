@@ -36,6 +36,7 @@ public static class MatchService
     {
         MatchEvents.Highlight += OnHighlight;
         MatchEvents.Finished += OnFinished;
+        MatchEvents.Moments += list => MomentLog.Add(list);
         _watch = new System.Threading.Timer(_ => Watch(), null, 3000, 5000);
     }
 

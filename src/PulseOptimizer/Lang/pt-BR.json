@@ -2542,5 +2542,7 @@
  "Checking for updates…": "Procurando atualizações…",
  "Couldn't check for updates. Check your internet connection and try again.": "Não foi possível procurar atualizações. Verifique sua conexão com a internet e tente de novo.",
  "You have the newest Pulse ({0}).": "Você tem o Pulse mais recente ({0}).",
- "GAMING PC COMPANION": "SEU PARCEIRO PARA PC GAMER"
+ "GAMING PC COMPANION": "SEU PARCEIRO PARA PC GAMER",
+ "Kill": "Abate",
+ "Death": "Morte"
 }

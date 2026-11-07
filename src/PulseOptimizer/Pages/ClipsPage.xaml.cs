@@ -852,6 +852,8 @@ public partial class ClipsPage : UserControl, IPage, IReleasable
         if (SelectToggle.IsChecked == true) { vm.Selected = !vm.Selected; UpdateSelection(); return; }
         _open = vm;
         Timeline.Markers = ClipLibrary.LoadMarks(vm.Clip.Path);
+        Timeline.Moments = new();
+        MomentsLegend.Visibility = Visibility.Collapsed;
         LoadInputs(vm.Clip.Path);
         PlayerTitle.Text = vm.Clip.Name;
         ShowFavorite(vm.Clip.Favorite);
@@ -886,6 +888,20 @@ public partial class ClipsPage : UserControl, IPage, IReleasable
         UpdateTimes();
         if (_open == null) return;
         var path = _open.Clip.Path;
+        // Kills and deaths (games that share them), placed by when the clip's last frame was recorded.
+        var end = ClipLibrary.LoadEnd(path);
+        Timeline.Moments = end is DateTime e2 ? Core.Games.MomentLog.ForClip(e2, d) : new();
+        MomentsLegend.Visibility = Timeline.Moments.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        // Stretched resolutions (like 1440×1080 on a 16:9 screen): show the clip as wide as it was played.
+        _displayAspect = 0;
+        FitVideo();
+        var dar = await ClipLibrary.DisplayAspect(path);
+        if (_open?.Clip.Path == path && dar > 0 && Player.NaturalVideoHeight > 0
+            && Math.Abs(dar - Player.NaturalVideoWidth / (double)Player.NaturalVideoHeight) > dar * 0.03)
+        {
+            _displayAspect = dar;
+            FitVideo();
+        }
         var strip = await ClipLibrary.Filmstrip(path, d);
         if (_open?.Clip.Path == path && strip != null) Timeline.Strip = LoadImage(strip);
     }
@@ -1306,10 +1322,33 @@ public partial class ClipsPage : UserControl, IPage, IReleasable
         VideoGrid_SizeChanged(null, null);
     }
 
+    double _displayAspect;
+
+    /// <summary>A stretched clip is drawn at the screen's shape; every other clip keeps its own.</summary>
+    void FitVideo()
+    {
+        if (_displayAspect <= 0) { Player.Stretch = Stretch.Uniform; Player.Width = Player.Height = double.NaN; return; }
+        double w = VideoGrid.ActualWidth, h = VideoGrid.ActualHeight;
+        if (w <= 0 || h <= 0) return;
+        if (w / h > _displayAspect) w = h * _displayAspect; else h = w / _displayAspect;
+        Player.Stretch = Stretch.Fill;
+        Player.Width = w;
+        Player.Height = h;
+    }
+
     void VideoGrid_SizeChanged(object sender, SizeChangedEventArgs e)
     {
-        // About a quarter of the picture's height, like the burned-in copy.
-        InputBox.Height = Math.Max(60, VideoGrid.ActualHeight * 0.26);
+        FitVideo();
+        // A compact overlay: about a sixth of the picture's height, like the burned-in copy.
+        double picture = double.IsNaN(Player.Height) || Player.Height <= 0
+            ? Math.Min(VideoGrid.ActualHeight, Player.NaturalVideoHeight > 0 ? VideoGrid.ActualWidth * Player.NaturalVideoHeight / Player.NaturalVideoWidth : VideoGrid.ActualHeight)
+            : Player.Height;
+        InputBox.Height = Math.Max(48, picture * InputOverlayView.Share);
+        // Top right of the picture itself (not of the black bars around it).
+        double barX = Math.Max(0, (VideoGrid.ActualWidth - (double.IsNaN(Player.Width) ? VideoGrid.ActualWidth : Player.Width)) / 2);
+        double barY = Math.Max(0, (VideoGrid.ActualHeight - picture) / 2);
+        double pad = Math.Max(8, picture * 0.025);
+        InputBox.Margin = new Thickness(0, barY + pad, barX + pad, 0);
     }
 
     /// <summary>
@@ -1330,7 +1369,7 @@ public partial class ClipsPage : UserControl, IPage, IReleasable
             if (frames.Count > 0 && f.T - frames[^1].T < 1 / 30.0) { var c = f.Copy(); c.T = frames[^1].T; frames[^1] = c; }
             else frames.Add(f);
         }
-        double scale = height * 0.26 / InputOverlayView.BaseSize(_inputMode).Height;
+        double scale = height * InputOverlayView.Share / InputOverlayView.BaseSize(_inputMode).Height;
         var dir = Path.Combine(Path.GetTempPath(), "pulse-input-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
         var list = new System.Text.StringBuilder("ffconcat version 1.0\n");

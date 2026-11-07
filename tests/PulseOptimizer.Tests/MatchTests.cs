@@ -159,3 +159,49 @@ public class MatchArtTests
     [InlineData("The Range", "therange")]
     public void Art_keys_match_the_build_script(string name, string key) => Assert.Equal(key, MatchArt.Key(name));
 }
+
+public class MomentTests
+{
+    [Fact]
+    public void Kills_and_deaths_land_at_the_right_second_of_a_clip()
+    {
+        var end = new DateTime(2026, 11, 7, 12, 0, 30);
+        var moments = new[]
+        {
+            new Moment(end.AddSeconds(-25), Moment.Kill, "VALORANT"),   // 5 s into a 30 s clip
+            new Moment(end.AddSeconds(-2), Moment.Death, "VALORANT"),   // 28 s in
+            new Moment(end.AddSeconds(-40), Moment.Kill, "VALORANT"),   // before the clip
+            new Moment(end.AddSeconds(3), Moment.Kill, "VALORANT"),     // after it
+        };
+        var placed = MomentLog.Place(moments, end, 30);
+        Assert.Equal(2, placed.Count);
+        Assert.Equal(5, placed[0].T, 3);
+        Assert.Equal("kill", placed[0].Kind);
+        Assert.Equal(28, placed[1].T, 3);
+        Assert.Equal("death", placed[1].Kind);
+    }
+
+    [Fact]
+    public void Valorant_kills_and_deaths_come_from_the_match_data()
+    {
+        var json = """
+        { "matchInfo": { "gameStartMillis": 1760000000000 },
+          "kills": [
+            { "gameTime": 60000, "killer": "me", "victim": "a" },
+            { "gameTime": 90000, "killer": "b", "victim": "me" },
+            { "gameTime": 95000, "killer": "c", "victim": "d" } ] }
+        """;
+        using var doc = JsonDocument.Parse(json);
+        var list = ValorantMatches.KillsAndDeaths(doc.RootElement, "me");
+        Assert.Equal(2, list.Count);
+        var start = DateTimeOffset.FromUnixTimeMilliseconds(1760000000000).LocalDateTime;
+        Assert.Equal(new Moment(start.AddSeconds(60), Moment.Kill, "VALORANT"), list[0]);
+        Assert.Equal(new Moment(start.AddSeconds(90), Moment.Death, "VALORANT"), list[1]);
+    }
+
+    [Theory]
+    [InlineData("Stream #0:0: Video: h264 (High), yuv420p, 1440x1080 [SAR 4:3 DAR 16:9], 144 fps", 16 / 9.0)]
+    [InlineData("Stream #0:0: Video: h264 (High), yuv420p, 1920x1080, 60 fps", 0)]
+    public void Stretched_clips_are_shown_at_their_screen_shape(string ffmpeg, double aspect) =>
+        Assert.Equal(aspect, Pulse.Core.Clips.ClipLibrary.ParseDisplayAspect(ffmpeg), 3);
+}

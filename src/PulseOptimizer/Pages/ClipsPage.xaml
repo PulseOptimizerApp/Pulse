@@ -509,7 +509,7 @@
                             <MediaElement x:Name="Player" LoadedBehavior="Manual" UnloadedBehavior="Close" ScrubbingEnabled="True"
                                           MediaOpened="Player_Opened" MediaEnded="Player_Ended" MouseLeftButtonUp="PlayPause_Click" MouseLeftButtonDown="Video_MouseDown"/>
                             <!-- Input overlay (keys, mouse, controller), the same one burned into copies -->
-                            <Viewbox x:Name="InputBox" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="14" Visibility="Collapsed" IsHitTestVisible="False">
+                            <Viewbox x:Name="InputBox" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="14" Visibility="Collapsed" IsHitTestVisible="False">
                                 <ui:InputOverlayView x:Name="InputView"/>
                             </Viewbox>
                             <!-- Full screen, in the video's corner like every video player -->
@@ -539,6 +539,13 @@
                         <StackPanel Grid.Column="1" Margin="14,0,0,0" VerticalAlignment="Center">
                             <TextBlock x:Name="TimeText" FontFamily="{StaticResource MonoFont}" FontSize="13"/>
                             <TextBlock x:Name="SelText" FontSize="12" Foreground="{StaticResource TextDimBrush}" Margin="0,2,0,0"/>
+                        </StackPanel>
+                        <!-- What the dots under the filmstrip mean (kills and deaths) -->
+                        <StackPanel x:Name="MomentsLegend" Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="22,0,0,0" Visibility="Collapsed">
+                            <Ellipse Width="9" Height="9" Fill="#34D399" VerticalAlignment="Center"/>
+                            <TextBlock Text="Kill" FontSize="12" Foreground="{StaticResource TextDimBrush}" Margin="6,0,14,0" VerticalAlignment="Center"/>
+                            <Ellipse Width="9" Height="9" Fill="#F87171" VerticalAlignment="Center"/>
+                            <TextBlock Text="Death" FontSize="12" Foreground="{StaticResource TextDimBrush}" Margin="6,0,0,0" VerticalAlignment="Center"/>
                         </StackPanel>
                         <!-- Sound to keep in the exported copy -->
                         <!-- Audio: like a volume mixer for the clip. Mute any sound; you hear it now and copies leave it out -->
