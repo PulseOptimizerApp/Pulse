@@ -87,6 +87,7 @@ public partial class App : Application
         Ui.MacroService.Init();
         Ui.MatchService.Init();
         Ui.GameSessionService.Init();
+        Ui.CrosshairService.Init();
 
         // Started at sign-in for Clips: stay in the tray until the user opens Pulse.
         bool tray = e.Args.Contains("--tray", StringComparer.OrdinalIgnoreCase) &&
@@ -184,6 +185,7 @@ public partial class App : Application
         try { Ui.MacroService.Shutdown(); } catch { }
         try { Ui.MatchService.Shutdown(); } catch { }
         try { Ui.GameSessionService.Shutdown(); } catch { }
+        try { Ui.CrosshairService.Shutdown(); } catch { }
         try { Ui.TrayIcon.Hide(); } catch { }
         try { _instance?.ReleaseMutex(); } catch { }
         base.OnExit(e);

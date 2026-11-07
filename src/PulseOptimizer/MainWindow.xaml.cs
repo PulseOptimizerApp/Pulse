@@ -180,6 +180,8 @@ public partial class MainWindow : Window
                 "reaction" => new ReactionPage(),
                 "macros" => new MacrosPage(),
                 "guide" => new GuidePage(),
+                "crosshair" => new CrosshairPage(),
+                "devices" => new DevicesPage(),
                 "games" => new GamesPage(),
                 "cleanup" => new DeclutterPage(),
                 "startup" => new StartupPage(),

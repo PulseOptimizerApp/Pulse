@@ -69,6 +69,10 @@ public class AppState
     public List<Pulse.Core.Input.MacroDef> MacroList { get; set; }
     public Pulse.Core.Input.MacroOptions MacroOptions { get; set; } = new();
     public Pulse.Core.Games.GameSessionSettings GameSession { get; set; } = new();
+    /// <summary>The Crosshair page: the overlay crosshair and saved crosshairs.</summary>
+    public Pulse.Core.Crosshair.CrosshairSettings Crosshair { get; set; } = new();
+    /// <summary>The Devices page: backups of key remaps and key repeat.</summary>
+    public Pulse.Core.Devices.DeviceSettings Devices { get; set; } = new();
 }
 
 /// <summary>Applies and undoes tweaks, keeping a backup of every value it changes on disk.</summary>

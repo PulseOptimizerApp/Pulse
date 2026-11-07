@@ -350,29 +350,46 @@
     </Style>
 
     <!-- ═════════ Navigation ═════════ -->
+    <!-- Small group title in the sidebar ("PLAY", "PERFORMANCE"...) -->
+    <Style x:Key="NavHeader" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="10"/>
+        <Setter Property="FontWeight" Value="Bold"/>
+        <Setter Property="Foreground" Value="{StaticResource TextFaintBrush}"/>
+        <Setter Property="Margin" Value="14,16,0,6"/>
+        <Setter Property="IsHitTestVisible" Value="False"/>
+    </Style>
+
     <Style x:Key="NavButton" TargetType="RadioButton">
-        <Setter Property="Height" Value="36"/>
-        <Setter Property="Margin" Value="0,0,0,2"/>
+        <Setter Property="Height" Value="34"/>
+        <Setter Property="Margin" Value="0,0,0,1"/>
         <Setter Property="Cursor" Value="Hand"/>
         <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
         <Setter Property="Foreground" Value="{StaticResource TextDimBrush}"/>
-        <Setter Property="FontSize" Value="13.5"/>
+        <Setter Property="FontSize" Value="13"/>
         <Setter Property="GroupName" Value="Nav"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="RadioButton">
                     <Border x:Name="Bd" CornerRadius="8" Background="Transparent" Padding="14,0">
                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                            <TextBlock Text="{Binding Path=(ui:Icon.Glyph), RelativeSource={RelativeSource TemplatedParent}}"
-                                       FontFamily="{StaticResource IconFont}" FontSize="15" Width="20" VerticalAlignment="Center"/>
-                            <ContentPresenter Margin="12,0,0,0" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="Ico" Text="{Binding Path=(ui:Icon.Glyph), RelativeSource={RelativeSource TemplatedParent}}"
+                                       FontFamily="{StaticResource IconFont}" FontSize="14.5" Width="20" VerticalAlignment="Center"/>
+                            <ContentPresenter Margin="11,0,0,0" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Border>
                     <ControlTemplate.Triggers>
-                        <Trigger Property="IsMouseOver" Value="True"><Setter Property="Foreground" Value="{StaticResource TextBrush}"/></Trigger>
+                        <MultiTrigger>
+                            <MultiTrigger.Conditions>
+                                <Condition Property="IsMouseOver" Value="True"/>
+                                <Condition Property="IsChecked" Value="False"/>
+                            </MultiTrigger.Conditions>
+                            <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+                            <Setter TargetName="Bd" Property="Background" Value="#0AFFFFFF"/>
+                        </MultiTrigger>
                         <Trigger Property="IsChecked" Value="True">
                             <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
                             <Setter Property="FontWeight" Value="SemiBold"/>
+                            <Setter TargetName="Ico" Property="Foreground" Value="{StaticResource AccentBrush}"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>

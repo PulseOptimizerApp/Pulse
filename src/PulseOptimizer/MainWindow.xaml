@@ -54,30 +54,41 @@
                     </StackPanel>
                 </StackPanel>
 
-                <Grid Grid.Row="1" Margin="0,4,0,0">
-                    <Border x:Name="NavHighlight" Height="36" VerticalAlignment="Top" CornerRadius="8" Background="{StaticResource Surface2Brush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" IsHitTestVisible="False">
-                        <Border.RenderTransform><TranslateTransform x:Name="NavHighlightT"/></Border.RenderTransform>
-                        <Border Width="3" Height="16" CornerRadius="2" HorizontalAlignment="Left" Margin="-1,0,0,0" Background="{StaticResource AccentGradientV}"/>
-                    </Border>
-                    <StackPanel x:Name="NavPanel">
-                        <RadioButton Style="{StaticResource NavButton}" Tag="home" ui:Icon.Glyph="&#xE80F;" Content="Home" IsChecked="True" Checked="Nav_Checked" Click="Nav_Click"/>
-                        <RadioButton Style="{StaticResource NavButton}" Tag="games" ui:Icon.Glyph="&#xE7FC;" Content="Games" Checked="Nav_Checked" Click="Nav_Click"/>
-                        <RadioButton Style="{StaticResource NavButton}" Tag="clips" ui:Icon.Glyph="&#xE714;" Content="Clips" Checked="Nav_Checked" Click="Nav_Click"/>
-                        <RadioButton Style="{StaticResource NavButton}" Tag="roblox" ui:Icon.Glyph="&#xE768;" Content="Roblox" Checked="Nav_Checked" Click="Nav_Click"/>
-                        <RadioButton Style="{StaticResource NavButton}" Tag="diagnose" ui:Icon.Glyph="&#xE9D9;" Content="Diagnose" Checked="Nav_Checked" Click="Nav_Click"/>
-                        <RadioButton Style="{StaticResource NavButton}" Tag="tweaks" ui:Icon.Glyph="&#xE945;" Content="Tweaks" Checked="Nav_Checked" Click="Nav_Click"/>
-                        <RadioButton Style="{StaticResource NavButton}" Tag="cleanup" ui:Icon.Glyph="&#xE74D;" Content="Debloat" Checked="Nav_Checked" Click="Nav_Click"/>
-                        <RadioButton Style="{StaticResource NavButton}" Tag="fresh" ui:Icon.Glyph="&#xE895;" Content="Keep it fresh" Checked="Nav_Checked" Click="Nav_Click"/>
-                        <Border Height="1" Background="{StaticResource BorderBrush}" Margin="10,10,10,10"/>
-                        <RadioButton Style="{StaticResource NavButton}" Tag="measure" ui:Icon.Glyph="&#xE9D2;" Content="Measure" Checked="Nav_Checked" Click="Nav_Click"/>
-                        <RadioButton Style="{StaticResource NavButton}" Tag="reaction" ui:Icon.Glyph="&#xE916;" Content="Reaction trainer" Checked="Nav_Checked" Click="Nav_Click"/>
-                        <RadioButton Style="{StaticResource NavButton}" Tag="macros" ui:Icon.Glyph="&#xE962;" Content="Macros" Checked="Nav_Checked" Click="Nav_Click"/>
-                        <RadioButton Style="{StaticResource NavButton}" Tag="startup" ui:Icon.Glyph="&#xE7E8;" Content="Startup apps" Checked="Nav_Checked" Click="Nav_Click"/>
-                        <RadioButton Style="{StaticResource NavButton}" Tag="security" ui:Icon.Glyph="&#xEA18;" Content="Security" Checked="Nav_Checked" Click="Nav_Click"/>
-                        <RadioButton Style="{StaticResource NavButton}" Tag="safety" ui:Icon.Glyph="&#xE7A7;" Content="Undo &amp; restore" Checked="Nav_Checked" Click="Nav_Click"/>
-                        <RadioButton Style="{StaticResource NavButton}" Tag="guide" ui:Icon.Glyph="&#xE82D;" Content="PC guide" Checked="Nav_Checked" Click="Nav_Click"/>
-                    </StackPanel>
-                </Grid>
+                <!-- Navigation, grouped. Scrolls (without a bar) when the window is short. -->
+                <ScrollViewer Grid.Row="1" Margin="0,2,0,10" VerticalScrollBarVisibility="Hidden" HorizontalScrollBarVisibility="Disabled">
+                    <Grid>
+                        <Border x:Name="NavHighlight" Height="34" VerticalAlignment="Top" CornerRadius="8" Background="{StaticResource Surface2Brush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" IsHitTestVisible="False">
+                            <Border.RenderTransform><TranslateTransform x:Name="NavHighlightT"/></Border.RenderTransform>
+                            <Border Width="3" Height="16" CornerRadius="2" HorizontalAlignment="Left" Margin="-1,0,0,0" Background="{StaticResource AccentGradientV}"/>
+                        </Border>
+                        <StackPanel x:Name="NavPanel">
+                            <TextBlock Style="{StaticResource NavHeader}" Text="PLAY" Margin="14,2,0,6"/>
+                            <RadioButton Style="{StaticResource NavButton}" Tag="home" ui:Icon.Glyph="&#xE80F;" Content="Home" IsChecked="True" Checked="Nav_Checked" Click="Nav_Click"/>
+                            <RadioButton Style="{StaticResource NavButton}" Tag="games" ui:Icon.Glyph="&#xE7FC;" Content="Games" Checked="Nav_Checked" Click="Nav_Click"/>
+                            <RadioButton Style="{StaticResource NavButton}" Tag="clips" ui:Icon.Glyph="&#xE714;" Content="Clips" Checked="Nav_Checked" Click="Nav_Click"/>
+                            <RadioButton Style="{StaticResource NavButton}" Tag="crosshair" ui:Icon.Glyph="&#xE1D9;" Content="Crosshair" Checked="Nav_Checked" Click="Nav_Click"/>
+                            <RadioButton Style="{StaticResource NavButton}" Tag="roblox" ui:Icon.Glyph="&#xE768;" Content="Roblox" Checked="Nav_Checked" Click="Nav_Click"/>
+
+                            <TextBlock Style="{StaticResource NavHeader}" Text="PERFORMANCE"/>
+                            <RadioButton Style="{StaticResource NavButton}" Tag="diagnose" ui:Icon.Glyph="&#xE9D9;" Content="Diagnose" Checked="Nav_Checked" Click="Nav_Click"/>
+                            <RadioButton Style="{StaticResource NavButton}" Tag="tweaks" ui:Icon.Glyph="&#xE945;" Content="Tweaks" Checked="Nav_Checked" Click="Nav_Click"/>
+                            <RadioButton Style="{StaticResource NavButton}" Tag="measure" ui:Icon.Glyph="&#xE9D2;" Content="Measure" Checked="Nav_Checked" Click="Nav_Click"/>
+                            <RadioButton Style="{StaticResource NavButton}" Tag="cleanup" ui:Icon.Glyph="&#xE74D;" Content="Debloat" Checked="Nav_Checked" Click="Nav_Click"/>
+                            <RadioButton Style="{StaticResource NavButton}" Tag="startup" ui:Icon.Glyph="&#xE7E8;" Content="Startup apps" Checked="Nav_Checked" Click="Nav_Click"/>
+                            <RadioButton Style="{StaticResource NavButton}" Tag="fresh" ui:Icon.Glyph="&#xE895;" Content="Keep it fresh" Checked="Nav_Checked" Click="Nav_Click"/>
+
+                            <TextBlock Style="{StaticResource NavHeader}" Text="GEAR"/>
+                            <RadioButton Style="{StaticResource NavButton}" Tag="devices" ui:Icon.Glyph="&#xE962;" Content="Devices" Checked="Nav_Checked" Click="Nav_Click"/>
+                            <RadioButton Style="{StaticResource NavButton}" Tag="macros" ui:Icon.Glyph="&#xE765;" Content="Macros" Checked="Nav_Checked" Click="Nav_Click"/>
+                            <RadioButton Style="{StaticResource NavButton}" Tag="reaction" ui:Icon.Glyph="&#xE916;" Content="Reaction trainer" Checked="Nav_Checked" Click="Nav_Click"/>
+                            <RadioButton Style="{StaticResource NavButton}" Tag="guide" ui:Icon.Glyph="&#xE82D;" Content="PC guide" Checked="Nav_Checked" Click="Nav_Click"/>
+
+                            <TextBlock Style="{StaticResource NavHeader}" Text="SAFETY"/>
+                            <RadioButton Style="{StaticResource NavButton}" Tag="security" ui:Icon.Glyph="&#xEA18;" Content="Security" Checked="Nav_Checked" Click="Nav_Click"/>
+                            <RadioButton Style="{StaticResource NavButton}" Tag="safety" ui:Icon.Glyph="&#xE7A7;" Content="Undo &amp; restore" Checked="Nav_Checked" Click="Nav_Click"/>
+                        </StackPanel>
+                    </Grid>
+                </ScrollViewer>
 
                 <!-- Live mini stats (and what Clips is doing) -->
                 <Border Grid.Row="2" Style="{StaticResource Card}" Padding="14,12" Background="{StaticResource Bg2Brush}">
