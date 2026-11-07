@@ -22,6 +22,8 @@ public class LatencyCheck
 public class AppSettings
 {
     public bool AutoRestorePoint { get; set; } = true;
+    /// <summary>The user was asked once whether to skip the admin prompt (see Elevation).</summary>
+    public bool AskedNoAdminPrompt { get; set; }
     /// <summary>"auto" follows Windows; otherwise a language code from Loc.Languages.</summary>
     public string Language { get; set; } = "auto";
     /// <summary>Look for a newer Pulse on its GitHub releases page (nothing is installed until the user says so).</summary>

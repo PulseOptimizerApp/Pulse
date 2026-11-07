@@ -11,6 +11,16 @@ public partial class SafetyPage : UserControl, IPage
 
     public void OnShown(object parameter) => Render();
 
+    void NoPrompt_Click(object sender, RoutedEventArgs e)
+    {
+        if (NoPromptSwitch.IsChecked == true)
+        {
+            if (!Elevation.Enable()) { NoPromptSwitch.IsChecked = false; MainWindow.Instance.Toast("Windows didn't allow it. Pulse will keep asking.", ToastKind.Warning); return; }
+            TweakEngine.AddLog("app", "Opens without the admin prompt");
+        }
+        else { Elevation.Disable(); TweakEngine.AddLog("app", "Asks for admin rights again"); }
+    }
+
     void Render()
     {
         var st = TweakEngine.State;
@@ -18,6 +28,7 @@ public partial class SafetyPage : UserControl, IPage
             ? $"Pulse last created one {Format.Ago(d)} ({d:MMM d, h:mm tt}). Open System Restore to roll back to it or any other point."
             : "Pulse hasn't created one yet. Windows may have its own restore points; open System Restore to see them.";
         AutoRp.IsChecked = st.Settings.AutoRestorePoint;
+        NoPromptSwitch.IsChecked = Elevation.IsOn();
 
         var applied = TweakCatalog.All.Where(t => st.Applied.ContainsKey(t.Id)).ToList();
         AppliedList.ItemsSource = applied;

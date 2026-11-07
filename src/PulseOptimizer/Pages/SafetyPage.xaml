@@ -34,6 +34,18 @@
                 </Border>
             </Grid>
 
+            <Border Style="{StaticResource Card}" Margin="0,16,0,0" ui:Anim.Reveal="True">
+                <Grid>
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource H2}" Text="Open without the admin prompt"/>
+                        <TextBlock Style="{StaticResource Body}" Margin="0,6,0,0" TextWrapping="Wrap" MaxWidth="760" HorizontalAlignment="Left"
+                                   Text="Pulse needs admin rights to change system settings, so Windows asks each time you open it. With this on, Pulse opens with them straight away through a Windows Task Scheduler entry. Keep Pulse in a folder only you use (not Downloads) when this is on."/>
+                    </StackPanel>
+                    <CheckBox x:Name="NoPromptSwitch" Grid.Column="1" Style="{StaticResource Switch}" VerticalAlignment="Top" Margin="16,2,0,0" Click="NoPrompt_Click"/>
+                </Grid>
+            </Border>
+
             <Grid Margin="0,28,0,12">
                 <TextBlock Style="{StaticResource H2}" Text="Tweaks Pulse has applied" VerticalAlignment="Center"/>
                 <Button x:Name="UndoAllBtn" Style="{StaticResource GhostButton}" HorizontalAlignment="Right" Content="Undo everything" Click="UndoAll_Click"/>

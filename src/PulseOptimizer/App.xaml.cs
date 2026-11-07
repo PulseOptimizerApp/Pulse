@@ -32,6 +32,8 @@ public partial class App : Application
         // The app itself changes system settings, so it runs as administrator.
         if (!IsAdmin() && !e.Args.Contains("--tune-up", StringComparer.OrdinalIgnoreCase))
         {
+            // If the user turned on "Open without the admin prompt", start through that task instead of asking.
+            if (e.Args.Length == 0 && Core.Elevation.TryStartElevated()) { Shutdown(); return; }
             try
             {
                 System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(Environment.ProcessPath!, string.Join(" ", e.Args.Select(a => "\"" + a + "\"")))
@@ -89,7 +91,27 @@ public partial class App : Application
         bool tray = e.Args.Contains("--tray", StringComparer.OrdinalIgnoreCase) &&
                     (Core.TweakEngine.State.Clips is { Enabled: true } || Ui.MacroService.Options.StartWithWindows);
         if (tray) Ui.TrayIcon.Show();
-        else window.Show();
+        else
+        {
+            window.Show();
+            // Once: offer to skip the admin prompt on future launches.
+            window.Dispatcher.BeginInvoke(async () =>
+            {
+                await Task.Delay(4000);
+                var st = Core.TweakEngine.State.Settings;
+                if (st.AskedNoAdminPrompt) return;
+                st.AskedNoAdminPrompt = true;
+                Core.TweakEngine.Save();
+                if (Core.Elevation.IsOn()) return;
+                if (await window.Confirm(Ui.Loc.T("Skip the admin prompt?"),
+                        Ui.Loc.T("Pulse needs admin rights to change system settings, so Windows asks every time you open it. Pulse can open with them straight away instead, using a Windows Task Scheduler entry. You can turn this off any time in Undo & restore."),
+                        Ui.Loc.T("Skip it"), Ui.Loc.T("Keep asking")))
+                {
+                    if (Core.Elevation.Enable()) { Core.TweakEngine.AddLog("app", "Opens without the admin prompt"); window.Toast("Done. Next time Pulse opens without the admin prompt."); }
+                    else window.Toast("Windows didn't allow it. Pulse will keep asking.", ToastKind.Warning);
+                }
+            }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+        }
     }
 
     const string MutexName = @"Local\PulseOptimizer.SingleInstance";

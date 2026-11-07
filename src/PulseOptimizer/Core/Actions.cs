@@ -241,6 +241,9 @@ public class TcpAckAction : TweakAction
         {
             b.Children.Add(Reg.Snapshot(RegistryHive.LocalMachine, p, "TcpAckFrequency"));
             Reg.Set(RegistryHive.LocalMachine, p, "TcpAckFrequency", 1, RegistryValueKind.DWord);
+            // Nagle's algorithm: most games already turn it off for their own connections; this covers the ones that don't.
+            b.Children.Add(Reg.Snapshot(RegistryHive.LocalMachine, p, "TCPNoDelay"));
+            Reg.Set(RegistryHive.LocalMachine, p, "TCPNoDelay", 1, RegistryValueKind.DWord);
         }
         return b;
     }
@@ -251,6 +254,7 @@ public class TcpAckAction : TweakAction
         foreach (var p in ActiveInterfaces())
         {
             Reg.Delete(RegistryHive.LocalMachine, p, "TcpAckFrequency"); // absent = Windows default of 2
+            Reg.Delete(RegistryHive.LocalMachine, p, "TCPNoDelay");
         }
     }
 }
@@ -332,5 +336,143 @@ public class PuaAction : TweakAction
         // Microsoft's default on current security intelligence is Audit (2).
         var prev = backup?.Data.GetValueOrDefault("previous") ?? "2";
         Shell.PowerShell($"Set-MpPreference -PUAProtection {int.Parse(prev, CultureInfo.InvariantCulture)}", 60_000);
+    }
+}
+
+/// <summary>A service that may not exist on every edition of Windows (missing = nothing to do).</summary>
+public class OptionalServiceAction : ServiceAction
+{
+    readonly string _name;
+    public OptionalServiceAction(string serviceName, int defaultStart) : base(serviceName, defaultStart) { _name = serviceName; }
+    bool Exists => Reg.Get(RegistryHive.LocalMachine, $@"SYSTEM\CurrentControlSet\Services\{_name}", "Start") != null;
+    public override bool? Check() => Exists ? base.Check() : true;
+    public override ActionBackup Apply() => Exists ? base.Apply() : new ActionBackup { Kind = "absent" };
+    public override void Revert(ActionBackup backup) { if (backup?.Kind == "absent" || !Exists) return; base.Revert(backup); }
+}
+
+/// <summary>
+/// Turns off a boot setting with bcdedit and turns it back off on undo by removing it (Windows' default).
+/// </summary>
+public class BcdAction : TweakAction
+{
+    readonly string _name, _value;
+    public BcdAction(string name, string value) { _name = name; _value = value; }
+
+    static string Bcdedit => Path.Combine(Environment.SystemDirectory, "bcdedit.exe");
+
+    public override bool? Check()
+    {
+        var r = Shell.Cmd($"\"{Bcdedit}\" /enum {{current}}", 20_000);
+        if (!r.Ok) return null;
+        foreach (var line in r.Output.Split('\n'))
+        {
+            var parts = line.Trim().Split((char[])null, 2, StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length == 2 && parts[0].Equals(_name, StringComparison.OrdinalIgnoreCase))
+                return parts[1].Trim().Equals(_value, StringComparison.OrdinalIgnoreCase) || (_value == "yes" && parts[1].Trim().Equals("Yes", StringComparison.OrdinalIgnoreCase));
+        }
+        return false;
+    }
+
+    public override ActionBackup Apply()
+    {
+        var r = Shell.Cmd($"\"{Bcdedit}\" /set {{current}} {_name} {_value}", 20_000);
+        if (!r.Ok) throw new InvalidOperationException(CmdAction.FirstLine(r.Error + r.Output) ?? "bcdedit failed.");
+        return new ActionBackup { Kind = "bcd" };
+    }
+
+    public override void Revert(ActionBackup backup) => Shell.Cmd($"\"{Bcdedit}\" /deletevalue {{current}} {_name}", 20_000);
+}
+
+/// <summary>
+/// Turns off power saving on wired and Wi-Fi adapters: "Allow the computer to turn off this device" and the
+/// driver's energy-saving options (Energy-Efficient Ethernet, Green Ethernet, power saving mode...), the same
+/// switches as Device Manager → the adapter → Properties. Every previous value is kept for undo.
+/// </summary>
+public class NetAdapterPowerAction : TweakAction
+{
+    // Driver keywords for energy saving (Intel, Realtek, Killer, Broadcom, Marvell). Only ones present are touched.
+    const string Keywords = "'*EEE','EEE','EEELinkAdvertisement','AdvancedEEE','EnableGreenEthernet','GreenEthernet','PowerSavingMode','EnablePME','ULPMode','AutoPowerSaveModeEnabled','EnableSavePowerNow','EnablePowerManagement','ReduceSpeedOnPowerDown','*SelectiveSuspend','SipsEnabled','EnableExtraPowerSaving','DynamicPowerGating','S5WakeOnLan'";
+
+    const string Read = @"
+$ErrorActionPreference = 'SilentlyContinue'
+$out = @()
+foreach ($a in Get-NetAdapter -Physical | Where-Object { $_.Status -ne 'Disabled' }) {
+  $pm = Get-NetAdapterPowerManagement -Name $a.Name
+  $props = Get-NetAdapterAdvancedProperty -Name $a.Name -AllProperties | Where-Object { @(" + Keywords + @") -contains $_.RegistryKeyword }
+  $out += [pscustomobject]@{ Name = $a.Name; AllowOff = [string]$pm.AllowComputerToTurnOffDevice; Props = @($props | ForEach-Object { [pscustomobject]@{ K = $_.RegistryKeyword; V = [string]($_.RegistryValue -join ','); Valid = @($_.ValidRegistryValues) } }) }
+}
+ConvertTo-Json -Depth 5 -Compress @($out)";
+
+    public override bool? Check()
+    {
+        var r = Shell.PowerShell(Read, 60_000);
+        var json = r.Output?.Trim();
+        if (string.IsNullOrEmpty(json) || !json.StartsWith("[")) return null;
+        try
+        {
+            var arr = System.Text.Json.JsonDocument.Parse(json).RootElement;
+            if (arr.GetArrayLength() == 0) return null;
+            foreach (var a in arr.EnumerateArray())
+            {
+                if (a.GetProperty("AllowOff").GetString() == "Enabled") return false;
+                foreach (var p in a.GetProperty("Props").EnumerateArray())
+                    if (p.GetProperty("V").GetString() is var v && v != "0" && OffValue(p) != null && v != OffValue(p)) return false;
+            }
+            return true;
+        }
+        catch { return null; }
+    }
+
+    /// <summary>The value meaning "off" for a property: 0 when the driver offers it.</summary>
+    static string OffValue(System.Text.Json.JsonElement p)
+    {
+        if (!p.TryGetProperty("Valid", out var valid) || valid.ValueKind != System.Text.Json.JsonValueKind.Array) return "0";
+        var list = valid.EnumerateArray().Select(x => x.ToString()).ToList();
+        return list.Count == 0 || list.Contains("0") ? "0" : null;
+    }
+
+    public override ActionBackup Apply()
+    {
+        var r = Shell.PowerShell(Read, 60_000);
+        var json = r.Output?.Trim();
+        if (string.IsNullOrEmpty(json) || !json.StartsWith("[")) throw new InvalidOperationException("Couldn't read the network adapters.");
+        var b = new ActionBackup { Kind = "netpower" };
+        b.Data["before"] = json;
+        var script = new System.Text.StringBuilder("$ErrorActionPreference = 'SilentlyContinue'\n");
+        foreach (var a in System.Text.Json.JsonDocument.Parse(json).RootElement.EnumerateArray())
+        {
+            var name = a.GetProperty("Name").GetString().Replace("'", "''");
+            if (a.GetProperty("AllowOff").GetString() == "Enabled")
+                script.AppendLine($"Disable-NetAdapterPowerManagement -Name '{name}' -NoRestart");
+            foreach (var p in a.GetProperty("Props").EnumerateArray())
+            {
+                var off = OffValue(p);
+                if (off == null || p.GetProperty("V").GetString() == off) continue;
+                script.AppendLine($"Set-NetAdapterAdvancedProperty -Name '{name}' -RegistryKeyword '{p.GetProperty("K").GetString().Replace("'", "''")}' -RegistryValue {off} -NoRestart");
+            }
+        }
+        script.AppendLine("Get-NetAdapter -Physical | Where-Object { $_.Status -eq 'Up' } | Restart-NetAdapter -Confirm:$false");
+        Shell.PowerShell(script.ToString(), 120_000);
+        return b;
+    }
+
+    public override void Revert(ActionBackup backup)
+    {
+        if (backup == null || !backup.Data.TryGetValue("before", out var json)) return;
+        var script = new System.Text.StringBuilder("$ErrorActionPreference = 'SilentlyContinue'\n");
+        foreach (var a in System.Text.Json.JsonDocument.Parse(json).RootElement.EnumerateArray())
+        {
+            var name = a.GetProperty("Name").GetString().Replace("'", "''");
+            if (a.GetProperty("AllowOff").GetString() == "Enabled")
+                script.AppendLine($"Enable-NetAdapterPowerManagement -Name '{name}' -NoRestart");
+            foreach (var p in a.GetProperty("Props").EnumerateArray())
+            {
+                var v = p.GetProperty("V").GetString();
+                if (string.IsNullOrEmpty(v) || !System.Text.RegularExpressions.Regex.IsMatch(v, @"^[0-9,]+$")) continue;
+                script.AppendLine($"Set-NetAdapterAdvancedProperty -Name '{name}' -RegistryKeyword '{p.GetProperty("K").GetString().Replace("'", "''")}' -RegistryValue {v.Split(',')[0]} -NoRestart");
+            }
+        }
+        script.AppendLine("Get-NetAdapter -Physical | Where-Object { $_.Status -eq 'Up' } | Restart-NetAdapter -Confirm:$false");
+        Shell.PowerShell(script.ToString(), 120_000);
     }
 }

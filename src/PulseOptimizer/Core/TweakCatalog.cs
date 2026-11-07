@@ -8,7 +8,9 @@ namespace Pulse.Core;
 /// ("Pulse Optimizer — Evidence-Based Tweak Research &amp; Measurement Plan").
 /// Rules: reversible, explained in plain English, sourced, and never claims a speed-up that hasn't been measured.
 /// Cut on evidence and deliberately absent: MMCSS Games-task priorities (documented as unused),
-/// NetworkThrottlingIndex (undocumented), TCPNoDelay, and timer-resolution registry tweaks.
+/// NetworkThrottlingIndex (undocumented) and timer-resolution registry tweaks. Also absent on purpose, though popular:
+/// forcing MSI interrupts (can stop a PC booting), turning off disk write-cache flushing (can lose data on a power
+/// cut), disabling exploit protection, and Smart App Control.
 /// </summary>
 public static class TweakCatalog
 {
@@ -223,11 +225,11 @@ public static class TweakCatalog
             Id = "tcp-ack", Category = TweakCategory.Network, Risk = Risk.Moderate,
             Evidence = Evidence.Gated, Proof = ProofMetric.Latency,
             SourceName = "Microsoft Learn: TcpAckFrequency", SourceUrl = SrcTcpAck,
-            Title = "Acknowledge TCP packets immediately",
-            Summary = "Windows confirms every network packet right away instead of waiting to bundle confirmations.",
-            Explain = "By default Windows waits for two packets (or 200 ms) before acknowledging them. Setting TcpAckFrequency to 1 acknowledges each packet immediately. Microsoft advises against changing it without careful study, so Pulse only suggests it for games that use TCP and asks you to measure.",
-            Changes = @"For each connected adapter: HKLM\…\Tcpip\Parameters\Interfaces\{id} → TcpAckFrequency = 1 (default 2)",
-            Gain = "Only games using TCP (some MMOs and older titles) can benefit. Most modern shooters use UDP and won't change.",
+            Title = "Turn off Nagle's algorithm and delayed ACK",
+            Summary = "Windows sends and confirms small network packets right away instead of waiting to bundle them.",
+            Explain = "By default Windows waits for two packets (or 200 ms) before acknowledging them (delayed ACK), and can hold back small packets to send them together (Nagle's algorithm). Setting TcpAckFrequency and TCPNoDelay to 1 sends and acknowledges each packet immediately. Microsoft advises against changing these without careful study, so Pulse only suggests it for games that use TCP and asks you to measure.",
+            Changes = @"For each connected adapter: HKLM\…\Tcpip\Parameters\Interfaces\{id} → TcpAckFrequency = 1 (default 2), TCPNoDelay = 1",
+            Gain = "Only games using TCP (some MMOs, Roblox chat and older titles) can benefit. Most modern shooters use UDP, and games usually turn Nagle off themselves, so many won't change.",
             Tradeoff = "Slightly more network traffic.",
             RestartNote = "Restart needed",
             Gate = () => Yes("Only helps TCP-based games. Measure ping and frame times in yours before keeping it."),
@@ -319,6 +321,69 @@ public static class TweakCatalog
             Gain = "A reset to default; no speed claim.",
             Tradeoff = "None.",
             Actions = { CU(@"Software\Microsoft\GameBar", "AutoGameModeEnabled", 1, def: 1) }
+        },
+
+        new Tweak
+        {
+            Id = "net-adapter-power", Category = TweakCategory.Network, Risk = Risk.Moderate,
+            Evidence = Evidence.Gated, Proof = ProofMetric.Latency,
+            Title = "Turn off network adapter power saving",
+            Summary = "Stops your Ethernet and Wi-Fi adapters saving power between packets, which can add small delays.",
+            Explain = "Network drivers have energy-saving options (Energy-Efficient Ethernet, Green Ethernet, power saving mode) and Windows can switch the adapter off to save power. These are the same switches as Device Manager → Network adapters → your adapter → Properties → Advanced and Power Management. Pulse only changes the ones your driver has, and keeps every old value for undo.",
+            Changes = "Each physical network adapter: \"Allow the computer to turn off this device\" off, and energy-saving driver options set to Off. The adapter reconnects for a second.",
+            Gain = "Can remove small delays and drop-outs when the adapter wakes from power saving. No change if your adapter doesn't save power. Measure ping.",
+            Tradeoff = "Slightly more power use, mostly on laptops. Your connection drops for a moment while it applies.",
+            Gate = () => !SystemInfo.HasBattery ? Yes() : SystemInfo.IsPluggedIn ? Yes("Laptop: best while plugged in.") : No("You're on battery, where adapter power saving helps battery life. Plug in to use this."),
+            Actions = { new NetAdapterPowerAction() }
+        },
+        new Tweak
+        {
+            Id = "priority-separation", Category = TweakCategory.Performance, Risk = Risk.Moderate,
+            Evidence = Evidence.Gated, Proof = ProofMetric.FrameTime,
+            SourceName = "Microsoft: Win32PrioritySeparation", SourceUrl = "https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-2000-server/cc976120(v=technet.10)",
+            Title = "Give the game in front more CPU time",
+            Summary = "Windows gives the window you're using (your game) longer, boosted turns on the CPU over background programs.",
+            Explain = "Win32PrioritySeparation controls how Windows shares CPU time. Value 0x26 (38) means short, variable time slices with the biggest boost for the program in front. Windows' default (2) is already tuned for programs, so the difference is small and depends on the game.",
+            Changes = @"HKLM\SYSTEM\CurrentControlSet\Control\PriorityControl → Win32PrioritySeparation = 0x26 (default 2)",
+            Gain = "Can smooth frame times when other programs run while you play. Often no change. Measure 1% lows.",
+            Tradeoff = "Background work (downloads, encoding, streaming) gets a little less CPU while a game is in front.",
+            Actions = { LM(@"SYSTEM\CurrentControlSet\Control\PriorityControl", "Win32PrioritySeparation", 0x26, def: 2) }
+        },
+        new Tweak
+        {
+            Id = "dynamic-tick", Category = TweakCategory.Performance, Risk = Risk.Advanced,
+            Evidence = Evidence.Gated, Proof = ProofMetric.FrameTime,
+            SourceName = "Microsoft Learn: BCDEdit /set", SourceUrl = "https://learn.microsoft.com/en-us/windows-hardware/drivers/devtest/bcdedit--set",
+            Title = "Windows timer fix (turn off dynamic tick)",
+            Summary = "Keeps Windows' system timer ticking steadily instead of pausing it to save power.",
+            Explain = "Dynamic tick lets Windows skip timer ticks when the PC is idle, to save power. Turning it off keeps timing steady, which some players find smooths frame pacing. Pulse also removes a forced-HPET setting (useplatformclock) if another tool left it on, since that one usually makes games worse.",
+            Changes = "bcdedit /set disabledynamictick yes, and bcdedit /deletevalue useplatformclock if it was set. Undo removes disabledynamictick (Windows' default).",
+            Gain = "Mixed results in testing: some PCs get steadier frame times, many see no change. Measure before keeping it.",
+            Tradeoff = "Slightly more idle power use. If BitLocker is on, keep your recovery key handy: boot setting changes can ask for it once.",
+            RestartNote = "Restart needed",
+            Gate = () => SystemInfo.HasBattery ? No("Laptops rely on dynamic tick to save battery. Desktop PCs only.") : Yes(),
+            Actions =
+            {
+                new BcdAction("disabledynamictick", "yes"),
+                new CmdAction($"\"{Path.Combine(Environment.SystemDirectory, "bcdedit.exe")}\" /deletevalue {{current}} useplatformclock >nul 2>&1 & exit /b 0", "exit /b 0", () => true),
+            }
+        },
+        new Tweak
+        {
+            Id = "extra-services", Category = TweakCategory.Performance, Risk = Risk.Moderate,
+            Evidence = Evidence.Gated, Proof = ProofMetric.BackgroundCpu,
+            Title = "Turn off unneeded background services",
+            Summary = "Stops six Windows services most gaming PCs never use: telemetry, error reporting, offline maps, store demo mode and the compatibility helper.",
+            Explain = "Connected User Experiences and Telemetry (DiagTrack), WAP push messages (dmwappushservice), Downloaded Maps Manager (MapsBroker), Retail Demo, Windows Error Reporting (WerSvc) and Program Compatibility Assistant (PcaSvc). None of them are needed for games, Windows Update, Wi-Fi, sound or the Store. Windows Hello and the Snipping Tool are left alone.",
+            Changes = "Sets DiagTrack, dmwappushservice, MapsBroker, RetailDemo, WerSvc and PcaSvc to Disabled and stops them. Undo puts back each service's previous start type.",
+            Gain = "Less background CPU, disk and network use from these services. Usually small; measure background CPU.",
+            Tradeoff = "No crash reports sent to Microsoft and no automatic compatibility fixes for old programs. Offline maps don't update.",
+            Actions =
+            {
+                new OptionalServiceAction("DiagTrack", 2), new OptionalServiceAction("dmwappushservice", 3),
+                new OptionalServiceAction("MapsBroker", 2), new OptionalServiceAction("RetailDemo", 3),
+                new OptionalServiceAction("WerSvc", 3), new OptionalServiceAction("PcaSvc", 2),
+            }
         },
 
         // ═════════════ NO PERFORMANCE CLAIM: comfort & privacy ═════════════
@@ -428,6 +493,114 @@ public static class TweakCatalog
             Changes = @"HKCU\…\Themes\Personalize → EnableTransparency = 0",
             Gain = "A flatter look.", Tradeoff = "Less visual depth.",
             Actions = { CU(@"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize", "EnableTransparency", 0, def: 1) }
+        },
+        new Tweak
+        {
+            Id = "ai-off", Category = TweakCategory.Privacy, Risk = Risk.Safe, Evidence = Evidence.NoPerformanceClaim,
+            Title = "Turn off Windows AI features",
+            Summary = "Turns off Copilot, Recall, Click to Do, AI in Paint and Notepad, smart clipboard actions and Edge's Copilot sidebar.",
+            Explain = "Uses Microsoft's own policies for each feature, the same ones businesses use. Nothing is uninstalled, so undo brings everything back.",
+            Changes = @"WindowsCopilot\TurnOffWindowsCopilot = 1 · WindowsAI\DisableAIDataAnalysis = 1, AllowRecallEnablement = 0, DisableClickToDo = 1 · Paint\DisableCocreator, DisableImageCreator, DisableGenerativeFill = 1 · WindowsNotepad\DisableAIFeatures = 1 · SmartClipboard\Disabled = 1 · Edge\HubsSidebarEnabled = 0",
+            Gain = "No AI features watching, suggesting or snapshotting in the background. No speed claim.",
+            Tradeoff = "Those features go away until you undo this.",
+            RestartNote = "Sign out needed",
+            Actions =
+            {
+                CU(@"Software\Policies\Microsoft\Windows\WindowsCopilot", "TurnOffWindowsCopilot", 1),
+                LM(@"SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot", "TurnOffWindowsCopilot", 1),
+                LM(@"SOFTWARE\Policies\Microsoft\Windows\WindowsAI", "DisableAIDataAnalysis", 1),
+                LM(@"SOFTWARE\Policies\Microsoft\Windows\WindowsAI", "AllowRecallEnablement", 0),
+                CU(@"Software\Policies\Microsoft\Windows\WindowsAI", "DisableClickToDo", 1),
+                LM(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Paint", "DisableCocreator", 1),
+                LM(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Paint", "DisableImageCreator", 1),
+                LM(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Paint", "DisableGenerativeFill", 1),
+                LM(@"SOFTWARE\Policies\WindowsNotepad", "DisableAIFeatures", 1),
+                CU(@"Software\Microsoft\Windows\CurrentVersion\SmartActionPlatform\SmartClipboard", "Disabled", 1),
+                LM(@"SOFTWARE\Policies\Microsoft\Edge", "HubsSidebarEnabled", 0),
+            }
+        },
+        new Tweak
+        {
+            Id = "data-collection", Category = TweakCategory.Privacy, Risk = Risk.Safe, Evidence = Evidence.NoPerformanceClaim,
+            Title = "Stop extra data collection",
+            Summary = "Stops activity history, typing and inking data collection, feedback prompts, app-launch tracking and cloud search.",
+            Explain = "The same switches as Settings → Privacy & security (General, Inking & typing, Activity history, Search permissions, Diagnostics & feedback), plus the old Customer Experience Improvement Program.",
+            Changes = "HttpAcceptLanguageOptOut = 1 · DisableMFUTracking = 1 · RestrictImplicitInkCollection / RestrictImplicitTextCollection = 1, HarvestContacts = 0 · feedback frequency never · PublishUserActivities = 0 · cloud content search off · CEIPEnable = 0",
+            Gain = "Privacy.", Tradeoff = "Typing suggestions learn less from you; no Timeline-style activity history.",
+            Actions =
+            {
+                CU(@"Control Panel\International\User Profile", "HttpAcceptLanguageOptOut", 1),
+                CU(@"Software\Policies\Microsoft\Windows\EdgeUI", "DisableMFUTracking", 1),
+                CU(@"Software\Microsoft\InputPersonalization", "RestrictImplicitInkCollection", 1, def: 0),
+                CU(@"Software\Microsoft\InputPersonalization", "RestrictImplicitTextCollection", 1, def: 0),
+                CU(@"Software\Microsoft\InputPersonalization\TrainedDataStore", "HarvestContacts", 0, def: 1),
+                CU(@"Software\Microsoft\Siuf\Rules", "NumberOfSIUFInPeriod", 0),
+                LM(@"SOFTWARE\Policies\Microsoft\Windows\System", "PublishUserActivities", 0),
+                CU(@"Software\Microsoft\Windows\CurrentVersion\SearchSettings", "IsAADCloudSearchEnabled", 0, def: 1),
+                CU(@"Software\Microsoft\Windows\CurrentVersion\SearchSettings", "IsMSACloudSearchEnabled", 0, def: 1),
+                LM(@"SOFTWARE\Policies\Microsoft\SQMClient\Windows", "CEIPEnable", 0),
+            }
+        },
+        new Tweak
+        {
+            Id = "start-clean", Category = TweakCategory.Privacy, Risk = Risk.Safe, Evidence = Evidence.NoPerformanceClaim,
+            Title = "Clean up Start",
+            Summary = "Removes recommended files and websites, account nags and 'resume on this PC' prompts from Start.",
+            Explain = "The same switches as Settings → Personalization → Start, plus the cross-device resume prompt from Phone Link.",
+            Changes = @"Explorer\Advanced → Start_IrisRecommendations = 0, Start_AccountNotifications = 0 · CrossDeviceResume\Configuration → IsResumeAllowed = 0",
+            Gain = "A calmer Start menu.", Tradeoff = "No suggestions in Start.",
+            Actions =
+            {
+                CU(@"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced", "Start_IrisRecommendations", 0, def: 1),
+                CU(@"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced", "Start_AccountNotifications", 0, def: 1),
+                CU(@"Software\Microsoft\Windows\CurrentVersion\CrossDeviceResume\Configuration", "IsResumeAllowed", 0, def: 1),
+            }
+        },
+        new Tweak
+        {
+            Id = "key-repeat", Category = TweakCategory.Input, Risk = Risk.Safe, Evidence = Evidence.NoPerformanceClaim,
+            Title = "Faster key repeat",
+            Summary = "Holding a key repeats it sooner, at the fastest rate.",
+            Explain = "The same sliders as Control Panel → Keyboard → Repeat delay (shortest) and Repeat rate (fastest).",
+            Changes = @"HKCU\Control Panel\Keyboard → KeyboardDelay = 0 (default 1), KeyboardSpeed = 31",
+            Gain = "Snappier typing and menu scrolling. Games read keys directly, so no in-game change.",
+            Tradeoff = "Easier to type a letter twice by accident at first.",
+            RestartNote = "Sign out needed",
+            Actions =
+            {
+                CU(@"Control Panel\Keyboard", "KeyboardDelay", "0", RegistryValueKind.String, "1"),
+                CU(@"Control Panel\Keyboard", "KeyboardSpeed", "31", RegistryValueKind.String, "31"),
+            }
+        },
+        new Tweak
+        {
+            Id = "access-popups", Category = TweakCategory.Input, Risk = Risk.Safe, Evidence = Evidence.NoPerformanceClaim, Recommended = true,
+            Title = "Stop the Filter Keys and Toggle Keys pop-ups",
+            Summary = "Holding Shift for 8 seconds or Num Lock for 5 no longer opens a window over your game.",
+            Explain = "Turns off only the keyboard shortcuts. Both features are still in Settings → Accessibility → Keyboard if you need them.",
+            Changes = @"HKCU\Control Panel\Accessibility\Keyboard Response → Flags = 122 (default 126) · ToggleKeys → Flags = 58 (default 62)",
+            Gain = "No accidental alt-tabs mid-match.", Tradeoff = "None, unless you use these shortcuts for accessibility.",
+            RestartNote = "Sign out needed",
+            Actions =
+            {
+                CU(@"Control Panel\Accessibility\Keyboard Response", "Flags", "122", RegistryValueKind.String, "126"),
+                CU(@"Control Panel\Accessibility\ToggleKeys", "Flags", "58", RegistryValueKind.String, "62"),
+            }
+        },
+        new Tweak
+        {
+            Id = "taskbar-anim", Category = TweakCategory.Visual, Risk = Risk.Safe, Evidence = Evidence.NoPerformanceClaim,
+            Title = "Turn off taskbar animations and Peek",
+            Summary = "Taskbar buttons stop animating, and pointing at the corner no longer fades all windows.",
+            Explain = "Desktop feel only.",
+            Changes = @"Explorer\Advanced → TaskbarAnimations = 0 · DWM → EnableAeroPeek = 0",
+            Gain = "A snappier taskbar.", Tradeoff = "Less animated look.",
+            RestartNote = "Sign out needed",
+            Actions =
+            {
+                CU(@"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced", "TaskbarAnimations", 0, def: 1),
+                CU(@"Software\Microsoft\Windows\DWM", "EnableAeroPeek", 0, def: 1),
+            }
         },
     };
 
