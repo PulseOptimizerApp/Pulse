@@ -31,6 +31,22 @@ public class MatchRecord
     public DateTime End { get; set; }
 
     public string Kda => $"{Kills} / {Deaths} / {Assists}";
+
+    /// <summary>
+    /// A play session rather than a scored match: for games that don't share match data (Marvel Rivals, Overwatch 2,
+    /// Fortnite, Apex…), the card shows how long you played and the clips from it.
+    /// </summary>
+    public bool Session { get; set; }
+
+    /// <summary>"1h 12m" or "38m".</summary>
+    public string Played
+    {
+        get
+        {
+            var t = End - Start;
+            return t.TotalHours >= 1 ? $"{(int)t.TotalHours}h {t.Minutes}m" : $"{Math.Max(1, (int)t.TotalMinutes)}m";
+        }
+    }
 }
 
 /// <summary>Matches Pulse saw, newest first (matches.json in Pulse's data folder).</summary>

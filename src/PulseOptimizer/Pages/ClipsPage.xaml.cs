@@ -657,7 +657,7 @@ public partial class ClipsPage : UserControl, IPage, IReleasable
         var who = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(10, 0, 6, 0) };
         who.Children.Add(Text(string.IsNullOrEmpty(m.Character) ? m.Game : m.Character.ToUpperInvariant(), 16, FontWeights.Bold));
         string resultKey = m.Result switch { "Win" => "GoodBrush", "Loss" => "BadBrush", _ => "TextDimBrush" };
-        who.Children.Add(Text(Loc.T(string.IsNullOrEmpty(m.Result) ? "Finished" : m.Result).ToUpperInvariant(), 12, FontWeights.Bold, Res(resultKey)));
+        who.Children.Add(Text(Loc.T(m.Session ? "Session" : string.IsNullOrEmpty(m.Result) ? "Finished" : m.Result).ToUpperInvariant(), 12, FontWeights.Bold, Res(resultKey)));
         Grid.SetColumn(who, 1);
         hg.Children.Add(who);
         FrameworkElement rankEl = null;
@@ -699,11 +699,20 @@ public partial class ClipsPage : UserControl, IPage, IReleasable
             score.Inlines.Add(new System.Windows.Documents.Run(" : ") { Foreground = Res("TextDimBrush") });
             score.Inlines.Add(new System.Windows.Documents.Run(sc[1].Trim()) { Foreground = Res("BadBrush") });
         }
+        if (m.Session)
+        {
+            Stat(0, Loc.T("Played").ToUpperInvariant(), Text(m.Played, 18, FontWeights.Bold), HorizontalAlignment.Left);
+            Stat(1, Loc.T("Clips").ToUpperInvariant(), Text(matchClips.Count.ToString(CultureInfo.InvariantCulture), 18, FontWeights.Bold, null, HorizontalAlignment.Center), HorizontalAlignment.Center);
+            Stat(2, Loc.T("Started").ToUpperInvariant(), Text(m.Start.ToString("t", CultureInfo.CurrentCulture), 18, FontWeights.Bold, null, HorizontalAlignment.Right), HorizontalAlignment.Right);
+        }
+        else
+        {
         Stat(0, (string.IsNullOrEmpty(m.Map) ? Loc.T("Score") : m.Map).ToUpperInvariant(), score, HorizontalAlignment.Left);
         Stat(1, "KDA", Text(m.Kda, 18, FontWeights.Bold, null, HorizontalAlignment.Center), HorizontalAlignment.Center);
         Stat(2, m.HeadshotPercent >= 0 ? "HS%" : Loc.T("Mode").ToUpperInvariant(),
             m.HeadshotPercent >= 0 ? Text(m.HeadshotPercent + "%", 18, FontWeights.Bold, null, HorizontalAlignment.Right) : Text(m.Mode, 13, FontWeights.Bold, null, HorizontalAlignment.Right),
             HorizontalAlignment.Right);
+        }
         sp.Children.Add(stats);
 
         // One row per big play, with how many: "3K ........ 2"

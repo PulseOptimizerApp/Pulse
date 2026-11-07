@@ -2531,5 +2531,11 @@
  "Popup position": "Posição do aviso",
  "Your clip popup shows here": "Seu aviso de clipe aparece aqui",
  "TOTAL CLIPS": "TOTAL DE CLIPES",
- "Play": "Reproduzir"
+ "Play": "Reproduzir",
+ "After each match: map, agent or champion, win or loss, K/D/A, headshots and rank, with that match's clips (VALORANT, Counter-Strike 2, League of Legends and Dota 2). Other games, like Marvel Rivals, Overwatch 2, Fortnite and Apex, get a card for each session with how long you played and its clips.": "Depois de cada partida: mapa, agente ou campeão, vitória ou derrota, K/D/A, headshots e elo, com os clipes dessa partida (VALORANT, Counter-Strike 2, League of Legends e Dota 2). Outros jogos, como Marvel Rivals, Overwatch 2, Fortnite e Apex, ganham um cartão por sessão com quanto tempo você jogou e seus clipes.",
+ "{0} session": "Sessão de {0}",
+ "Played {0}": "Jogou {0}",
+ "Session": "Sessão",
+ "Played": "Jogado",
+ "Started": "Começou"
 }

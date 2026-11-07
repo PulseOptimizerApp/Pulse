@@ -16,8 +16,10 @@ public static class MatchArt
 
     public static string Key(string name) => new string((name ?? "").ToLowerInvariant().Where(char.IsAsciiLetterOrDigit).ToArray());
 
-    public static ImageSource Agent(MatchRecord m) => m.Game == "VALORANT" ? Load($"agent-{Key(m.Character)}.png", 128) : null;
-    public static ImageSource Map(MatchRecord m) => m.Game == "VALORANT" ? Load($"map-{Key(m.Map)}.jpg", 640) : null;
+    /// <summary>The agent's portrait for VALORANT; for other games, the game's own cover.</summary>
+    public static ImageSource Agent(MatchRecord m) => m.Game == "VALORANT" ? Load($"agent-{Key(m.Character)}.png", 128) ?? GameArt.Bundled(m.Game) : GameArt.Bundled(m.Game);
+    /// <summary>The map for VALORANT; for other games, the game's cover, faded behind the card.</summary>
+    public static ImageSource Map(MatchRecord m) => m.Game == "VALORANT" ? Load($"map-{Key(m.Map)}.jpg", 640) ?? GameArt.Bundled(m.Game) : GameArt.Bundled(m.Game);
     public static ImageSource Rank(MatchRecord m) => m.Game == "VALORANT" && m.RankTier >= 3 ? Load($"rank-{m.RankTier}.png", 64) : null;
 
     /// <summary>The agent's own color (from the game's art), for the tint behind the portrait; null if unknown.</summary>

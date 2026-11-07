@@ -18,6 +18,11 @@ public static class MatchService
     static readonly ValorantMatches Valorant = new();
     static System.Threading.Timer _watch;
     static bool _leagueOn, _valorantOn;
+    static string _sessionGame;
+    static DateTime _sessionStart, _sessionSeen;
+
+    /// <summary>Games whose recaps come from their own match data (the rest get session recaps).</summary>
+    static readonly HashSet<string> OwnRecaps = new(StringComparer.OrdinalIgnoreCase) { "VALORANT", "Counter-Strike 2", "League of Legends", "Dota 2" };
 
     static Core.Clips.ClipSettings S => TweakEngine.State.Clips;
 
@@ -66,6 +71,7 @@ public static class MatchService
             bool league = LeagueLive.InGame();
             if (league && !_leagueOn) { League.Start(); _leagueOn = true; }
             else if (!league && _leagueOn) { League.Stop(); _leagueOn = false; }
+            if (S.MatchRecaps) TrackSession(ClipsService.Game);
             if (S.MatchRecaps)
             {
                 bool val = ValorantMatches.Running();
@@ -74,6 +80,45 @@ public static class MatchService
             }
         }
         catch { }
+    }
+
+    /// <summary>
+    /// Every other game: a recap card for each play session (5 minutes or more) with how long you played and its
+    /// clips. Marvel Rivals, Overwatch 2, Fortnite, Apex and the rest don't share kills or results with other apps.
+    /// </summary>
+    static void TrackSession(string game)
+    {
+        var now = DateTime.Now;
+        if (!string.IsNullOrEmpty(game) && game != "Any other game" && !OwnRecaps.Contains(game))
+        {
+            if (_sessionGame != game)
+            {
+                EndSession();
+                _sessionGame = game;
+                _sessionStart = now;
+            }
+            _sessionSeen = now;
+            return;
+        }
+        // Gone for 30 seconds (not just a loading screen or an alt-tab blip): the session is over.
+        if (_sessionGame != null && (now - _sessionSeen).TotalSeconds > 30) EndSession();
+    }
+
+    static void EndSession()
+    {
+        if (_sessionGame == null) return;
+        var game = _sessionGame;
+        _sessionGame = null;
+        if ((_sessionSeen - _sessionStart).TotalMinutes < 5) return;
+        var m = new MatchRecord { Game = game, Character = game, Mode = "Session", Session = true, Start = _sessionStart, End = _sessionSeen };
+        try
+        {
+            m.Highlights = Core.Clips.ClipLibrary.List(S)
+                .Where(c => c.Created >= m.Start && c.Created <= m.End.AddMinutes(1) && !string.IsNullOrEmpty(c.Title))
+                .Select(c => c.Title).ToList();
+        }
+        catch { }
+        OnFinished(m);
     }
 
     static void OnHighlight(string game, string label, int seconds)
@@ -99,6 +144,13 @@ public static class MatchService
         {
             int clips = 0;
             try { clips = Core.Clips.ClipLibrary.List(S).Count(c => c.Created >= m.Start.AddMinutes(-1) && c.Created <= m.End.AddMinutes(2)); } catch { }
+            if (m.Session)
+            {
+                // Quiet for sessions: only worth a popup when there's something to watch.
+                if (clips > 0) ClipToast.Show(Loc.F("{0} session", m.Game), Loc.F("Played {0}", m.Played) + " · " + Loc.F("{0} clips", clips), true);
+                MatchAdded?.Invoke(m);
+                return;
+            }
             var title = string.Join(" · ", new[] { Loc.T(m.Result), m.Map, m.Score }.Where(x => !string.IsNullOrEmpty(x)));
             var parts = new List<string>();
             if (!string.IsNullOrEmpty(m.Character)) parts.Add(m.Character);
