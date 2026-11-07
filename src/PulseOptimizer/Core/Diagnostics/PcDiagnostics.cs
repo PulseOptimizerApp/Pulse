@@ -84,6 +84,7 @@ public static partial class PcDiagnostics
             ("Checking Resizable BAR support", ResizableBar),
             ("Checking windowed game optimizations", WindowedGameOptimizations),
             ("Checking Memory Integrity", MemoryIntegrity),
+            ("Checking BIOS version, CPU microcode and Secure Boot", Bios),
         };
         var all = new List<Finding>();
         foreach (var (label, run) in checks)
