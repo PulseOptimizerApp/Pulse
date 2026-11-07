@@ -109,3 +109,27 @@ public class KeyRemapTests
         Assert.Null(Makers.Name("FFFF"));
     }
 }
+
+public class LogitechHidppTests
+{
+    [Fact]
+    public void Dpi_lists_expand_ranges()
+    {
+        // 100, then "step 50" up to 400, then 800, end
+        var bytes = new byte[] { 0x00, 0x64, 0xE0, 0x32, 0x01, 0x90, 0x03, 0x20, 0x00, 0x00 };
+        Assert.Equal(new[] { 100, 150, 200, 250, 300, 350, 400, 800 }, LogitechHidpp.DpiList(bytes));
+    }
+
+    [Fact]
+    public void Receivers_show_the_paired_device_not_the_receiver()
+    {
+        var mouse = new GearDevice { Kind = DeviceKind.Mouse, Vid = "046D", Pid = "C54D", Name = "USB Receiver" };
+        var kb = new GearDevice { Kind = DeviceKind.Keyboard, Vid = "046D", Pid = "C54D", Name = "USB Receiver" };
+        var logi = new LogiInfo { Name = "PRO X2 SUPERSTRIKE", Type = 3, Vid = "046D", Pid = "C54D", Battery = 91 };
+        var merged = InputDevices.Merge(new List<GearDevice> { mouse, kb }, new List<LogiInfo> { logi });
+        var only = Assert.Single(merged);
+        Assert.Equal("PRO X2 SUPERSTRIKE", only.Name);
+        Assert.Equal(DeviceKind.Mouse, only.Kind);
+        Assert.Equal(91, only.Battery);
+    }
+}
