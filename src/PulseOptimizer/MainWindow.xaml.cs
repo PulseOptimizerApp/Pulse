@@ -594,7 +594,7 @@ public partial class MainWindow : Window
     /// <summary>Also checks when Pulse comes to the front (from the tray, or another launch), at most every 30 minutes.</summary>
     void CheckForUpdateSoon()
     {
-        if (_checkForUpdate == null || DateTime.UtcNow - _lastUpdateCheck < TimeSpan.FromMinutes(30)) return;
+        if (_checkForUpdate == null || DateTime.UtcNow - _lastUpdateCheck < TimeSpan.FromMinutes(10)) return;
         _ = _checkForUpdate();
     }
 
@@ -602,7 +602,7 @@ public partial class MainWindow : Window
     {
         _checkForUpdate = () => CheckForUpdate(false);
         Task Check() => CheckForUpdate(false);
-        var t = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromHours(12) };
+        var t = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromHours(1) };
         t.Tick += async (_, _) => await Check();
         t.Start();
         _ = Task.Delay(8000).ContinueWith(_ => Dispatcher.InvokeAsync(Check));
