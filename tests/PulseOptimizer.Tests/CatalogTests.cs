@@ -48,10 +48,12 @@ public class CatalogTests
             Assert.False(t.Recommended, t.Id);
     }
 
-    /// <summary>Cut on Microsoft's own documentation (see the research doc). These must never be re-added.</summary>
+    /// <summary>
+    /// Cut on Microsoft's own documentation (see the research doc). These must never be re-added.
+    /// NetworkThrottlingIndex and TCPNoDelay came back in 0.4.12 at the owner's request, as gated tweaks whose text
+    /// says plainly that game ping usually doesn't change.
+    /// </summary>
     [Theory]
-    [InlineData("NetworkThrottlingIndex")]
-    [InlineData("TCPNoDelay")]
     [InlineData("SFIO Priority")]
     [InlineData("GPU Priority")]
     [InlineData("GlobalTimerResolutionRequests")]

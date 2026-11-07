@@ -11,7 +11,7 @@ public class DeclutterTests
         "Microsoft.WindowsStore", "Microsoft.DesktopAppInstaller", "Microsoft.StorePurchaseApp", "Microsoft.WindowsCalculator",
         "Microsoft.Windows.Photos", "Microsoft.WindowsNotepad", "Microsoft.WindowsTerminal", "Microsoft.SecHealthUI",
         "Microsoft.VCLibs.140.00", "Microsoft.UI.Xaml.2.8", "Microsoft.NET.Native.Runtime.2.2", "Microsoft.WindowsCamera",
-        "Microsoft.ScreenSketch", "Microsoft.Paint", "Microsoft.XboxIdentityProvider", "Microsoft.Xbox.TCUI",
+        "Microsoft.ScreenSketch", "Microsoft.Paint", "Microsoft.XboxIdentityProvider", "Microsoft.Xbox.TCUI", "Microsoft.GamingServices",
         "Microsoft.HEIFImageExtension", "Microsoft.WebMediaExtensions", "Microsoft.MicrosoftEdge.Stable", "NVIDIACorp.NVIDIAControlPanel",
         "AdvancedMicroDevicesInc-2.AMDRadeonSoftware", "RealtekSemiconductorCorp.RealtekAudioControl",
     };
