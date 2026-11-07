@@ -480,6 +480,7 @@ public partial class MainWindow : Window
         base.OnClosing(e);
         Ui.ClipsService.Shutdown();
         Ui.MacroService.Shutdown();
+        Ui.MatchService.Shutdown();
         Ui.GameSessionService.Shutdown();
         Ui.TrayIcon.Hide();
         Application.Current.Shutdown();

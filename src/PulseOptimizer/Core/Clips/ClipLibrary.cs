@@ -13,6 +13,11 @@ public class ClipFile
     public double Seconds { get; set; }
     public string Thumbnail { get; set; }
     public bool Favorite { get; set; }
+    /// <summary>"3K", "Penta kill"… for clips Pulse saved on its own; null otherwise.</summary>
+    public string Title { get; set; }
+    public bool Auto => !string.IsNullOrEmpty(Title);
+    /// <summary>What the library card shows in bold: the play ("3K") or the game.</summary>
+    public string Heading => string.IsNullOrEmpty(Title) ? Game : Title;
     /// <summary>The game part of the name ("VALORANT 2026-11-04 01-30-22" → "VALORANT").</summary>
     public string Game => GameOf(Name);
 
@@ -57,6 +62,7 @@ public static class ClipLibrary
                 Path = f.FullName, Created = f.CreationTime, Size = f.Length,
                 Thumbnail = File.Exists(ThumbFor(f.FullName)) ? ThumbFor(f.FullName) : null,
                 Favorite = s.Favorites.Contains(f.Name, StringComparer.OrdinalIgnoreCase),
+                Title = s.Titles.TryGetValue(f.Name, out var t) ? t : null,
             })
             .OrderByDescending(c => c.Created).ToList();
     }

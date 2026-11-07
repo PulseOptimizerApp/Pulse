@@ -85,6 +85,7 @@ public partial class App : Application
         SessionEnding += (_, _) => window.PrepareForExit();
         Ui.ClipsService.Init();
         Ui.MacroService.Init();
+        Ui.MatchService.Init();
         Ui.GameSessionService.Init();
 
         // Started at sign-in for Clips: stay in the tray until the user opens Pulse.
@@ -181,6 +182,7 @@ public partial class App : Application
     {
         try { Ui.ClipsService.Shutdown(); } catch { }
         try { Ui.MacroService.Shutdown(); } catch { }
+        try { Ui.MatchService.Shutdown(); } catch { }
         try { Ui.GameSessionService.Shutdown(); } catch { }
         try { Ui.TrayIcon.Hide(); } catch { }
         try { _instance?.ReleaseMutex(); } catch { }

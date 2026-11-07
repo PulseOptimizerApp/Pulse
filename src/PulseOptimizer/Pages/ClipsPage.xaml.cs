@@ -53,6 +53,7 @@ public partial class ClipsPage : UserControl, IPage, IReleasable
         _playerTimer.Tick += (_, _) => PlayerTick();
         ClipsService.Changed += OnClipsChanged;
         ClipsService.Saved += OnClipSaved;
+        MatchService.MatchAdded += _ => Dispatcher.InvokeAsync(LoadLibrary);
         // Leaving the page stops the player too (it used to keep ticking, and playing, in the background).
         Unloaded += (_, _) => { _usage.Stop(); if (PlayerLayer.Visibility == Visibility.Visible && _fs == null) ClosePlayer(); };
         _reload.Tick += (_, _) => { _reload.Stop(); LoadLibrary(); };
@@ -371,6 +372,8 @@ public partial class ClipsPage : UserControl, IPage, IReleasable
         CursorSwitch.IsChecked = S.RecordCursor;
         SoundSwitch.IsChecked = S.PlaySound;
         PopupSwitch.IsChecked = S.ShowSavedPopup;
+        AutoClipSwitch.IsChecked = S.AutoClip;
+        RecapSwitch.IsChecked = S.MatchRecaps;
         OpenAfterSwitch.IsChecked = S.OpenClipsAfterClip;
         FolderText.Text = S.ClipsFolder;
         HotkeyBtn.Content = ClipsService.HotkeyText(S.HotkeyModifiers, S.HotkeyKey);
@@ -430,12 +433,14 @@ public partial class ClipsPage : UserControl, IPage, IReleasable
         S.RecordCursor = CursorSwitch.IsChecked == true;
         S.PlaySound = SoundSwitch.IsChecked == true;
         S.ShowSavedPopup = PopupSwitch.IsChecked == true;
+        S.AutoClip = AutoClipSwitch.IsChecked == true;
+        S.MatchRecaps = RecapSwitch.IsChecked == true;
         S.OpenClipsAfterClip = OpenAfterSwitch.IsChecked == true;
         S.QuickClip = QuickSwitch.IsChecked == true;
         S.Screenshot = ShotSwitch.IsChecked == true;
         S.SessionHotkey = SessionSwitch.IsChecked == true;
         S.BookmarkHotkey = MarkSwitch.IsChecked == true;
-        Changed(restart: sender != TraySwitch && sender != SoundSwitch && sender != PopupSwitch);
+        Changed(restart: sender != TraySwitch && sender != SoundSwitch && sender != PopupSwitch && sender != AutoClipSwitch && sender != RecapSwitch);
     }
 
     void Changed(bool restart)
@@ -564,11 +569,12 @@ public partial class ClipsPage : UserControl, IPage, IReleasable
         {
             Clip = c,
             Image = LoadImage(c.Thumbnail),
-            Info = $"{c.Created.ToString("g", CultureInfo.CurrentCulture)} · {Format.Bytes(c.Size)}",
+            Info = (c.Auto ? c.Game + " · " : "") + $"{c.Created.ToString("g", CultureInfo.CurrentCulture)} · {Format.Bytes(c.Size)}",
         }).ToList();
         bool selecting = SelectToggle.IsChecked == true;
         foreach (var v in vms) v.Selecting = selecting;
         _allClips = vms;
+        ShowMatches();
         LibraryTools.Visibility = clips.Count > 1 ? Visibility.Visible : Visibility.Collapsed;
         BuildLibraryFilters();
         ApplyLibraryFilter();
@@ -580,6 +586,104 @@ public partial class ClipsPage : UserControl, IPage, IReleasable
                 try { await ClipLibrary.MakeThumbnail(v.Clip.Path); } catch { }
             if (vms.Any(v => v.Image == null && File.Exists(ClipLibrary.ThumbFor(v.Clip.Path)))) LoadLibrary();
         }
+    }
+
+    // ───────── Match recaps ─────────
+
+    Core.Games.MatchRecord _matchFilter;
+
+    void ShowMatches()
+    {
+        var matches = Core.Games.MatchStore.All.Take(20).ToList();
+        MatchesPanel.Visibility = S.MatchRecaps && matches.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        MatchCards.Children.Clear();
+        foreach (var m in matches) MatchCards.Children.Add(MatchCard(m));
+        MatchFilterClear.Visibility = _matchFilter != null ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    /// <summary>A recap card like Medal's: who you played, the result, K/D/A, headshots, rank, big plays and clips.</summary>
+    UIElement MatchCard(Core.Games.MatchRecord m)
+    {
+        int clips = _allClips.Count(v => v.Clip.Created >= m.Start.AddMinutes(-1) && v.Clip.Created <= m.End.AddMinutes(2));
+        bool selected = _matchFilter?.Id == m.Id;
+        var card = new Border
+        {
+            Width = 236, Margin = new Thickness(0, 0, 12, 0), Padding = new Thickness(16, 14, 16, 14), CornerRadius = new CornerRadius(10), Cursor = Cursors.Hand,
+            Background = (Brush)FindResource("SurfaceBrush"), BorderThickness = new Thickness(selected ? 2 : 1),
+            BorderBrush = (Brush)FindResource(selected ? "AccentGradient" : "BorderBrush"),
+        };
+        var sp = new StackPanel();
+        var head = new Grid();
+        head.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        head.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        var who = new StackPanel();
+        who.Children.Add(new TextBlock { Text = string.IsNullOrEmpty(m.Character) ? m.Game : m.Character.ToUpperInvariant(), FontWeight = FontWeights.Bold, FontSize = 14, TextTrimming = TextTrimming.CharacterEllipsis });
+        string resultKey = m.Result switch { "Win" => "GoodBrush", "Loss" => "BadBrush", _ => "TextDimBrush" };
+        who.Children.Add(new TextBlock { Text = Loc.T(string.IsNullOrEmpty(m.Result) ? "Finished" : m.Result).ToUpperInvariant(), FontWeight = FontWeights.SemiBold, FontSize = 11.5, Foreground = (Brush)FindResource(resultKey) });
+        head.Children.Add(who);
+        if (!string.IsNullOrEmpty(m.Rank))
+        {
+            var rank = new Border { CornerRadius = new CornerRadius(6), Background = (Brush)FindResource("Surface2Brush"), Padding = new Thickness(8, 3, 8, 3), VerticalAlignment = VerticalAlignment.Top };
+            rank.Child = new TextBlock { Text = m.Rank, FontSize = 11, FontWeight = FontWeights.SemiBold };
+            Grid.SetColumn(rank, 1);
+            head.Children.Add(rank);
+        }
+        sp.Children.Add(head);
+
+        // MAP / KDA / HS% row
+        var stats = new Grid { Margin = new Thickness(0, 12, 0, 0) };
+        for (int i = 0; i < 3; i++) stats.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        void Stat(int col, string label, UIElement value)
+        {
+            var s = new StackPanel();
+            s.Children.Add(new TextBlock { Text = label, FontSize = 10.5, Foreground = (Brush)FindResource("TextFaintBrush"), FontWeight = FontWeights.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis });
+            s.Children.Add(value);
+            Grid.SetColumn(s, col);
+            stats.Children.Add(s);
+        }
+        var score = new TextBlock { FontSize = 13, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 2, 0, 0) };
+        var sc = (m.Score ?? "").Split(':');
+        if (sc.Length == 2)
+        {
+            score.Inlines.Add(new System.Windows.Documents.Run(sc[0].Trim()) { Foreground = (Brush)FindResource("GoodBrush") });
+            score.Inlines.Add(new System.Windows.Documents.Run(" : "));
+            score.Inlines.Add(new System.Windows.Documents.Run(sc[1].Trim()) { Foreground = (Brush)FindResource("BadBrush") });
+        }
+        Stat(0, (string.IsNullOrEmpty(m.Map) ? Loc.T("Score") : m.Map).ToUpperInvariant(), score);
+        Stat(1, "KDA", new TextBlock { Text = m.Kda.Replace(" ", ""), FontSize = 13, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 2, 0, 0) });
+        Stat(2, m.HeadshotPercent >= 0 ? "HS%" : Loc.T("Mode").ToUpperInvariant(),
+            new TextBlock { Text = m.HeadshotPercent >= 0 ? m.HeadshotPercent + "%" : m.Mode, FontSize = 13, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 2, 0, 0), TextTrimming = TextTrimming.CharacterEllipsis });
+        sp.Children.Add(stats);
+
+        // Big plays and clips
+        var foot = new WrapPanel { Margin = new Thickness(0, 12, 0, 0) };
+        foreach (var h in m.Highlights.GroupBy(x => x).OrderByDescending(g => g.Key))
+        {
+            var pill = new Border { CornerRadius = new CornerRadius(6), Background = (Brush)FindResource("WarnSoftBrush"), Padding = new Thickness(7, 2, 7, 2), Margin = new Thickness(0, 0, 6, 6) };
+            pill.Child = new TextBlock { Text = h.Count() > 1 ? $"{Loc.T(h.Key)} ×{h.Count()}" : Loc.T(h.Key), FontSize = 11, FontWeight = FontWeights.SemiBold, Foreground = (Brush)FindResource("WarnBrush") };
+            foot.Children.Add(pill);
+        }
+        sp.Children.Add(foot);
+        var bottom = new Grid { Margin = new Thickness(0, 4, 0, 0) };
+        bottom.Children.Add(new TextBlock { Text = Loc.F("{0} clips", clips), FontSize = 12, Foreground = (Brush)FindResource("TextDimBrush") });
+        bottom.Children.Add(new TextBlock { Text = Format.Ago(m.End), FontSize = 12, Foreground = (Brush)FindResource("TextFaintBrush"), HorizontalAlignment = HorizontalAlignment.Right });
+        sp.Children.Add(bottom);
+        card.Child = sp;
+        card.ToolTip = string.Join(" · ", new[] { m.Game, m.Mode }.Concat(m.Extras).Where(x => !string.IsNullOrEmpty(x)));
+        card.MouseLeftButtonUp += (_, _) =>
+        {
+            _matchFilter = selected ? null : m;
+            ShowMatches();
+            ApplyLibraryFilter();
+        };
+        return card;
+    }
+
+    void MatchFilterClear_Click(object sender, RoutedEventArgs e)
+    {
+        _matchFilter = null;
+        ShowMatches();
+        ApplyLibraryFilter();
     }
 
     // ───────── Library filters ─────────
@@ -621,7 +725,8 @@ public partial class ClipsPage : UserControl, IPage, IReleasable
         IEnumerable<ClipVm> list = _allClips;
         if (_gameFilter == "\u2605") list = list.Where(v => v.Clip.Favorite);
         else if (_gameFilter.Length > 0) list = list.Where(v => v.Clip.Game == _gameFilter);
-        if (q.Length > 0) list = list.Where(v => v.Clip.Name.Contains(q, StringComparison.CurrentCultureIgnoreCase));
+        if (q.Length > 0) list = list.Where(v => v.Clip.Name.Contains(q, StringComparison.CurrentCultureIgnoreCase) || (v.Clip.Title ?? "").Contains(q, StringComparison.CurrentCultureIgnoreCase));
+        if (_matchFilter != null) list = list.Where(v => v.Clip.Created >= _matchFilter.Start.AddMinutes(-1) && v.Clip.Created <= _matchFilter.End.AddMinutes(2));
         list = _sort switch
         {
             "old" => list.OrderBy(v => v.Clip.Created),

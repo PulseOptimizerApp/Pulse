@@ -29,8 +29,23 @@ public class SafetyTests
     public void Has_no_network_code() =>
         AssertNotUsed(@"\b(HttpClient|WebClient|WebRequest|TcpClient|UdpClient|Socket|ClientWebSocket)\b",
             "Pulse never sends anything, and only downloads from its own GitHub releases: the opt-in Clips download of " +
-            "FFmpeg (Ffmpeg.cs) and the update check and install (Updater.cs). The lag checks only send pings (NetworkCheck.cs)",
-            "Ffmpeg.cs", "Updater.cs");
+            "FFmpeg (Ffmpeg.cs) and the update check and install (Updater.cs). The lag checks only send pings (NetworkCheck.cs). " +
+            "Match recaps read the games' own data: League's Live Client API on 127.0.0.1 (LeagueLive.cs) and, for VALORANT, " +
+            "your own last match from Riot with the Riot Client's local login (ValorantMatches.cs)",
+            "Ffmpeg.cs", "Updater.cs", "LeagueLive.cs", "ValorantMatches.cs");
+
+    [Fact]
+    public void Match_recaps_only_talk_to_this_PC_and_Riot()
+    {
+        foreach (var name in new[] { "LeagueLive.cs", "ValorantMatches.cs", "GsiServer.cs" })
+        {
+            var src = File.ReadAllText(Repo.SourceFiles().Single(f => Path.GetFileName(f) == name));
+            var urls = Regex.Matches(src, @"https?://[^\s""]+").Select(m => m.Value).Distinct().ToList();
+            Assert.All(urls, u => Assert.Matches(@"^https?://(127\.0\.0\.1[:/]|(pd|shared)\.\{s\.Shard\}\.a\.pvp\.net/|glz-)", u));
+            Assert.DoesNotContain("PostAsync", src);
+            Assert.DoesNotContain("PutAsync", src);
+        }
+    }
 
     [Fact]
     public void The_only_download_is_FFmpeg_from_this_projects_own_releases()

@@ -311,21 +311,37 @@ public static class ClipsService
     /// <summary>Saves the instant replay as a clip. Safe to call from anywhere (hotkey, tray, button).</summary>
     public static Task<string> SaveClip() => SaveClip(S.ReplaySeconds);
 
-    public static async Task<string> SaveClip(int seconds)
+    /// <summary>
+    /// Saves a clip Pulse decided on by itself (a big play the game reported). Quiet: no "nothing to save" notice,
+    /// and the popup names the play.
+    /// </summary>
+    public static async Task<string> SaveAutoClip(int seconds, string title)
+    {
+        if (_rec == null || !_rec.Running) return null;
+        for (int i = 0; i < 20 && _saving; i++) await Task.Delay(250);
+        return await SaveClip(Math.Clamp(seconds, 10, Math.Max(S.ReplaySeconds, 10)), title);
+    }
+
+    public static async Task<string> SaveClip(int seconds, string title = null)
     {
         if (_saving) return null;
         if (_rec == null || !_rec.Running)
         {
-            if (S.Enabled) ClipToast.Show(Loc.T("Nothing to save yet"), Loc.T(S.OnlyWhileGaming ? "Clips records while a game is running." : "The replay is starting."), false);
+            if (S.Enabled && title == null) ClipToast.Show(Loc.T("Nothing to save yet"), Loc.T(S.OnlyWhileGaming ? "Clips records while a game is running." : "The replay is starting."), false);
             return null;
         }
         _saving = true;
-        Feedback.Pressed(S); // the sound plays the moment the key is pressed
+        if (title == null) Feedback.Pressed(S); // the sound plays the moment the key is pressed (auto clips sound when saved)
         try
         {
             var path = await _rec.Save(S.ClipsFolder, _game ?? "Clip", seconds);
             SaveInputs(path);
-            Feedback.Saved(S, seconds);
+            if (title != null)
+            {
+                S.Titles[Path.GetFileNameWithoutExtension(path)] = title;
+                TweakEngine.Save();
+            }
+            Feedback.Saved(S, seconds, title != null ? Loc.F("{0} clipped", Loc.T(title)) : null, playSound: title != null);
             Saved?.Invoke(path); // show it in the library now; the picture follows
             _ = Task.Run(async () =>
             {

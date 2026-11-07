@@ -248,6 +248,21 @@
                             <CheckBox x:Name="MarkSwitch" Grid.Column="2" Style="{StaticResource Switch}" Click="Setting_Click"/>
                         </Grid>
 
+                        <Grid Style="{StaticResource Row}">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="200"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <TextBlock Style="{StaticResource RowLabel}" Text="Auto clip big plays"/>
+                            <TextBlock Grid.Column="1" Style="{StaticResource Body}" FontSize="12" Foreground="{StaticResource TextDimBrush}" VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="460" HorizontalAlignment="Left"
+                                       Text="Saves 3Ks, 4Ks and aces in Counter-Strike 2, triple kills to pentas and aces in League of Legends, and triple kills and up in Dota 2, using each game's official live data."/>
+                            <CheckBox x:Name="AutoClipSwitch" Grid.Column="2" Style="{StaticResource Switch}" Click="Setting_Click"/>
+                        </Grid>
+                        <Grid Style="{StaticResource Row}">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="200"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <TextBlock Style="{StaticResource RowLabel}" Text="Match recaps"/>
+                            <TextBlock Grid.Column="1" Style="{StaticResource Body}" FontSize="12" Foreground="{StaticResource TextDimBrush}" VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="460" HorizontalAlignment="Left"
+                                       Text="After each match: map, agent or champion, win or loss, K/D/A, headshots and rank, with that match's clips. VALORANT, Counter-Strike 2, League of Legends and Dota 2."/>
+                            <CheckBox x:Name="RecapSwitch" Grid.Column="2" Style="{StaticResource Switch}" Click="Setting_Click"/>
+                        </Grid>
+
                         <!-- More settings -->
                         <StackPanel x:Name="MorePanel" Visibility="Collapsed">
                             <Grid Style="{StaticResource Row}">
@@ -388,6 +403,17 @@
                 </Border>
 
                 <StackPanel x:Name="LibraryPanel">
+                <!-- ═════════ Matches (recaps, like Medal) ═════════ -->
+                <StackPanel x:Name="MatchesPanel" Visibility="Collapsed" Margin="0,28,0,0">
+                    <Grid Margin="0,0,0,12">
+                        <TextBlock Style="{StaticResource H2}" Text="Recent matches"/>
+                        <Button x:Name="MatchFilterClear" Style="{StaticResource LinkButton}" HorizontalAlignment="Right" VerticalAlignment="Center" Content="Show all clips" Visibility="Collapsed" Click="MatchFilterClear_Click"/>
+                    </Grid>
+                    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" PanningMode="HorizontalOnly">
+                        <StackPanel x:Name="MatchCards" Orientation="Horizontal" Margin="0,0,0,8"/>
+                    </ScrollViewer>
+                </StackPanel>
+
                 <!-- ═════════ Library ═════════ -->
                 <Grid x:Name="LibraryHeader" Margin="0,28,0,12" Visibility="Collapsed">
                     <StackPanel Orientation="Horizontal">
@@ -445,7 +471,11 @@
                                         </Border>
                                     </Grid>
                                     <StackPanel Margin="14,10,14,12">
-                                        <TextBlock Text="{Binding Clip.Game}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="&#xE945;" Style="{StaticResource IconText}" FontSize="12" Foreground="{StaticResource WarnBrush}" Margin="0,0,6,0"
+                                                       Visibility="{Binding Clip.Auto, Converter={StaticResource BoolToVis}}" ToolTip="Clipped automatically"/>
+                                            <TextBlock Text="{Binding Clip.Heading}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                        </StackPanel>
                                         <TextBlock Text="{Binding Info}" FontSize="12" Foreground="{StaticResource TextDimBrush}" Margin="0,2,0,0"/>
                                     </StackPanel>
                                 </StackPanel>

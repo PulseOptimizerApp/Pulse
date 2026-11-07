@@ -121,6 +121,14 @@ public class ClipSettings
     /// <summary>Oldest clips (not favorites) are deleted when the folder grows past this. 0 = no limit.</summary>
     public int StorageLimitGb { get; set; } = 30;
     public List<string> Favorites { get; set; } = new();
+    /// <summary>Clip file name → its title ("3K", "Penta kill"), for clips Pulse saved on its own.</summary>
+    public Dictionary<string, string> Titles { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    /// <summary>Clip big plays on their own: CS2 3K/4K/ACE, League triples to pentas and aces, Dota 2 triples and up.</summary>
+    public bool AutoClip { get; set; } = true;
+    /// <summary>After each match, a recap like Medal's: map, agent or champion, result, K/D/A, headshots, rank.</summary>
+    public bool MatchRecaps { get; set; } = true;
+    /// <summary>A random password the games' state integrations send, so only they can talk to Pulse's listener.</summary>
+    public string GsiToken { get; set; } = "";
 
     public static string DefaultFolder =>
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyVideos), "Pulse Clips");
