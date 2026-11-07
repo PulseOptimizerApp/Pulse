@@ -8,7 +8,7 @@ Releases up to and including v0.4.17 were published under the MIT license.
 - **OpenMouse mouse-protocol** — gaming mouse protocol codecs and drivers, used unmodified for the Mouse page.
   https://github.com/OpenMouse-Project/mouse-protocol — AGPL-3.0-or-later. Exact commit: `drivers/protocol.lock`.
   The bundled `mouse-drivers.js` is built from that source by `drivers/build.mjs` in CI.
-- **RNNoise** — © Xiph.Org Foundation, Jean-Marc Valin; BSD-3-Clause. Built from v0.1.1 by `tools/build-rnnoise.py` in CI
+- **RNNoise** — © Xiph.Org Foundation, Jean-Marc Valin; BSD-3-Clause. Built from v0.2 by `tools/build-rnnoise.py` in CI
   and used by the Mic studio for noise removal. https://github.com/xiph/rnnoise
 - **NAudio** — © Mark Heath and contributors, MIT license. Used by the Mic studio for audio in and out.
 - **PresentMon** — © Intel Corporation, MIT license.
