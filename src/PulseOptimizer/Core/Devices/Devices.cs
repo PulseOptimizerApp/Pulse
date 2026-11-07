@@ -12,14 +12,19 @@ public enum DeviceKind { Mouse, Keyboard }
 /// <summary>A connected mouse or keyboard (several Windows entries for one device are merged).</summary>
 public sealed class GearDevice
 {
-    public DeviceKind Kind { get; init; }
+    public DeviceKind Kind { get; set; }
     public string Name { get; set; }
     public string Maker { get; set; }
     public string Vid { get; init; }
     public string Pid { get; init; }
     /// <summary>Raw input handles that belong to this device (a mouse can show up as several).</summary>
     public List<IntPtr> Handles { get; } = new();
-    public bool Wireless => Name.Contains("receiver", StringComparison.OrdinalIgnoreCase) || Name.Contains("wireless", StringComparison.OrdinalIgnoreCase)
+    /// <summary>What the device said about itself over its maker's protocol (Logitech HID++), when it answered.</summary>
+    public LogiInfo Logi { get; set; }
+    public int? Battery => Logi?.Battery;
+    public bool Charging => Logi?.Charging == true;
+    public string Key => $"{Kind}-{Vid}-{Pid}-{Name}";
+    public bool Wireless => Logi != null ? Logi.Index != 0xFF : Name.Contains("receiver", StringComparison.OrdinalIgnoreCase) || Name.Contains("wireless", StringComparison.OrdinalIgnoreCase)
                             || Name.Contains("lightspeed", StringComparison.OrdinalIgnoreCase) || Name.Contains("dongle", StringComparison.OrdinalIgnoreCase);
     /// <summary>The maker's own app, for settings stored on the device itself (onboard DPI, RGB, button remaps).</summary>
     public string MakerApp => Makers.App(Vid);
@@ -75,6 +80,32 @@ public static class InputDevices
         // A receiver or keyboard can also report as a mouse (and the other way round): if a device is both, keep the
         // entry that matches its name.
         return found.Values.OrderBy(d => d.Kind).ThenBy(d => d.Name).ToList();
+    }
+
+    /// <summary>
+    /// Adds what Logitech devices said over HID++ (real model name, battery...). A wireless receiver shows up in
+    /// Windows as both a mouse and a keyboard; the entry that doesn't match the paired device is dropped.
+    /// </summary>
+    public static List<GearDevice> Merge(List<GearDevice> devices, List<LogiInfo> logi)
+    {
+        var claimed = new HashSet<string>();
+        foreach (var l in logi)
+        {
+            var kind = l.IsKeyboard ? DeviceKind.Keyboard : DeviceKind.Mouse;
+            var same = devices.Where(d => d.Vid == l.Vid && d.Pid == l.Pid && d.Logi == null).ToList();
+            var target = same.FirstOrDefault(d => d.Kind == kind) ?? same.FirstOrDefault();
+            if (target == null)
+            {
+                target = new GearDevice { Kind = kind, Vid = l.Vid, Pid = l.Pid };
+                devices.Add(target);
+            }
+            target.Logi = l;
+            target.Name = l.Name;
+            target.Maker = "Logitech";
+            claimed.Add(l.Vid + l.Pid);
+        }
+        devices.RemoveAll(d => d.Logi == null && claimed.Contains(d.Vid + d.Pid));
+        return devices.OrderBy(d => d.Kind).ThenBy(d => d.Name).ToList();
     }
 
     static (string Product, string Maker) HidStrings(string path)
@@ -476,4 +507,6 @@ public sealed class DeviceSettings
     public bool RemapPending { get; set; }
     public int? OriginalKeyDelay { get; set; }
     public int? OriginalKeySpeed { get; set; }
+    /// <summary>Device → the photo the user picked for it (a file in Pulse's data folder).</summary>
+    public Dictionary<string, string> Photos { get; set; } = new();
 }

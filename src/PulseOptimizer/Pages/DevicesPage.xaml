@@ -2,30 +2,32 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <Grid Margin="0,6,0,0">
-        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-        <StackPanel>
-            <Grid>
-                <StackPanel>
-                    <TextBlock Style="{StaticResource H1}" Text="Devices"/>
-                    <TextBlock Style="{StaticResource Sub}" Margin="0,6,0,0" MaxWidth="700" HorizontalAlignment="Left" TextWrapping="Wrap"
-                               Text="Your mice, keyboards, headsets and mics: check polling rate and DPI, remap keys for every game, fix key delay and test your mic."/>
-                </StackPanel>
-                <Button x:Name="RefreshBtn" Style="{StaticResource GhostButton}" HorizontalAlignment="Right" VerticalAlignment="Top" Click="Refresh_Click">
-                    <StackPanel Orientation="Horizontal">
+        <Grid.ColumnDefinitions><ColumnDefinition Width="232"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+
+        <!-- Your devices: a compact list with battery, like a device hub -->
+        <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="14" Padding="10,14,10,12" Margin="0,0,20,0">
+            <DockPanel>
+                <Grid DockPanel.Dock="Top" Margin="8,0,4,10">
+                    <TextBlock Text="YOUR DEVICES" FontSize="10.5" FontWeight="Bold" Foreground="{StaticResource TextFaintBrush}" VerticalAlignment="Center"/>
+                    <Button x:Name="RefreshBtn" Style="{StaticResource LinkButton}" HorizontalAlignment="Right" ToolTip="Scan again" Click="Refresh_Click">
                         <TextBlock Text="&#xE72C;" Style="{StaticResource IconText}" FontSize="12"/>
-                        <TextBlock Text="Scan again" Margin="8,0,0,0"/>
+                    </Button>
+                </Grid>
+                <Button DockPanel.Dock="Bottom" Style="{StaticResource GhostButton}" Margin="4,10,4,0" HorizontalAlignment="Stretch" Click="AllDevices_Click">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="&#xF0E2;" Style="{StaticResource IconText}" FontSize="12"/>
+                        <TextBlock Text="All devices" Margin="8,0,0,0"/>
                     </StackPanel>
                 </Button>
-            </Grid>
-            <!-- What's plugged in -->
-            <WrapPanel x:Name="DeviceStrip" Margin="0,18,0,0"/>
-            <Grid Margin="0,10,0,0">
-                <Border VerticalAlignment="Bottom" Height="1" Background="{StaticResource BorderBrush}"/>
-                <StackPanel x:Name="Tabs" Orientation="Horizontal"/>
-            </Grid>
-        </StackPanel>
-        <ScrollViewer x:Name="Scroll" Grid.Row="1" Margin="0,18,0,0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-            <StackPanel x:Name="Body" Margin="0,0,8,32"/>
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel x:Name="DeviceList"/>
+                </ScrollViewer>
+            </DockPanel>
+        </Border>
+
+        <!-- Main area: the gallery, or one device's settings -->
+        <ScrollViewer x:Name="Scroll" Grid.Column="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <StackPanel x:Name="Main" Margin="0,0,8,32"/>
         </ScrollViewer>
     </Grid>
 </UserControl>
