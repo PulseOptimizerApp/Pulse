@@ -35,11 +35,11 @@ for name in os.listdir(src):
         open(path, "w", encoding="utf-8").write("#include <malloc.h>\n" + fixed)
         print("patched variable-length arrays in", name)
 
-# Plain C (no AVX2/SSE4.1 dispatch), so it runs on every x64 CPU. It costs about 1% of one core.
+# SSE2 only (every x64 CPU has it; MSVC doesn't announce it the way gcc does), no AVX2 dispatch. About 1% of one core.
 files = ["denoise.c", "rnn.c", "pitch.c", "kiss_fft.c", "celt_lpc.c", "nnet.c", "nnet_default.c",
          "parse_lpcnet_weights.c", "rnnoise_data.c", "rnnoise_tables.c"]
 os.makedirs(os.path.dirname(out), exist_ok=True)
 subprocess.check_call(["cl", "/nologo", "/O2", "/LD", "/DWIN32", "/DRNNOISE_BUILD", "/DDLL_EXPORT", "/D_USE_MATH_DEFINES",
-                       "/D_CRT_SECURE_NO_WARNINGS", "/I", os.path.join(work, "include"), "/I", src]
+                       "/D_CRT_SECURE_NO_WARNINGS", "/D__SSE__", "/D__SSE2__", "/std:c11", "/I", os.path.join(work, "include"), "/I", src]
                       + [os.path.join(src, f) for f in files] + ["/Fe:" + out, "/Fo:" + os.path.join(tmp, "")], cwd=tmp)
 print("built", out, os.path.getsize(out), "bytes")
