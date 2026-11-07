@@ -10,7 +10,7 @@ namespace Pulse.Core.Devices;
 public enum DeviceKind { Mouse, Keyboard }
 
 /// <summary>A connected mouse or keyboard (several Windows entries for one device are merged).</summary>
-public sealed class InputDevice
+public sealed class GearDevice
 {
     public DeviceKind Kind { get; init; }
     public string Name { get; set; }
@@ -37,9 +37,9 @@ public static class InputDevices
     [DllImport("hid.dll", CharSet = CharSet.Unicode)] static extern bool HidD_GetManufacturerString(Microsoft.Win32.SafeHandles.SafeFileHandle h, StringBuilder buf, int len);
     const uint RIDI_DEVICENAME = 0x20000007, RIM_TYPEMOUSE = 0, RIM_TYPEKEYBOARD = 1;
 
-    public static List<InputDevice> List()
+    public static List<GearDevice> List()
     {
-        var found = new Dictionary<string, InputDevice>();
+        var found = new Dictionary<string, GearDevice>();
         uint count = 0, size = (uint)Marshal.SizeOf<RAWINPUTDEVICELIST>();
         GetRawInputDeviceList(null, ref count, size);
         if (count == 0) return new();
@@ -62,7 +62,7 @@ public static class InputDevices
             if (!found.TryGetValue(key, out var dev))
             {
                 var (product, maker) = HidStrings(path);
-                dev = new InputDevice
+                dev = new GearDevice
                 {
                     Kind = kind, Vid = vid, Pid = pid,
                     Maker = Makers.Name(vid) ?? (string.IsNullOrWhiteSpace(maker) ? null : maker.Trim()),

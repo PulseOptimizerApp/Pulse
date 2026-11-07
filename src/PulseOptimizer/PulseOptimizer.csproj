@@ -25,14 +25,9 @@
     <Copyright>MIT License</Copyright>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
-    <!-- Memory: compact the heap more readily (Pulse sits next to games all day). -->
+    <!-- Less JIT bookkeeping in memory. (No GC "conserve memory": its extra compacting pauses make recordings drop frames.) -->
     <TieredPGO>false</TieredPGO>
   </PropertyGroup>
-
-  <ItemGroup>
-    <RuntimeHostConfigurationOption Include="System.GC.ConserveMemory" Value="5" />
-    <RuntimeHostConfigurationOption Include="System.GC.RetainVM" Value="false" />
-  </ItemGroup>
 
   <ItemGroup>
     <Resource Include="app.ico" />

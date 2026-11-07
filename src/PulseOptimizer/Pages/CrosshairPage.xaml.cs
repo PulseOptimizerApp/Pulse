@@ -81,7 +81,7 @@ public partial class CrosshairPage : UserControl, IPage
     /// <summary>Something changed: redraw the preview and the overlay, save shortly after.</summary>
     void Changed(bool rebuildEditor = false)
     {
-        _preview.Style = St;
+        _preview.Crosshair = St;
         _preview.InvalidateVisual();
         if (_codeOut != null) _codeOut.Text = ValorantCode.Write(St);
         if (rebuildEditor) BuildEditor();
@@ -133,7 +133,7 @@ public partial class CrosshairPage : UserControl, IPage
         }
         top.Children.Add(opts);
         pv.Children.Add(top);
-        _preview.Style = St;
+        _preview.Crosshair = St;
         _preview.Zoom = _zoom;
         _previewBox.Height = 300;
         _previewBox.CornerRadius = new CornerRadius(10);
@@ -218,7 +218,7 @@ public partial class CrosshairPage : UserControl, IPage
     {
         var g = new Grid { Width = 104 };
         var sp = new StackPanel();
-        var pic = new Border { Height = 76, CornerRadius = new CornerRadius(8), Background = Backdrop("dark"), ClipToBounds = true, Child = new CrosshairVisual { Style = style, Zoom = 2 } };
+        var pic = new Border { Height = 76, CornerRadius = new CornerRadius(8), Background = Backdrop("dark"), ClipToBounds = true, Child = new CrosshairVisual { Crosshair = style, Zoom = 2 } };
         sp.Children.Add(pic);
         sp.Children.Add(new TextBlock { Text = Loc.T(name), FontSize = 12, Foreground = Res("TextDimBrush"), Margin = new Thickness(2, 6, 0, 0), TextTrimming = TextTrimming.CharacterEllipsis });
         g.Children.Add(sp);

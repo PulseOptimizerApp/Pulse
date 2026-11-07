@@ -14,7 +14,7 @@ public sealed class CrosshairVisual : FrameworkElement
     CrosshairStyle _style;
     double _zoom = 1;
 
-    public CrosshairStyle Style { get => _style; set { _style = value; InvalidateVisual(); } }
+    public CrosshairStyle Crosshair { get => _style; set { _style = value; InvalidateVisual(); } }
     /// <summary>Extra magnification for previews (the overlay uses 1).</summary>
     public double Zoom { get => _zoom; set { _zoom = value; InvalidateVisual(); } }
 

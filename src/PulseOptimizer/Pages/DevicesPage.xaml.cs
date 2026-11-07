@@ -24,7 +24,7 @@ public partial class DevicesPage : UserControl, IPage, IReleasable
     static DeviceSettings S => TweakEngine.State.Devices ??= new DeviceSettings();
     static string _tab = "mouse";
     readonly Dictionary<string, (TextBlock Label, Border Line)> _tabs = new();
-    List<InputDevice> _inputs = new();
+    List<GearDevice> _inputs = new();
     List<AudioDevice> _audio = new();
 
     MouseMeter _meter;

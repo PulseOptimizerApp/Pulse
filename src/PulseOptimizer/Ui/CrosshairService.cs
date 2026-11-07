@@ -149,7 +149,7 @@ sealed class CrosshairWindow : Window
     public void Apply(CrosshairSettings s)
     {
         _s = s;
-        _visual.Style = s.Style;
+        _visual.Crosshair = s.Style;
         if (_hwnd == IntPtr.Zero) return;
         // Leave it out of clips and screenshots if asked (Windows 10 2004+; older Windows just shows it).
         SetWindowDisplayAffinity(_hwnd, s.HideFromCapture ? WDA_EXCLUDEFROMCAPTURE : WDA_NONE);
