@@ -283,6 +283,23 @@ public class MouseAccelAction : TweakAction
     }
 }
 
+/// <summary>Sets Windows pointer speed to 10 of 20, where one count from the mouse moves the cursor one pixel.</summary>
+public class PointerSpeedAction : TweakAction
+{
+    public override bool? Check() => Native.GetMouseSpeed() == 10;
+
+    public override ActionBackup Apply()
+    {
+        var b = new ActionBackup { Kind = "pointerspeed" };
+        b.Data["speed"] = Native.GetMouseSpeed().ToString(CultureInfo.InvariantCulture);
+        Native.SetMouseSpeed(10);
+        return b;
+    }
+
+    public override void Revert(ActionBackup backup) =>
+        Native.SetMouseSpeed(int.TryParse(backup?.Data.GetValueOrDefault("speed"), out var s) ? s : 10);
+}
+
 /// <summary>Turns off the Sticky Keys shortcut (Shift ×5) through SystemParametersInfo. Sticky Keys itself stays available.</summary>
 public class StickyKeysHotkeyAction : TweakAction
 {

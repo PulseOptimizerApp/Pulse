@@ -75,6 +75,7 @@
                         <RadioButton Style="{StaticResource NavButton}" Tag="startup" ui:Icon.Glyph="&#xE7E8;" Content="Startup apps" Checked="Nav_Checked" Click="Nav_Click"/>
                         <RadioButton Style="{StaticResource NavButton}" Tag="security" ui:Icon.Glyph="&#xEA18;" Content="Security" Checked="Nav_Checked" Click="Nav_Click"/>
                         <RadioButton Style="{StaticResource NavButton}" Tag="safety" ui:Icon.Glyph="&#xE7A7;" Content="Undo &amp; restore" Checked="Nav_Checked" Click="Nav_Click"/>
+                        <RadioButton Style="{StaticResource NavButton}" Tag="guide" ui:Icon.Glyph="&#xE82D;" Content="PC guide" Checked="Nav_Checked" Click="Nav_Click"/>
                     </StackPanel>
                 </Grid>
 

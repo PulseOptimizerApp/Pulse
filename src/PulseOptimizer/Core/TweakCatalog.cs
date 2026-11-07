@@ -158,6 +158,30 @@ public static class TweakCatalog
         },
         new Tweak
         {
+            Id = "pointer-1to1", Category = TweakCategory.Input, Risk = Risk.Safe,
+            Evidence = Evidence.Documented, Proof = ProofMetric.None,
+            SourceName = "Microsoft Learn: SystemParametersInfo (SPI_SETMOUSESPEED)", SourceUrl = SrcSpi,
+            Title = "Windows pointer speed at 1:1",
+            Summary = "The cursor moves exactly as far as your mouse's DPI says, with no skipped or doubled pixels.",
+            Explain = "Windows' pointer speed slider has 20 steps. Only the middle one (10) passes your mouse's movement through unchanged; other steps scale it, which can skip pixels at high speeds. Set your sensitivity with DPI and in-game settings instead.",
+            Changes = "SystemParametersInfo SPI_SETMOUSESPEED → 10 (Windows default 10)",
+            Gain = "Precise, predictable cursor movement on the desktop and in games that use the Windows cursor.",
+            Tradeoff = "If the cursor feels too slow or fast afterwards, change your mouse's DPI instead.",
+            Actions = { new PointerSpeedAction() }
+        },
+        new Tweak
+        {
+            Id = "comm-ducking", Category = TweakCategory.Gaming, Risk = Risk.Safe, Evidence = Evidence.NoPerformanceClaim,
+            Title = "Don't lower game sound during voice calls",
+            Summary = "Windows stops turning your game down by 80% whenever Discord or another app opens a call.",
+            Explain = "By default Windows treats voice chat as 'communications' and lowers every other sound while it's active, so footsteps get quieter mid-match. This is the 'Do nothing' option on the Communications tab of Sound settings.",
+            Changes = @"HKCU\Software\Microsoft\Multimedia\Audio → UserDuckingPreference = 3 (Windows default: reduce other sounds by 80%)",
+            Gain = "Game audio stays at full volume while you talk.",
+            Tradeoff = "Music and videos also stay at full volume during calls.",
+            Actions = { CU(@"Software\Microsoft\Multimedia\Audio", "UserDuckingPreference", 3) }
+        },
+        new Tweak
+        {
             Id = "sticky-keys", Category = TweakCategory.Input, Risk = Risk.Safe,
             Evidence = Evidence.Documented, Proof = ProofMetric.None, Recommended = true,
             SourceName = "Microsoft Learn: SystemParametersInfo (SPI_SETSTICKYKEYS)", SourceUrl = SrcSpi,

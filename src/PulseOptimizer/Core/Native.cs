@@ -141,6 +141,21 @@ public static class Native
             throw new InvalidOperationException("Windows refused the mouse setting (error " + Marshal.GetLastWin32Error() + ").");
     }
 
+    [DllImport("user32.dll", SetLastError = true, EntryPoint = "SystemParametersInfoW")]
+    static extern bool SystemParametersInfoPtr(uint action, uint param, IntPtr pv, uint winIni);
+    [DllImport("user32.dll", SetLastError = true, EntryPoint = "SystemParametersInfoW")]
+    static extern bool SystemParametersInfoInt(uint action, uint param, out int pv, uint winIni);
+    const uint SPI_GETMOUSESPEED = 0x0070, SPI_SETMOUSESPEED = 0x0071;
+
+    /// <summary>Windows pointer speed, 1 to 20 (the Mouse settings slider). 10 is 1:1 with the mouse's own DPI.</summary>
+    public static int GetMouseSpeed() => SystemParametersInfoInt(SPI_GETMOUSESPEED, 0, out var v, 0) ? v : 10;
+
+    public static void SetMouseSpeed(int speed)
+    {
+        if (!SystemParametersInfoPtr(SPI_SETMOUSESPEED, 0, (IntPtr)Math.Clamp(speed, 1, 20), SPIF_UPDATEINIFILE | SPIF_SENDCHANGE))
+            throw new InvalidOperationException("Windows refused the pointer speed (error " + Marshal.GetLastWin32Error() + ").");
+    }
+
     public static uint GetStickyKeysFlags()
     {
         var sk = new STICKYKEYS { cbSize = (uint)Marshal.SizeOf<STICKYKEYS>() };

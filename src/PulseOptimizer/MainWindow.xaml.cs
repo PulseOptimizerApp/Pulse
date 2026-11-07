@@ -158,6 +158,7 @@ public partial class MainWindow : Window
                 "measure" => new MeasurePage(),
                 "reaction" => new ReactionPage(),
                 "macros" => new MacrosPage(),
+                "guide" => new GuidePage(),
                 "games" => new GamesPage(),
                 "cleanup" => new DeclutterPage(),
                 "startup" => new StartupPage(),
