@@ -1,0 +1,861 @@
+{
+ "Schema": 1,
+ "Updated": "2026-11-07",
+ "Tips": [
+  {
+   "Title": "Run your monitor at its full refresh rate, from the graphics card",
+   "Body": "A 144 Hz screen left at 60 Hz, or a cable in the motherboard instead of the graphics card, costs more than any tweak can win back.",
+   "Impact": "Huge",
+   "PulsePage": "diagnose",
+   "PulseAction": "Check my PC",
+   "SourceName": null,
+   "SourceUrl": null
+  },
+  {
+   "Title": "Turn on XMP or EXPO in the BIOS",
+   "Body": "Without it, RAM runs at its slow fallback speed (DDR4 3,200, DDR5 4,800). It's one switch and one of the biggest free gains in CPU-heavy games.",
+   "Impact": "High",
+   "PulsePage": "diagnose",
+   "PulseAction": "See BIOS steps",
+   "SourceName": "TechRadar",
+   "SourceUrl": "https://www.techradar.com/computing/gaming-pcs/ram-crisis-getting-you-down-heres-how-to-upgrade-your-gaming-pc-without-going-broke"
+  },
+  {
+   "Title": "Enable Resizable BAR",
+   "Body": "Lets the CPU reach all of the graphics card's memory at once. Usually a few percent, over 15% in some games. In the BIOS: CSM off, Above 4G Decoding on, Re-Size BAR on.",
+   "Impact": "Medium",
+   "PulsePage": null,
+   "PulseAction": null,
+   "SourceName": "Club386",
+   "SourceUrl": "https://www.club386.com/resizable-bar-on-or-off/"
+  },
+  {
+   "Title": "Let shaders build, and stop wiping them",
+   "Body": "New games compile shaders the first time an effect appears, causing hitches that fade. Let the pre-compile step finish, raise the driver's shader cache (10 GB or Unlimited), and skip cleaner apps that delete it.",
+   "Impact": "High",
+   "PulsePage": null,
+   "PulseAction": null,
+   "SourceName": "PCGameCheck",
+   "SourceUrl": "https://pcgamecheck.com/blog/why-is-my-game-stuttering-fix"
+  },
+  {
+   "Title": "Use G-SYNC or FreeSync with the right frame cap",
+   "Body": "Variable refresh on, V-Sync on in the driver and off in the game. With Reflex on, the driver caps for you (about 138 FPS at 144 Hz); without it, cap a few FPS under your refresh rate.",
+   "Impact": "High",
+   "PulsePage": "games",
+   "PulseAction": "Open game checklists",
+   "SourceName": "GearGeeks",
+   "SourceUrl": "https://geargeeksgaming.com/latency/gsync-fps-cap/"
+  },
+  {
+   "Title": "Best performance power mode, Game Mode on, background recording off",
+   "Body": "The Windows settings that still measurably help. On laptops, use Best performance only when plugged in.",
+   "Impact": "Medium",
+   "PulsePage": "tweaks",
+   "PulseAction": "Open tweaks",
+   "SourceName": "Frozen Tweaks",
+   "SourceUrl": "https://frozentweaks.com/guides/windows-11-gaming-optimization"
+  },
+  {
+   "Title": "Games on an SSD, and watch the temperatures",
+   "Body": "New games stutter badly on hard drives. Drops that start after 5 to 15 minutes usually mean heat: clean the dust, fix airflow, repaste or undervolt.",
+   "Impact": "Medium",
+   "PulsePage": "diagnose",
+   "PulseAction": "Check my PC",
+   "SourceName": null,
+   "SourceUrl": null
+  },
+  {
+   "Title": "Memory Integrity: test before turning it off",
+   "Body": "Windows turned it on for many PCs with the October 2026 update. On modern CPUs it costs under 2% in 2026 tests; older CPUs lose more. Turning it off removes real protection, so only do it if you measure a difference.",
+   "Impact": "Low",
+   "PulsePage": "measure",
+   "PulseAction": "Measure it",
+   "SourceName": "TechFuelHQ",
+   "SourceUrl": "https://techfuelhq.com/gaming/memory-integrity-on-or-off-2026/"
+  }
+ ],
+ "Skip": [
+  {
+   "Title": "Registry cleaners",
+   "Body": "No measurable effect on modern Windows, and a real chance of breaking installed software."
+  },
+  {
+   "Title": "Turning off the page file",
+   "Body": "Games and Windows expect one. Without it you get crashes when memory runs out, not speed."
+  },
+  {
+   "Title": "Old \"FPS boost\" registry packs",
+   "Body": "Many 2017-era tweaks no longer do anything on Windows 11 24H2 and later."
+  }
+ ],
+ "GpuSource": "Tom's Hardware GPU price tracker, November 2026",
+ "GpuSourceUrl": "https://www.tomshardware.com/pc-components/gpus/lowest-gpu-prices-tracking",
+ "Gpus": [
+  {
+   "Name": "GeForce RTX 5050",
+   "Msrp": 249,
+   "Now": 399,
+   "Lowest": 229,
+   "Tier": "1080p"
+  },
+  {
+   "Name": "GeForce RTX 5060",
+   "Msrp": 299,
+   "Now": 449,
+   "Lowest": 279,
+   "Tier": "1080p"
+  },
+  {
+   "Name": "Radeon RX 9060 XT 8GB",
+   "Msrp": 299,
+   "Now": 459,
+   "Lowest": 259,
+   "Tier": "1080p"
+  },
+  {
+   "Name": "GeForce RTX 5060 Ti 8GB",
+   "Msrp": 379,
+   "Now": 499,
+   "Lowest": 319,
+   "Tier": "1080p"
+  },
+  {
+   "Name": "Radeon RX 9060 XT 16GB",
+   "Msrp": 349,
+   "Now": 659,
+   "Lowest": 349,
+   "Tier": "1080p / 1440p"
+  },
+  {
+   "Name": "GeForce RTX 5060 Ti 16GB",
+   "Msrp": 429,
+   "Now": 769,
+   "Lowest": 379,
+   "Tier": "1080p / 1440p"
+  },
+  {
+   "Name": "Radeon RX 9070 GRE",
+   "Msrp": 549,
+   "Now": 569,
+   "Lowest": 499,
+   "Tier": "1440p"
+  },
+  {
+   "Name": "Radeon RX 9070",
+   "Msrp": 549,
+   "Now": 749,
+   "Lowest": 494,
+   "Tier": "1440p"
+  },
+  {
+   "Name": "GeForce RTX 5070",
+   "Msrp": 549,
+   "Now": 899,
+   "Lowest": 479,
+   "Tier": "1440p"
+  },
+  {
+   "Name": "Radeon RX 9070 XT",
+   "Msrp": 599,
+   "Now": 919,
+   "Lowest": 599,
+   "Tier": "1440p / 4K"
+  },
+  {
+   "Name": "GeForce RTX 5070 Ti",
+   "Msrp": 749,
+   "Now": 1399,
+   "Lowest": 729,
+   "Tier": "1440p / 4K"
+  }
+ ],
+ "RamSource": "Capital and Compute RAM tracker, November 3, 2026",
+ "RamSourceUrl": "https://capitalandcompute.net/memory-prices/",
+ "Ram": [
+  {
+   "Kit": "16 GB DDR5 (2×8)",
+   "Now": "$297",
+   "Before": "",
+   "Ddr5": true
+  },
+  {
+   "Kit": "32 GB DDR5 (2×16)",
+   "Now": "$429 – $600",
+   "Before": "about $95",
+   "Ddr5": true
+  },
+  {
+   "Kit": "64 GB DDR5 (2×32)",
+   "Now": "$1,360",
+   "Before": "about $222",
+   "Ddr5": true
+  },
+  {
+   "Kit": "16 GB DDR4 (2×8)",
+   "Now": "$130",
+   "Before": "",
+   "Ddr5": false
+  },
+  {
+   "Kit": "32 GB DDR4 (2×16)",
+   "Now": "$129 – $257",
+   "Before": "",
+   "Ddr5": false
+  },
+  {
+   "Kit": "64 GB DDR4 (2×32)",
+   "Now": "$552",
+   "Before": "",
+   "Ddr5": false
+  }
+ ],
+ "RamHistorySource": "WhereIsMyRAM via Capital and Compute",
+ "RamHistory": [
+  {
+   "Date": "2025-04-04",
+   "Cheapest": 59,
+   "Average": 125
+  },
+  {
+   "Date": "2025-06-15",
+   "Cheapest": 50,
+   "Average": 127
+  },
+  {
+   "Date": "2025-07-03",
+   "Cheapest": 62,
+   "Average": 130
+  },
+  {
+   "Date": "2025-09-13",
+   "Cheapest": 63,
+   "Average": 130
+  },
+  {
+   "Date": "2025-11-24",
+   "Cheapest": 124,
+   "Average": 345
+  },
+  {
+   "Date": "2026-02-04",
+   "Cheapest": 150,
+   "Average": 569
+  },
+  {
+   "Date": "2026-04-17",
+   "Cheapest": 150,
+   "Average": 539
+  },
+  {
+   "Date": "2026-06-28",
+   "Cheapest": 375,
+   "Average": 566
+  },
+  {
+   "Date": "2026-09-08",
+   "Cheapest": 396,
+   "Average": 574
+  },
+  {
+   "Date": "2026-10-16",
+   "Cheapest": 420,
+   "Average": 605
+  },
+  {
+   "Date": "2026-10-24",
+   "Cheapest": 420,
+   "Average": 607
+  },
+  {
+   "Date": "2026-10-31",
+   "Cheapest": 429,
+   "Average": 617
+  },
+  {
+   "Date": "2026-11-03",
+   "Cheapest": 429,
+   "Average": 617
+  }
+ ],
+ "Gear": [
+  {
+   "Title": "Processors",
+   "Glyph": "",
+   "Picks": [
+    {
+     "Label": "Best for gaming",
+     "Name": "AMD Ryzen 7 9800X3D",
+     "Why": "Still the one to buy for games.",
+     "SourceName": "PC Gamer",
+     "SourceUrl": "https://www.pcgamer.com/best-cpu-for-gaming/"
+    },
+    {
+     "Label": "Fastest",
+     "Name": "AMD Ryzen 7 9850X3D",
+     "Why": "About 3% faster in games, with about 30% more power draw.",
+     "SourceName": "DropReference",
+     "SourceUrl": "https://dropreference.com/en/blog/guide/best-gaming-processor"
+    },
+    {
+     "Label": "Gaming value",
+     "Name": "AMD Ryzen 5 7600X3D",
+     "Why": "Most of the X3D gaming speed for less.",
+     "SourceName": "G2A News",
+     "SourceUrl": "https://www.g2a.com/news/features/hardware/best-cpu-for-gaming-in-2026-top-picks-benchmarks-and-buying-guide/"
+    },
+    {
+     "Label": "Best Intel",
+     "Name": "Core Ultra 7 270K Plus",
+     "Why": "Best if you also edit or stream; about 20% behind X3D in games.",
+     "SourceName": "DropReference",
+     "SourceUrl": "https://dropreference.com/en/blog/guide/best-gaming-processor"
+    }
+   ]
+  },
+  {
+   "Title": "Graphics cards",
+   "Glyph": "",
+   "Picks": [
+    {
+     "Label": "Budget",
+     "Name": "Radeon RX 9060 XT 8GB / Arc B580",
+     "Why": "The sub-$300 picks at launch prices.",
+     "SourceName": "TechSpot",
+     "SourceUrl": "https://www.techspot.com/bestof/gpu-25-26/"
+    },
+    {
+     "Label": "Value",
+     "Name": "Radeon RX 9060 XT 16GB",
+     "Why": "Best value, with 16 GB of video memory.",
+     "SourceName": "PC Gamer",
+     "SourceUrl": "https://www.pcgamer.com/hardware/graphics-cards/graphics-card-price-watch-deals/"
+    },
+    {
+     "Label": "1440p",
+     "Name": "Radeon RX 9070 / GeForce RTX 5070",
+     "Why": "The 1440p sweet spot for most players.",
+     "SourceName": "TechSpot",
+     "SourceUrl": "https://www.techspot.com/bestof/gpu-25-26/"
+    },
+    {
+     "Label": "High end",
+     "Name": "GeForce RTX 5070 Ti",
+     "Why": "About 9% behind the RTX 5080 at 1440p, for less.",
+     "SourceName": "VerdictBits",
+     "SourceUrl": "https://verdictbits.com/reviews/best-gpus-2026/"
+    }
+   ]
+  },
+  {
+   "Title": "Monitors",
+   "Glyph": "",
+   "Picks": [
+    {
+     "Label": "Best 1440p",
+     "Name": "ASUS ROG Swift OLED PG27AQWP-W",
+     "Why": "540 Hz OLED, the top pick of OLED specialists.",
+     "SourceName": "TFTCentral",
+     "SourceUrl": "https://tftcentral.co.uk/recommendations/the-best-oled-gaming-monitors-to-buy-in-2026"
+    },
+    {
+     "Label": "500 Hz OLED",
+     "Name": "MSI MPG 271QR X50 / MAG 272QP X50",
+     "Why": "QD-OLED at 500 Hz for less.",
+     "SourceName": "Display Ninja",
+     "SourceUrl": "https://www.displayninja.com/best-gaming-monitor/"
+    },
+    {
+     "Label": "Budget OLED",
+     "Name": "Alienware AW2726DM",
+     "Why": "The cheapest 1440p OLED, around $350.",
+     "SourceName": "TechSpot",
+     "SourceUrl": "https://www.techspot.com/bestof/oled-monitors-26/"
+    }
+   ]
+  },
+  {
+   "Title": "Mice",
+   "Glyph": "",
+   "Picks": [
+    {
+     "Label": "Best overall",
+     "Name": "Logitech G Pro X2 Superstrike",
+     "Why": "Haptic buttons with adjustable actuation and rapid trigger.",
+     "SourceName": "Tom's Guide",
+     "SourceUrl": "https://www.tomsguide.com/round-up/best-gaming-mice"
+    },
+    {
+     "Label": "Ergonomic",
+     "Name": "Razer DeathAdder V4 Pro",
+     "Why": "Top pick for right-handed shapes.",
+     "SourceName": "GamesRadar+",
+     "SourceUrl": "https://www.gamesradar.com/best-gaming-mouse-to-buy/"
+    },
+    {
+     "Label": "Lightweight",
+     "Name": "Corsair Sabre V2 Pro Ultralight",
+     "Why": "36 g for $99.99.",
+     "SourceName": "GamesRadar+",
+     "SourceUrl": "https://www.gamesradar.com/best-gaming-mouse-to-buy/"
+    },
+    {
+     "Label": "Budget wireless",
+     "Name": "Razer Viper V3 HyperSpeed",
+     "Why": "Great sensor without the flagship price.",
+     "SourceName": "Trusted Reviews",
+     "SourceUrl": "https://www.trustedreviews.com/best/best-gaming-mouse-3515423"
+    }
+   ]
+  },
+  {
+   "Title": "Keyboards",
+   "Glyph": "",
+   "Picks": [
+    {
+     "Label": "Best overall",
+     "Name": "Wooting 80HE",
+     "Why": "Hall effect switches and the best rapid trigger software.",
+     "SourceName": "PC Gamer",
+     "SourceUrl": "https://www.pcgamer.com/best-gaming-keyboard/"
+    },
+    {
+     "Label": "Wireless",
+     "Name": "Keychron K2 HE",
+     "Why": "Rapid trigger without the cable.",
+     "SourceName": "PC Gamer",
+     "SourceUrl": "https://www.pcgamer.com/best-gaming-keyboard/"
+    },
+    {
+     "Label": "Budget",
+     "Name": "Gamakay × NaughShark NS68",
+     "Why": "Hall effect, 8K polling and rapid trigger for about $44.",
+     "SourceName": "Keyboard Tester",
+     "SourceUrl": "https://keyboardtester.click/blog/best-mechanical-keyboards-for-gaming-2026.php"
+    }
+   ]
+  },
+  {
+   "Title": "Headsets and mics",
+   "Glyph": "",
+   "Picks": [
+    {
+     "Label": "Best sound",
+     "Name": "Audeze Maxwell 2",
+     "Why": "The best PC gaming headset in lab tests.",
+     "SourceName": "RTINGS",
+     "SourceUrl": "https://www.rtings.com/headphones/reviews/best/pc-gaming-headsets"
+    },
+    {
+     "Label": "Best overall",
+     "Name": "SteelSeries Arctis Nova Pro Omni",
+     "Why": "Top pick at several outlets.",
+     "SourceName": "GamesRadar+",
+     "SourceUrl": "https://www.gamesradar.com/best-gaming-headsets/"
+    },
+    {
+     "Label": "Wireless value",
+     "Name": "Razer BlackShark V3",
+     "Why": "Great sound, low latency, fair price.",
+     "SourceName": "PC Gamer",
+     "SourceUrl": "https://www.pcgamer.com/best-gaming-headset/"
+    },
+    {
+     "Label": "Microphone",
+     "Name": "Shure MV6",
+     "Why": "The best desk mic for gaming.",
+     "SourceName": "PC Gamer",
+     "SourceUrl": "https://www.pcgamer.com/best-microphone-gaming-streaming/"
+    }
+   ]
+  }
+ ],
+ "Builders": [
+  {
+   "Name": "Corsair Vengeance",
+   "GoodFor": "Best build quality",
+   "Example": "Ryzen 7 9800X3D + RTX 5070 Ti, 2-year warranty, about $2,499",
+   "Watch": "Premium price",
+   "SourceName": "Tom's Hardware",
+   "SourceUrl": "https://www.tomshardware.com/best-picks/best-gaming-pcs"
+  },
+  {
+   "Name": "Lenovo Legion Tower",
+   "GoodFor": "Best all-round value, quiet",
+   "Example": "Ryzen 7 7800X3D + RTX 5070, 32 GB, about $1,400 – $1,530",
+   "Watch": "Some parts are Lenovo's own",
+   "SourceName": "PCGameCheck",
+   "SourceUrl": "https://pcgamecheck.com/blog/best-prebuilt-gaming-pc-brands-2026-us"
+  },
+  {
+   "Name": "HP OMEN",
+   "GoodFor": "Service network and cooling",
+   "Example": "OMEN 35L / 45L with 9800X3D options",
+   "Watch": "Check which parts are standard",
+   "SourceName": "Your Tech Reviews",
+   "SourceUrl": "https://yourtechreviews.com/best-prebuilt-gaming-pc-brands/"
+  },
+  {
+   "Name": "Maingear",
+   "GoodFor": "Most configurable",
+   "Example": "MG-1, pick every part",
+   "Watch": "Costs more than mass-market brands",
+   "SourceName": "Tom's Hardware",
+   "SourceUrl": "https://www.tomshardware.com/best-picks/best-gaming-pcs"
+  },
+  {
+   "Name": "NZXT",
+   "GoodFor": "Clean looks, easy upgrades",
+   "Example": "BLD and Player series, 2-year warranty",
+   "Watch": "Value varies by config",
+   "SourceName": "Newegg Insider",
+   "SourceUrl": "https://www.newegg.com/insider/best-prebuilt-gaming-desktops-in-2026"
+  },
+  {
+   "Name": "Skytech / iBUYPOWER / CyberPowerPC",
+   "GoodFor": "Budget and standard parts",
+   "Example": "Standard boards, PSUs and cases you can upgrade",
+   "Watch": "Read the exact parts list",
+   "SourceName": "WePC",
+   "SourceUrl": "https://www.wepc.com/prebuilt/best-prebuilt-gaming-pc/"
+  }
+ ],
+ "PrebuiltChecks": [
+  "Two RAM sticks (2×16 GB), not one: a single stick halves memory bandwidth.",
+  "A named power supply brand with an 80 Plus Gold rating.",
+  "Standard motherboard and case sizes, so you can upgrade later.",
+  "The exact graphics card model, not \"RTX 50 series\".",
+  "At least a 1-year warranty with parts and labor."
+ ],
+ "News": [
+  {
+   "Tag": "RAM",
+   "Hot": true,
+   "Title": "RAM costs four to seven times more than a year ago",
+   "Body": "AI data centers are buying most of the world's memory. A 32 GB DDR5 kit went from about $59 in April 2025 to $429 on November 3, 2026.",
+   "SourceName": "Capital and Compute",
+   "SourceUrl": "https://capitalandcompute.net/memory-prices/history/"
+  },
+  {
+   "Tag": "RAM",
+   "Hot": true,
+   "Title": "The worst may still be ahead",
+   "Body": "Team Group's CEO said the tightest stretch is Q4 2026 to Q2 2027, with balance in late 2028 or later.",
+   "SourceName": "Tech Insider",
+   "SourceUrl": "https://tech-insider.org/team-group-ddr5-chip-price-452-percent-shortage-2028-2026/"
+  },
+  {
+   "Tag": "Storage",
+   "Hot": false,
+   "Title": "SSD prices are climbing too",
+   "Body": "Some SSD contract prices are up 303% in a year, with another 15 to 20% expected this quarter.",
+   "SourceName": "Notebookcheck",
+   "SourceUrl": "https://www.notebookcheck.net/SSD-prices-explode-by-303-in-a-year-as-AI-fuels-NAND-flash-shortage.1433261.0.html"
+  },
+  {
+   "Tag": "GPU",
+   "Hot": true,
+   "Title": "NVIDIA pulled the RTX 5090 and 5080 from its store",
+   "Body": "Street prices passed twice launch price. AMD is reportedly planning its fourth Radeon price rise this year.",
+   "SourceName": "Tom's Hardware",
+   "SourceUrl": "https://www.tomshardware.com/pc-components/gpus/news"
+  },
+  {
+   "Tag": "GPU",
+   "Hot": false,
+   "Title": "AMD outsold NVIDIA on Amazon US",
+   "Body": "A first, per sales tracker TechEpiphany on November 3, as GeForce prices climbed. That's one retailer, not the whole market.",
+   "SourceName": "ShiftDelete",
+   "SourceUrl": "https://shiftdelete.net/en/amd-outsells-nvidia"
+  },
+  {
+   "Tag": "Coming",
+   "Hot": false,
+   "Title": "Next graphics cards: likely 2028",
+   "Body": "Leakers say NVIDIA's RTX 60 and most of AMD's RDNA 5 won't arrive until 2028. Neither company has confirmed a date.",
+   "SourceName": "PC Guide",
+   "SourceUrl": "https://www.pcguide.com/news/rtx-60-series-faces-massive-delay-says-leak-and-amd-might-only-launch-one-rdna-5-gpu-next-year/"
+  },
+  {
+   "Tag": "Coming",
+   "Hot": false,
+   "Title": "Next CPUs: early 2027",
+   "Body": "AMD Zen 6 and Intel Nova Lake desktop chips are expected around CES 2027. Zen 6 keeps the AM5 socket.",
+   "SourceName": "Club386",
+   "SourceUrl": "https://www.club386.com/6-exciting-pc-hardware-launches-mark-your-calendars/"
+  },
+  {
+   "Tag": "Windows",
+   "Hot": false,
+   "Title": "Windows 11 26H2 is out",
+   "Body": "A small update released September 29 that resets support to 24 months on Home and Pro.",
+   "SourceName": "TechSpot",
+   "SourceUrl": "https://www.techspot.com/news/114418-most-users-can-now-upgrade-windows-11-26h2.html"
+  }
+ ],
+ "UpgradeTips": [
+  "Get the free speed first: XMP/EXPO, Resizable BAR and your monitor's refresh rate.",
+  "Buy RAM as a matched pair. DDR4 and DDR5 don't mix, and adding two more sticks can slow a PC down.",
+  "Used RAM and graphics cards can be cheaper than new; buy SSDs new, because they wear out.",
+  "A prebuilt PC can be the better deal right now: their prices have risen less than the parts.",
+  "Upgrade what isn't in short supply: CPUs, monitors, mice and keyboards."
+ ],
+ "Tr": {
+  "es": {
+   "36 g for $99.99.": "36 g por $99.99.",
+   "500 Hz OLED": "OLED de 500 Hz",
+   "540 Hz OLED, the top pick of OLED specialists.": "OLED de 540 Hz, la favorita de los especialistas en OLED.",
+   "A 144 Hz screen left at 60 Hz, or a cable in the motherboard instead of the graphics card, costs more than any tweak can win back.": "Una pantalla de 144 Hz a 60 Hz, o un cable en la placa base en vez de la tarjeta gráfica, cuesta más de lo que cualquier ajuste puede recuperar.",
+   "A first, per sales tracker TechEpiphany on November 3, as GeForce prices climbed. That's one retailer, not the whole market.": "Por primera vez, según el rastreador TechEpiphany el 3 de noviembre, mientras subían las GeForce. Es una sola tienda, no todo el mercado.",
+   "A named power supply brand with an 80 Plus Gold rating.": "Una fuente de marca conocida con certificación 80 Plus Gold.",
+   "A prebuilt PC can be the better deal right now: their prices have risen less than the parts.": "Un PC prearmado puede salir mejor ahora: su precio ha subido menos que el de las piezas.",
+   "A small update released September 29 that resets support to 24 months on Home and Pro.": "Una actualización pequeña del 29 de septiembre que reinicia el soporte a 24 meses en Home y Pro.",
+   "AI data centers are buying most of the world's memory. A 32 GB DDR5 kit went from about $59 in April 2025 to $429 on November 3, 2026.": "Los centros de datos de IA compran casi toda la memoria del mundo. Un kit DDR5 de 32 GB pasó de unos $59 en abril de 2025 a $429 el 3 de noviembre de 2026.",
+   "AMD Zen 6 and Intel Nova Lake desktop chips are expected around CES 2027. Zen 6 keeps the AM5 socket.": "Se esperan Zen 6 de AMD y Nova Lake de Intel para escritorio hacia el CES 2027. Zen 6 mantiene el socket AM5.",
+   "AMD outsold NVIDIA on Amazon US": "AMD vendió más que NVIDIA en Amazon EE. UU.",
+   "About 3% faster in games, with about 30% more power draw.": "Un 3% más rápido en juegos, con un 30% más de consumo.",
+   "About 9% behind the RTX 5080 at 1440p, for less.": "Un 9% por detrás de la RTX 5080 en 1440p, por menos.",
+   "At least a 1-year warranty with parts and labor.": "Al menos 1 año de garantía con piezas y mano de obra.",
+   "BLD and Player series, 2-year warranty": "Series BLD y Player, 2 años de garantía",
+   "Best 1440p": "Mejor 1440p",
+   "Best Intel": "Mejor Intel",
+   "Best all-round value, quiet": "Mejor calidad-precio general, silencioso",
+   "Best build quality": "Mejor calidad de montaje",
+   "Best for gaming": "Mejor para jugar",
+   "Best if you also edit or stream; about 20% behind X3D in games.": "El mejor si también editas o haces streaming; un 20% por detrás de X3D en juegos.",
+   "Best overall": "Mejor en general",
+   "Best performance power mode, Game Mode on, background recording off": "Modo de energía Mejor rendimiento, Modo Juego activado, grabación en segundo plano desactivada",
+   "Best sound": "Mejor sonido",
+   "Best value, with 16 GB of video memory.": "La mejor calidad-precio, con 16 GB de memoria de vídeo.",
+   "Budget": "Económico",
+   "Budget OLED": "OLED económico",
+   "Budget and standard parts": "Económico y con piezas estándar",
+   "Budget wireless": "Inalámbrico económico",
+   "Buy RAM as a matched pair. DDR4 and DDR5 don't mix, and adding two more sticks can slow a PC down.": "Compra la RAM en pareja igual. DDR4 y DDR5 no se mezclan, y añadir dos módulos más puede hacer el PC más lento.",
+   "Check my PC": "Revisar mi PC",
+   "Check which parts are standard": "Revisa qué piezas son estándar",
+   "Clean looks, easy upgrades": "Diseño limpio, fácil de mejorar",
+   "Coming": "Próximamente",
+   "Costs more than mass-market brands": "Cuesta más que las marcas masivas",
+   "Enable Resizable BAR": "Activa Resizable BAR",
+   "Ergonomic": "Ergonómico",
+   "Fastest": "El más rápido",
+   "GPU": "GPU",
+   "Games and Windows expect one. Without it you get crashes when memory runs out, not speed.": "Los juegos y Windows esperan que exista. Sin él tienes cierres cuando se acaba la memoria, no velocidad.",
+   "Games on an SSD, and watch the temperatures": "Juegos en un SSD, y vigila las temperaturas",
+   "Gaming value": "Mejor valor para jugar",
+   "Get the free speed first: XMP/EXPO, Resizable BAR and your monitor's refresh rate.": "Primero la velocidad gratis: XMP/EXPO, Resizable BAR y la frecuencia del monitor.",
+   "Graphics cards": "Tarjetas gráficas",
+   "Great sensor without the flagship price.": "Gran sensor sin precio de gama alta.",
+   "Great sound, low latency, fair price.": "Gran sonido, baja latencia, precio justo.",
+   "Hall effect switches and the best rapid trigger software.": "Interruptores Hall effect y el mejor software de rapid trigger.",
+   "Hall effect, 8K polling and rapid trigger for about $44.": "Hall effect, sondeo de 8K y rapid trigger por unos $44.",
+   "Haptic buttons with adjustable actuation and rapid trigger.": "Botones hápticos con activación ajustable y rapid trigger.",
+   "Headsets and mics": "Auriculares y micrófonos",
+   "High": "Alta",
+   "High end": "Gama alta",
+   "Huge": "enorme",
+   "Keyboards": "Teclados",
+   "Leakers say NVIDIA's RTX 60 and most of AMD's RDNA 5 won't arrive until 2028. Neither company has confirmed a date.": "Según filtradores, la RTX 60 de NVIDIA y casi toda RDNA 5 de AMD no llegarán hasta 2028. Ninguna empresa ha confirmado fecha.",
+   "Let shaders build, and stop wiping them": "Deja que se compilen los shaders y no los borres",
+   "Lets the CPU reach all of the graphics card's memory at once. Usually a few percent, over 15% in some games. In the BIOS: CSM off, Above 4G Decoding on, Re-Size BAR on.": "Deja que la CPU acceda a toda la memoria de la tarjeta gráfica a la vez. Suele dar unos pocos por ciento, más del 15% en algunos juegos. En la BIOS: CSM desactivado, Above 4G Decoding activado, Re-Size BAR activado.",
+   "Lightweight": "Ultraligero",
+   "Low": "Baja",
+   "MG-1, pick every part": "MG-1, eliges cada pieza",
+   "Many 2017-era tweaks no longer do anything on Windows 11 24H2 and later.": "Muchos ajustes de 2017 ya no hacen nada en Windows 11 24H2 y posteriores.",
+   "Measure it": "Medirlo",
+   "Medium": "Media",
+   "Memory Integrity: test before turning it off": "Integridad de memoria: prueba antes de desactivarla",
+   "Mice": "Ratones",
+   "Microphone": "Micrófono",
+   "Monitors": "Monitores",
+   "Most configurable": "El más configurable",
+   "Most of the X3D gaming speed for less.": "Casi toda la velocidad X3D en juegos por menos.",
+   "NVIDIA pulled the RTX 5090 and 5080 from its store": "NVIDIA retiró la RTX 5090 y la 5080 de su tienda",
+   "New games compile shaders the first time an effect appears, causing hitches that fade. Let the pre-compile step finish, raise the driver's shader cache (10 GB or Unlimited), and skip cleaner apps that delete it.": "Los juegos nuevos compilan shaders la primera vez que aparece un efecto, con tirones que luego desaparecen. Deja terminar la precompilación, sube la caché de shaders del driver (10 GB o Ilimitada) y evita apps de limpieza que la borran.",
+   "New games stutter badly on hard drives. Drops that start after 5 to 15 minutes usually mean heat: clean the dust, fix airflow, repaste or undervolt.": "Los juegos nuevos dan muchos tirones en discos duros. Caídas que empiezan a los 5 a 15 minutos suelen ser calor: limpia el polvo, mejora el flujo de aire, cambia la pasta o haz undervolt.",
+   "Next CPUs: early 2027": "Próximas CPU: principios de 2027",
+   "Next graphics cards: likely 2028": "Próximas tarjetas gráficas: probablemente 2028",
+   "No measurable effect on modern Windows, and a real chance of breaking installed software.": "Ningún efecto medible en Windows moderno, y riesgo real de romper programas instalados.",
+   "OMEN 35L / 45L with 9800X3D options": "OMEN 35L / 45L con opciones 9800X3D",
+   "Old \"FPS boost\" registry packs": "Viejos paquetes de registro \"para más FPS\"",
+   "Open game checklists": "Abrir listas de juegos",
+   "Open tweaks": "Abrir ajustes",
+   "Premium price": "Precio premium",
+   "Processors": "Procesadores",
+   "QD-OLED at 500 Hz for less.": "QD-OLED a 500 Hz por menos.",
+   "RAM": "RAM",
+   "RAM costs four to seven times more than a year ago": "La RAM cuesta de cuatro a siete veces más que hace un año",
+   "Rapid trigger without the cable.": "Rapid trigger sin cable.",
+   "Read the exact parts list": "Lee la lista exacta de piezas",
+   "Registry cleaners": "Limpiadores de registro",
+   "Run your monitor at its full refresh rate, from the graphics card": "Usa el monitor a su frecuencia máxima, conectado a la tarjeta gráfica",
+   "Ryzen 7 7800X3D + RTX 5070, 32 GB, about $1,400 – $1,530": "Ryzen 7 7800X3D + RTX 5070, 32 GB, unos $1,400 – $1,530",
+   "Ryzen 7 9800X3D + RTX 5070 Ti, 2-year warranty, about $2,499": "Ryzen 7 9800X3D + RTX 5070 Ti, 2 años de garantía, unos $2,499",
+   "SSD prices are climbing too": "Los SSD también suben",
+   "See BIOS steps": "Ver pasos de BIOS",
+   "Service network and cooling": "Red de servicio técnico y refrigeración",
+   "Some SSD contract prices are up 303% in a year, with another 15 to 20% expected this quarter.": "Algunos precios de contrato de SSD subieron un 303% en un año, y se espera otro 15 a 20% este trimestre.",
+   "Some parts are Lenovo's own": "Algunas piezas son propias de Lenovo",
+   "Standard boards, PSUs and cases you can upgrade": "Placas, fuentes y cajas estándar que puedes mejorar",
+   "Standard motherboard and case sizes, so you can upgrade later.": "Placa base y caja de tamaño estándar, para poder mejorar después.",
+   "Still the one to buy for games.": "Sigue siendo el que hay que comprar para jugar.",
+   "Storage": "Almacenamiento",
+   "Street prices passed twice launch price. AMD is reportedly planning its fourth Radeon price rise this year.": "Los precios en tienda superaron el doble del de salida. Según informes, AMD prepara su cuarta subida de Radeon este año.",
+   "Team Group's CEO said the tightest stretch is Q4 2026 to Q2 2027, with balance in late 2028 or later.": "El CEO de Team Group dijo que el peor tramo va del cuarto trimestre de 2026 al segundo de 2027, con equilibrio a finales de 2028 o después.",
+   "The 1440p sweet spot for most players.": "El punto ideal en 1440p para la mayoría.",
+   "The Windows settings that still measurably help. On laptops, use Best performance only when plugged in.": "Los ajustes de Windows que todavía ayudan de forma medible. En portátiles, usa Mejor rendimiento solo enchufado.",
+   "The best PC gaming headset in lab tests.": "Los mejores auriculares para PC en pruebas de laboratorio.",
+   "The best desk mic for gaming.": "El mejor micrófono de escritorio para jugar.",
+   "The cheapest 1440p OLED, around $350.": "El OLED 1440p más barato, unos $350.",
+   "The exact graphics card model, not \"RTX 50 series\".": "El modelo exacto de tarjeta gráfica, no \"serie RTX 50\".",
+   "The sub-$300 picks at launch prices.": "Las opciones de menos de $300 a precio de salida.",
+   "The worst may still be ahead": "Lo peor podría estar por llegar",
+   "Top pick at several outlets.": "Favorito en varios medios.",
+   "Top pick for right-handed shapes.": "La mejor opción en formas para diestros.",
+   "Turn on XMP or EXPO in the BIOS": "Activa XMP o EXPO en la BIOS",
+   "Turning off the page file": "Desactivar el archivo de paginación",
+   "Two RAM sticks (2×16 GB), not one: a single stick halves memory bandwidth.": "Dos módulos de RAM (2×16 GB), no uno: un solo módulo reduce a la mitad el ancho de banda.",
+   "Upgrade what isn't in short supply: CPUs, monitors, mice and keyboards.": "Mejora lo que no escasea: CPU, monitores, ratones y teclados.",
+   "Use G-SYNC or FreeSync with the right frame cap": "Usa G-SYNC o FreeSync con el límite de FPS correcto",
+   "Used RAM and graphics cards can be cheaper than new; buy SSDs new, because they wear out.": "La RAM y las tarjetas gráficas usadas pueden salir más baratas; compra los SSD nuevos, porque se desgastan.",
+   "Value": "Valor",
+   "Value varies by config": "La calidad-precio varía según la configuración",
+   "Variable refresh on, V-Sync on in the driver and off in the game. With Reflex on, the driver caps for you (about 138 FPS at 144 Hz); without it, cap a few FPS under your refresh rate.": "Frecuencia variable activada, V-Sync activado en el driver y desactivado en el juego. Con Reflex, el driver limita por ti (unos 138 FPS a 144 Hz); sin él, limita unos FPS por debajo de tu frecuencia.",
+   "Windows": "Windows",
+   "Windows 11 26H2 is out": "Ya salió Windows 11 26H2",
+   "Windows turned it on for many PCs with the October 2026 update. On modern CPUs it costs under 2% in 2026 tests; older CPUs lose more. Turning it off removes real protection, so only do it if you measure a difference.": "Windows la activó en muchos PC con la actualización de octubre de 2026. En CPU modernas cuesta menos del 2% en pruebas de 2026; las antiguas pierden más. Desactivarla quita protección real, así que hazlo solo si mides una diferencia.",
+   "Wireless": "Inalámbrico",
+   "Wireless value": "Inalámbrico calidad-precio",
+   "Without it, RAM runs at its slow fallback speed (DDR4 3,200, DDR5 4,800). It's one switch and one of the biggest free gains in CPU-heavy games.": "Sin esto, la RAM funciona a su velocidad lenta de reserva (DDR4 3.200, DDR5 4.800). Es un solo interruptor y una de las mayores mejoras gratis en juegos que exigen CPU."
+  },
+  "pt-BR": {
+   "36 g for $99.99.": "36 g por US$ 99,99.",
+   "500 Hz OLED": "OLED de 500 Hz",
+   "540 Hz OLED, the top pick of OLED specialists.": "OLED de 540 Hz, a favorita dos especialistas em OLED.",
+   "A 144 Hz screen left at 60 Hz, or a cable in the motherboard instead of the graphics card, costs more than any tweak can win back.": "Uma tela de 144 Hz em 60 Hz, ou um cabo na placa-mãe em vez da placa de vídeo, custa mais do que qualquer ajuste recupera.",
+   "A first, per sales tracker TechEpiphany on November 3, as GeForce prices climbed. That's one retailer, not the whole market.": "Pela primeira vez, segundo o rastreador TechEpiphany em 3 de novembro, com as GeForce subindo. É uma só loja, não o mercado todo.",
+   "A named power supply brand with an 80 Plus Gold rating.": "Uma fonte de marca conhecida com certificação 80 Plus Gold.",
+   "A prebuilt PC can be the better deal right now: their prices have risen less than the parts.": "Um PC montado pode compensar mais agora: o preço subiu menos que o das peças.",
+   "A small update released September 29 that resets support to 24 months on Home and Pro.": "Uma atualização pequena de 29 de setembro que reinicia o suporte para 24 meses no Home e Pro.",
+   "AI data centers are buying most of the world's memory. A 32 GB DDR5 kit went from about $59 in April 2025 to $429 on November 3, 2026.": "Data centers de IA compram quase toda a memória do mundo. Um kit DDR5 de 32 GB foi de cerca de US$ 59 em abril de 2025 para US$ 429 em 3 de novembro de 2026.",
+   "AMD Zen 6 and Intel Nova Lake desktop chips are expected around CES 2027. Zen 6 keeps the AM5 socket.": "Espera-se Zen 6 da AMD e Nova Lake da Intel para desktop por volta da CES 2027. O Zen 6 mantém o soquete AM5.",
+   "AMD outsold NVIDIA on Amazon US": "A AMD vendeu mais que a NVIDIA na Amazon dos EUA",
+   "About 3% faster in games, with about 30% more power draw.": "Cerca de 3% mais rápido em jogos, com cerca de 30% mais consumo.",
+   "About 9% behind the RTX 5080 at 1440p, for less.": "Cerca de 9% atrás da RTX 5080 em 1440p, por menos.",
+   "At least a 1-year warranty with parts and labor.": "Pelo menos 1 ano de garantia com peças e mão de obra.",
+   "BLD and Player series, 2-year warranty": "Séries BLD e Player, 2 anos de garantia",
+   "Best 1440p": "Melhor 1440p",
+   "Best Intel": "Melhor Intel",
+   "Best all-round value, quiet": "Melhor custo-benefício geral, silencioso",
+   "Best build quality": "Melhor qualidade de montagem",
+   "Best for gaming": "Melhor para jogos",
+   "Best if you also edit or stream; about 20% behind X3D in games.": "Melhor se você também edita ou faz live; cerca de 20% atrás dos X3D em jogos.",
+   "Best overall": "Melhor no geral",
+   "Best performance power mode, Game Mode on, background recording off": "Modo de energia Melhor desempenho, Modo de Jogo ligado, gravação em segundo plano desligada",
+   "Best sound": "Melhor som",
+   "Best value, with 16 GB of video memory.": "Melhor custo-benefício, com 16 GB de memória de vídeo.",
+   "Budget": "Econômico",
+   "Budget OLED": "OLED econômico",
+   "Budget and standard parts": "Econômico e com peças padrão",
+   "Budget wireless": "Sem fio econômico",
+   "Buy RAM as a matched pair. DDR4 and DDR5 don't mix, and adding two more sticks can slow a PC down.": "Compre RAM em par igual. DDR4 e DDR5 não se misturam, e colocar mais dois pentes pode deixar o PC mais lento.",
+   "Check my PC": "Verificar meu PC",
+   "Check which parts are standard": "Confira quais peças são padrão",
+   "Clean looks, easy upgrades": "Visual limpo, fácil de fazer upgrade",
+   "Coming": "Em breve",
+   "Costs more than mass-market brands": "Custa mais que marcas de massa",
+   "Enable Resizable BAR": "Ative o Resizable BAR",
+   "Ergonomic": "Ergonômico",
+   "Fastest": "O mais rápido",
+   "GPU": "GPU",
+   "Games and Windows expect one. Without it you get crashes when memory runs out, not speed.": "Jogos e o Windows esperam que exista. Sem ele você tem travamentos quando a memória acaba, não velocidade.",
+   "Games on an SSD, and watch the temperatures": "Jogos num SSD, e fique de olho nas temperaturas",
+   "Gaming value": "Melhor custo para jogos",
+   "Get the free speed first: XMP/EXPO, Resizable BAR and your monitor's refresh rate.": "Primeiro a velocidade grátis: XMP/EXPO, Resizable BAR e a taxa do monitor.",
+   "Graphics cards": "Placas de vídeo",
+   "Great sensor without the flagship price.": "Ótimo sensor sem preço de topo de linha.",
+   "Great sound, low latency, fair price.": "Ótimo som, baixa latência, preço justo.",
+   "Hall effect switches and the best rapid trigger software.": "Switches Hall effect e o melhor software de rapid trigger.",
+   "Hall effect, 8K polling and rapid trigger for about $44.": "Hall effect, polling de 8K e rapid trigger por cerca de US$ 44.",
+   "Haptic buttons with adjustable actuation and rapid trigger.": "Botões hápticos com acionamento ajustável e rapid trigger.",
+   "Headsets and mics": "Headsets e microfones",
+   "High": "Alta",
+   "High end": "Topo de linha",
+   "Huge": "enorme",
+   "Keyboards": "Teclados",
+   "Leakers say NVIDIA's RTX 60 and most of AMD's RDNA 5 won't arrive until 2028. Neither company has confirmed a date.": "Segundo vazadores, a RTX 60 da NVIDIA e quase toda a RDNA 5 da AMD só chegam em 2028. Nenhuma das duas confirmou data.",
+   "Let shaders build, and stop wiping them": "Deixe os shaders compilarem e pare de apagá-los",
+   "Lets the CPU reach all of the graphics card's memory at once. Usually a few percent, over 15% in some games. In the BIOS: CSM off, Above 4G Decoding on, Re-Size BAR on.": "Deixa a CPU acessar toda a memória da placa de vídeo de uma vez. Normalmente alguns por cento, mais de 15% em alguns jogos. Na BIOS: CSM desligado, Above 4G Decoding ligado, Re-Size BAR ligado.",
+   "Lightweight": "Ultraleve",
+   "Low": "Baixa",
+   "MG-1, pick every part": "MG-1, você escolhe cada peça",
+   "Many 2017-era tweaks no longer do anything on Windows 11 24H2 and later.": "Muitos ajustes de 2017 não fazem mais nada no Windows 11 24H2 em diante.",
+   "Measure it": "Medir",
+   "Medium": "Média",
+   "Memory Integrity: test before turning it off": "Integridade de memória: teste antes de desligar",
+   "Mice": "Mouses",
+   "Microphone": "Microfone",
+   "Monitors": "Monitores",
+   "Most configurable": "O mais configurável",
+   "Most of the X3D gaming speed for less.": "Quase toda a velocidade X3D em jogos por menos.",
+   "NVIDIA pulled the RTX 5090 and 5080 from its store": "A NVIDIA tirou a RTX 5090 e a 5080 da loja",
+   "New games compile shaders the first time an effect appears, causing hitches that fade. Let the pre-compile step finish, raise the driver's shader cache (10 GB or Unlimited), and skip cleaner apps that delete it.": "Jogos novos compilam shaders na primeira vez que um efeito aparece, causando travadas que somem depois. Deixe a pré-compilação terminar, aumente o cache de shaders do driver (10 GB ou Ilimitado) e evite apps de limpeza que o apagam.",
+   "New games stutter badly on hard drives. Drops that start after 5 to 15 minutes usually mean heat: clean the dust, fix airflow, repaste or undervolt.": "Jogos novos travam muito em HD. Quedas que começam após 5 a 15 minutos geralmente são calor: limpe a poeira, melhore a ventilação, troque a pasta ou faça undervolt.",
+   "Next CPUs: early 2027": "Próximas CPUs: início de 2027",
+   "Next graphics cards: likely 2028": "Próximas placas de vídeo: provavelmente 2028",
+   "No measurable effect on modern Windows, and a real chance of breaking installed software.": "Nenhum efeito medível no Windows moderno, e risco real de quebrar programas instalados.",
+   "OMEN 35L / 45L with 9800X3D options": "OMEN 35L / 45L com opções 9800X3D",
+   "Old \"FPS boost\" registry packs": "Pacotes antigos de registro \"para mais FPS\"",
+   "Open game checklists": "Abrir checklists de jogos",
+   "Open tweaks": "Abrir ajustes",
+   "Premium price": "Preço premium",
+   "Processors": "Processadores",
+   "QD-OLED at 500 Hz for less.": "QD-OLED a 500 Hz por menos.",
+   "RAM": "RAM",
+   "RAM costs four to seven times more than a year ago": "A RAM custa de quatro a sete vezes mais que há um ano",
+   "Rapid trigger without the cable.": "Rapid trigger sem fio.",
+   "Read the exact parts list": "Leia a lista exata de peças",
+   "Registry cleaners": "Limpadores de registro",
+   "Run your monitor at its full refresh rate, from the graphics card": "Use o monitor na taxa máxima, ligado na placa de vídeo",
+   "Ryzen 7 7800X3D + RTX 5070, 32 GB, about $1,400 – $1,530": "Ryzen 7 7800X3D + RTX 5070, 32 GB, cerca de US$ 1.400 – 1.530",
+   "Ryzen 7 9800X3D + RTX 5070 Ti, 2-year warranty, about $2,499": "Ryzen 7 9800X3D + RTX 5070 Ti, 2 anos de garantia, cerca de US$ 2.499",
+   "SSD prices are climbing too": "Os SSDs também estão subindo",
+   "See BIOS steps": "Ver passos da BIOS",
+   "Service network and cooling": "Rede de assistência e refrigeração",
+   "Some SSD contract prices are up 303% in a year, with another 15 to 20% expected this quarter.": "Alguns preços de contrato de SSD subiram 303% em um ano, e se espera mais 15 a 20% neste trimestre.",
+   "Some parts are Lenovo's own": "Algumas peças são próprias da Lenovo",
+   "Standard boards, PSUs and cases you can upgrade": "Placas, fontes e gabinetes padrão que você pode trocar",
+   "Standard motherboard and case sizes, so you can upgrade later.": "Placa-mãe e gabinete em tamanho padrão, para fazer upgrade depois.",
+   "Still the one to buy for games.": "Ainda é o que comprar para jogos.",
+   "Storage": "Armazenamento",
+   "Street prices passed twice launch price. AMD is reportedly planning its fourth Radeon price rise this year.": "Os preços nas lojas passaram do dobro do lançamento. Segundo relatos, a AMD prepara o quarto aumento das Radeon neste ano.",
+   "Team Group's CEO said the tightest stretch is Q4 2026 to Q2 2027, with balance in late 2028 or later.": "O CEO da Team Group disse que o pior trecho vai do 4º trimestre de 2026 ao 2º de 2027, com equilíbrio no fim de 2028 ou depois.",
+   "The 1440p sweet spot for most players.": "O ponto ideal em 1440p para a maioria.",
+   "The Windows settings that still measurably help. On laptops, use Best performance only when plugged in.": "Os ajustes do Windows que ainda ajudam de forma medível. Em notebooks, use Melhor desempenho só na tomada.",
+   "The best PC gaming headset in lab tests.": "O melhor headset para PC em testes de laboratório.",
+   "The best desk mic for gaming.": "O melhor microfone de mesa para jogos.",
+   "The cheapest 1440p OLED, around $350.": "O OLED 1440p mais barato, cerca de US$ 350.",
+   "The exact graphics card model, not \"RTX 50 series\".": "O modelo exato da placa de vídeo, não \"série RTX 50\".",
+   "The sub-$300 picks at launch prices.": "As opções abaixo de US$ 300 no preço de lançamento.",
+   "The worst may still be ahead": "O pior pode estar por vir",
+   "Top pick at several outlets.": "Favorito em vários sites.",
+   "Top pick for right-handed shapes.": "A melhor opção em formato para destros.",
+   "Turn on XMP or EXPO in the BIOS": "Ative XMP ou EXPO na BIOS",
+   "Turning off the page file": "Desligar o arquivo de paginação",
+   "Two RAM sticks (2×16 GB), not one: a single stick halves memory bandwidth.": "Dois pentes de RAM (2×16 GB), não um: um só pente corta a largura de banda pela metade.",
+   "Upgrade what isn't in short supply: CPUs, monitors, mice and keyboards.": "Faça upgrade do que não está em falta: CPUs, monitores, mouses e teclados.",
+   "Use G-SYNC or FreeSync with the right frame cap": "Use G-SYNC ou FreeSync com o limite de FPS certo",
+   "Used RAM and graphics cards can be cheaper than new; buy SSDs new, because they wear out.": "RAM e placas de vídeo usadas podem sair mais baratas; compre SSD novo, porque eles se desgastam.",
+   "Value": "Valor",
+   "Value varies by config": "O custo-benefício varia com a configuração",
+   "Variable refresh on, V-Sync on in the driver and off in the game. With Reflex on, the driver caps for you (about 138 FPS at 144 Hz); without it, cap a few FPS under your refresh rate.": "Taxa variável ligada, V-Sync ligado no driver e desligado no jogo. Com Reflex, o driver limita por você (cerca de 138 FPS em 144 Hz); sem ele, limite alguns FPS abaixo da sua taxa.",
+   "Windows": "Windows",
+   "Windows 11 26H2 is out": "O Windows 11 26H2 saiu",
+   "Windows turned it on for many PCs with the October 2026 update. On modern CPUs it costs under 2% in 2026 tests; older CPUs lose more. Turning it off removes real protection, so only do it if you measure a difference.": "O Windows a ativou em muitos PCs na atualização de outubro de 2026. Em CPUs modernas custa menos de 2% em testes de 2026; CPUs antigas perdem mais. Desligar remove uma proteção real, então só faça se medir diferença.",
+   "Wireless": "Sem fio",
+   "Wireless value": "Sem fio custo-benefício",
+   "Without it, RAM runs at its slow fallback speed (DDR4 3,200, DDR5 4,800). It's one switch and one of the biggest free gains in CPU-heavy games.": "Sem isso, a RAM roda na velocidade lenta padrão (DDR4 3.200, DDR5 4.800). É uma só opção e um dos maiores ganhos grátis em jogos pesados de CPU."
+  }
+ }
+}

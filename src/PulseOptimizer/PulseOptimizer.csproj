@@ -34,6 +34,7 @@
     <Resource Include="Assets\Games\*.jpg" />
     <!-- Translations: English text → translated text, one file per language. -->
     <EmbeddedResource Include="Lang\*.json" LogicalName="Lang.%(Filename).json" />
+    <EmbeddedResource Include="Core\Guide\guide.json" LogicalName="guide.json" />
     <Resource Include="Assets\Games\*.png" />
     <!-- VALORANT agent, map and rank art for match recaps, fetched by tools/get-match-art.py at build time (not committed). -->
     <Resource Include="Assets\Matches\*.png" />

@@ -3,33 +3,28 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <Grid Margin="0,6,0,0">
         <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+        <!-- Header: title, how fresh the guide is, and the tabs on a hairline -->
         <StackPanel>
-            <!-- Header: a soft gradient banner with the title, how fresh the guide is, and the section tabs -->
-            <Border CornerRadius="14" Padding="26,22,26,18" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" ClipToBounds="True">
-                <Border.Background>
-                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                        <GradientStop Color="#2622D3EE" Offset="0"/>
-                        <GradientStop Color="#1A5B8CFF" Offset="0.45"/>
-                        <GradientStop Color="#228B5CF6" Offset="1"/>
-                    </LinearGradientBrush>
-                </Border.Background>
+            <Grid>
                 <StackPanel>
-                    <Grid>
-                        <StackPanel>
-                            <TextBlock Style="{StaticResource H1}" Text="PC guide"/>
-                            <TextBlock Style="{StaticResource Sub}" Margin="0,6,0,0" MaxWidth="720" HorizontalAlignment="Left" TextWrapping="Wrap"
-                                       Text="What makes games run smoother, what hardware costs right now, and the gear and prebuilt PCs reviewers rate best. Every pick links to its source; nobody pays Pulse to be here."/>
-                        </StackPanel>
-                        <Border x:Name="FreshPill" HorizontalAlignment="Right" VerticalAlignment="Top" CornerRadius="999" Padding="10,4" Background="#22000000" BorderBrush="#33FFFFFF" BorderThickness="1">
-                            <TextBlock x:Name="FreshText" FontSize="11.5" Foreground="{StaticResource TextDimBrush}"/>
-                        </Border>
-                    </Grid>
-                    <WrapPanel x:Name="Tabs" Margin="0,18,0,-8"/>
+                    <TextBlock Style="{StaticResource H1}" Text="PC guide"/>
+                    <TextBlock Style="{StaticResource Sub}" Margin="0,4,0,0" Text="Tips, prices and picks, each one linked to where it came from."/>
                 </StackPanel>
-            </Border>
+                <Border HorizontalAlignment="Right" VerticalAlignment="Center" CornerRadius="999" Padding="11,5" Background="{StaticResource Surface2Brush}"
+                        BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
+                    <StackPanel Orientation="Horizontal">
+                        <Ellipse x:Name="FreshDot" Width="7" Height="7" Margin="0,1,7,0" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="FreshText" FontSize="11.5" Foreground="{StaticResource TextDimBrush}"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+            <Grid Margin="0,18,0,0">
+                <Border VerticalAlignment="Bottom" Height="1" Background="{StaticResource BorderBrush}"/>
+                <StackPanel x:Name="Tabs" Orientation="Horizontal"/>
+            </Grid>
         </StackPanel>
-        <ScrollViewer x:Name="Scroller" Grid.Row="1" Margin="0,16,0,0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-            <StackPanel x:Name="Body" Margin="0,0,6,32"/>
+        <ScrollViewer x:Name="Scroller" Grid.Row="1" Margin="0,18,0,0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <StackPanel x:Name="Body" Margin="0,0,8,32"/>
         </ScrollViewer>
     </Grid>
 </UserControl>

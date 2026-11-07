@@ -31,8 +31,20 @@ public class SafetyTests
             "Pulse never sends anything, and only downloads from its own GitHub releases: the opt-in Clips download of " +
             "FFmpeg (Ffmpeg.cs) and the update check and install (Updater.cs). The lag checks only send pings (NetworkCheck.cs). " +
             "Match recaps read the games' own data: League's Live Client API on 127.0.0.1 (LeagueLive.cs) and, for VALORANT, " +
-            "your own last match from Riot with the Riot Client's local login (ValorantMatches.cs)",
-            "Ffmpeg.cs", "Updater.cs", "LeagueLive.cs", "ValorantMatches.cs");
+            "your own last match from Riot with the Riot Client's local login (ValorantMatches.cs). The PC guide downloads " +
+            "its latest prices and news from Pulse's own website (GuideLive.cs)",
+            "Ffmpeg.cs", "Updater.cs", "LeagueLive.cs", "ValorantMatches.cs", "GuideLive.cs");
+
+    [Fact]
+    public void The_guide_only_downloads_from_Pulses_own_website()
+    {
+        var src = File.ReadAllText(Repo.SourceFiles().Single(f => Path.GetFileName(f) == "GuideLive.cs"));
+        Assert.DoesNotMatch(@"https?://", src); // the address is built from AppInfo.Website
+        Assert.Contains("AppInfo.Website", src);
+        Assert.DoesNotContain("PostAsync", src);
+        Assert.DoesNotContain("PutAsync", src);
+        Assert.DoesNotContain("SendAsync", src);
+    }
 
     [Fact]
     public void Updates_and_downloads_only_come_from_Pulses_own_repos()
