@@ -186,6 +186,7 @@ public partial class MainWindow : Window
                 "crosshair" => new CrosshairPage(),
                 "devices" => new DevicesPage(),
                 "mouse" => new MousePage(),
+                "mic" => new MicPage(),
                 "games" => new GamesPage(),
                 "cleanup" => new DeclutterPage(),
                 "startup" => new StartupPage(),

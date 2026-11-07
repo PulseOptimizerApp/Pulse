@@ -88,6 +88,7 @@ public partial class App : Application
         Ui.MatchService.Init();
         Ui.GameSessionService.Init();
         Ui.CrosshairService.Init();
+        try { Core.Mic.MicStudio.Init(); } catch { }
 
         // Started at sign-in for Clips: stay in the tray until the user opens Pulse.
         bool tray = e.Args.Contains("--tray", StringComparer.OrdinalIgnoreCase) &&
@@ -186,6 +187,7 @@ public partial class App : Application
         try { Ui.MatchService.Shutdown(); } catch { }
         try { Ui.GameSessionService.Shutdown(); } catch { }
         try { Ui.CrosshairService.Shutdown(); } catch { }
+        try { Core.Mic.MicStudio.Shutdown(); } catch { }
         try { Ui.TrayIcon.Hide(); } catch { }
         try { _instance?.ReleaseMutex(); } catch { }
         base.OnExit(e);

@@ -73,6 +73,8 @@ public class AppState
     public Pulse.Core.Crosshair.CrosshairSettings Crosshair { get; set; } = new();
     /// <summary>The Devices page: backups of key remaps and key repeat.</summary>
     public Pulse.Core.Devices.DeviceSettings Devices { get; set; } = new();
+    /// <summary>The Mic studio: noise removal, EQ, voice effects and the soundboard.</summary>
+    public Pulse.Core.Mic.MicSettings Mic { get; set; } = new();
 }
 
 /// <summary>Applies and undoes tweaks, keeping a backup of every value it changes on disk.</summary>

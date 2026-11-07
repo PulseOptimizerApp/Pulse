@@ -35,6 +35,11 @@ jobs:
           npm install --no-audit --no-fund
           npm run build
 
+      - uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Build RNNoise for the Mic studio (Xiph, BSD-3-Clause)
+        run: python tools/build-rnnoise.py src/PulseOptimizer/tools/rnnoise.dll
+
       - name: Run tests (measurement maths, exact undo, tweak list, safety checks)
         run: dotnet test tests/PulseOptimizer.Tests/PulseOptimizer.Tests.csproj -c Release --logger "console;verbosity=normal"
 

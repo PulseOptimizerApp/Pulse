@@ -1,0 +1,29 @@
+<UserControl x:Class="Pulse.Pages.MicPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ScrollViewer x:Name="Scroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Margin="0,6,8,40">
+            <Grid>
+                <StackPanel>
+                    <TextBlock Style="{StaticResource H1}" Text="Mic studio"/>
+                    <TextBlock Style="{StaticResource Sub}" Margin="0,6,0,0" MaxWidth="640" HorizontalAlignment="Left" TextWrapping="Wrap"
+                               Text="Make any mic sound clean and clear in Discord, games and OBS: AI noise removal, EQ, voice effects and a soundboard. Runs on your CPU, so it works without an RTX card."/>
+                </StackPanel>
+                <Border HorizontalAlignment="Right" VerticalAlignment="Top" Style="{StaticResource Card}" Padding="16,10">
+                    <StackPanel Orientation="Horizontal">
+                        <StackPanel VerticalAlignment="Center" Margin="0,0,14,0">
+                            <TextBlock Text="Mic studio" FontWeight="SemiBold"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                                <Ellipse x:Name="StateDot" Width="7" Height="7" Margin="0,1,6,0" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="StateText" FontSize="12" Foreground="{StaticResource TextDimBrush}"/>
+                            </StackPanel>
+                        </StackPanel>
+                        <CheckBox x:Name="EnabledSwitch" Style="{StaticResource Switch}" VerticalAlignment="Center" Click="Enabled_Click"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <StackPanel x:Name="Root" Margin="0,22,0,0"/>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>
