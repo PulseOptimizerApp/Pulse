@@ -63,8 +63,66 @@ public static class ClipLibrary
                 Thumbnail = File.Exists(ThumbFor(f.FullName)) ? ThumbFor(f.FullName) : null,
                 Favorite = s.Favorites.Contains(f.Name, StringComparer.OrdinalIgnoreCase),
                 Title = s.Titles.TryGetValue(f.Name, out var t) ? t : null,
+                Seconds = Mp4Seconds(f),
             })
             .OrderByDescending(c => c.Created).ToList();
+    }
+
+    static readonly Dictionary<string, (long Size, DateTime Write, double Seconds)> _lengths = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// A clip's length from its MP4 header (the 'mvhd' box), without starting FFmpeg: a few small reads, remembered
+    /// until the file changes. 0 when it can't be read (still being written, or not an MP4).
+    /// </summary>
+    public static double Mp4Seconds(FileInfo f)
+    {
+        lock (_lengths)
+            if (_lengths.TryGetValue(f.FullName, out var c) && c.Size == f.Length && c.Write == f.LastWriteTimeUtc) return c.Seconds;
+        double secs = 0;
+        try
+        {
+            using var fs = new FileStream(f.FullName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 4096);
+            secs = FindMvhd(fs, 0, fs.Length, 0);
+        }
+        catch { }
+        lock (_lengths) _lengths[f.FullName] = (f.Length, f.LastWriteTimeUtc, secs);
+        return secs;
+    }
+
+    static double FindMvhd(Stream fs, long start, long end, int depth)
+    {
+        var head = new byte[16];
+        long pos = start;
+        while (pos + 8 <= end)
+        {
+            fs.Position = pos;
+            if (fs.Read(head, 0, 8) < 8) return 0;
+            long size = (uint)(head[0] << 24 | head[1] << 16 | head[2] << 8 | head[3]);
+            string type = System.Text.Encoding.ASCII.GetString(head, 4, 4);
+            int hdr = 8;
+            if (size == 1)
+            {
+                if (fs.Read(head, 8, 8) < 8) return 0;
+                size = 0;
+                for (int i = 8; i < 16; i++) size = size << 8 | head[i];
+                hdr = 16;
+            }
+            else if (size == 0) size = end - pos;
+            if (size < hdr) return 0;
+            if (type == "moov" && depth == 0) return FindMvhd(fs, pos + hdr, Math.Min(end, pos + size), 1);
+            if (type == "mvhd" && depth == 1)
+            {
+                var b = new byte[32];
+                if (fs.Read(b, 0, 32) < 20) return 0;
+                static ulong U32(byte[] a, int o) => (ulong)(a[o] << 24 | a[o + 1] << 16 | a[o + 2] << 8 | a[o + 3]) & 0xFFFFFFFF;
+                ulong scale, dur;
+                if (b[0] == 1) { scale = U32(b, 20); dur = U32(b, 24) << 32 | U32(b, 28); }
+                else { scale = U32(b, 12); dur = U32(b, 16); }
+                return scale > 0 ? dur / (double)scale : 0;
+            }
+            pos += size;
+        }
+        return 0;
     }
 
     /// <summary>Makes a small picture from 1 second into the clip (hidden .thumbnails folder next to the clips).</summary>

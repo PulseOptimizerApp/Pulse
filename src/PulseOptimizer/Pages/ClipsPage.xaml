@@ -1,8 +1,34 @@
 <UserControl x:Class="Pulse.Pages.ClipsPage"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:ui="clr-namespace:Pulse.Ui">
+             xmlns:ui="clr-namespace:Pulse.Ui"
+             xmlns:sys="clr-namespace:System;assembly=mscorlib">
     <UserControl.Resources>
+        <!-- Card size, set from the window width so the grid fills the row (like Medal) -->
+        <sys:Double x:Key="ClipCardW">300</sys:Double>
+        <sys:Double x:Key="ClipThumbH">169</sys:Double>
+        <Style x:Key="IconButton" TargetType="Button">
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Foreground" Value="{StaticResource TextDimBrush}"/>
+            <Setter Property="Width" Value="32"/>
+            <Setter Property="Height" Value="30"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" CornerRadius="7" Background="Transparent">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource SurfaceHoverBrush}"/>
+                                <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
         <Style x:Key="TrackToggle" TargetType="ToggleButton">
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
@@ -30,7 +56,31 @@
         </Style>
     </UserControl.Resources>
     <Grid>
-        <ScrollViewer x:Name="Scroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+
+        <!-- ═════════ Library sidebar (like Medal): views, games, recording settings, storage ═════════ -->
+        <Border x:Name="ClipNav" Width="214" Margin="0,6,20,0" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
+                BorderThickness="1" CornerRadius="12" Padding="10,14,10,12">
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Bottom" Margin="8,10,8,0">
+                    <Border Height="1" Background="{StaticResource BorderBrush}" Margin="-8,0,-8,12"/>
+                    <Grid>
+                        <TextBlock Text="STORAGE" FontSize="10.5" FontWeight="Bold" Foreground="{StaticResource TextFaintBrush}"/>
+                        <Button Style="{StaticResource LinkButton}" Content="Open folder" FontSize="11.5" HorizontalAlignment="Right" Click="OpenFolder_Click"/>
+                    </Grid>
+                    <Grid Margin="0,8,0,0">
+                        <Border Style="{StaticResource BarTrack}" Height="5"/>
+                        <Border x:Name="StorageBar" Style="{StaticResource BarFill}" Height="5" HorizontalAlignment="Left" Width="0"/>
+                    </Grid>
+                    <TextBlock x:Name="StorageText" FontSize="11.5" Foreground="{StaticResource TextDimBrush}" Margin="0,6,0,0" TextWrapping="Wrap"/>
+                </StackPanel>
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel x:Name="NavItems"/>
+                </ScrollViewer>
+            </DockPanel>
+        </Border>
+
+        <ScrollViewer x:Name="Scroll" Grid.Column="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
             <StackPanel Margin="0,6,0,40">
                 <StackPanel Orientation="Horizontal">
                     <TextBlock Style="{StaticResource H1}" Text="Clips"/>
@@ -428,11 +478,35 @@
                     </StackPanel>
                 </Border>
 
+                <!-- ═════════ Now clipping (compact, while browsing clips) ═════════ -->
+                <Border x:Name="NowBar" Visibility="Collapsed" Margin="0,18,0,0" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
+                        BorderThickness="1" CornerRadius="12" Padding="16,10,10,10">
+                    <Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <Ellipse x:Name="NowDot" Width="9" Height="9" VerticalAlignment="Center"/>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="12,0,0,0" VerticalAlignment="Center">
+                            <TextBlock x:Name="NowTitle" FontWeight="SemiBold" FontSize="13.5" VerticalAlignment="Center"/>
+                            <Border Background="{StaticResource Surface2Brush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="6" Padding="8,2" Margin="14,0,0,0" VerticalAlignment="Center">
+                                <TextBlock x:Name="NowHotkey" FontFamily="{StaticResource MonoFont}" FontSize="12" FontWeight="SemiBold"/>
+                            </Border>
+                            <TextBlock x:Name="NowHint" FontSize="12" Foreground="{StaticResource TextDimBrush}" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="2" Orientation="Horizontal">
+                            <Button x:Name="NowSaveBtn" Style="{StaticResource PrimaryButton}" Padding="14,6" Click="SaveNow_Click">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#xE7C8;" Style="{StaticResource IconText}" FontSize="12"/>
+                                    <TextBlock Text="Save clip now" Margin="8,0,0,0"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
                 <StackPanel x:Name="LibraryPanel">
                 <!-- ═════════ Matches (recaps, like Medal) ═════════ -->
                 <StackPanel x:Name="MatchesPanel" Visibility="Collapsed" Margin="0,28,0,0">
                     <Grid Margin="0,0,0,12">
-                        <TextBlock Style="{StaticResource H2}" Text="Recent matches"/>
+                        <TextBlock Style="{StaticResource H2}" Text="Match recaps"/>
                         <Button x:Name="MatchFilterClear" Style="{StaticResource LinkButton}" HorizontalAlignment="Right" VerticalAlignment="Center" Content="Show all clips" Visibility="Collapsed" Click="MatchFilterClear_Click"/>
                     </Grid>
                     <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" PanningMode="HorizontalOnly">
@@ -443,7 +517,7 @@
                 <!-- ═════════ Library ═════════ -->
                 <Grid x:Name="LibraryHeader" Margin="0,28,0,12" Visibility="Collapsed">
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Style="{StaticResource H2}" Text="Your clips"/>
+                        <TextBlock x:Name="LibraryTitle" Style="{StaticResource H2}" Text="All clips"/>
                         <TextBlock x:Name="LibrarySummary" Foreground="{StaticResource TextDimBrush}" FontSize="13" VerticalAlignment="Bottom" Margin="12,0,0,2"/>
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
@@ -456,56 +530,75 @@
                 <Grid x:Name="LibraryTools" Margin="0,0,0,14" Visibility="Collapsed">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="260"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                     <TextBox x:Name="ClipSearch" Style="{StaticResource SearchBox}" Tag="Search clips" TextChanged="ClipFilter_Changed" VerticalAlignment="Top"/>
-                    <WrapPanel x:Name="GameFilterChips" Grid.Column="1" Margin="14,0,0,0" VerticalAlignment="Center"/>
+                    <WrapPanel x:Name="GameFilterChips" Grid.Column="1" Margin="14,0,0,0" VerticalAlignment="Center" Visibility="Collapsed"/>
                     <WrapPanel x:Name="SortChips" Grid.Column="2" VerticalAlignment="Center"/>
                 </Grid>
                 <TextBlock x:Name="LibraryNoMatch" Style="{StaticResource Body}" Visibility="Collapsed" Text="No clips match."/>
                 <TextBlock x:Name="LibraryEmpty" Style="{StaticResource Body}" Visibility="Collapsed"
                            Text="No clips yet. Start a game and press the hotkey after a good moment."/>
-                <ItemsControl x:Name="ClipGrid" Visibility="Collapsed">
+                <ItemsControl x:Name="ClipGrid" Visibility="Collapsed" Margin="0,0,-14,0">
                     <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <Border Style="{StaticResource HoverCard}" Width="250" Margin="0,0,14,14" Padding="0" ClipToBounds="True" Cursor="Hand"
+                            <Border x:Name="CardBd" Width="{DynamicResource ClipCardW}" Margin="0,0,14,14" CornerRadius="10" ClipToBounds="True" Cursor="Hand"
+                                    Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
                                     MouseLeftButtonUp="Clip_Click" Tag="{Binding}" ui:Anim.Reveal="True">
                                 <StackPanel>
-                                    <Grid Height="140" Background="#0B0C10">
+                                    <!-- Picture with the length in the corner -->
+                                    <Grid Height="{DynamicResource ClipThumbH}" Background="#0B0C10">
                                         <Image Source="{Binding Image}" Stretch="UniformToFill"/>
-                                        <TextBlock Text="&#xE768;" Style="{StaticResource IconText}" FontSize="28" Foreground="#CCFFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                        <!-- Delete straight from the library, like Medal -->
-                                        <Button HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="8" Width="32" Height="32" Cursor="Hand" Tag="{Binding}"
-                                                Click="CardDelete_Click" ToolTip="Delete this clip" FocusVisualStyle="{x:Null}" Visibility="{Binding DeleteVisibility}">
-                                            <Button.Template>
-                                                <ControlTemplate TargetType="Button">
-                                                    <Border x:Name="Bd" CornerRadius="9" Background="#B30B0C10" BorderBrush="#33FFFFFF" BorderThickness="1">
-                                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                                    </Border>
-                                                    <ControlTemplate.Triggers>
-                                                        <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Bd" Property="Background" Value="#E6F87171"/></Trigger>
-                                                    </ControlTemplate.Triggers>
-                                                </ControlTemplate>
-                                            </Button.Template>
-                                            <TextBlock Text="&#xE74D;" Style="{StaticResource IconText}" FontSize="13" Foreground="White"/>
-                                        </Button>
+                                        <Border x:Name="PlayHint" Width="46" Height="46" CornerRadius="23" Background="#99000000" Opacity="0"
+                                                HorizontalAlignment="Center" VerticalAlignment="Center">
+                                            <TextBlock Text="&#xE768;" Style="{StaticResource IconText}" FontSize="18" Foreground="White" Margin="3,0,0,0" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                        <Border HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="8" CornerRadius="5" Padding="7,2,7,3" Background="#D90B0C10"
+                                                Visibility="{Binding HasDuration, Converter={StaticResource BoolToVis}}">
+                                            <TextBlock Text="{Binding Duration}" FontSize="12" FontWeight="Bold" Foreground="White"/>
+                                        </Border>
+                                        <Border HorizontalAlignment="Left" VerticalAlignment="Top" Margin="8" CornerRadius="6" Padding="6,3" Background="#CC0B0C10"
+                                                Visibility="{Binding Clip.Favorite, Converter={StaticResource BoolToVis}}">
+                                            <TextBlock Text="&#xE735;" Style="{StaticResource IconText}" FontSize="11" Foreground="#FBBF24"/>
+                                        </Border>
                                         <Border HorizontalAlignment="Right" VerticalAlignment="Top" Margin="8" Width="22" Height="22" CornerRadius="11" BorderThickness="2" BorderBrush="White"
                                                 Background="{Binding CheckBrush}" Visibility="{Binding SelectVisibility}">
                                             <TextBlock Text="&#xE73E;" Style="{StaticResource IconText}" FontSize="11" Foreground="#0B0C10" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="{Binding CheckVisibility}"/>
                                         </Border>
-                                        <Border HorizontalAlignment="Left" VerticalAlignment="Top" Margin="8" CornerRadius="6" Padding="6,2" Background="#CC0B0C10"
-                                                Visibility="{Binding Clip.Favorite, Converter={StaticResource BoolToVis}}">
-                                            <TextBlock Text="&#xE735;" Style="{StaticResource IconText}" FontSize="11" Foreground="#FBBF24"/>
-                                        </Border>
                                     </Grid>
-                                    <StackPanel Margin="14,10,14,12">
+                                    <!-- Title: the play ("3K") or the game; then game, size, when -->
+                                    <StackPanel Margin="13,11,13,0">
                                         <StackPanel Orientation="Horizontal">
-                                            <TextBlock Text="&#xE945;" Style="{StaticResource IconText}" FontSize="12" Foreground="{StaticResource WarnBrush}" Margin="0,0,6,0"
+                                            <TextBlock Text="&#xE945;" Style="{StaticResource IconText}" FontSize="12" Foreground="{StaticResource WarnBrush}" Margin="0,0,6,0" VerticalAlignment="Center"
                                                        Visibility="{Binding Clip.Auto, Converter={StaticResource BoolToVis}}" ToolTip="Clipped automatically"/>
-                                            <TextBlock Text="{Binding Clip.Heading}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Text="{Binding Clip.Heading}" FontWeight="Bold" FontSize="14" TextTrimming="CharacterEllipsis"/>
                                         </StackPanel>
-                                        <TextBlock Text="{Binding Info}" FontSize="12" Foreground="{StaticResource TextDimBrush}" Margin="0,2,0,0"/>
+                                        <TextBlock Text="{Binding Info}" FontSize="12" Foreground="{StaticResource TextDimBrush}" Margin="0,3,0,0" TextTrimming="CharacterEllipsis"/>
                                     </StackPanel>
+                                    <!-- Actions -->
+                                    <Grid Margin="6,6,6,6" Visibility="{Binding DeleteVisibility}">
+                                        <Button Style="{StaticResource LinkButton}" HorizontalAlignment="Left" Margin="7,0,0,0" Tag="{Binding}" Click="CardReveal_Click" ToolTip="Show in folder">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="&#xE838;" Style="{StaticResource IconText}" FontSize="12" Margin="0,1,7,0"/>
+                                                <TextBlock Text="Show in folder" FontSize="12.5"/>
+                                            </StackPanel>
+                                        </Button>
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                            <Button Style="{StaticResource IconButton}" Tag="{Binding}" Click="CardFav_Click" ToolTip="Favorite">
+                                                <TextBlock Text="{Binding FavGlyph}" Style="{StaticResource IconText}" FontSize="13" Foreground="{Binding FavBrush}"/>
+                                            </Button>
+                                            <Button Style="{StaticResource IconButton}" Tag="{Binding}" Click="CardDelete_Click" ToolTip="Delete this clip">
+                                                <TextBlock Text="&#xE74D;" Style="{StaticResource IconText}" FontSize="13"/>
+                                            </Button>
+                                        </StackPanel>
+                                    </Grid>
+                                    <Border Height="10" Visibility="{Binding SelectVisibility}"/>
                                 </StackPanel>
                             </Border>
+                            <DataTemplate.Triggers>
+                                <Trigger SourceName="CardBd" Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="CardBd" Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
+                                    <Setter TargetName="PlayHint" Property="Opacity" Value="1"/>
+                                </Trigger>
+                            </DataTemplate.Triggers>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
@@ -516,7 +609,7 @@
         </ScrollViewer>
 
         <!-- ═════════ Player ═════════ -->
-        <Grid x:Name="PlayerLayer" Visibility="Collapsed" Background="#E6080A0F">
+        <Grid x:Name="PlayerLayer" Grid.ColumnSpan="2" Visibility="Collapsed" Background="#E6080A0F">
             <Border Style="{StaticResource Card}" Background="{StaticResource Surface2Brush}" Margin="0,10,0,10" MaxWidth="1000" Padding="18">
                 <Grid>
                     <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>

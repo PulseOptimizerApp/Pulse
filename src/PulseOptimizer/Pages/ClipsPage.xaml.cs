@@ -22,6 +22,13 @@ public class ClipVm : Observable
     public ImageSource Image { get; set; }
     public string Info { get; init; }
 
+    /// <summary>"0:30", "1:24" for the corner of the card (empty when the length can't be read).</summary>
+    public string Duration => Clip.Seconds <= 0 ? "" : TimeSpan.FromSeconds(Math.Round(Clip.Seconds)) is var t && t.TotalHours >= 1
+        ? t.ToString(@"h\:mm\:ss", CultureInfo.InvariantCulture) : t.ToString(@"m\:ss", CultureInfo.InvariantCulture);
+    public bool HasDuration => Clip.Seconds > 0;
+    public string FavGlyph => Clip.Favorite ? "\uE735" : "\uE734";
+    public Brush FavBrush => Clip.Favorite ? new SolidColorBrush(Color.FromRgb(0xFB, 0xBF, 0x24)) : null;
+
     bool _selecting, _selected;
     /// <summary>The library is in "select" mode (cards show a check circle).</summary>
     public bool Selecting { get => _selecting; set { if (Set(ref _selecting, value)) { Raise(nameof(SelectVisibility)); Raise(nameof(DeleteVisibility)); } } }
@@ -49,6 +56,7 @@ public partial class ClipsPage : UserControl, IPage, IReleasable
     public ClipsPage()
     {
         InitializeComponent();
+        LibraryPanel.SizeChanged += (_, e) => FitCards(e.NewSize.Width + 14);
         _usage.Tick += (_, _) => UpdateUsage();
         _playerTimer.Tick += (_, _) => PlayerTick();
         ClipsService.Changed += OnClipsChanged;
@@ -82,7 +90,7 @@ public partial class ClipsPage : UserControl, IPage, IReleasable
     public async void OnShown(object parameter)
     {
         _usage.Start();
-        if (parameter as string == "newest") { _settingsOpen = false; Scroll?.ScrollToTop(); }
+        if (parameter as string == "newest") { _view = "all"; _settingsOpen = false; Scroll?.ScrollToTop(); }
         UpdateStatus();
         LoadLibrary(); // your clips first; the encoder check below can take a moment
         WatchFolder();
@@ -190,7 +198,8 @@ public partial class ClipsPage : UserControl, IPage, IReleasable
     {
         bool on = S.Enabled && Ffmpeg.Installed;
         PitchCard.Visibility = on ? Visibility.Collapsed : Visibility.Visible;
-        StatusCard.Visibility = on ? Visibility.Visible : Visibility.Collapsed;
+        StatusCard.Visibility = on && _settingsOpen ? Visibility.Visible : Visibility.Collapsed;
+        NowBar.Visibility = on && !_settingsOpen ? Visibility.Visible : Visibility.Collapsed;
         // Your clips come first; settings open from the Settings button.
         SettingsCard.Visibility = on && _settingsOpen ? Visibility.Visible : Visibility.Collapsed;
         LibraryPanel.Visibility = on && _settingsOpen ? Visibility.Collapsed : Visibility.Visible;
@@ -224,6 +233,11 @@ public partial class ClipsPage : UserControl, IPage, IReleasable
                 break;
         }
         StatusDot.Fill = dot;
+        NowDot.Fill = dot;
+        NowTitle.Text = StatusTitle.Text;
+        NowHotkey.Text = hk;
+        NowHint.Text = HotkeyHint.Text;
+        NowSaveBtn.Visibility = ClipsService.State == ClipsState.Recording ? Visibility.Visible : Visibility.Collapsed;
         SaveNowBtn.IsEnabled = ClipsService.State == ClipsState.Recording;
         HotkeyWarn.Text = ClipsService.HotkeyWorks ? "" : Loc.T("Another app already uses this hotkey (often NVIDIA's overlay or Medal). Pick a different one.");
         if (ClipsService.VoiceError != null) VoiceText.Text = Loc.T(ClipsService.VoiceError);
@@ -583,7 +597,7 @@ public partial class ClipsPage : UserControl, IPage, IReleasable
         {
             Clip = c,
             Image = LoadImage(c.Thumbnail),
-            Info = (c.Auto ? c.Game + " · " : "") + $"{c.Created.ToString("g", CultureInfo.CurrentCulture)} · {Format.Bytes(c.Size)}",
+            Info = string.Join(" · ", new[] { c.Auto ? c.Game : null, Format.Bytes(c.Size), Format.Ago(c.Created) }.Where(x => !string.IsNullOrEmpty(x))),
         }).ToList();
         bool selecting = SelectToggle.IsChecked == true;
         foreach (var v in vms) v.Selecting = selecting;
@@ -591,6 +605,7 @@ public partial class ClipsPage : UserControl, IPage, IReleasable
         ShowMatches();
         LibraryTools.Visibility = clips.Count > 1 ? Visibility.Visible : Visibility.Collapsed;
         BuildLibraryFilters();
+        BuildNav();
         ApplyLibraryFilter();
 
         // Pictures for clips saved by another copy or before thumbnails existed.
@@ -609,7 +624,7 @@ public partial class ClipsPage : UserControl, IPage, IReleasable
     void ShowMatches()
     {
         var matches = Core.Games.MatchStore.All.Take(20).ToList();
-        MatchesPanel.Visibility = S.MatchRecaps && matches.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        MatchesPanel.Visibility = _view == "matches" && matches.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
         MatchCards.Children.Clear();
         foreach (var m in matches) MatchCards.Children.Add(MatchCard(m));
         MatchFilterClear.Visibility = _matchFilter != null ? Visibility.Visible : Visibility.Collapsed;
@@ -814,8 +829,10 @@ public partial class ClipsPage : UserControl, IPage, IReleasable
     {
         var q = ClipSearch.Text?.Trim() ?? "";
         IEnumerable<ClipVm> list = _allClips;
-        if (_gameFilter == "\u2605") list = list.Where(v => v.Clip.Favorite);
-        else if (_gameFilter.Length > 0) list = list.Where(v => v.Clip.Game == _gameFilter);
+        if (_view == "fav") list = list.Where(v => v.Clip.Favorite);
+        else if (_view == "auto") list = list.Where(v => v.Clip.Auto);
+        else if (_view.StartsWith("game:", StringComparison.Ordinal)) list = list.Where(v => v.Clip.Game == _view[5..]);
+        else if (_view == "matches" && _matchFilter == null) list = list.Where(v => Core.Games.MatchStore.All.Any(m => v.Clip.Created >= m.Start.AddMinutes(-1) && v.Clip.Created <= m.End.AddMinutes(2)));
         if (q.Length > 0) list = list.Where(v => v.Clip.Name.Contains(q, StringComparison.CurrentCultureIgnoreCase) || (v.Clip.Title ?? "").Contains(q, StringComparison.CurrentCultureIgnoreCase));
         if (_matchFilter != null) list = list.Where(v => v.Clip.Created >= _matchFilter.Start.AddMinutes(-1) && v.Clip.Created <= _matchFilter.End.AddMinutes(2));
         list = _sort switch
@@ -1414,9 +1431,7 @@ public partial class ClipsPage : UserControl, IPage, IReleasable
 
     void Settings_Click(object sender, RoutedEventArgs e)
     {
-        _settingsOpen = !_settingsOpen;
-        UpdateStatus();
-        if (_settingsOpen) SettingsCard.BringIntoView();
+        SelectView(_settingsOpen ? "all" : "settings");
     }
 
     // ───────── Long recording ─────────
@@ -1608,6 +1623,138 @@ public partial class ClipsPage : UserControl, IPage, IReleasable
             TweakEngine.Save();
         }
         catch (Exception ex) { await MainWindow.Instance.Alert("Couldn't delete the clip", ex.Message); }
+        LoadLibrary();
+    }
+
+    // ───────── Sidebar (like Medal's library) ─────────
+
+    string _view = "all";
+
+    /// <summary>Library views, then one entry per game, then recording settings. Counts come from the loaded clips.</summary>
+    void BuildNav()
+    {
+        NavItems.Children.Clear();
+        void Section(string title, bool first = false) => NavItems.Children.Add(new TextBlock
+        {
+            Text = Loc.T(title).ToUpper(CultureInfo.CurrentCulture), FontSize = 10.5, FontWeight = FontWeights.Bold,
+            Foreground = (Brush)FindResource("TextFaintBrush"), Margin = new Thickness(10, first ? 0 : 18, 0, 6),
+        });
+        Section("Library", first: true);
+        NavItem("all", "", "All clips", _allClips.Count);
+        NavItem("fav", "", "Favorites", _allClips.Count(v => v.Clip.Favorite));
+        if (_allClips.Any(v => v.Clip.Auto) || S.AutoClip) NavItem("auto", "", "Auto clips", _allClips.Count(v => v.Clip.Auto));
+        int matches = Core.Games.MatchStore.All.Count();
+        if (matches > 0 || S.MatchRecaps) NavItem("matches", "", "Match recaps", matches);
+
+        var games = _allClips.GroupBy(v => v.Clip.Game).Where(g => g.Key.Length > 0).OrderByDescending(g => g.Count()).ToList();
+        if (games.Count > 0)
+        {
+            Section("Games");
+            foreach (var g in games) NavItem("game:" + g.Key, "", g.Key, g.Count(), translate: false);
+        }
+        Section("Recording");
+        NavItem("settings", "", "Clip settings", -1);
+        if (_view.StartsWith("game:", StringComparison.Ordinal) && !games.Any(g => "game:" + g.Key == _view)) _view = "all";
+        UpdateStorage();
+    }
+
+    void NavItem(string key, string glyph, string title, int count, bool translate = true)
+    {
+        bool on = key == _view;
+        var g = new Grid();
+        g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        g.ColumnDefinitions.Add(new ColumnDefinition());
+        g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        g.Children.Add(new TextBlock
+        {
+            Text = glyph, FontFamily = (FontFamily)FindResource("IconFont"), FontSize = 13, Width = 26, VerticalAlignment = VerticalAlignment.Center,
+            Foreground = (Brush)FindResource(on ? "AccentBrush" : "TextDimBrush"),
+        });
+        var t = new TextBlock
+        {
+            Text = translate ? Loc.T(title) : title, FontSize = 13, FontWeight = on ? FontWeights.SemiBold : FontWeights.Normal, TextTrimming = TextTrimming.CharacterEllipsis,
+            Foreground = (Brush)FindResource(on ? "TextBrush" : "TextDimBrush"), VerticalAlignment = VerticalAlignment.Center,
+        };
+        Grid.SetColumn(t, 1);
+        g.Children.Add(t);
+        if (count >= 0)
+        {
+            var c = new TextBlock { Text = count.ToString(CultureInfo.CurrentCulture), FontSize = 12, Foreground = (Brush)FindResource("TextFaintBrush"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0) };
+            Grid.SetColumn(c, 2);
+            g.Children.Add(c);
+        }
+        var row = new Border
+        {
+            CornerRadius = new CornerRadius(8), Padding = new Thickness(10, 7, 10, 7), Margin = new Thickness(0, 1, 0, 1), Cursor = Cursors.Hand, Child = g,
+            Background = on ? (Brush)FindResource("SurfaceHoverBrush") : Brushes.Transparent, ToolTip = translate ? null : title,
+        };
+        if (!on)
+        {
+            row.MouseEnter += (_, _) => row.Background = (Brush)FindResource("Surface2Brush");
+            row.MouseLeave += (_, _) => row.Background = Brushes.Transparent;
+        }
+        row.MouseLeftButtonUp += (_, _) => SelectView(key);
+        NavItems.Children.Add(row);
+    }
+
+    void SelectView(string key)
+    {
+        _view = key;
+        _settingsOpen = key == "settings";
+        if (key != "matches") _matchFilter = null;
+        LibraryTitle.Text = key switch
+        {
+            "fav" => Loc.T("Favorites"),
+            "auto" => Loc.T("Auto clips"),
+            "matches" => Loc.T("Clips from your matches"),
+            _ when key.StartsWith("game:", StringComparison.Ordinal) => key[5..],
+            _ => Loc.T("All clips"),
+        };
+        BuildNav();
+        ShowMatches();
+        UpdateStatus();
+        ApplyLibraryFilter();
+        Scroll.ScrollToTop();
+    }
+
+    void UpdateStorage()
+    {
+        long used = _allClips.Sum(v => v.Clip.Size);
+        double limit = Math.Max(1, S.StorageLimitGb) * 1024d * 1024 * 1024;
+        StorageText.Text = S.StorageLimitGb > 0 ? Loc.F("{0} of {1}", Format.Bytes(used), Format.Bytes((long)limit)) : Format.Bytes(used);
+        void Size() => StorageBar.Width = Math.Max(0, ((FrameworkElement)StorageBar.Parent).ActualWidth * Math.Min(1, used / limit));
+        if (((FrameworkElement)StorageBar.Parent).ActualWidth > 0) Size();
+        else Dispatcher.BeginInvoke(Size, DispatcherPriority.Loaded);
+    }
+
+    /// <summary>Fit as many cards as the width allows (each at least 260 wide), all the same size, 16:9 pictures.</summary>
+    void FitCards(double width)
+    {
+        if (width <= 0) return;
+        // width already includes one trailing gap (the grid sticks out 14 px so every card can keep its right margin)
+        const double gap = 14, min = 260;
+        int cols = Math.Max(1, (int)(width / (min + gap)));
+        double w = Math.Floor(width / cols - gap) - 0.5;
+        Resources["ClipCardW"] = w;
+        Resources["ClipThumbH"] = Math.Round(w * 9 / 16);
+    }
+
+    void CardReveal_Click(object sender, RoutedEventArgs e)
+    {
+        e.Handled = true;
+        if ((sender as FrameworkElement)?.Tag is not ClipVm vm) return;
+        try { Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{vm.Clip.Path}\"") { UseShellExecute = true }); } catch { }
+    }
+
+    void CardFav_Click(object sender, RoutedEventArgs e)
+    {
+        e.Handled = true;
+        if ((sender as FrameworkElement)?.Tag is not ClipVm vm) return;
+        var name = Path.GetFileName(vm.Clip.Path);
+        if (vm.Clip.Favorite) S.Favorites.RemoveAll(f => f.Equals(name, StringComparison.OrdinalIgnoreCase));
+        else S.Favorites.Add(name);
+        vm.Clip.Favorite = !vm.Clip.Favorite;
+        TweakEngine.Save();
         LoadLibrary();
     }
 }
