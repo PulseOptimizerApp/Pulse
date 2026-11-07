@@ -614,7 +614,7 @@ public partial class ClipsPage : UserControl, IPage, IReleasable
         bool selected = _matchFilter?.Id == m.Id;
         var card = new Border
         {
-            Width = 236, Margin = new Thickness(0, 0, 12, 0), Padding = new Thickness(16, 14, 16, 14), CornerRadius = new CornerRadius(10), Cursor = Cursors.Hand,
+            Width = 290, Margin = new Thickness(0, 0, 12, 0), Padding = new Thickness(16, 14, 16, 14), CornerRadius = new CornerRadius(10), Cursor = Cursors.Hand,
             Background = (Brush)FindResource("SurfaceBrush"), BorderThickness = new Thickness(selected ? 2 : 1),
             BorderBrush = (Brush)FindResource(selected ? "AccentGradient" : "BorderBrush"),
         };
@@ -622,22 +622,23 @@ public partial class ClipsPage : UserControl, IPage, IReleasable
         var head = new Grid();
         head.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         head.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        var who = new StackPanel();
-        who.Children.Add(new TextBlock { Text = string.IsNullOrEmpty(m.Character) ? m.Game : m.Character.ToUpperInvariant(), FontWeight = FontWeights.Bold, FontSize = 14, TextTrimming = TextTrimming.CharacterEllipsis });
+        // "SAGE  WIN" on one line, like Medal.
+        var who = new TextBlock { TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center };
+        who.Inlines.Add(new System.Windows.Documents.Run(string.IsNullOrEmpty(m.Character) ? m.Game : m.Character.ToUpperInvariant()) { FontWeight = FontWeights.Bold, FontSize = 14.5 });
         string resultKey = m.Result switch { "Win" => "GoodBrush", "Loss" => "BadBrush", _ => "TextDimBrush" };
-        who.Children.Add(new TextBlock { Text = Loc.T(string.IsNullOrEmpty(m.Result) ? "Finished" : m.Result).ToUpperInvariant(), FontWeight = FontWeights.SemiBold, FontSize = 11.5, Foreground = (Brush)FindResource(resultKey) });
+        who.Inlines.Add(new System.Windows.Documents.Run("  " + Loc.T(string.IsNullOrEmpty(m.Result) ? "Finished" : m.Result).ToUpperInvariant()) { FontWeight = FontWeights.Bold, FontSize = 11.5, Foreground = (Brush)FindResource(resultKey) });
         head.Children.Add(who);
         if (!string.IsNullOrEmpty(m.Rank))
         {
-            var rank = new Border { CornerRadius = new CornerRadius(6), Background = (Brush)FindResource("Surface2Brush"), Padding = new Thickness(8, 3, 8, 3), VerticalAlignment = VerticalAlignment.Top };
-            rank.Child = new TextBlock { Text = m.Rank, FontSize = 11, FontWeight = FontWeights.SemiBold };
+            var rank = new Border { CornerRadius = new CornerRadius(6), Background = new SolidColorBrush(Color.FromArgb(0x24, 0x5B, 0x8C, 0xFF)), Padding = new Thickness(8, 3, 8, 3), VerticalAlignment = VerticalAlignment.Center };
+            rank.Child = new TextBlock { Text = m.Rank, FontSize = 11, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Color.FromRgb(0xB9, 0xCB, 0xFF)) };
             Grid.SetColumn(rank, 1);
             head.Children.Add(rank);
         }
         sp.Children.Add(head);
 
         // MAP / KDA / HS% row
-        var stats = new Grid { Margin = new Thickness(0, 12, 0, 0) };
+        var stats = new Grid { Margin = new Thickness(0, 14, 0, 0) };
         for (int i = 0; i < 3; i++) stats.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         void Stat(int col, string label, UIElement value)
         {
@@ -647,7 +648,7 @@ public partial class ClipsPage : UserControl, IPage, IReleasable
             Grid.SetColumn(s, col);
             stats.Children.Add(s);
         }
-        var score = new TextBlock { FontSize = 13, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 2, 0, 0) };
+        var score = new TextBlock { FontSize = 18, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 1, 0, 0) };
         var sc = (m.Score ?? "").Split(':');
         if (sc.Length == 2)
         {
@@ -656,9 +657,9 @@ public partial class ClipsPage : UserControl, IPage, IReleasable
             score.Inlines.Add(new System.Windows.Documents.Run(sc[1].Trim()) { Foreground = (Brush)FindResource("BadBrush") });
         }
         Stat(0, (string.IsNullOrEmpty(m.Map) ? Loc.T("Score") : m.Map).ToUpperInvariant(), score);
-        Stat(1, "KDA", new TextBlock { Text = m.Kda.Replace(" ", ""), FontSize = 13, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 2, 0, 0) });
+        Stat(1, "KDA", new TextBlock { Text = m.Kda, FontSize = 18, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 1, 0, 0) });
         Stat(2, m.HeadshotPercent >= 0 ? "HS%" : Loc.T("Mode").ToUpperInvariant(),
-            new TextBlock { Text = m.HeadshotPercent >= 0 ? m.HeadshotPercent + "%" : m.Mode, FontSize = 13, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 2, 0, 0), TextTrimming = TextTrimming.CharacterEllipsis });
+            new TextBlock { Text = m.HeadshotPercent >= 0 ? m.HeadshotPercent + "%" : m.Mode, FontSize = m.HeadshotPercent >= 0 ? 18 : 13, FontWeight = FontWeights.Bold, Margin = new Thickness(0, m.HeadshotPercent >= 0 ? 1 : 5, 0, 0), TextTrimming = TextTrimming.CharacterEllipsis });
         sp.Children.Add(stats);
 
         // Big plays and clips
@@ -670,7 +671,8 @@ public partial class ClipsPage : UserControl, IPage, IReleasable
             foot.Children.Add(pill);
         }
         sp.Children.Add(foot);
-        var bottom = new Grid { Margin = new Thickness(0, 4, 0, 0) };
+        sp.Children.Add(new Border { Height = 1, Background = (Brush)FindResource("BorderBrush"), Margin = new Thickness(0, 6, 0, 10) });
+        var bottom = new Grid();
         bottom.Children.Add(new TextBlock { Text = Loc.F("{0} clips", clips), FontSize = 12, Foreground = (Brush)FindResource("TextDimBrush") });
         bottom.Children.Add(new TextBlock { Text = Format.Ago(m.End), FontSize = 12, Foreground = (Brush)FindResource("TextFaintBrush"), HorizontalAlignment = HorizontalAlignment.Right });
         sp.Children.Add(bottom);
