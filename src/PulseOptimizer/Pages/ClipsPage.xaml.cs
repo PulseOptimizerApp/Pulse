@@ -19,7 +19,18 @@ namespace Pulse.Pages;
 public class ClipVm : Observable
 {
     public ClipFile Clip { get; init; }
-    public ImageSource Image { get; set; }
+    ImageSource _image;
+    bool _imageTried;
+    /// <summary>The card picture, loaded the first time a card shows it (not for every clip up front).</summary>
+    public ImageSource Image
+    {
+        get
+        {
+            if (_image == null && !_imageTried && Clip?.Thumbnail != null) { _imageTried = true; _image = ClipsPage.LoadImage(Clip.Thumbnail); }
+            return _image;
+        }
+        set { _image = value; _imageTried = true; }
+    }
     public string Info { get; init; }
 
     /// <summary>"0:30", "1:24" for the corner of the card (empty when the length can't be read).</summary>
@@ -85,6 +96,7 @@ public partial class ClipsPage : UserControl, IPage, IReleasable
         _watcher?.Dispose(); _watcher = null;
         _allClips = new();
         ClipGrid.ItemsSource = null;
+        _shown = new(); _cards = null; _visible = PageSize;
     }
 
     public async void OnShown(object parameter)
@@ -596,7 +608,6 @@ public partial class ClipsPage : UserControl, IPage, IReleasable
         var vms = clips.Select(c => new ClipVm
         {
             Clip = c,
-            Image = LoadImage(c.Thumbnail),
             Info = string.Join(" · ", new[] { c.Auto ? c.Game : null, Format.Bytes(c.Size), Format.Ago(c.Created) }.Where(x => !string.IsNullOrEmpty(x))),
         }).ToList();
         bool selecting = SelectToggle.IsChecked == true;
@@ -609,11 +620,11 @@ public partial class ClipsPage : UserControl, IPage, IReleasable
         ApplyLibraryFilter();
 
         // Pictures for clips saved by another copy or before thumbnails existed.
-        if (Ffmpeg.Installed && vms.Any(v => v.Image == null))
+        if (Ffmpeg.Installed && vms.Any(v => v.Clip.Thumbnail == null))
         {
-            foreach (var v in vms.Where(v => v.Image == null).Take(30))
+            foreach (var v in vms.Where(v => v.Clip.Thumbnail == null).Take(30))
                 try { await ClipLibrary.MakeThumbnail(v.Clip.Path); } catch { }
-            if (vms.Any(v => v.Image == null && File.Exists(ClipLibrary.ThumbFor(v.Clip.Path)))) LoadLibrary();
+            if (vms.Any(v => v.Clip.Thumbnail == null && File.Exists(ClipLibrary.ThumbFor(v.Clip.Path)))) LoadLibrary();
         }
     }
 
@@ -842,12 +853,29 @@ public partial class ClipsPage : UserControl, IPage, IReleasable
             _ => list.OrderByDescending(v => v.Clip.Created),
         };
         var shown = list.ToList();
-        ClipGrid.ItemsSource = shown;
+        _shown = shown;
+        _visible = Math.Max(PageSize, Math.Min(_visible, shown.Count));
+        _cards = new System.Collections.ObjectModel.ObservableCollection<ClipVm>(shown.Take(_visible));
+        ClipGrid.ItemsSource = _cards;
         ClipGrid.Visibility = shown.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
         LibraryNoMatch.Visibility = _allClips.Count > 0 && shown.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
     }
 
-    static ImageSource LoadImage(string path)
+    // Cards are shown 48 at a time, and more appear as you scroll down, so a big library doesn't load every picture.
+    const int PageSize = 48;
+    List<ClipVm> _shown = new();
+    System.Collections.ObjectModel.ObservableCollection<ClipVm> _cards;
+    int _visible = PageSize;
+
+    void Scroll_Changed(object sender, ScrollChangedEventArgs e)
+    {
+        if (_cards == null || _cards.Count >= _shown.Count || ClipGrid.Visibility != Visibility.Visible) return;
+        if (Scroll.VerticalOffset + Scroll.ViewportHeight < Scroll.ExtentHeight - 600) return;
+        foreach (var v in _shown.Skip(_cards.Count).Take(PageSize)) _cards.Add(v);
+        _visible = _cards.Count;
+    }
+
+    internal static ImageSource LoadImage(string path)
     {
         if (path == null || !File.Exists(path)) return null;
         try
@@ -856,7 +884,7 @@ public partial class ClipsPage : UserControl, IPage, IReleasable
             img.BeginInit();
             img.CacheOption = BitmapCacheOption.OnLoad; // don't keep the file locked
             img.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
-            img.DecodePixelWidth = 500;
+            img.DecodePixelWidth = 400; // cards are 260–400 px wide
             img.UriSource = new Uri(path);
             img.EndInit();
             img.Freeze();
@@ -1702,6 +1730,7 @@ public partial class ClipsPage : UserControl, IPage, IReleasable
         _view = key;
         _settingsOpen = key == "settings";
         if (key != "matches") _matchFilter = null;
+        _visible = PageSize;
         LibraryTitle.Text = key switch
         {
             "fav" => Loc.T("Favorites"),

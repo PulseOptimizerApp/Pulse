@@ -80,7 +80,7 @@
             </DockPanel>
         </Border>
 
-        <ScrollViewer x:Name="Scroll" Grid.Column="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <ScrollViewer x:Name="Scroll" Grid.Column="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" ScrollChanged="Scroll_Changed">
             <StackPanel Margin="0,6,0,40">
                 <StackPanel Orientation="Horizontal">
                     <TextBlock Style="{StaticResource H1}" Text="Clips"/>

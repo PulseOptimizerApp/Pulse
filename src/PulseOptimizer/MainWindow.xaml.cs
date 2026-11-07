@@ -31,6 +31,25 @@ public partial class MainWindow : Window
     public static MainWindow Instance { get; private set; }
 
     readonly Dictionary<string, UserControl> _pages = new();
+    readonly Dictionary<string, DateTime> _lastSeen = new();
+
+    /// <summary>Screens that never run anything in the background, so they can be rebuilt when opened again.</summary>
+    static readonly HashSet<string> LightPages = new() { "home", "guide", "safety", "startup", "reaction" };
+
+    /// <summary>Lets go of light screens not looked at for 3 minutes (they're rebuilt in a moment when opened again).</summary>
+    void DropIdlePages(string showing)
+    {
+        bool dropped = false;
+        foreach (var key in _pages.Keys.ToList())
+        {
+            if (key == showing || !LightPages.Contains(key)) continue;
+            if (_lastSeen.TryGetValue(key, out var seen) && DateTime.UtcNow - seen < TimeSpan.FromMinutes(3)) continue;
+            if (_pages[key] is IReleasable r) try { r.Release(); } catch { }
+            _pages.Remove(key);
+            dropped = true;
+        }
+        if (dropped) Dispatcher.BeginInvoke(Native.GiveBackMemoryGently, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+    }
     TaskCompletionSource<bool> _dialog;
     object _pendingParameter;
     int _toastVersion;
@@ -145,6 +164,8 @@ public partial class MainWindow : Window
         NavHighlightT.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(y, TimeSpan.FromMilliseconds(320))
         { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } });
 
+        DropIdlePages(key);
+        _lastSeen[key] = DateTime.UtcNow;
         if (!_pages.TryGetValue(key, out var page))
         {
             page = key switch

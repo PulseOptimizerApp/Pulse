@@ -54,8 +54,10 @@ jobs:
         shell: pwsh
         run: |
           $version = if ($env:GITHUB_REF_TYPE -eq 'tag') { $env:GITHUB_REF_NAME.TrimStart('v') } else { '0.0.0' }
+          # Not compressed on purpose: a compressed single-file app unpacks every assembly into private memory at
+          # startup (tens of MB in Task Manager). Uncompressed, Windows maps them straight from the exe instead.
           dotnet publish src/PulseOptimizer/PulseOptimizer.csproj -c Release -r win-x64 --self-contained true `
-            -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true -p:Version=$version -o out
+            -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=false -p:Version=$version -o out
 
       # Code signing (optional, recommended): see "Signing" in README.md.
 
