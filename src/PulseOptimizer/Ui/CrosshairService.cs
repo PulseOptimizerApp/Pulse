@@ -23,7 +23,10 @@ public static class CrosshairService
     static DispatcherTimer _timer;
     static bool _hiddenByKey, _checking;
     static HwndSource _hotkeyWindow;
-    const int HotkeyId = 0x5C01;
+    const int HotkeyId = 0x5C01, CycleId = 0x5C02;
+    static DispatcherTimer _input;
+    static string _lastGame;
+    static double _spread;
 
     /// <summary>Whether the crosshair is on screen right now.</summary>
     public static bool Showing => _win?.IsVisible == true;
@@ -46,6 +49,7 @@ public static class CrosshairService
             return;
         }
         RegisterHotkey();
+        UpdateInput();
         _timer ??= new DispatcherTimer(TimeSpan.FromSeconds(1.5), DispatcherPriority.Background, async (_, _) => await Tick(), Application.Current.Dispatcher);
         _timer.Start();
         _win?.Apply(S);
@@ -66,7 +70,14 @@ public static class CrosshairService
         try
         {
             bool want = S.Enabled && !_hiddenByKey;
-            if (want && S.OnlyInGames) want = await Task.Run(GameDetector.RunningGame) != null;
+            string game = null;
+            if (S.OnlyInGames || S.GameCrosshairs.Count > 0) game = await Task.Run(GameDetector.RunningGame);
+            if (want && S.OnlyInGames) want = game != null;
+            if (game != _lastGame)
+            {
+                _lastGame = game;
+                if (game != null && GameCrosshairFor(game) is { } sc) { S.Style = sc.Style.Copy(); _win?.Apply(S); Changed?.Invoke(); }
+            }
             if (want) Show(); else Hide();
             _win?.KeepOnTop(S);
         }
@@ -78,14 +89,51 @@ public static class CrosshairService
     {
         if (_win == null) { _win = new CrosshairWindow(); _win.Apply(S); }
         if (!_win.IsVisible) { _win.Show(); _win.Apply(S); Changed?.Invoke(); }
+        UpdateInput();
     }
 
     static void Hide()
     {
+        _input?.Stop();
         if (_win == null) return;
         _win.Close();
         _win = null;
         Changed?.Invoke();
+    }
+
+    /// <summary>The saved crosshair linked to this game, if any.</summary>
+    public static SavedCrosshair GameCrosshairFor(string game)
+    {
+        foreach (var (g, name) in S.GameCrosshairs)
+            if (g.Equals(game, StringComparison.OrdinalIgnoreCase)) return S.Saved.FirstOrDefault(x => x.Name == name);
+        return null;
+    }
+
+    /// <summary>The game running right now (as Pulse names it), for linking a crosshair to it.</summary>
+    public static string CurrentGame => _lastGame;
+
+    // ───────── mouse buttons: hide while aiming, spread while firing ─────────
+    // Reads the button state 60 times a second while the crosshair is on screen (no hooks, nothing injected),
+    // and only when one of these options is on.
+
+    [DllImport("user32.dll")] static extern short GetAsyncKeyState(int vk);
+
+    static void UpdateInput()
+    {
+        bool need = _win != null && (S.HideWhileAiming || S.Bloom);
+        if (!need) { _input?.Stop(); _win?.SetMotion(0, true); return; }
+        _input ??= new DispatcherTimer(TimeSpan.FromMilliseconds(16), DispatcherPriority.Render, (_, _) => InputTick(), Application.Current.Dispatcher);
+        _input.Start();
+    }
+
+    static void InputTick()
+    {
+        if (_win == null) { _input?.Stop(); return; }
+        bool left = (GetAsyncKeyState(0x01) & 0x8000) != 0, right = (GetAsyncKeyState(0x02) & 0x8000) != 0;
+        double target = S.Bloom && left ? S.BloomPx : 0;
+        _spread += (target - _spread) * (target > _spread ? 0.5 : 0.18);
+        if (Math.Abs(_spread - target) < 0.05) _spread = target;
+        _win.SetMotion(_spread, !(S.HideWhileAiming && right));
     }
 
     // ───────── Ctrl+Shift+X: show / hide ─────────
@@ -97,10 +145,14 @@ public static class CrosshairService
     /// <summary>False when another app already owns Ctrl+Shift+X.</summary>
     public static bool HotkeyWorks { get; private set; } = true;
 
+    static (bool, bool) _registered;
+
     static void RegisterHotkey()
     {
-        if (!S.Hotkey) { UnregisterHotkey(); return; }
-        if (_hotkeyWindow != null) return;
+        if (_hotkeyWindow != null && _registered == (S.Hotkey, S.CycleHotkey)) return; // settings refresh often; only redo on change
+        UnregisterHotkey(keepHidden: true);
+        _registered = (S.Hotkey, S.CycleHotkey);
+        if (!S.Hotkey && !S.CycleHotkey) { _hiddenByKey = false; return; }
         _hotkeyWindow = new HwndSource(new HwndSourceParameters("Pulse crosshair hotkey") { Width = 0, Height = 0, WindowStyle = 0, ParentWindow = new IntPtr(-3) /* message-only */ });
         _hotkeyWindow.AddHook((IntPtr h, int msg, IntPtr w, IntPtr l, ref bool handled) =>
         {
@@ -110,18 +162,40 @@ public static class CrosshairService
                 _ = Tick();
                 handled = true;
             }
+            else if (msg == 0x0312 && w.ToInt32() == CycleId)
+            {
+                Cycle();
+                handled = true;
+            }
             return IntPtr.Zero;
         });
-        HotkeyWorks = RegisterHotKey(_hotkeyWindow.Handle, HotkeyId, MOD_CONTROL | MOD_SHIFT | MOD_NOREPEAT, VK_X);
+        HotkeyWorks = !S.Hotkey || RegisterHotKey(_hotkeyWindow.Handle, HotkeyId, MOD_CONTROL | MOD_SHIFT | MOD_NOREPEAT, VK_X);
+        if (!S.Hotkey) _hiddenByKey = false;
+        CycleHotkeyWorks = !S.CycleHotkey || RegisterHotKey(_hotkeyWindow.Handle, CycleId, MOD_CONTROL | MOD_SHIFT | MOD_NOREPEAT, 0x43 /* C */);
     }
 
-    static void UnregisterHotkey()
+    /// <summary>False when another app already owns Ctrl+Shift+C.</summary>
+    public static bool CycleHotkeyWorks { get; private set; } = true;
+
+    /// <summary>Ctrl+Shift+C: the next saved crosshair.</summary>
+    static void Cycle()
+    {
+        if (S.Saved.Count == 0) return;
+        int i = S.Saved.FindIndex(x => PulseCode.Write(x.Style) == PulseCode.Write(S.Style));
+        S.Style = S.Saved[(i + 1) % S.Saved.Count].Style.Copy();
+        _win?.Apply(S);
+        TweakEngine.Save();
+        Changed?.Invoke();
+    }
+
+    static void UnregisterHotkey(bool keepHidden = false)
     {
         if (_hotkeyWindow == null) return;
         UnregisterHotKey(_hotkeyWindow.Handle, HotkeyId);
+        UnregisterHotKey(_hotkeyWindow.Handle, CycleId);
         _hotkeyWindow.Dispose();
         _hotkeyWindow = null;
-        _hiddenByKey = false;
+        if (!keepHidden) _hiddenByKey = false;
     }
 }
 
@@ -146,6 +220,13 @@ sealed class CrosshairWindow : Window
 
     CrosshairSettings _s;
 
+    /// <summary>Bloom spread and visibility from the mouse buttons (cheap: no window changes).</summary>
+    public void SetMotion(double spread, bool visible)
+    {
+        _visual.Spread = spread;
+        _visual.Opacity = visible ? 1 : 0;
+    }
+
     public void Apply(CrosshairSettings s)
     {
         _s = s;
@@ -166,7 +247,7 @@ sealed class CrosshairWindow : Window
         var mi = new MONITORINFO { cbSize = Marshal.SizeOf<MONITORINFO>() };
         if (!GetMonitorInfo(mon, ref mi)) return;
         var m = mi.rcMonitor;
-        int half = (int)Math.Ceiling(_s.Style.Reach() * 1.0) + 4;
+        int half = (int)Math.Ceiling(_s.Style.Reach() + (_s.Bloom ? _s.BloomPx * Math.Max(0.1, _s.Style.Size) * 1.42 : 0)) + 4;
         int cx = m.Left + (m.Right - m.Left) / 2 + _s.OffsetX, cy = m.Top + (m.Bottom - m.Top) / 2 + _s.OffsetY;
         SetWindowPos(_hwnd, HWND_TOPMOST, cx - half, cy - half, half * 2, half * 2, SWP_NOACTIVATE | SWP_SHOWWINDOW);
     }

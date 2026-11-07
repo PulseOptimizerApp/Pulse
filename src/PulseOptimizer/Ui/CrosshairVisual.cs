@@ -17,6 +17,9 @@ public sealed class CrosshairVisual : FrameworkElement
     public CrosshairStyle Crosshair { get => _style; set { _style = value; InvalidateVisual(); } }
     /// <summary>Extra magnification for previews (the overlay uses 1).</summary>
     public double Zoom { get => _zoom; set { _zoom = value; InvalidateVisual(); } }
+    double _spread;
+    /// <summary>Extra gap while firing (bloom), in crosshair pixels.</summary>
+    public double Spread { get => _spread; set { if (Math.Abs(value - _spread) < 0.01) return; _spread = value; InvalidateVisual(); } }
 
     public CrosshairVisual()
     {
@@ -84,7 +87,9 @@ public sealed class CrosshairVisual : FrameworkElement
         var s = _style;
         if (s == null) return;
         double dpi = VisualTreeHelper.GetDpi(this).DpiScaleX;
-        if (s.Mode == "draw" || s.Mode == "image") { RenderCustom(dc, s, dpi); return; }
+        bool turned = Math.Abs(s.Rotation % 360) > 0.01;
+        if (turned) dc.PushTransform(new RotateTransform(s.Rotation, ActualWidth / 2, ActualHeight / 2));
+        if (s.Mode == "draw" || s.Mode == "image") { RenderCustom(dc, s, dpi); if (turned) dc.Pop(); return; }
         double k = Math.Max(0.1, s.Size) * _zoom;           // screen pixels per crosshair pixel
         double P(double px) => Math.Round(px * k) / dpi;    // crosshair pixels → whole screen pixels → WPF units
         double cx = Math.Round(ActualWidth * dpi / 2) / dpi, cy = Math.Round(ActualHeight * dpi / 2) / dpi;
@@ -100,7 +105,7 @@ public sealed class CrosshairVisual : FrameworkElement
         void Line(CrosshairLines l)
         {
             if (!l.Show || l.Length <= 0 || l.Thickness <= 0) return;
-            double t = Math.Max(1 / dpi, P(l.Thickness)), o = P(l.Offset), len = P(l.Length), vlen = P(l.VLength);
+            double t = Math.Max(1 / dpi, P(l.Thickness)), o = P(l.Offset + _spread), len = P(l.Length), vlen = P(l.VLength);
             double half = Math.Floor(t * dpi / 2) / dpi; // odd thickness: the extra pixel goes down/right
             rects.Add((new Rect(o, -half, len, t), l.Opacity));              // right
             rects.Add((new Rect(-o - len, -half, len, t), l.Opacity));       // left
@@ -134,5 +139,6 @@ public sealed class CrosshairVisual : FrameworkElement
         }
         foreach (var (r, op) in rects) dc.DrawRectangle(Fill(op), null, r);
         dc.Pop();
+        if (turned) dc.Pop();
     }
 }

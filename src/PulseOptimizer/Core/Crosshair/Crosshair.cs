@@ -44,6 +44,8 @@ public sealed class CrosshairStyle
     public bool NoTop { get; set; }
     /// <summary>Scales everything (1 = the pixel sizes as written, like in the game).</summary>
     public double Size { get; set; } = 1;
+    /// <summary>Turns the whole crosshair (degrees). 45 makes a cross into an X.</summary>
+    public double Rotation { get; set; }
 
     /// <summary>"build" (the settings above), "draw" (<see cref="Pixels"/>) or "image" (<see cref="ImageFile"/>).</summary>
     public string Mode { get; set; } = "build";
@@ -72,13 +74,15 @@ public sealed class CrosshairStyle
     /// <summary>How far the crosshair reaches from the center, in pixels (for sizing the overlay window).</summary>
     public double Reach()
     {
-        if (Mode == "draw") return (GridSize / 2.0 + 2) * Math.Max(0.1, Size);
-        if (Mode == "image") return 128 * Math.Max(0.1, Size);
+        // A turned crosshair reaches further along the window's diagonal.
+        double turn = Math.Abs(Rotation % 90) > 0.01 ? 1.42 : 1;
+        if (Mode == "draw") return (GridSize / 2.0 + 2) * Math.Max(0.1, Size) * turn;
+        if (Mode == "image") return 128 * Math.Max(0.1, Size) * turn;
         double r = Dot ? DotSize / 2 : 0;
         foreach (var l in new[] { Inner, Outer })
             if (l.Show) r = Math.Max(r, l.Offset + Math.Max(l.Length, l.VLength) + l.Thickness);
         if (Circle) r = Math.Max(r, CircleRadius + CircleThickness);
-        return (r + (Outlines ? OutlineThickness : 0) + 2) * Math.Max(0.1, Size);
+        return (r + (Outlines ? OutlineThickness : 0) + 2) * Math.Max(0.1, Size) * turn;
     }
 }
 
@@ -208,6 +212,17 @@ public sealed class CrosshairSettings
     public CrosshairStyle Style { get; set; } = Presets.First().Style.Copy();
     public List<SavedCrosshair> Saved { get; set; } = new();
 
+    /// <summary>Hide it while the right mouse button is held (aiming down sights or scoped), like Crosshair X.</summary>
+    public bool HideWhileAiming { get; set; }
+    /// <summary>Lines spread apart while the left mouse button is held (firing), then settle back.</summary>
+    public bool Bloom { get; set; }
+    /// <summary>How far they spread, in crosshair pixels.</summary>
+    public double BloomPx { get; set; } = 4;
+    /// <summary>Ctrl+Shift+C switches to the next saved crosshair.</summary>
+    public bool CycleHotkey { get; set; } = true;
+    /// <summary>Game name → saved crosshair name: switches to it by itself when that game starts.</summary>
+    public Dictionary<string, string> GameCrosshairs { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+
     /// <summary>Starting points. Codes are VALORANT codes, so they look the same in the game.</summary>
     public static IReadOnlyList<(string Name, CrosshairStyle Style)> Presets { get; } = new[]
     {
@@ -221,4 +236,50 @@ public sealed class CrosshairSettings
     };
 
     static CrosshairStyle With(CrosshairStyle s, Action<CrosshairStyle> a) { a(s); return s; }
+}
+
+/// <summary>
+/// Pulse share codes: every setting of a crosshair (drawn ones too) in one line you can paste to a friend.
+/// "PULSE1-" then the settings, compressed and base64url-encoded. Picture crosshairs can't be shared (the picture is a file).
+/// </summary>
+public static class PulseCode
+{
+    const string Prefix = "PULSE1-";
+
+    public static string Write(CrosshairStyle s)
+    {
+        if (s == null || s.Mode == "image") return null;
+        var copy = s.Copy();
+        copy.ImageFile = null;
+        var json = System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(copy);
+        using var ms = new MemoryStream();
+        using (var z = new System.IO.Compression.DeflateStream(ms, System.IO.Compression.CompressionLevel.SmallestSize, true)) z.Write(json);
+        return Prefix + Convert.ToBase64String(ms.ToArray()).TrimEnd('=').Replace('+', '-').Replace('/', '_');
+    }
+
+    public static bool Looks(string code) => code?.Trim().StartsWith(Prefix, StringComparison.OrdinalIgnoreCase) == true;
+
+    public static CrosshairStyle Parse(string code)
+    {
+        try
+        {
+            var b = code.Trim()[Prefix.Length..].Replace('-', '+').Replace('_', '/');
+            b = b.PadRight(b.Length + (4 - b.Length % 4) % 4, '=');
+            using var ms = new MemoryStream(Convert.FromBase64String(b));
+            using var z = new System.IO.Compression.DeflateStream(ms, System.IO.Compression.CompressionMode.Decompress);
+            using var outMs = new MemoryStream();
+            z.CopyTo(outMs);
+            if (outMs.Length > 200_000) return null;
+            var s = System.Text.Json.JsonSerializer.Deserialize<CrosshairStyle>(outMs.ToArray());
+            if (s == null) return null;
+            s.ImageFile = null;
+            if (s.Mode == "image") return null;
+            s.Inner ??= new CrosshairLines();
+            s.Outer ??= new CrosshairLines();
+            s.Size = Math.Clamp(s.Size, 0.1, 8);
+            s.GridSize = Math.Clamp(s.GridSize, 5, 61);
+            return s;
+        }
+        catch { return null; }
+    }
 }

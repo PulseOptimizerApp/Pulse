@@ -145,11 +145,11 @@ public partial class CrosshairPage : UserControl, IPage
 
         // VALORANT code: paste to import, or copy this crosshair's code.
         var code = new StackPanel();
-        code.Children.Add(Title("VALORANT crosshair code"));
+        code.Children.Add(Title("Crosshair code"));
         var row = new Grid();
         row.ColumnDefinitions.Add(new ColumnDefinition());
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        _codeBox = new TextBox { Style = (Style)FindResource("SearchBox"), Tag = Loc.T("Paste a code like 0;P;c;5;h;0;0l;4;0o;2;0a;1;0f;0;1b;0") };
+        _codeBox = new TextBox { Style = (Style)FindResource("SearchBox"), Tag = Loc.T("Paste a VALORANT code (0;P;…) or a Pulse code (PULSE1-…)") };
         _codeBox.KeyDown += (_, e) => { if (e.Key == Key.Enter) Import(); };
         row.Children.Add(_codeBox);
         var imp = new Button { Style = (Style)FindResource("PrimaryButton"), Content = Loc.T("Import"), Margin = new Thickness(10, 0, 0, 0), Padding = new Thickness(18, 7, 18, 7) };
@@ -171,10 +171,23 @@ public partial class CrosshairPage : UserControl, IPage
         };
         outRow.Children.Add(new Border { Background = Res("Surface2Brush"), BorderBrush = Res("BorderBrush"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(8), Padding = new Thickness(12, 8, 12, 8), Child = _codeOut });
         var copy = new Button { Style = (Style)FindResource("GhostButton"), Content = Loc.T("Copy"), Margin = new Thickness(10, 0, 0, 0) };
-        copy.Click += (_, _) => { try { Clipboard.SetText(ValorantCode.Write(St)); MainWindow.Instance.Toast(Loc.T("Crosshair code copied.")); } catch { } };
+        copy.Click += (_, _) =>
+        {
+            if (St.Mode is "draw" or "image") { MainWindow.Instance.Toast(Loc.T("Drawn and picture crosshairs don't have a VALORANT code."), ToastKind.Info); return; }
+            try { Clipboard.SetText(ValorantCode.Write(St)); MainWindow.Instance.Toast(Loc.T("Crosshair code copied.")); } catch { }
+        };
         Grid.SetColumn(copy, 1);
         outRow.Children.Add(copy);
         code.Children.Add(outRow);
+        // Pulse share codes carry everything, drawn crosshairs too.
+        var share = new Button { Style = (Style)FindResource("LinkButton"), Content = Loc.T("Copy a Pulse share code (keeps every setting, drawn ones too)"), HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 10, 0, 0) };
+        share.Click += (_, _) =>
+        {
+            var c = PulseCode.Write(St);
+            if (c == null) { MainWindow.Instance.Toast(Loc.T("Picture crosshairs can't be shared as a code. Send the picture instead."), ToastKind.Info); return; }
+            try { Clipboard.SetText(c); MainWindow.Instance.Toast(Loc.T("Share code copied. Friends paste it here in Pulse.")); } catch { }
+        };
+        code.Children.Add(share);
         LeftCol.Children.Add(Card(code));
 
         // Presets and saved crosshairs.
@@ -210,17 +223,41 @@ public partial class CrosshairPage : UserControl, IPage
         if (S.Saved.Count == 0) { _savedPanel.Children.Add(Dim(Loc.T("Save crosshairs here to switch between them in one click."))); return; }
         foreach (var sc in S.Saved.ToList())
             _savedPanel.Children.Add(Tile(sc.Name, sc.Style, () => { S.Style = sc.Style.Copy(); Changed(rebuildEditor: true); },
-                () => { S.Saved.Remove(sc); TweakEngine.Save(); BuildSaved(); }));
+                () => { S.Saved.Remove(sc); TweakEngine.Save(); BuildSaved(); },
+                name =>
+                {
+                    // Keep game links pointing at it under its new name.
+                    foreach (var k in S.GameCrosshairs.Where(kv => kv.Value == sc.Name).Select(kv => kv.Key).ToList()) S.GameCrosshairs[k] = name;
+                    sc.Name = name; TweakEngine.Save(); BuildSaved(); if (_links != null) BuildLinks();
+                }));
     }
 
     /// <summary>A small square with a crosshair on it and its name; click to use it.</summary>
-    FrameworkElement Tile(string name, CrosshairStyle style, Action use, Action delete)
+    FrameworkElement Tile(string name, CrosshairStyle style, Action use, Action delete, Action<string> rename = null)
     {
         var g = new Grid { Width = 104 };
         var sp = new StackPanel();
         var pic = new Border { Height = 76, CornerRadius = new CornerRadius(8), Background = Backdrop("dark"), ClipToBounds = true, Child = new CrosshairVisual { Crosshair = style, Zoom = 2 } };
         sp.Children.Add(pic);
-        sp.Children.Add(new TextBlock { Text = Loc.T(name), FontSize = 12, Foreground = Res("TextDimBrush"), Margin = new Thickness(2, 6, 0, 0), TextTrimming = TextTrimming.CharacterEllipsis });
+        var label = new TextBlock { Text = rename != null ? name : Loc.T(name), FontSize = 12, Foreground = Res("TextDimBrush"), Margin = new Thickness(2, 6, 0, 0), TextTrimming = TextTrimming.CharacterEllipsis };
+        sp.Children.Add(label);
+        if (rename != null)
+        {
+            // Double-click the name to rename it.
+            label.ToolTip = Loc.T("Double-click to rename");
+            label.MouseLeftButtonDown += (_, e) =>
+            {
+                if (e.ClickCount != 2) return;
+                e.Handled = true;
+                var box = new TextBox { Text = name, FontSize = 12, Margin = new Thickness(0, 4, 0, 0), MaxLength = 32 };
+                void Done() { var t = box.Text.Trim(); if (t.Length > 0 && t != name) rename(t); else { sp.Children.Remove(box); label.Visibility = Visibility.Visible; } }
+                box.KeyDown += (_, k) => { if (k.Key == Key.Enter) Done(); else if (k.Key == Key.Escape) { box.Text = name; Done(); } };
+                box.LostFocus += (_, _) => Done();
+                label.Visibility = Visibility.Collapsed;
+                sp.Children.Add(box);
+                box.Focus(); box.SelectAll();
+            };
+        }
         g.Children.Add(sp);
         if (delete != null)
         {
@@ -263,11 +300,12 @@ public partial class CrosshairPage : UserControl, IPage
 
     void Import()
     {
-        var s = ValorantCode.Parse(_codeBox.Text);
+        bool pulse = PulseCode.Looks(_codeBox.Text);
+        var s = pulse ? PulseCode.Parse(_codeBox.Text) : ValorantCode.Parse(_codeBox.Text);
         _codeMsg.Visibility = Visibility.Visible;
         if (s == null)
         {
-            _codeMsg.Text = Loc.T("That isn't a VALORANT crosshair code. It should start with 0; and contain ;P;");
+            _codeMsg.Text = pulse ? Loc.T("That Pulse code is incomplete. Copy the whole line, starting with PULSE1-.") : Loc.T("That isn't a crosshair code. VALORANT codes start with 0; and Pulse codes with PULSE1-.");
             _codeMsg.Foreground = Res("WarnBrush");
             return;
         }
@@ -320,6 +358,76 @@ public partial class CrosshairPage : UserControl, IPage
         ShowPos();
         place.Children.Add(nudge);
         RightCol.Children.Add(Card(place));
+        RightCol.Children.Add(Card(BuildPlay()));
+    }
+
+    StackPanel _links;
+
+    /// <summary>Reacting to the mouse (like Crosshair X), switching crosshairs, and a crosshair per game.</summary>
+    StackPanel BuildPlay()
+    {
+        var p = new StackPanel();
+        p.Children.Add(Title("While you play"));
+        p.Children.Add(Switch("Hide while aiming", "Disappears while you hold the right mouse button (scopes, aim down sights).", () => S.HideWhileAiming, v => S.HideWhileAiming = v));
+        var amount = Slider("Spread", 1, 12, 1, () => S.BloomPx, v => S.BloomPx = v);
+        amount.Visibility = S.Bloom ? Visibility.Visible : Visibility.Collapsed;
+        p.Children.Add(Switch("Spread when shooting", "The lines open up while you hold the left mouse button, then settle.", () => S.Bloom, v => { S.Bloom = v; amount.Visibility = v ? Visibility.Visible : Visibility.Collapsed; }));
+        p.Children.Add(amount);
+        p.Children.Add(Switch("Ctrl+Shift+C switches crosshair", CrosshairService.CycleHotkeyWorks ? "Goes to the next one in My crosshairs." : "Another app is already using Ctrl+Shift+C.", () => S.CycleHotkey, v => S.CycleHotkey = v));
+
+        p.Children.Add(new Border { Height = 1, Background = Res("BorderBrush"), Margin = new Thickness(0, 10, 0, 10) });
+        p.Children.Add(new TextBlock { Text = Loc.T("A crosshair for each game"), FontSize = 13, FontWeight = FontWeights.SemiBold, Foreground = Res("TextBrush") });
+        var note = Dim(Loc.T("Pulse switches to it by itself when that game starts."), 11.5);
+        note.Margin = new Thickness(0, 2, 0, 8);
+        p.Children.Add(note);
+        _links = new StackPanel();
+        p.Children.Add(_links);
+        BuildLinks();
+        return p;
+    }
+
+    void BuildLinks()
+    {
+        _links.Children.Clear();
+        foreach (var (game, name) in S.GameCrosshairs.ToList())
+        {
+            var row = new DockPanel { Margin = new Thickness(0, 0, 0, 6) };
+            var x = new Button { Style = (Style)FindResource("LinkButton"), Content = "\uE711", FontFamily = (FontFamily)FindResource("IconFont"), FontSize = 10, ToolTip = Loc.T("Remove"), VerticalAlignment = VerticalAlignment.Center };
+            x.Click += (_, _) => { S.GameCrosshairs.Remove(game); TweakEngine.Save(); BuildLinks(); };
+            DockPanel.SetDock(x, Dock.Right);
+            row.Children.Add(x);
+            bool missing = !S.Saved.Any(c => c.Name == name);
+            row.Children.Add(new TextBlock { Text = game + "  →  " + name + (missing ? "  (" + Loc.T("deleted") + ")" : ""), FontSize = 12.5, Foreground = Res(missing ? "TextFaintBrush" : "TextBrush"), VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis });
+            _links.Children.Add(row);
+        }
+        if (S.Saved.Count == 0)
+        {
+            _links.Children.Add(Dim(Loc.T("Save a crosshair first (My crosshairs), then link it to a game here."), 12));
+            return;
+        }
+        var games = new ComboBox { IsEditable = true, Height = 32, Margin = new Thickness(0, 4, 0, 6), ToolTip = Loc.T("Game") };
+        var names = new List<string>();
+        if (CrosshairService.CurrentGame is { } now) names.Add(now);
+        names.AddRange(Pulse.Core.Games.GameCatalog.All.Select(g => g.Name).Where(n => !names.Contains(n)).OrderBy(n => n));
+        foreach (var n in names) games.Items.Add(n);
+        games.Text = names.FirstOrDefault() ?? "";
+        var pick = new ComboBox { Height = 32, Margin = new Thickness(0, 0, 0, 8) };
+        foreach (var c in S.Saved) pick.Items.Add(c.Name);
+        pick.SelectedIndex = 0;
+        var link = new Button { Style = (Style)FindResource("GhostButton"), Content = Loc.T("Link"), HorizontalAlignment = HorizontalAlignment.Left };
+        link.Click += (_, _) =>
+        {
+            var g = games.Text?.Trim();
+            if (string.IsNullOrEmpty(g) || pick.SelectedItem is not string n) return;
+            foreach (var k in S.GameCrosshairs.Keys.Where(k => k.Equals(g, StringComparison.OrdinalIgnoreCase)).ToList()) S.GameCrosshairs.Remove(k);
+            S.GameCrosshairs[g] = n;
+            TweakEngine.Save();
+            CrosshairService.Refresh();
+            BuildLinks();
+        };
+        _links.Children.Add(games);
+        _links.Children.Add(pick);
+        _links.Children.Add(link);
     }
 
     void BuildEditor()
@@ -343,8 +451,8 @@ public partial class CrosshairPage : UserControl, IPage
             modes.Children.Add(b);
         }
         _editor.Children.Add(modes);
-        if (St.Mode == "draw") { BuildDraw(); return; }
-        if (St.Mode == "image") { BuildImage(); return; }
+        if (St.Mode == "draw") { BuildDraw(); Rotation(); return; }
+        if (St.Mode == "image") { BuildImage(); Rotation(); return; }
 
         // Color: VALORANT's eight, plus any color.
         _editor.Children.Add(Label("Color"));
@@ -391,6 +499,21 @@ public partial class CrosshairPage : UserControl, IPage
         _editor.Children.Add(Switch("T-shape (no top line)", null, () => St.NoTop, v => St.NoTop = v, redraw: true));
         _editor.Children.Add(new Border { Height = 1, Background = Res("BorderBrush"), Margin = new Thickness(0, 12, 0, 12) });
         _editor.Children.Add(Slider("Overall size", 0.5, 4, 0.25, () => St.Size, v => St.Size = v, times: true));
+        Rotation();
+    }
+
+    /// <summary>Turn the crosshair: 45° makes a + into an ×.</summary>
+    void Rotation()
+    {
+        _editor.Children.Add(Slider("Rotation", 0, 90, 5, () => St.Rotation, v => St.Rotation = v));
+        var quick = new WrapPanel { Margin = new Thickness(0, 2, 0, 0) };
+        foreach (var (deg, label) in new[] { (0.0, "+"), (45.0, "×") })
+        {
+            var b = new Button { Style = (Style)FindResource("GhostButton"), Content = label, Padding = new Thickness(14, 4, 14, 4), Margin = new Thickness(0, 0, 6, 0), ToolTip = deg + "°" };
+            b.Click += (_, _) => { St.Rotation = deg; Changed(rebuildEditor: true); };
+            quick.Children.Add(b);
+        }
+        _editor.Children.Add(quick);
     }
 
     // ───────── Draw: paint pixels on a grid ─────────
