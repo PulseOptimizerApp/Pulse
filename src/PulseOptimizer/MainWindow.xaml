@@ -78,7 +78,7 @@
                             <RadioButton Style="{StaticResource NavButton}" Tag="fresh" ui:Icon.Glyph="&#xE895;" Content="Keep it fresh" Checked="Nav_Checked" Click="Nav_Click"/>
 
                             <TextBlock Style="{StaticResource NavHeader}" Text="GEAR"/>
-                            <RadioButton Style="{StaticResource NavButton}" Tag="devices" ui:Icon.Glyph="&#xE962;" Content="Devices" Checked="Nav_Checked" Click="Nav_Click"/>
+                            <RadioButton Style="{StaticResource NavButton}" Tag="mouse" ui:Icon.Glyph="&#xE962;" Content="Mouse" Checked="Nav_Checked" Click="Nav_Click"/>
                             <RadioButton Style="{StaticResource NavButton}" Tag="macros" ui:Icon.Glyph="&#xE765;" Content="Macros" Checked="Nav_Checked" Click="Nav_Click"/>
                             <RadioButton Style="{StaticResource NavButton}" Tag="reaction" ui:Icon.Glyph="&#xE916;" Content="Reaction trainer" Checked="Nav_Checked" Click="Nav_Click"/>
                             <RadioButton Style="{StaticResource NavButton}" Tag="guide" ui:Icon.Glyph="&#xE82D;" Content="PC guide" Checked="Nav_Checked" Click="Nav_Click"/>

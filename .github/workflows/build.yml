@@ -25,6 +25,16 @@ jobs:
         with:
           dotnet-version: 8.0.x
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Build the mouse drivers (OpenMouse mouse-protocol, AGPL-3.0, pinned in drivers/protocol.lock)
+        working-directory: drivers
+        run: |
+          npm install --no-audit --no-fund
+          npm run build
+
       - name: Run tests (measurement maths, exact undo, tweak list, safety checks)
         run: dotnet test tests/PulseOptimizer.Tests/PulseOptimizer.Tests.csproj -c Release --logger "console;verbosity=normal"
 

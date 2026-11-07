@@ -70,7 +70,7 @@ public partial class DevicesPage : UserControl, IPage, IReleasable
             BuildList();
             ShowCurrent();
             // Logitech devices answer over HID++ with their real name, battery, DPI and report rate.
-            var logi = await LogitechHidpp.Scan();
+            var logi = new List<LogiInfo>(); // mice moved to the Mouse page
             if (logi.Count > 0)
             {
                 _inputs = InputDevices.Merge(_inputs, logi);
@@ -110,7 +110,7 @@ public partial class DevicesPage : UserControl, IPage, IReleasable
 
     List<Item> Items()
     {
-        var list = _inputs.Select(d => new Item(d.Key, d.Name,
+        var list = _inputs.Where(d => d.Kind != DeviceKind.Mouse).Select(d => new Item(d.Key, d.Name,
             string.Join(" · ", new[] { d.Maker, Loc.T(d.Kind == DeviceKind.Mouse ? "Mouse" : "Keyboard") }.Where(x => !string.IsNullOrEmpty(x))), d.Kind, null, d)).ToList();
         foreach (var a in _audio.Where(a => a.IsDefault))
             list.Add(new Item((a.Input ? "mic-" : "out-") + a.Name + a.Adapter, string.IsNullOrEmpty(a.Adapter) ? a.Name : a.Adapter,
@@ -361,8 +361,8 @@ public partial class DevicesPage : UserControl, IPage, IReleasable
     UIElement Gallery()
     {
         var root = new StackPanel();
-        root.Children.Add(new TextBlock { Text = Loc.T("Devices"), Style = (Style)FindResource("H1") });
-        var sub = T(Loc.T("Your mice, keyboards, headsets and mics. Pick one to change its settings."), 13, null, "TextDimBrush");
+        root.Children.Add(new TextBlock { Text = Loc.T("Keyboard and audio"), Style = (Style)FindResource("H1") });
+        var sub = T(Loc.T("Your keyboards, headsets and mics. Pick one to change its settings. Mice have their own page."), 13, null, "TextDimBrush");
         sub.Margin = new Thickness(0, 6, 0, 26);
         root.Children.Add(sub);
         var wrap = new WrapPanel { HorizontalAlignment = HorizontalAlignment.Center };

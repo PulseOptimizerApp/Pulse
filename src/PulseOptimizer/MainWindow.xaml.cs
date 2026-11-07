@@ -135,12 +135,12 @@ public partial class MainWindow : Window
     {
         _pendingParameter = parameter;
         var rb = NavPanel.Children.OfType<RadioButton>().FirstOrDefault(r => (string)r.Tag == key);
-        if (rb == null) return;
+        if (rb == null) { ShowPage(key); return; } // a page without its own sidebar entry
         if (rb.IsChecked == true) ShowPage(key);
         else rb.IsChecked = true; // fires Nav_Checked
     }
 
-    bool _justChecked;
+    bool _justChecked, _suppressNav;
 
     /// <summary>Clicking the page you're already on resets it (e.g. Games goes back to the library from inside a game).</summary>
     void Nav_Click(object sender, RoutedEventArgs e)
@@ -153,13 +153,16 @@ public partial class MainWindow : Window
     {
         _justChecked = true;
         Dispatcher.BeginInvoke(() => _justChecked = false, System.Windows.Threading.DispatcherPriority.Background);
-        if (!IsLoaded || sender is not RadioButton rb) return;
+        if (_suppressNav || !IsLoaded || sender is not RadioButton rb) return;
         ShowPage((string)rb.Tag);
     }
 
     void ShowPage(string key)
     {
-        var rb = NavPanel.Children.OfType<RadioButton>().First(r => (string)r.Tag == key);
+        // Pages without their own sidebar entry (Keyboard and audio) highlight their parent (Mouse).
+        var navKey = key == "devices" ? "mouse" : key;
+        var rb = NavPanel.Children.OfType<RadioButton>().FirstOrDefault(r => (string)r.Tag == navKey) ?? NavPanel.Children.OfType<RadioButton>().First();
+        if (rb.IsChecked != true) { _suppressNav = true; rb.IsChecked = true; _suppressNav = false; }
         var y = rb.TranslatePoint(new Point(0, 0), NavPanel).Y;
         NavHighlightT.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(y, TimeSpan.FromMilliseconds(320))
         { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } });
@@ -182,6 +185,7 @@ public partial class MainWindow : Window
                 "guide" => new GuidePage(),
                 "crosshair" => new CrosshairPage(),
                 "devices" => new DevicesPage(),
+                "mouse" => new MousePage(),
                 "games" => new GamesPage(),
                 "cleanup" => new DeclutterPage(),
                 "startup" => new StartupPage(),

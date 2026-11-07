@@ -20,14 +20,18 @@
     <!-- File properties shown in Windows (right-click > Properties > Details). -->
     <Product>Pulse Optimizer</Product>
     <AssemblyTitle>Pulse Optimizer</AssemblyTitle>
-    <Description>Open-source, evidence-based Windows optimizer. Not affiliated with Microsoft or Intel.</Description>
+    <Description>Open-source gaming PC companion. Not affiliated with Microsoft or Intel.</Description>
     <Company>Pulse Optimizer (open source)</Company>
-    <Copyright>MIT License</Copyright>
+    <Copyright>AGPL-3.0-or-later</Copyright>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
     <!-- Less JIT bookkeeping in memory. (No GC "conserve memory": its extra compacting pauses make recordings drop frames.) -->
     <TieredPGO>false</TieredPGO>
   </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2792.45" />
+  </ItemGroup>
 
   <ItemGroup>
     <Resource Include="app.ico" />
@@ -37,6 +41,8 @@
     <!-- Translations: English text → translated text, one file per language. -->
     <EmbeddedResource Include="Lang\*.json" LogicalName="Lang.%(Filename).json" />
     <EmbeddedResource Include="Core\Guide\guide.json" LogicalName="guide.json" />
+    <!-- Mouse drivers: OpenMouse mouse-protocol (AGPL-3.0-or-later), built by CI from drivers/ -->
+    <EmbeddedResource Include="Assets\Drivers\mouse-drivers.js" LogicalName="mouse-drivers.js" Condition="Exists('Assets\Drivers\mouse-drivers.js')" />
     <Resource Include="Assets\Games\*.png" />
     <!-- VALORANT agent, map and rank art for match recaps, fetched by tools/get-match-art.py at build time (not committed). -->
     <Resource Include="Assets\Matches\*.png" />

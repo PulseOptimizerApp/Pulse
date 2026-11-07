@@ -62,4 +62,6 @@ Unsigned apps trigger Windows SmartScreen ("Windows protected your PC"). Signing
 Pulse keeps its backups and results in `%LocalAppData%\PulseOptimizer\`: `state.json` (the saved previous value of every changed setting), `measurements.json`, and `captures\` (raw PresentMon CSVs).
 
 ## License
-MIT. Pulse is not affiliated with Microsoft or Intel. PresentMon is © Intel Corporation, MIT license.
+GNU Affero General Public License v3.0 or later (AGPL-3.0-or-later); see [LICENSE](LICENSE). Releases up to v0.4.17 were published under the MIT license.
+
+Pulse includes the [OpenMouse mouse-protocol](https://github.com/OpenMouse-Project/mouse-protocol) drivers (AGPL-3.0-or-later) for its Mouse page, built from the commit pinned in `drivers/protocol.lock`. PresentMon is © Intel Corporation, MIT license. Pulse is not affiliated with Microsoft, Intel, Logitech, OpenMouse or any mouse maker.
