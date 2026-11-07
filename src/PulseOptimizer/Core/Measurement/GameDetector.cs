@@ -82,9 +82,9 @@ public static class GameDetector
     // list is read at most once per 1.5 s, so Pulse costs almost nothing while it waits for a game.
     static readonly object Gate = new();
     static string _answer;
-    static long _answerAt = long.MinValue;
+    static long _answerAt = -1_000_000;
     static (string Name, int Pid)[] _procs = Array.Empty<(string, int)>();
-    static long _procsAt = long.MinValue;
+    static long _procsAt = -1_000_000;
     // The window in front that was last found not to be a game: not looked at again until it changes (or 20 s pass,
     // in case it went fullscreen).
     static IntPtr _notGameHwnd;
@@ -236,7 +236,7 @@ public static class GameDetector
     static void NotAGame(IntPtr hwnd) { _notGameHwnd = hwnd; _notGameAt = Now; }
 
     /// <summary>Settings or the game list changed: answer fresh next time.</summary>
-    public static void Forget() { lock (Gate) { _answerAt = long.MinValue; _notGameHwnd = IntPtr.Zero; } }
+    public static void Forget() { lock (Gate) { _answerAt = -1_000_000; _notGameHwnd = IntPtr.Zero; } }
 
     public static List<GameEntry> Find(IReadOnlyList<string> installFolders)
     {
