@@ -78,25 +78,79 @@ public static class GameDetector
     static IntPtr _lastGameWindow;
     static bool _lastKnown;
 
-    /// <summary>A running game from Pulse's catalog (by exe name), or null. One process list read, not one per game.</summary>
+    // Clips, Game mode and match recaps all ask every few seconds. They share one answer per second, and the process
+    // list is read at most once per 1.5 s, so Pulse costs almost nothing while it waits for a game.
+    static readonly object Gate = new();
+    static string _answer;
+    static long _answerAt = long.MinValue;
+    static (string Name, int Pid)[] _procs = Array.Empty<(string, int)>();
+    static long _procsAt = long.MinValue;
+    // The window in front that was last found not to be a game: not looked at again until it changes (or 20 s pass,
+    // in case it went fullscreen).
+    static IntPtr _notGameHwnd;
+    static long _notGameAt;
+
+    static HashSet<string> _exes;
+    static HashSet<string> Exes => _exes ??= new HashSet<string>(
+        Pulse.Core.Games.GameCatalog.All.SelectMany(g => g.Exes).Select(Path.GetFileNameWithoutExtension), StringComparer.OrdinalIgnoreCase);
+
+    static long Now => Environment.TickCount64;
+
+    /// <summary>Names and ids of running programs, read at most every 1.5 s and shared by everything in Pulse that asks.</summary>
+    public static (string Name, int Pid)[] Processes()
+    {
+        lock (Gate)
+        {
+            if (Now - _procsAt < 1500) return _procs;
+            var all = Process.GetProcesses();
+            var list = new (string, int)[all.Length];
+            for (int i = 0; i < all.Length; i++)
+            {
+                try { list[i] = (all[i].ProcessName, all[i].Id); } catch { list[i] = ("", 0); }
+                all[i].Dispose();
+            }
+            _procs = list;
+            _procsAt = Now;
+            return list;
+        }
+    }
+
+    /// <summary>True if a program with this name (no .exe) is running. Uses the shared process list.</summary>
+    public static bool IsRunning(string name)
+    {
+        foreach (var p in Processes()) if (p.Name.Equals(name, StringComparison.OrdinalIgnoreCase)) return true;
+        return false;
+    }
+
+    static bool Alive(int pid)
+    {
+        foreach (var p in Processes()) if (p.Pid == pid) return true;
+        return false;
+    }
+
+    /// <summary>A running game from Pulse's catalog (by exe name), or null. Uses the shared process list.</summary>
     static Process KnownRunning()
     {
-        var exes = new HashSet<string>(Pulse.Core.Games.GameCatalog.All.SelectMany(g => g.Exes).Select(Path.GetFileNameWithoutExtension), StringComparer.OrdinalIgnoreCase);
-        Process match = null;
-        foreach (var p in Process.GetProcesses())
-        {
-            if (match == null && exes.Contains(p.ProcessName)) { match = p; continue; }
-            p.Dispose();
-        }
-        return match;
+        var exes = Exes;
+        foreach (var p in Processes())
+            if (exes.Contains(p.Name))
+                try { return Process.GetProcessById(p.Pid); } catch { }
+        return null;
     }
 
     static bool NoKnownRunning()
     {
-        using var p = KnownRunning();
-        return p == null;
+        var exes = Exes;
+        foreach (var p in Processes()) if (exes.Contains(p.Name)) return false;
+        return true;
     }
+
     [DllImport("user32.dll")] static extern bool IsWindow(IntPtr hWnd);
+    /// <summary>A program's full path, or null (anti-cheat protected games refuse; the fullscreen check covers them).</summary>
+    static string ImagePath(Process p)
+    {
+        try { return p.MainModule?.FileName; } catch { return null; }
+    }
 
     /// <summary>The process of the game <see cref="RunningGame"/> last found (0 if none).</summary>
     public static int GamePid => _lastGamePid;
@@ -117,21 +171,27 @@ public static class GameDetector
     /// <summary>
     /// The game being played right now, or null. A game counts once it's in the foreground (from a game library folder,
     /// or fullscreen); after that it stays "running" while its process lives, so alt-tabbing out doesn't stop clipping.
-    /// Cheap enough to call every few seconds (no icons, one process lookup).
+    /// Callers share one answer per second.
     /// </summary>
     public static string RunningGame()
+    {
+        lock (Gate)
+        {
+            if (Now - _answerAt < 1000) return _answer;
+            _answer = Detect();
+            _answerAt = Now;
+            return _answer;
+        }
+    }
+
+    static string Detect()
     {
         try
         {
             if (_lastGamePid != 0)
             {
-                try
-                {
-                    using var last = Process.GetProcessById(_lastGamePid);
-                    // A game Pulse knows by name wins over a guess (for example a launcher that was in front first).
-                    if (!last.HasExited && (_lastKnown || NoKnownRunning())) return _lastGameName;
-                }
-                catch { }
+                // A game Pulse knows by name wins over a guess (for example a launcher that was in front first).
+                if (Alive(_lastGamePid) && (_lastKnown || NoKnownRunning())) return _lastGameName;
                 _lastGamePid = 0; _lastGameName = null; _lastGameWindow = IntPtr.Zero;
             }
             // A game from Pulse's catalog that's running counts even when it isn't in front (alt-tabbed, or a launcher
@@ -147,19 +207,19 @@ public static class GameDetector
             }
             var hwnd = GetForegroundWindow();
             if (hwnd == IntPtr.Zero) return null;
+            if (hwnd == _notGameHwnd && Now - _notGameAt < 20_000) return null;
             GetWindowThreadProcessId(hwnd, out var pid);
             if (pid == 0 || pid == Environment.ProcessId) return null;
             using var p = Process.GetProcessById((int)pid);
-            if (NotGames.Contains(p.ProcessName)) return null;
-            string path = null;
-            try { path = p.MainModule?.FileName; } catch { }
+            if (NotGames.Contains(p.ProcessName)) { NotAGame(hwnd); return null; }
+            string path = ImagePath(p);
             // Games Pulse knows by name count even in a window (Roblox lives in AppData, not a game library).
             var known = Pulse.Core.Games.GameCatalog.All.FirstOrDefault(g =>
                 g.Exes.Any(e => Path.GetFileNameWithoutExtension(e).Equals(p.ProcessName, StringComparison.OrdinalIgnoreCase)));
             bool isGame = known != null
                 || (path != null && LibraryMarkers.Any(m => path.Contains(m, StringComparison.OrdinalIgnoreCase)))
                 || IsFullscreen(hwnd);
-            if (!isGame) return null;
+            if (!isGame) { NotAGame(hwnd); return null; }
             string name = known?.Name;
             if (name == null) try { name = p.MainModule?.FileVersionInfo.ProductName; } catch { }
             if (string.IsNullOrWhiteSpace(name)) name = string.IsNullOrWhiteSpace(p.MainWindowTitle) ? p.ProcessName : p.MainWindowTitle;
@@ -167,10 +227,16 @@ public static class GameDetector
             _lastGameName = name.Trim();
             _lastGameWindow = hwnd;
             _lastKnown = known != null;
+            _notGameHwnd = IntPtr.Zero;
             return _lastGameName;
         }
         catch { return null; }
     }
+
+    static void NotAGame(IntPtr hwnd) { _notGameHwnd = hwnd; _notGameAt = Now; }
+
+    /// <summary>Settings or the game list changed: answer fresh next time.</summary>
+    public static void Forget() { lock (Gate) { _answerAt = long.MinValue; _notGameHwnd = IntPtr.Zero; } }
 
     public static List<GameEntry> Find(IReadOnlyList<string> installFolders)
     {
@@ -183,7 +249,7 @@ public static class GameDetector
                 if (NotGames.Contains(p.ProcessName)) continue;
 
                 string path = null;
-                try { path = p.MainModule?.FileName; } catch { /* protected by anti-cheat: rely on fullscreen check */ }
+                path = ImagePath(p);
 
                 string why = null;
                 if (path != null && installFolders.Any(f => path.StartsWith(f, StringComparison.OrdinalIgnoreCase)))

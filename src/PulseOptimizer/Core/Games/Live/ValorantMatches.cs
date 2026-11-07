@@ -31,9 +31,7 @@ public sealed class ValorantMatches : IDisposable
 
     public static bool Running()
     {
-        var p = Process.GetProcessesByName("VALORANT-Win64-Shipping");
-        foreach (var x in p) x.Dispose();
-        return p.Length > 0;
+        return Pulse.Core.Measurement.GameDetector.IsRunning("VALORANT-Win64-Shipping");
     }
 
     public void Start()

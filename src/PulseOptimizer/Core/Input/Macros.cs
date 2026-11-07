@@ -131,11 +131,7 @@ public static class MacroPolicy
     public static HashSet<string> RunningProcesses()
     {
         var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var p in Process.GetProcesses())
-        {
-            try { set.Add(p.ProcessName); } catch { }
-            p.Dispose();
-        }
+        foreach (var p in Pulse.Core.Measurement.GameDetector.Processes()) if (p.Name.Length > 0) set.Add(p.Name);
         return set;
     }
 

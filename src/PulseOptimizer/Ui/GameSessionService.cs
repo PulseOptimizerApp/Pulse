@@ -42,7 +42,7 @@ public static class GameSessionService
     }
 
     /// <summary>Settings changed on the Games page.</summary>
-    public static void Refresh() { _pid = -1; _ = Tick(); }
+    public static void Refresh() { _pid = -1; GameDetector.Forget(); _ = Tick(); }
 
     static async Task Tick()
     {

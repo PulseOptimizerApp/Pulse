@@ -29,9 +29,7 @@ public sealed class LeagueLive : IDisposable
 
     public static bool InGame()
     {
-        var p = Process.GetProcessesByName("League of Legends");
-        foreach (var x in p) x.Dispose();
-        return p.Length > 0;
+        return Pulse.Core.Measurement.GameDetector.IsRunning("League of Legends");
     }
 
     public void Start()
