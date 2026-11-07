@@ -350,8 +350,9 @@ public partial class GuidePage : UserControl
             {
                 var sp = new StackPanel();
                 sp.Children.Add(new TextBlock { Text = Loc.T(p.Label).ToUpper(CultureInfo.CurrentCulture), FontSize = 10.5, FontWeight = FontWeights.Bold, Foreground = Res("AccentBrush") });
-                sp.Children.Add(Title(p.Name, 14));
-                sp.Children[1].SetValue(MarginProperty, new Thickness(0, 6, 0, 0));
+                var name = Title(p.Name, 14);
+                name.Margin = new Thickness(0, 6, 0, 0);
+                sp.Children.Add(name);
                 sp.Children.Add(Text(Loc.T(p.Why), 4));
                 var src = Source(p.SourceName, p.SourceUrl);
                 src.Margin = new Thickness(0, 10, 0, 0);
