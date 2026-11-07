@@ -331,7 +331,7 @@ public static class ClipsService
             return null;
         }
         _saving = true;
-        if (title == null) Feedback.Pressed(S); // the sound plays the moment the key is pressed (auto clips sound when saved)
+        if (title == null) Feedback.Pressed(S, seconds); // the sound and "Clipping…" popup come the moment the key is pressed (auto clips show when saved)
         try
         {
             var path = await _rec.Save(S.ClipsFolder, _game ?? "Clip", seconds);
@@ -341,11 +341,12 @@ public static class ClipsService
                 S.Titles[Path.GetFileNameWithoutExtension(path)] = title;
                 TweakEngine.Save();
             }
-            Feedback.Saved(S, seconds, title != null ? Loc.F("{0} clipped", Loc.T(title)) : null, playSound: title != null);
+            Feedback.Saved(S, seconds, title != null ? Loc.F("{0} clipped", Loc.T(title)) : null, playSound: title != null, clip: path);
             Saved?.Invoke(path); // show it in the library now; the picture follows
             _ = Task.Run(async () =>
             {
                 try { await ClipLibrary.MakeThumbnail(path); } catch { }
+                ClipToast.Picture(path); // the popup shows what you clipped
                 try { ClipLibrary.EnforceLimit(S); } catch { }
                 Application.Current?.Dispatcher.Invoke(() => Saved?.Invoke(path));
             });
@@ -524,16 +525,18 @@ static class Feedback
     static byte[] _blip, _shutter;
 
     /// <summary>Right when the hotkey is pressed: the sound plays at once, before saving finishes, so it feels instant.</summary>
-    public static void Pressed(ClipSettings s)
+    public static void Pressed(ClipSettings s, int seconds = 0)
     {
         if (s.PlaySound) Play();
+        if (s.ShowSavedPopup) { ClipToast.Corner = s.PopupCorner; ClipToast.Saving(seconds); }
     }
 
     /// <summary>When the clip is on disk: the popup (the sound already played on the key press).</summary>
-    public static void Saved(ClipSettings s, int seconds, string title = null, bool playSound = false)
+    public static void Saved(ClipSettings s, int seconds, string title = null, bool playSound = false, string clip = null)
     {
         if (s.PlaySound && playSound) Play();
-        if (s.ShowSavedPopup) ClipToast.Show(title ?? Loc.T("Clip saved"), seconds > 0 ? Loc.F("Last {0} seconds", seconds) : "", true);
+        ClipToast.Corner = s.PopupCorner;
+        if (s.ShowSavedPopup) ClipToast.Show(title ?? Loc.T("Clip saved"), seconds > 0 ? Loc.F("Last {0} seconds", seconds) : "", ClipToast.Kind.Ok, clip);
     }
 
     /// <summary>Saving failed after the sound already said yes: a different, lower sound so it's clear.</summary>

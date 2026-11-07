@@ -113,6 +113,8 @@ public class ClipSettings
     public bool StartWithWindows { get; set; }
     public bool PlaySound { get; set; } = true;
     public bool ShowSavedPopup { get; set; } = true;
+    /// <summary>Where the clip popup shows: TopRight, TopLeft, BottomRight or BottomLeft.</summary>
+    public string PopupCorner { get; set; } = "TopRight";
     /// <summary>After you clip in a game, Pulse opens on Clips the next time you switch to it.</summary>
     public bool OpenClipsAfterClip { get; set; } = true;
 

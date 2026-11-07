@@ -291,6 +291,7 @@ public partial class ClipsPage : UserControl, IPage, IReleasable
         Fill(QuickLenChips, "qlen", new[] { ("10 s", "10"), ("15 s", "15"), ("30 s", "30") });
         Fill(SyncChips, "sync", new[] { ("100 ms earlier", "-100"), ("50 ms earlier", "-50"), ("In sync", "0"), ("50 ms later", "50"), ("100 ms later", "100") });
         Fill(LimitChips, "lim", new[] { ("10 GB", "10"), ("30 GB", "30"), ("100 GB", "100"), ("No limit", "0") });
+        Fill(CornerChips, "corner", new[] { ("Top right", "TopRight"), ("Top left", "TopLeft"), ("Bottom right", "BottomRight"), ("Bottom left", "BottomLeft") });
         Fill(CaptureChips, "cap", new[] { ("The game", "game"), ("Whole screen", "screen") });
         int monitors = Math.Max(1, MonitorCount());
         Fill(MonitorChips, "mon", Enumerable.Range(0, monitors).Select(i => (Loc.F("Display {0}", i + 1), i.ToString(CultureInfo.InvariantCulture))).ToArray());
@@ -326,6 +327,7 @@ public partial class ClipsPage : UserControl, IPage, IReleasable
     {
         _loading = true;
         Mark(LengthChips, S.ReplaySeconds.ToString(CultureInfo.InvariantCulture));
+        Mark(CornerChips, S.PopupCorner);
         Mark(GameVolChips, S.GameVolume.ToString(CultureInfo.InvariantCulture));
         Mark(MicVolChips, S.MicVolume.ToString(CultureInfo.InvariantCulture));
         Mark(MicDeviceChips, S.MicDevice ?? "");
@@ -413,8 +415,12 @@ public partial class ClipsPage : UserControl, IPage, IReleasable
             case "mon": S.Monitor = n; break;
             case "cap": S.Capture = v; ShowSettings(); break;
             case "codec": S.Codec = v; break;
+            case "corner":
+                S.PopupCorner = v; ClipToast.Corner = v;
+                ClipToast.Show(Loc.T("Clip saved"), Loc.T("Your clip popup shows here"), true); // a preview
+                break;
         }
-        Changed(restart: group is not ("lim" or "qlen"));
+        Changed(restart: group is not ("lim" or "qlen" or "corner"));
     }
 
     void Setting_Click(object sender, RoutedEventArgs e)

@@ -394,6 +394,11 @@
                                 <CheckBox x:Name="PopupSwitch" Grid.Column="1" Style="{StaticResource Switch}" Click="Setting_Click"/>
                             </Grid>
                             <Grid Style="{StaticResource Row}">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="200"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <TextBlock Style="{StaticResource RowLabel}" Text="Popup position"/>
+                                <WrapPanel x:Name="CornerChips" Grid.Column="1"/>
+                            </Grid>
+                            <Grid Style="{StaticResource Row}">
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                                 <TextBlock Style="{StaticResource RowLabel}" Text="Open Clips when you come back to Pulse after clipping"/>
                                 <CheckBox x:Name="OpenAfterSwitch" Grid.Column="1" Style="{StaticResource Switch}" Click="Setting_Click"/>
