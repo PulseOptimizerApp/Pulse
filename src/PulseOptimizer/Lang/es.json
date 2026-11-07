@@ -2544,5 +2544,11 @@
  "You have the newest Pulse ({0}).": "Tienes el Pulse más reciente ({0}).",
  "GAMING PC COMPANION": "TU COMPAÑERO PARA PC GAMER",
  "Kill": "Baja",
- "Death": "Muerte"
+ "Death": "Muerte",
+ "Overlay position": "Posición del overlay",
+ "Overlay style": "Estilo del overlay",
+ "Dark": "Oscuro",
+ "Glass": "Cristal",
+ "Neon": "Neón",
+ "Outline": "Contorno"
 }

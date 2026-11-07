@@ -291,6 +291,9 @@ public partial class ClipsPage : UserControl, IPage, IReleasable
         Fill(QuickLenChips, "qlen", new[] { ("10 s", "10"), ("15 s", "15"), ("30 s", "30") });
         Fill(SyncChips, "sync", new[] { ("100 ms earlier", "-100"), ("50 ms earlier", "-50"), ("In sync", "0"), ("50 ms later", "50"), ("100 ms later", "100") });
         Fill(LimitChips, "lim", new[] { ("10 GB", "10"), ("30 GB", "30"), ("100 GB", "100"), ("No limit", "0") });
+        ThemePreview.Frame = new InputFrame { Keys = new[] { 0x57, 0x10 }, Mouse = (int)Pulse.Core.Clips.MouseButton.Left };
+        Fill(InputCornerChips, "icorner", new[] { ("Top right", "TopRight"), ("Top left", "TopLeft"), ("Bottom right", "BottomRight"), ("Bottom left", "BottomLeft") });
+        Fill(InputThemeChips, "itheme", InputOverlayView.Themes.Select(t => (t.Name, t.Id)).ToArray());
         Fill(CornerChips, "corner", new[] { ("Top right", "TopRight"), ("Top left", "TopLeft"), ("Bottom right", "BottomRight"), ("Bottom left", "BottomLeft") });
         Fill(CaptureChips, "cap", new[] { ("The game", "game"), ("Whole screen", "screen") });
         int monitors = Math.Max(1, MonitorCount());
@@ -328,6 +331,9 @@ public partial class ClipsPage : UserControl, IPage, IReleasable
         _loading = true;
         Mark(LengthChips, S.ReplaySeconds.ToString(CultureInfo.InvariantCulture));
         Mark(CornerChips, S.PopupCorner);
+        Mark(InputCornerChips, S.InputCorner);
+        Mark(InputThemeChips, S.InputTheme);
+        ThemePreview.Theme = S.InputTheme;
         Mark(GameVolChips, S.GameVolume.ToString(CultureInfo.InvariantCulture));
         Mark(MicVolChips, S.MicVolume.ToString(CultureInfo.InvariantCulture));
         Mark(MicDeviceChips, S.MicDevice ?? "");
@@ -415,12 +421,14 @@ public partial class ClipsPage : UserControl, IPage, IReleasable
             case "mon": S.Monitor = n; break;
             case "cap": S.Capture = v; ShowSettings(); break;
             case "codec": S.Codec = v; break;
+            case "icorner": S.InputCorner = v; VideoGrid_SizeChanged(null, null); break;
+            case "itheme": S.InputTheme = v; ThemePreview.Theme = v; VideoGrid_SizeChanged(null, null); break;
             case "corner":
                 S.PopupCorner = v; ClipToast.Corner = v;
                 ClipToast.Show(Loc.T("Clip saved"), Loc.T("Your clip popup shows here"), true); // a preview
                 break;
         }
-        Changed(restart: group is not ("lim" or "qlen" or "corner"));
+        Changed(restart: group is not ("lim" or "qlen" or "corner" or "icorner" or "itheme"));
     }
 
     void Setting_Click(object sender, RoutedEventArgs e)
@@ -1348,7 +1356,11 @@ public partial class ClipsPage : UserControl, IPage, IReleasable
         double barX = Math.Max(0, (VideoGrid.ActualWidth - (double.IsNaN(Player.Width) ? VideoGrid.ActualWidth : Player.Width)) / 2);
         double barY = Math.Max(0, (VideoGrid.ActualHeight - picture) / 2);
         double pad = Math.Max(8, picture * 0.025);
-        InputBox.Margin = new Thickness(0, barY + pad, barX + pad, 0);
+        bool left = S.InputCorner.EndsWith("Left"), bottom = S.InputCorner.StartsWith("Bottom");
+        InputBox.HorizontalAlignment = left ? HorizontalAlignment.Left : HorizontalAlignment.Right;
+        InputBox.VerticalAlignment = bottom ? VerticalAlignment.Bottom : VerticalAlignment.Top;
+        InputBox.Margin = new Thickness(left ? barX + pad : 0, bottom ? 0 : barY + pad, left ? 0 : barX + pad, bottom ? barY + pad : 0);
+        InputView.Theme = S.InputTheme;
     }
 
     /// <summary>
@@ -1377,7 +1389,7 @@ public partial class ClipsPage : UserControl, IPage, IReleasable
         for (int i = 0; i < frames.Count; i++)
         {
             var png = Path.Combine(dir, $"{i:D5}.png");
-            var bmp = InputOverlayView.Render(frames[i], _inputMode, scale);
+            var bmp = InputOverlayView.Render(frames[i], _inputMode, scale, S.InputTheme);
             using (var fs = File.Create(png)) { var enc = new PngBitmapEncoder(); enc.Frames.Add(BitmapFrame.Create(bmp)); enc.Save(fs); }
             double next = i + 1 < frames.Count ? frames[i + 1].T : length;
             list.Append($"file '{png.Replace("\\", "/")}'\nduration {Math.Max(0.001, next - frames[i].T).ToString("0.###", CultureInfo.InvariantCulture)}\n");
@@ -1387,7 +1399,7 @@ public partial class ClipsPage : UserControl, IPage, IReleasable
         list.Append($"file '{Path.Combine(dir, $"{frames.Count - 1:D5}.png").Replace("\\", "/")}'\n");
         var listFile = Path.Combine(dir, "list.txt");
         File.WriteAllText(listFile, list.ToString());
-        return new InputBurn(dir, listFile);
+        return new InputBurn(dir, listFile, S.InputCorner);
     }
 
     void VoicePhrase_LostFocus(object sender, KeyboardFocusChangedEventArgs e)

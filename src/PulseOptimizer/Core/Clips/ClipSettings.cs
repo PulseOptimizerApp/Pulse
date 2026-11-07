@@ -73,6 +73,10 @@ public class ClipSettings
     /// the overlay shows are kept, only while recording. Off until the user turns it on.
     /// </summary>
     public bool InputOverlay { get; set; }
+    /// <summary>Where the input overlay shows on clips: TopRight, TopLeft, BottomRight or BottomLeft.</summary>
+    public string InputCorner { get; set; } = "TopRight";
+    /// <summary>The overlay's look: dark, glass, neon, light or outline.</summary>
+    public string InputTheme { get; set; } = "dark";
 
     /// <summary>Save a clip when you say a phrase (Windows' offline speech engine). Off by default.</summary>
     public bool VoiceClip { get; set; }

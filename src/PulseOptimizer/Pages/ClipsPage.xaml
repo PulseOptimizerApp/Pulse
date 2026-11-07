@@ -351,6 +351,27 @@
                             </Grid>
                             <Grid Style="{StaticResource Row}">
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="200"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <TextBlock Style="{StaticResource RowLabel}" Text="Overlay position"/>
+                                <WrapPanel x:Name="InputCornerChips" Grid.Column="1"/>
+                            </Grid>
+                            <Grid Style="{StaticResource Row}">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="200"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                <TextBlock Style="{StaticResource RowLabel}" Text="Overlay style"/>
+                                <WrapPanel x:Name="InputThemeChips" Grid.Column="1" VerticalAlignment="Center"/>
+                                <!-- A preview of the chosen style, over a game-like background -->
+                                <Border Grid.Column="2" CornerRadius="8" Padding="10" Margin="12,0,0,0" ClipToBounds="True">
+                                    <Border.Background>
+                                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                            <GradientStop Color="#3A5A78" Offset="0"/><GradientStop Color="#6C7F5A" Offset="0.55"/><GradientStop Color="#C9B489" Offset="1"/>
+                                        </LinearGradientBrush>
+                                    </Border.Background>
+                                    <Viewbox Height="56" IsHitTestVisible="False">
+                                        <ui:InputOverlayView x:Name="ThemePreview"/>
+                                    </Viewbox>
+                                </Border>
+                            </Grid>
+                            <Grid Style="{StaticResource Row}">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="200"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                 <TextBlock Style="{StaticResource RowLabel}" Text="Sound sync"/>
                                 <StackPanel Grid.Column="1">
                                     <WrapPanel x:Name="SyncChips"/>

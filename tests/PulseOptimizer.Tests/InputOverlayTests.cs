@@ -86,6 +86,12 @@ public class InputOverlayTests
         Assert.Equal("-map 0:v:0 -vf " + ClipLibrary.SquarePixels + ",scale=-2:720", ClipLibrary.VideoArgs(null, 720));
     }
 
+    [Theory]
+    [InlineData("TopRight", "overlay=x=main_w-overlay_w-main_h*0.025:y=main_h*0.025")]
+    [InlineData("BottomLeft", "overlay=x=main_h*0.025:y=main_h-overlay_h-main_h*0.025")]
+    public void Burned_overlay_goes_where_you_chose(string corner, string overlay) =>
+        Assert.Contains(overlay, ClipLibrary.VideoArgs(new InputBurn("dir", "list.txt", corner), 0));
+
     [Fact]
     public void Live_fps_uses_the_last_second_and_1_percent_low_the_worst_frames()
     {

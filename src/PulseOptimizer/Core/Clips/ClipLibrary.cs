@@ -34,7 +34,7 @@ public class ClipFile
 }
 
 /// <summary>Pictures of the input overlay prepared for one export (deleted afterwards).</summary>
-public sealed record InputBurn(string Dir, string ListFile)
+public sealed record InputBurn(string Dir, string ListFile, string Corner = "TopRight")
 {
     public void Clean()
     {
@@ -309,14 +309,16 @@ public static class ClipLibrary
     internal static string OverlayInput(InputBurn burn) => burn == null ? "" : $"-f concat -safe 0 -i \"{burn.ListFile}\"";
 
     /// <summary>
-    /// The picture to encode: the clip's video, with the input overlay in the top-right corner when there is one,
+    /// The picture to encode: the clip's video, with the input overlay in its corner (top right unless chosen) when there is one,
     /// scaled to <paramref name="height"/> (0 = unchanged).
     /// </summary>
     internal static string VideoArgs(InputBurn burn, int height)
     {
         string scale = height > 0 ? $"scale=-2:{height}" : "";
         if (burn == null) return $"-map 0:v:0 -vf {SquarePixels}" + (height > 0 ? "," + scale : "");
-        var chain = "overlay=x=main_w-overlay_w-main_h*0.025:y=main_h*0.025" + (height > 0 ? "," + scale : "") + ",format=yuv420p";
+        string x = burn.Corner.EndsWith("Left") ? "main_h*0.025" : "main_w-overlay_w-main_h*0.025";
+        string y = burn.Corner.StartsWith("Bottom") ? "main_h-overlay_h-main_h*0.025" : "main_h*0.025";
+        var chain = $"overlay=x={x}:y={y}" + (height > 0 ? "," + scale : "") + ",format=yuv420p";
         return $"-filter_complex \"[0:v:0]{SquarePixels}[base];[base][1:v]{chain}[vout]\" -map \"[vout]\"";
     }
 

@@ -28,15 +28,38 @@ public sealed class InputOverlayView : FrameworkElement
 
     // ───────── palette ─────────
 
-    // A soft dark plate behind everything, so it reads over any game without hiding much of it.
-    static readonly Brush Plate = Frozen(new SolidColorBrush(Color.FromArgb(0x8C, 0x08, 0x09, 0x0C)));
-    static readonly Pen PlateEdge = FrozenPen(new SolidColorBrush(Color.FromArgb(0x26, 0xFF, 0xFF, 0xFF)), 1);
-    static readonly Brush KeyFill = Frozen(new SolidColorBrush(Color.FromArgb(0x59, 0x2A, 0x2D, 0x36)));
-    static readonly Brush KeyText = Frozen(new SolidColorBrush(Color.FromArgb(0xD9, 0xFF, 0xFF, 0xFF)));
-    static readonly Pen KeyEdge = FrozenPen(new SolidColorBrush(Color.FromArgb(0x30, 0xFF, 0xFF, 0xFF)), 1);
-    static readonly Brush Lit = Frozen(new SolidColorBrush(Color.FromRgb(0xF2, 0xF4, 0xF8)));
-    static readonly Brush LitText = Frozen(new SolidColorBrush(Color.FromRgb(0x0B, 0x0C, 0x10)));
-    static readonly Pen LitEdge = FrozenPen(new SolidColorBrush(Color.FromRgb(0xFF, 0xFF, 0xFF)), 1);
+    /// <summary>One look for the overlay: the panel behind it, keys at rest, and keys being pressed.</summary>
+    public sealed record OverlayTheme(string Id, string Name, Brush Plate, Pen PlateEdge, Brush KeyFill, Pen KeyEdge, Brush KeyText, Brush Lit, Pen LitEdge, Brush LitText);
+
+    static Color C(uint argb) => Color.FromArgb((byte)(argb >> 24), (byte)(argb >> 16), (byte)(argb >> 8), (byte)argb);
+    static Brush B(uint argb) => Frozen(new SolidColorBrush(C(argb)));
+    static Pen P(uint argb, double w = 1) => FrozenPen(new SolidColorBrush(C(argb)), w);
+
+    /// <summary>The overlay looks people can pick (Clips settings).</summary>
+    public static readonly OverlayTheme[] Themes =
+    {
+        // A soft dark plate behind everything, so it reads over any game without hiding much of it.
+        new("dark", "Dark", B(0x8C08090C), P(0x26FFFFFF), B(0x592A2D36), P(0x30FFFFFF), B(0xD9FFFFFF), B(0xFFF2F4F8), P(0xFFFFFFFF), B(0xFF0B0C10)),
+        // No panel: see-through keys only.
+        new("glass", "Glass", Brushes.Transparent, null, B(0x40FFFFFF), P(0x55FFFFFF), B(0xF2FFFFFF), B(0xE6FFFFFF), P(0xFFFFFFFF), B(0xFF0B0C10)),
+        // Pressed keys light up in Pulse's cyan-to-violet.
+        new("neon", "Neon", B(0x99070812), P(0x405B8CFF), B(0x4D1B2140), P(0x665B8CFF), B(0xCCBFD3FF),
+            Frozen(new LinearGradientBrush(C(0xFF22D3EE), C(0xFF8B5CF6), 45)), P(0xFF9EE7FF, 1.4), B(0xFFFFFFFF)),
+        // Light keys, for bright games.
+        new("light", "Light", B(0xB3F4F5F8), P(0x33000000), B(0xE6FFFFFF), P(0x26000000), B(0xFF20232B), B(0xFF5B8CFF), P(0xFF3B6CEF), B(0xFFFFFFFF)),
+        // Outlines only: the lightest look, pressed keys fill in.
+        new("outline", "Outline", Brushes.Transparent, null, Brushes.Transparent, P(0xB3FFFFFF, 1.4), B(0xE6FFFFFF), B(0xFFFFFFFF), P(0xFFFFFFFF, 1.4), B(0xFF0B0C10)),
+    };
+
+    public static OverlayTheme ThemeFor(string id) => Themes.FirstOrDefault(t => t.Id == id) ?? Themes[0];
+
+    OverlayTheme _theme = Themes[0];
+    /// <summary>The look's id ("dark", "glass", "neon", "light", "outline").</summary>
+    public string Theme { get => _theme.Id; set { _theme = ThemeFor(value); InvalidateVisual(); } }
+
+    Brush Plate => _theme.Plate; Pen PlateEdge => _theme.PlateEdge;
+    Brush KeyFill => _theme.KeyFill; Pen KeyEdge => _theme.KeyEdge; Brush KeyText => _theme.KeyText;
+    Brush Lit => _theme.Lit; Pen LitEdge => _theme.LitEdge; Brush LitText => _theme.LitText;
     static readonly Typeface Face = new(new FontFamily("Segoe UI"), FontStyles.Normal, FontWeights.SemiBold, FontStretches.Normal);
 
     static Brush Frozen(Brush b) { b.Freeze(); return b; }
@@ -88,7 +111,7 @@ public sealed class InputOverlayView : FrameworkElement
         DrawMouse(dc, Pad + KbW + 12, Pad, (MouseButton)(_frame?.Mouse ?? 0));
     }
 
-    static void DrawMouse(DrawingContext dc, double x, double y, MouseButton m)
+    void DrawMouse(DrawingContext dc, double x, double y, MouseButton m)
     {
         double w = MouseW, h = KbH;
         var body = new Rect(x, y, w, h);
@@ -202,14 +225,14 @@ public sealed class InputOverlayView : FrameworkElement
         }
     }
 
-    static void Trigger(DrawingContext dc, Rect r, int percent)
+    void Trigger(DrawingContext dc, Rect r, int percent)
     {
         dc.DrawRoundedRectangle(KeyFill, KeyEdge, r, 5, 5);
         if (percent <= 3) return;
         dc.DrawRoundedRectangle(Lit, null, new Rect(r.X, r.Y, Math.Max(10, r.Width * percent / 100.0), r.Height), 5, 5);
     }
 
-    static void Pill(DrawingContext dc, Rect r, bool on, string label, double dip)
+    void Pill(DrawingContext dc, Rect r, bool on, string label, double dip)
     {
         dc.DrawRoundedRectangle(on ? Lit : KeyFill, on ? LitEdge : KeyEdge, r, r.Height / 2, r.Height / 2);
         if (label.Length == 0) return;
@@ -217,7 +240,7 @@ public sealed class InputOverlayView : FrameworkElement
         dc.DrawText(ft, new Point(r.X + (r.Width - ft.Width) / 2, r.Y + (r.Height - ft.Height) / 2));
     }
 
-    static void Stick(DrawingContext dc, Point c, int x, int y, bool clicked)
+    void Stick(DrawingContext dc, Point c, int x, int y, bool clicked)
     {
         dc.DrawEllipse(Frozen(new SolidColorBrush(Color.FromArgb(0xFF, 0x0E, 0x10, 0x16))), KeyEdge, c, 26, 26);
         var knob = new Point(c.X + x / 100.0 * 13, c.Y - y / 100.0 * 13);
@@ -225,7 +248,7 @@ public sealed class InputOverlayView : FrameworkElement
         dc.DrawEllipse(clicked || moved ? Lit : KeyFill, clicked ? LitEdge : KeyEdge, knob, 15, 15);
     }
 
-    static void DPad(DrawingContext dc, Point c, PadButton p)
+    void DPad(DrawingContext dc, Point c, PadButton p)
     {
         const double s = 13;
         void Arm(PadButton b, Rect r)
@@ -242,9 +265,9 @@ public sealed class InputOverlayView : FrameworkElement
     // ───────── export ─────────
 
     /// <summary>The overlay for one frame as a picture, for burning into a clip. Call on the UI thread.</summary>
-    public static BitmapSource Render(InputFrame frame, string kind, double scale)
+    public static BitmapSource Render(InputFrame frame, string kind, double scale, string theme = "dark")
     {
-        var v = new InputOverlayView { Kind = kind, Frame = frame };
+        var v = new InputOverlayView { Kind = kind, Frame = frame, Theme = theme };
         var size = BaseSize(kind);
         v.Measure(size);
         v.Arrange(new Rect(size));
