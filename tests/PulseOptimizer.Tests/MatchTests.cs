@@ -150,3 +150,12 @@ public class MatchTests
         }
     }
 }
+
+public class MatchArtTests
+{
+    [Theory]
+    [InlineData("KAY/O", "kayo")]
+    [InlineData("Sage", "sage")]
+    [InlineData("The Range", "therange")]
+    public void Art_keys_match_the_build_script(string name, string key) => Assert.Equal(key, MatchArt.Key(name));
+}

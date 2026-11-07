@@ -236,6 +236,7 @@ public sealed class ValorantMatches : IDisposable
             Kills = me.Int("stats", "kills"), Deaths = me.Int("stats", "deaths"), Assists = me.Int("stats", "assists"),
             HeadshotPercent = heads + body + legs > 0 ? (int)Math.Round(100.0 * heads / (heads + body + legs)) : -1,
             Rank = info.Str("queueID") is "competitive" or "premier" ? RankName(me.Int("competitiveTier")) : "",
+            RankTier = info.Str("queueID") is "competitive" or "premier" ? me.Int("competitiveTier") : 0,
             Highlights = highlights, Start = start, End = lenMs > 0 ? start.AddMilliseconds(lenMs) : DateTime.Now,
         };
         rec.Extras.Add($"Score {me.Int("stats", "score")}");

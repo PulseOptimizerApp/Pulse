@@ -35,6 +35,10 @@
     <!-- Translations: English text → translated text, one file per language. -->
     <EmbeddedResource Include="Lang\*.json" LogicalName="Lang.%(Filename).json" />
     <Resource Include="Assets\Games\*.png" />
+    <!-- VALORANT agent, map and rank art for match recaps, fetched by tools/get-match-art.py at build time (not committed). -->
+    <Resource Include="Assets\Matches\*.png" />
+    <Resource Include="Assets\Matches\*.jpg" />
+    <Resource Include="Assets\Matches\meta.json" Condition="Exists('Assets\Matches\meta.json')" />
     <!-- PresentMon (Intel, MIT) is downloaded here by the build and carried inside the exe, so the release is one file. -->
     <EmbeddedResource Include="tools\PresentMon.exe" Condition="Exists('tools\PresentMon.exe')" LogicalName="PresentMon.exe" />
     <!-- SHA-256 of the FFmpeg zip attached to this release (tools/get-ffmpeg.ps1). Clips refuses any other file. -->

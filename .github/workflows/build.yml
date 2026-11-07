@@ -44,6 +44,12 @@ jobs:
         shell: pwsh
         run: python tools/get-game-art.py src/PulseOptimizer/Assets/Games
 
+      - name: Get VALORANT art for match recaps (embedded; the app never goes online for it)
+        shell: pwsh
+        run: |
+          python -m pip install --quiet pillow
+          python tools/get-match-art.py src/PulseOptimizer/Assets/Matches
+
       - name: Build single-file exe
         shell: pwsh
         run: |

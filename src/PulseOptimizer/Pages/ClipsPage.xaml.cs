@@ -607,79 +607,145 @@ public partial class ClipsPage : UserControl, IPage, IReleasable
         MatchFilterClear.Visibility = _matchFilter != null ? Visibility.Visible : Visibility.Collapsed;
     }
 
-    /// <summary>A recap card like Medal's: who you played, the result, K/D/A, headshots, rank, big plays and clips.</summary>
+    /// <summary>
+    /// A recap card like Medal's: the agent's portrait in their color, the result and real rank badge over the map,
+    /// MAP score / KDA / HS%, one row per big play, a picture of the match's first clip, and the clip count.
+    /// </summary>
     UIElement MatchCard(Core.Games.MatchRecord m)
     {
-        int clips = _allClips.Count(v => v.Clip.Created >= m.Start.AddMinutes(-1) && v.Clip.Created <= m.End.AddMinutes(2));
+        var matchClips = _allClips.Where(v => v.Clip.Created >= m.Start.AddMinutes(-1) && v.Clip.Created <= m.End.AddMinutes(2))
+            .OrderBy(v => v.Clip.Created).ToList();
         bool selected = _matchFilter?.Id == m.Id;
+        Brush Res(string k) => (Brush)FindResource(k);
+        TextBlock Text(string t, double size, FontWeight w, Brush fg = null, HorizontalAlignment h = HorizontalAlignment.Left) =>
+            new() { Text = t, FontSize = size, FontWeight = w, Foreground = fg ?? Res("TextBrush"), HorizontalAlignment = h, TextTrimming = TextTrimming.CharacterEllipsis };
+
         var card = new Border
         {
-            Width = 290, Margin = new Thickness(0, 0, 12, 0), Padding = new Thickness(16, 14, 16, 14), CornerRadius = new CornerRadius(10), Cursor = Cursors.Hand,
-            Background = (Brush)FindResource("SurfaceBrush"), BorderThickness = new Thickness(selected ? 2 : 1),
-            BorderBrush = (Brush)FindResource(selected ? "AccentGradient" : "BorderBrush"),
+            Width = 280, Margin = new Thickness(0, 0, 12, 0), CornerRadius = new CornerRadius(12), Cursor = Cursors.Hand,
+            Background = Res("SurfaceBrush"), BorderThickness = new Thickness(selected ? 2 : 1),
+            BorderBrush = selected ? Res("AccentGradient") : Res("BorderBrush"), ClipToBounds = true,
         };
-        var sp = new StackPanel();
-        var head = new Grid();
-        head.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        head.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        // "SAGE  WIN" on one line, like Medal.
-        var who = new TextBlock { TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center };
-        who.Inlines.Add(new System.Windows.Documents.Run(string.IsNullOrEmpty(m.Character) ? m.Game : m.Character.ToUpperInvariant()) { FontWeight = FontWeights.Bold, FontSize = 14.5 });
-        string resultKey = m.Result switch { "Win" => "GoodBrush", "Loss" => "BadBrush", _ => "TextDimBrush" };
-        who.Inlines.Add(new System.Windows.Documents.Run("  " + Loc.T(string.IsNullOrEmpty(m.Result) ? "Finished" : m.Result).ToUpperInvariant()) { FontWeight = FontWeights.Bold, FontSize = 11.5, Foreground = (Brush)FindResource(resultKey) });
-        head.Children.Add(who);
-        if (!string.IsNullOrEmpty(m.Rank))
+        var layers = new Grid();
+
+        // The map, faded, behind everything.
+        if (Core.Games.MatchArt.Map(m) is ImageSource mapArt)
         {
-            var rank = new Border { CornerRadius = new CornerRadius(6), Background = new SolidColorBrush(Color.FromArgb(0x24, 0x5B, 0x8C, 0xFF)), Padding = new Thickness(8, 3, 8, 3), VerticalAlignment = VerticalAlignment.Center };
-            rank.Child = new TextBlock { Text = m.Rank, FontSize = 11, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Color.FromRgb(0xB9, 0xCB, 0xFF)) };
-            Grid.SetColumn(rank, 1);
-            head.Children.Add(rank);
+            layers.Children.Add(new Image { Source = mapArt, Stretch = Stretch.UniformToFill, Opacity = 0.32, VerticalAlignment = VerticalAlignment.Top });
+            var fade = new LinearGradientBrush { StartPoint = new Point(0, 0), EndPoint = new Point(0, 1) };
+            var bg = ((SolidColorBrush)Res("SurfaceBrush")).Color;
+            fade.GradientStops.Add(new GradientStop(Color.FromArgb(0x40, bg.R, bg.G, bg.B), 0));
+            fade.GradientStops.Add(new GradientStop(Color.FromArgb(0xE6, bg.R, bg.G, bg.B), 0.45));
+            fade.GradientStops.Add(new GradientStop(bg, 0.8));
+            layers.Children.Add(new Border { Background = fade });
         }
+
+        var sp = new StackPanel { Margin = new Thickness(14) };
+
+        // Header: portrait on the agent's color, name and result, rank badge.
+        var tint = Core.Games.MatchArt.AgentColor(m) ?? (m.Result == "Win" ? Color.FromRgb(0x10, 0x8A, 0x6A) : m.Result == "Loss" ? Color.FromRgb(0x8A, 0x2A, 0x33) : Color.FromRgb(0x2A, 0x2A, 0x33));
+        var headBg = new LinearGradientBrush(Color.FromArgb(0xB0, tint.R, tint.G, tint.B), Color.FromArgb(0x30, tint.R, tint.G, tint.B), new Point(0, 0), new Point(1, 1));
+        var head = new Border { CornerRadius = new CornerRadius(9), Background = headBg, Height = 72, ClipToBounds = true };
+        var hg = new Grid();
+        hg.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        hg.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        hg.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        if (Core.Games.MatchArt.Agent(m) is ImageSource face)
+            hg.Children.Add(new Image { Source = face, Width = 72, Height = 72, Stretch = Stretch.UniformToFill, VerticalAlignment = VerticalAlignment.Bottom });
+        else
+            hg.Children.Add(new Border { Width = 14 });
+        var who = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(10, 0, 6, 0) };
+        who.Children.Add(Text(string.IsNullOrEmpty(m.Character) ? m.Game : m.Character.ToUpperInvariant(), 16, FontWeights.Bold));
+        string resultKey = m.Result switch { "Win" => "GoodBrush", "Loss" => "BadBrush", _ => "TextDimBrush" };
+        who.Children.Add(Text(Loc.T(string.IsNullOrEmpty(m.Result) ? "Finished" : m.Result).ToUpperInvariant(), 12, FontWeights.Bold, Res(resultKey)));
+        Grid.SetColumn(who, 1);
+        hg.Children.Add(who);
+        FrameworkElement rankEl = null;
+        if (Core.Games.MatchArt.Rank(m) is ImageSource badge)
+            rankEl = new Image { Source = badge, Width = 40, Height = 40, Margin = new Thickness(0, 0, 14, 0), ToolTip = m.Rank };
+        else if (!string.IsNullOrEmpty(m.Rank))
+            rankEl = new Border
+            {
+                CornerRadius = new CornerRadius(6), Background = new SolidColorBrush(Color.FromArgb(0x55, 0, 0, 0)), Padding = new Thickness(8, 3, 8, 3), Margin = new Thickness(0, 0, 12, 0),
+                Child = Text(m.Rank, 11, FontWeights.SemiBold),
+            };
+        if (rankEl != null)
+        {
+            rankEl.VerticalAlignment = VerticalAlignment.Center;
+            Grid.SetColumn(rankEl, 2);
+            hg.Children.Add(rankEl);
+        }
+        head.Child = hg;
         sp.Children.Add(head);
 
-        // MAP / KDA / HS% row
-        var stats = new Grid { Margin = new Thickness(0, 14, 0, 0) };
+        // MAP score / KDA / HS%
+        var stats = new Grid { Margin = new Thickness(2, 16, 2, 4) };
         for (int i = 0; i < 3; i++) stats.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        void Stat(int col, string label, UIElement value)
+        void Stat(int col, string label, UIElement value, HorizontalAlignment h)
         {
-            var s = new StackPanel();
-            s.Children.Add(new TextBlock { Text = label, FontSize = 10.5, Foreground = (Brush)FindResource("TextFaintBrush"), FontWeight = FontWeights.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis });
+            var s = new StackPanel { HorizontalAlignment = h };
+            var l = Text(label, 11, FontWeights.SemiBold, Res("TextFaintBrush"), h);
+            l.Margin = new Thickness(0, 0, 0, 3);
+            s.Children.Add(l);
             s.Children.Add(value);
             Grid.SetColumn(s, col);
             stats.Children.Add(s);
         }
-        var score = new TextBlock { FontSize = 18, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 1, 0, 0) };
+        var score = new TextBlock { FontSize = 18, FontWeight = FontWeights.Bold };
         var sc = (m.Score ?? "").Split(':');
         if (sc.Length == 2)
         {
-            score.Inlines.Add(new System.Windows.Documents.Run(sc[0].Trim()) { Foreground = (Brush)FindResource("GoodBrush") });
-            score.Inlines.Add(new System.Windows.Documents.Run(" : "));
-            score.Inlines.Add(new System.Windows.Documents.Run(sc[1].Trim()) { Foreground = (Brush)FindResource("BadBrush") });
+            score.Inlines.Add(new System.Windows.Documents.Run(sc[0].Trim()) { Foreground = Res("GoodBrush") });
+            score.Inlines.Add(new System.Windows.Documents.Run(" : ") { Foreground = Res("TextDimBrush") });
+            score.Inlines.Add(new System.Windows.Documents.Run(sc[1].Trim()) { Foreground = Res("BadBrush") });
         }
-        Stat(0, (string.IsNullOrEmpty(m.Map) ? Loc.T("Score") : m.Map).ToUpperInvariant(), score);
-        Stat(1, "KDA", new TextBlock { Text = m.Kda, FontSize = 18, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 1, 0, 0) });
+        Stat(0, (string.IsNullOrEmpty(m.Map) ? Loc.T("Score") : m.Map).ToUpperInvariant(), score, HorizontalAlignment.Left);
+        Stat(1, "KDA", Text(m.Kda, 18, FontWeights.Bold, null, HorizontalAlignment.Center), HorizontalAlignment.Center);
         Stat(2, m.HeadshotPercent >= 0 ? "HS%" : Loc.T("Mode").ToUpperInvariant(),
-            new TextBlock { Text = m.HeadshotPercent >= 0 ? m.HeadshotPercent + "%" : m.Mode, FontSize = m.HeadshotPercent >= 0 ? 18 : 13, FontWeight = FontWeights.Bold, Margin = new Thickness(0, m.HeadshotPercent >= 0 ? 1 : 5, 0, 0), TextTrimming = TextTrimming.CharacterEllipsis });
+            m.HeadshotPercent >= 0 ? Text(m.HeadshotPercent + "%", 18, FontWeights.Bold, null, HorizontalAlignment.Right) : Text(m.Mode, 13, FontWeights.Bold, null, HorizontalAlignment.Right),
+            HorizontalAlignment.Right);
         sp.Children.Add(stats);
 
-        // Big plays and clips
-        var foot = new WrapPanel { Margin = new Thickness(0, 12, 0, 0) };
-        foreach (var h in m.Highlights.GroupBy(x => x).OrderByDescending(g => g.Key))
+        // One row per big play, with how many: "3K ........ 2"
+        Border Row(string label, string value)
         {
-            var pill = new Border { CornerRadius = new CornerRadius(6), Background = (Brush)FindResource("WarnSoftBrush"), Padding = new Thickness(7, 2, 7, 2), Margin = new Thickness(0, 0, 6, 6) };
-            pill.Child = new TextBlock { Text = h.Count() > 1 ? $"{Loc.T(h.Key)} ×{h.Count()}" : Loc.T(h.Key), FontSize = 11, FontWeight = FontWeights.SemiBold, Foreground = (Brush)FindResource("WarnBrush") };
-            foot.Children.Add(pill);
+            var g = new Grid();
+            g.Children.Add(Text(label, 13, FontWeights.Bold));
+            g.Children.Add(Text(value, 13, FontWeights.Bold, null, HorizontalAlignment.Right));
+            return new Border { Background = new SolidColorBrush(Color.FromArgb(0x55, 0, 0, 0)), CornerRadius = new CornerRadius(7), Padding = new Thickness(12, 8, 12, 8), Margin = new Thickness(0, 8, 0, 0), Child = g };
         }
-        sp.Children.Add(foot);
-        sp.Children.Add(new Border { Height = 1, Background = (Brush)FindResource("BorderBrush"), Margin = new Thickness(0, 6, 0, 10) });
-        var bottom = new Grid();
-        bottom.Children.Add(new TextBlock { Text = Loc.F("{0} clips", clips), FontSize = 12, Foreground = (Brush)FindResource("TextDimBrush") });
-        bottom.Children.Add(new TextBlock { Text = Format.Ago(m.End), FontSize = 12, Foreground = (Brush)FindResource("TextFaintBrush"), HorizontalAlignment = HorizontalAlignment.Right });
-        sp.Children.Add(bottom);
-        card.Child = sp;
-        card.ToolTip = string.Join(" · ", new[] { m.Game, m.Mode }.Concat(m.Extras).Where(x => !string.IsNullOrEmpty(x)));
-        card.MouseLeftButtonUp += (_, _) =>
+        foreach (var h in m.Highlights.GroupBy(x => x).OrderByDescending(g => g.Key == "ACE" ? 9 : g.Key.Length > 0 && char.IsDigit(g.Key[0]) ? g.Key[0] - '0' : 5))
+            sp.Children.Add(Row(Loc.T(h.Key), h.Count().ToString(CultureInfo.InvariantCulture)));
+
+        // The match's first clip: click to play it.
+        var first = matchClips.FirstOrDefault(v => !string.IsNullOrEmpty(v.Clip.Thumbnail)) ?? matchClips.FirstOrDefault();
+        if (first != null && (first.Image ?? Core.Games.MatchArt.Thumb(first.Clip.Thumbnail)) is ImageSource pic)
         {
+            var shot = new Border { CornerRadius = new CornerRadius(8), ClipToBounds = true, Margin = new Thickness(0, 10, 0, 0), Height = 140, Tag = first, ToolTip = Loc.T("Play") };
+            var sg = new Grid();
+            sg.Children.Add(new Image { Source = pic, Stretch = Stretch.UniformToFill });
+            sg.Children.Add(new Border
+            {
+                Width = 40, Height = 40, CornerRadius = new CornerRadius(20), Background = new SolidColorBrush(Color.FromArgb(0x99, 0, 0, 0)),
+                HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
+                Child = new TextBlock { Text = "", FontFamily = (FontFamily)FindResource("IconFont"), FontSize = 16, Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(2, 0, 0, 0) },
+            });
+            shot.Child = sg;
+            shot.MouseLeftButtonUp += (s, e) => { e.Handled = true; Clip_Click(s, e); };
+            sp.Children.Add(shot);
+        }
+
+        sp.Children.Add(Row(Loc.T("TOTAL CLIPS"), matchClips.Count.ToString(CultureInfo.InvariantCulture)));
+        var when = Text(Format.Ago(m.End), 11.5, FontWeights.Normal, Res("TextFaintBrush"), HorizontalAlignment.Right);
+        when.Margin = new Thickness(0, 8, 2, 0);
+        sp.Children.Add(when);
+
+        layers.Children.Add(sp);
+        card.Child = layers;
+        card.ToolTip = string.Join(" · ", new[] { m.Game, m.Mode }.Concat(m.Extras).Where(x => !string.IsNullOrEmpty(x)));
+        card.MouseLeftButtonUp += (_, e) =>
+        {
+            if (e.Handled) return;
             _matchFilter = selected ? null : m;
             ShowMatches();
             ApplyLibraryFilter();

@@ -20,6 +20,8 @@ public class MatchRecord
     public int Assists { get; set; }
     /// <summary>Headshot share 0–100, or -1 when the game doesn't say.</summary>
     public int HeadshotPercent { get; set; } = -1;
+    /// <summary>VALORANT competitive tier number (3 = Iron 1 … 27 = Radiant), 0 when unranked; picks the rank badge.</summary>
+    public int RankTier { get; set; }
     public string Rank { get; set; } = "";
     /// <summary>Extra numbers for this game ("CS 212", "ADR 154", "MVPs 4").</summary>
     public List<string> Extras { get; set; } = new();
