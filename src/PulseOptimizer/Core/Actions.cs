@@ -384,73 +384,109 @@ public class BcdAction : TweakAction
 }
 
 /// <summary>
-/// Turns off power saving on wired and Wi-Fi adapters: "Allow the computer to turn off this device" and the
-/// driver's energy-saving options (Energy-Efficient Ethernet, Green Ethernet, power saving mode...), the same
-/// switches as Device Manager → the adapter → Properties. Every previous value is kept for undo.
+/// Sets network adapter driver options (the Device Manager → adapter → Properties → Advanced tab), only the ones the
+/// driver actually has and only to values it allows, and optionally turns off "Allow the computer to turn off this
+/// device". Every previous value is kept for undo. Virtual adapters (VPNs, Hyper-V, VMware...) are left alone.
+/// Targets: "0"/"1" = that value (skipped if the driver doesn't offer it), "min" = lowest allowed, "cap:N" = as high
+/// as allowed up to N.
 /// </summary>
-public class NetAdapterPowerAction : TweakAction
+public class NetAdapterAction : TweakAction
 {
-    // Driver keywords for energy saving (Intel, Realtek, Killer, Broadcom, Marvell). Only ones present are touched.
-    const string Keywords = "'*EEE','EEE','EEELinkAdvertisement','AdvancedEEE','EnableGreenEthernet','GreenEthernet','PowerSavingMode','EnablePME','ULPMode','AutoPowerSaveModeEnabled','EnableSavePowerNow','EnablePowerManagement','ReduceSpeedOnPowerDown','*SelectiveSuspend','SipsEnabled','EnableExtraPowerSaving','DynamicPowerGating','S5WakeOnLan'";
+    readonly Dictionary<string, string> _targets;
+    readonly bool _powerManagement, _rscGlobal;
 
-    const string Read = @"
+    public NetAdapterAction(Dictionary<string, string> targets, bool powerManagement = false, bool rscGlobal = false)
+    {
+        _targets = targets; _powerManagement = powerManagement; _rscGlobal = rscGlobal;
+    }
+
+    string ReadScript => @"
 $ErrorActionPreference = 'SilentlyContinue'
+$keys = @(" + string.Join(",", _targets.Keys.Select(k => "'" + k.Replace("'", "''") + "'")) + @")
 $out = @()
-foreach ($a in Get-NetAdapter -Physical | Where-Object { $_.Status -ne 'Disabled' }) {
+foreach ($a in Get-NetAdapter -Physical | Where-Object { $_.Status -ne 'Disabled' -and $_.InterfaceDescription -notmatch 'Virtual|VPN|Hyper-V|VMware|VirtualBox|TAP-|WireGuard|Wintun|ZeroTier|Tailscale|Bluetooth' }) {
   $pm = Get-NetAdapterPowerManagement -Name $a.Name
-  $props = Get-NetAdapterAdvancedProperty -Name $a.Name -AllProperties | Where-Object { @(" + Keywords + @") -contains $_.RegistryKeyword }
-  $out += [pscustomobject]@{ Name = $a.Name; AllowOff = [string]$pm.AllowComputerToTurnOffDevice; Props = @($props | ForEach-Object { [pscustomobject]@{ K = $_.RegistryKeyword; V = [string]($_.RegistryValue -join ','); Valid = @($_.ValidRegistryValues) } }) }
+  $props = Get-NetAdapterAdvancedProperty -Name $a.Name -AllProperties | Where-Object { $keys -contains $_.RegistryKeyword }
+  $out += [pscustomobject]@{ Name = $a.Name; AllowOff = [string]$pm.AllowComputerToTurnOffDevice;
+    Props = @($props | ForEach-Object { [pscustomobject]@{ K = $_.RegistryKeyword; V = [string]($_.RegistryValue -join ','); Valid = @($_.ValidRegistryValues | ForEach-Object { [string]$_ }); Min = [string]$_.NumericParameterMinValue; Max = [string]$_.NumericParameterMaxValue } }) }
 }
-ConvertTo-Json -Depth 5 -Compress @($out)";
+$rsc = [string](Get-NetOffloadGlobalSetting).ReceiveSegmentCoalescing
+ConvertTo-Json -Depth 5 -Compress ([pscustomobject]@{ Adapters = @($out); Rsc = $rsc })";
+
+    System.Text.Json.JsonElement? Read()
+    {
+        var r = Shell.PowerShell(ReadScript, 60_000);
+        var json = r.Output?.Trim();
+        if (string.IsNullOrEmpty(json) || !json.StartsWith("{")) return null;
+        try { return System.Text.Json.JsonDocument.Parse(json).RootElement.Clone(); } catch { return null; }
+    }
+
+    /// <summary>The value to set for one property, or null to leave it.</summary>
+    internal static string Want(string target, string current, IReadOnlyList<string> valid, string min, string max)
+    {
+        bool numeric = valid.Count == 0 && long.TryParse(min, out _) && long.TryParse(max, out _);
+        if (target == "min")
+        {
+            if (numeric) return min;
+            var nums = valid.Select(v => long.TryParse(v, out var n) ? n : (long?)null).Where(n => n != null).ToList();
+            return nums.Count > 0 ? nums.Min().ToString() : null;
+        }
+        if (target.StartsWith("cap:"))
+        {
+            long cap = long.Parse(target[4..]);
+            if (numeric) { long hi = Math.Min(cap, long.Parse(max)); return hi >= long.Parse(min) ? hi.ToString() : null; }
+            var nums = valid.Select(v => long.TryParse(v, out var n) ? n : (long?)null).Where(n => n != null && n <= cap).ToList();
+            return nums.Count > 0 ? nums.Max().ToString() : null;
+        }
+        if (valid.Count > 0) return valid.Contains(target) ? target : null;
+        if (numeric) return long.Parse(target) >= long.Parse(min) && long.Parse(target) <= long.Parse(max) ? target : null;
+        return target;
+    }
+
+    static List<string> List(System.Text.Json.JsonElement p, string name) =>
+        p.TryGetProperty(name, out var v) && v.ValueKind == System.Text.Json.JsonValueKind.Array ? v.EnumerateArray().Select(x => x.ToString()).ToList() : new List<string>();
+    static string Str(System.Text.Json.JsonElement p, string name) => p.TryGetProperty(name, out var v) ? v.ToString() : "";
+
+    IEnumerable<(string Adapter, string Key, string Current, string Want)> Changes(System.Text.Json.JsonElement root)
+    {
+        foreach (var a in root.GetProperty("Adapters").EnumerateArray())
+        {
+            var name = Str(a, "Name");
+            foreach (var p in a.GetProperty("Props").EnumerateArray())
+            {
+                var key = Str(p, "K");
+                if (!_targets.TryGetValue(key, out var target)) continue;
+                var want = Want(target, Str(p, "V"), List(p, "Valid"), Str(p, "Min"), Str(p, "Max"));
+                if (want != null && want != Str(p, "V")) yield return (name, key, Str(p, "V"), want);
+            }
+        }
+    }
 
     public override bool? Check()
     {
-        var r = Shell.PowerShell(Read, 60_000);
-        var json = r.Output?.Trim();
-        if (string.IsNullOrEmpty(json) || !json.StartsWith("[")) return null;
-        try
-        {
-            var arr = System.Text.Json.JsonDocument.Parse(json).RootElement;
-            if (arr.GetArrayLength() == 0) return null;
-            foreach (var a in arr.EnumerateArray())
-            {
-                if (a.GetProperty("AllowOff").GetString() == "Enabled") return false;
-                foreach (var p in a.GetProperty("Props").EnumerateArray())
-                    if (p.GetProperty("V").GetString() is var v && v != "0" && OffValue(p) != null && v != OffValue(p)) return false;
-            }
-            return true;
-        }
-        catch { return null; }
+        var root = Read();
+        if (root == null) return null;
+        if (root.Value.GetProperty("Adapters").GetArrayLength() == 0) return null;
+        if (Changes(root.Value).Any()) return false;
+        if (_powerManagement && root.Value.GetProperty("Adapters").EnumerateArray().Any(a => Str(a, "AllowOff") == "Enabled")) return false;
+        if (_rscGlobal && Str(root.Value, "Rsc") == "Enabled") return false;
+        return true;
     }
 
-    /// <summary>The value meaning "off" for a property: 0 when the driver offers it.</summary>
-    static string OffValue(System.Text.Json.JsonElement p)
-    {
-        if (!p.TryGetProperty("Valid", out var valid) || valid.ValueKind != System.Text.Json.JsonValueKind.Array) return "0";
-        var list = valid.EnumerateArray().Select(x => x.ToString()).ToList();
-        return list.Count == 0 || list.Contains("0") ? "0" : null;
-    }
+    static string Q(string s) => s.Replace("'", "''");
 
     public override ActionBackup Apply()
     {
-        var r = Shell.PowerShell(Read, 60_000);
-        var json = r.Output?.Trim();
-        if (string.IsNullOrEmpty(json) || !json.StartsWith("[")) throw new InvalidOperationException("Couldn't read the network adapters.");
-        var b = new ActionBackup { Kind = "netpower" };
-        b.Data["before"] = json;
+        var root = Read() ?? throw new InvalidOperationException("Couldn't read the network adapters.");
+        var b = new ActionBackup { Kind = "netadapter" };
+        b.Data["before"] = root.GetRawText();
         var script = new System.Text.StringBuilder("$ErrorActionPreference = 'SilentlyContinue'\n");
-        foreach (var a in System.Text.Json.JsonDocument.Parse(json).RootElement.EnumerateArray())
-        {
-            var name = a.GetProperty("Name").GetString().Replace("'", "''");
-            if (a.GetProperty("AllowOff").GetString() == "Enabled")
-                script.AppendLine($"Disable-NetAdapterPowerManagement -Name '{name}' -NoRestart");
-            foreach (var p in a.GetProperty("Props").EnumerateArray())
-            {
-                var off = OffValue(p);
-                if (off == null || p.GetProperty("V").GetString() == off) continue;
-                script.AppendLine($"Set-NetAdapterAdvancedProperty -Name '{name}' -RegistryKeyword '{p.GetProperty("K").GetString().Replace("'", "''")}' -RegistryValue {off} -NoRestart");
-            }
-        }
+        foreach (var (adapter, key, _, want) in Changes(root))
+            script.AppendLine($"Set-NetAdapterAdvancedProperty -Name '{Q(adapter)}' -RegistryKeyword '{Q(key)}' -RegistryValue '{Q(want)}' -NoRestart");
+        if (_powerManagement)
+            foreach (var a in root.GetProperty("Adapters").EnumerateArray().Where(a => Str(a, "AllowOff") == "Enabled"))
+                script.AppendLine($"Disable-NetAdapterPowerManagement -Name '{Q(Str(a, "Name"))}' -NoRestart");
+        if (_rscGlobal && Str(root, "Rsc") == "Enabled") script.AppendLine("Set-NetOffloadGlobalSetting -ReceiveSegmentCoalescing Disabled");
         script.AppendLine("Get-NetAdapter -Physical | Where-Object { $_.Status -eq 'Up' } | Restart-NetAdapter -Confirm:$false");
         Shell.PowerShell(script.ToString(), 120_000);
         return b;
@@ -459,19 +495,25 @@ ConvertTo-Json -Depth 5 -Compress @($out)";
     public override void Revert(ActionBackup backup)
     {
         if (backup == null || !backup.Data.TryGetValue("before", out var json)) return;
+        var root = System.Text.Json.JsonDocument.Parse(json).RootElement;
         var script = new System.Text.StringBuilder("$ErrorActionPreference = 'SilentlyContinue'\n");
-        foreach (var a in System.Text.Json.JsonDocument.Parse(json).RootElement.EnumerateArray())
+        // The adapter list may hold the old single-adapter format from the first version of this tweak.
+        var adapters = root.ValueKind == System.Text.Json.JsonValueKind.Array ? root : root.GetProperty("Adapters");
+        foreach (var a in adapters.EnumerateArray())
         {
-            var name = a.GetProperty("Name").GetString().Replace("'", "''");
-            if (a.GetProperty("AllowOff").GetString() == "Enabled")
-                script.AppendLine($"Enable-NetAdapterPowerManagement -Name '{name}' -NoRestart");
+            var name = Q(Str(a, "Name"));
+            if (Str(a, "AllowOff") == "Enabled") script.AppendLine($"Enable-NetAdapterPowerManagement -Name '{name}' -NoRestart");
             foreach (var p in a.GetProperty("Props").EnumerateArray())
             {
-                var v = p.GetProperty("V").GetString();
-                if (string.IsNullOrEmpty(v) || !System.Text.RegularExpressions.Regex.IsMatch(v, @"^[0-9,]+$")) continue;
-                script.AppendLine($"Set-NetAdapterAdvancedProperty -Name '{name}' -RegistryKeyword '{p.GetProperty("K").GetString().Replace("'", "''")}' -RegistryValue {v.Split(',')[0]} -NoRestart");
+                var key = Str(p, "K");
+                if (root.ValueKind != System.Text.Json.JsonValueKind.Array && !_targets.ContainsKey(key)) continue;
+                var v = Str(p, "V");
+                if (string.IsNullOrEmpty(v) || v.Contains(',')) continue;
+                script.AppendLine($"Set-NetAdapterAdvancedProperty -Name '{name}' -RegistryKeyword '{Q(key)}' -RegistryValue '{Q(v)}' -NoRestart");
             }
         }
+        if (_rscGlobal && root.ValueKind == System.Text.Json.JsonValueKind.Object && Str(root, "Rsc") == "Enabled")
+            script.AppendLine("Set-NetOffloadGlobalSetting -ReceiveSegmentCoalescing Enabled");
         script.AppendLine("Get-NetAdapter -Physical | Where-Object { $_.Status -eq 'Up' } | Restart-NetAdapter -Confirm:$false");
         Shell.PowerShell(script.ToString(), 120_000);
     }

@@ -7,8 +7,8 @@ namespace Pulse.Core;
 /// Every tweak Pulse offers, matching the research doc
 /// ("Pulse Optimizer — Evidence-Based Tweak Research &amp; Measurement Plan").
 /// Rules: reversible, explained in plain English, sourced, and never claims a speed-up that hasn't been measured.
-/// Cut on evidence and deliberately absent: MMCSS Games-task priorities (documented as unused),
-/// NetworkThrottlingIndex (undocumented) and timer-resolution registry tweaks. Also absent on purpose, though popular:
+/// Cut on evidence and deliberately absent: MMCSS Games-task priorities (documented as unused), timer-resolution
+/// registry tweaks, and DefaultTTL / MaxUserPort / TcpTimedWaitDelay (ignored or irrelevant on current Windows). Also absent on purpose, though popular:
 /// forcing MSI interrupts (can stop a PC booting), turning off disk write-cache flushing (can lose data on a power
 /// cut), disabling exploit protection, and Smart App Control.
 /// </summary>
@@ -332,9 +332,56 @@ public static class TweakCatalog
             Explain = "Network drivers have energy-saving options (Energy-Efficient Ethernet, Green Ethernet, power saving mode) and Windows can switch the adapter off to save power. These are the same switches as Device Manager → Network adapters → your adapter → Properties → Advanced and Power Management. Pulse only changes the ones your driver has, and keeps every old value for undo.",
             Changes = "Each physical network adapter: \"Allow the computer to turn off this device\" off, and energy-saving driver options set to Off. The adapter reconnects for a second.",
             Gain = "Can remove small delays and drop-outs when the adapter wakes from power saving. No change if your adapter doesn't save power. Measure ping.",
-            Tradeoff = "Slightly more power use, mostly on laptops. Your connection drops for a moment while it applies.",
+            Tradeoff = "Slightly more power use, mostly on laptops. Wake-on-LAN stops working. Your connection drops for a moment while it applies. A network driver update can reset these; apply again after one.",
             Gate = () => !SystemInfo.HasBattery ? Yes() : SystemInfo.IsPluggedIn ? Yes("Laptop: best while plugged in.") : No("You're on battery, where adapter power saving helps battery life. Plug in to use this."),
-            Actions = { new NetAdapterPowerAction() }
+            Actions =
+            {
+                new NetAdapterAction(new()
+                {
+                    // Standard keywords, then Realtek, Intel and Killer power saving. Wake-on-LAN goes too: it keeps
+                    // the adapter half-awake for nothing on a gaming PC.
+                    ["*EEE"] = "0", ["EEE"] = "0", ["AdvancedEEE"] = "0", ["EEELinkAdvertisement"] = "0",
+                    ["EnableGreenEthernet"] = "0", ["GreenEthernet"] = "0", ["PowerSavingMode"] = "0", ["GigaLite"] = "0",
+                    ["AutoDisableGigabit"] = "0", ["EnablePME"] = "0", ["ULPMode"] = "0", ["SipsEnabled"] = "0",
+                    ["ReduceSpeedOnPowerDown"] = "0", ["AutoPowerSaveModeEnabled"] = "0", ["EnableSavePowerNow"] = "0",
+                    ["EnablePowerManagement"] = "0", ["EnableExtraPowerSaving"] = "0", ["DynamicPowerGating"] = "0",
+                    ["*SelectiveSuspend"] = "0", ["*DeviceSleepOnDisconnect"] = "0", ["*PMARPOffload"] = "0", ["*PMNSOffload"] = "0",
+                    ["*WakeOnMagicPacket"] = "0", ["*WakeOnPattern"] = "0", ["*ModernStandbyWoLMagicPacket"] = "0", ["S5WakeOnLan"] = "0",
+                }, powerManagement: true)
+            }
+        },
+        new Tweak
+        {
+            Id = "net-adapter-latency", Category = TweakCategory.Network, Risk = Risk.Moderate,
+            Evidence = Evidence.Gated, Proof = ProofMetric.Latency,
+            Title = "Low-latency network adapter settings",
+            Summary = "Your network adapter handles each packet right away instead of batching them, and spreads the work across CPU cores.",
+            Explain = "Network drivers batch packets to save CPU: interrupt moderation waits to handle several at once, receive segment coalescing merges incoming packets, and large send offload builds big chunks. Great for downloads, but each adds a little delay. This turns them off, turns flow control off, keeps standard-size frames, switches Receive Side Scaling on and raises the receive and transmit buffers within your driver's limits. Only settings your driver has are changed.",
+            Changes = "Each physical adapter: Interrupt Moderation, Flow Control, Large Send Offload (IPv4/IPv6), Receive Segment Coalescing (IPv4/IPv6), Intel ITR off · Jumbo Packet = standard · RSS on · Receive Buffers up to 1024, Transmit Buffers up to 512 · Windows' global receive segment coalescing off. The adapter reconnects for a second.",
+            Gain = "Can shave a little delay and jitter off each packet, mostly on wired connections. Measure ping and jitter before keeping it.",
+            Tradeoff = "Slightly more CPU use during heavy downloads, and big downloads can be a little slower. A network driver update can reset these; apply again after one.",
+            Actions =
+            {
+                new NetAdapterAction(new()
+                {
+                    ["*InterruptModeration"] = "0", ["ITR"] = "0", ["*FlowControl"] = "0",
+                    ["*LsoV2IPv4"] = "0", ["*LsoV2IPv6"] = "0", ["*RscIPv4"] = "0", ["*RscIPv6"] = "0",
+                    ["*JumboPacket"] = "min", ["*RSS"] = "1", ["*ReceiveBuffers"] = "cap:1024", ["*TransmitBuffers"] = "cap:512",
+                }, rscGlobal: true)
+            }
+        },
+        new Tweak
+        {
+            Id = "net-throttling", Category = TweakCategory.Network, Risk = Risk.Safe,
+            Evidence = Evidence.Gated, Proof = ProofMetric.Latency,
+            SourceName = "Microsoft: network throttling during multimedia playback (KB948066)", SourceUrl = "https://learn.microsoft.com/en-us/troubleshoot/windows-server/networking/network-throughput-decrease-multimedia",
+            Title = "Turn off network throttling during media playback",
+            Summary = "Windows stops limiting other network traffic while music or video plays.",
+            Explain = "While audio or video plays, Windows' multimedia scheduler limits how many packets other programs may process (about 10 per millisecond), so playback doesn't stutter. Setting NetworkThrottlingIndex to off removes that limit.",
+            Changes = @"HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile → NetworkThrottlingIndex = 0xFFFFFFFF (off; default 10)",
+            Gain = "Mainly helps fast connections (several hundred Mbps and up) downloading while music or video plays. Game traffic is tiny, so ping usually doesn't change.",
+            Tradeoff = "On very old or slow PCs, music could stutter during big downloads.",
+            Actions = { LM(Multimedia, "NetworkThrottlingIndex", unchecked((int)0xFFFFFFFF), def: 10) }
         },
         new Tweak
         {

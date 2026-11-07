@@ -379,6 +379,11 @@ public static class DeclutterEngine
         ("MicrosoftCorporationII.QuickAssist", AppAdvice.Check, "Lets someone control your PC to help you"),
         ("Microsoft.GamingApp", AppAdvice.Keep, "Xbox app: needed for Game Pass games"),
         ("Microsoft.XboxGamingOverlay", AppAdvice.Keep, "Game Bar: some games use it"),
+        ("Microsoft.XboxApp", AppAdvice.Safe, "Xbox Console Companion (old app Microsoft replaced)"),
+        ("Microsoft.XboxSpeechToTextOverlay", AppAdvice.Check, "Xbox chat speech-to-text"),
+        ("Microsoft.Xbox.TCUI", AppAdvice.Keep, "Xbox sign-in and friends windows inside games: Minecraft and Game Pass games need it"),
+        ("Microsoft.XboxIdentityProvider", AppAdvice.Keep, "Xbox account sign-in: Game Pass, Minecraft and Forza stop signing in without it"),
+        ("Microsoft.GamingServices", AppAdvice.Keep, "Gaming Services: Game Pass and Xbox PC games won't install or start without it"),
     };
 
     internal static readonly (string match, AppAdvice advice, string why)[] DesktopBloat =
@@ -570,6 +575,9 @@ public static class DeclutterEngine
             ["Microsoft.MicrosoftStickyNotes"] = "Sticky Notes", ["Microsoft.WindowsSoundRecorder"] = "Sound Recorder",
             ["MicrosoftCorporationII.QuickAssist"] = "Quick Assist", ["Microsoft.GamingApp"] = "Xbox",
             ["Microsoft.XboxGamingOverlay"] = "Xbox Game Bar", ["Clipchamp.Clipchamp"] = "Clipchamp",
+            ["Microsoft.XboxApp"] = "Xbox Console Companion", ["Microsoft.XboxSpeechToTextOverlay"] = "Xbox speech to text",
+            ["Microsoft.Xbox.TCUI"] = "Xbox Live in-game", ["Microsoft.XboxIdentityProvider"] = "Xbox Identity Provider",
+            ["Microsoft.GamingServices"] = "Gaming Services",
             ["Microsoft.MixedReality.Portal"] = "Mixed Reality Portal", ["Microsoft.Microsoft3DViewer"] = "3D Viewer",
             ["Microsoft.SkypeApp"] = "Skype", ["MSTeams"] = "Microsoft Teams", ["MicrosoftTeams"] = "Microsoft Teams (personal)",
         };

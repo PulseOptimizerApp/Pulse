@@ -52,3 +52,16 @@ public class RobloxFontTests
         Assert.False(RobloxFont.IsFontFile("font.ttc", out _));
     }
 }
+
+public class NetAdapterTests
+{
+    [Theory]
+    [InlineData("0", "1", new[] { "0", "1" }, "", "", "0")]
+    [InlineData("0", "1", new[] { "1", "2" }, "", "", null)]        // driver doesn't offer "off": leave it
+    [InlineData("min", "9014", new[] { "1514", "4088", "9014" }, "", "", "1514")]
+    [InlineData("cap:1024", "256", new string[0], "80", "2048", "1024")]
+    [InlineData("cap:1024", "256", new string[0], "80", "512", "512")]
+    [InlineData("cap:512", "128", new[] { "128", "256", "2048" }, "", "", "256")]
+    public void Picks_only_values_the_driver_allows(string target, string current, string[] valid, string min, string max, string expected) =>
+        Assert.Equal(expected, Pulse.Core.NetAdapterAction.Want(target, current, valid, min, max));
+}
