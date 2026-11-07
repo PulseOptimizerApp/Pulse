@@ -8,6 +8,7 @@ using System.Windows.Shapes;
 using System.Windows.Threading;
 using Pulse.Core;
 using Pulse.Core.Mic;
+using Pulse.Ui;
 
 namespace Pulse.Pages;
 
