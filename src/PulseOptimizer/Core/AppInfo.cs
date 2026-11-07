@@ -4,7 +4,7 @@ namespace Pulse.Core;
 public static class AppInfo
 {
     /// <summary>Pulse's home: updates and downloads come from here first.</summary>
-    public const string Repo = "PulseOptimizerApp/PulseOptimizer";
+    public const string Repo = "PulseOptimizerApp/Pulse";
 
     /// <summary>Pulse's first home (on hold). Still checked second, so nothing breaks if it comes back.</summary>
     public const string OldRepo = "PulseOptimizer-app/PulseOptimizer";

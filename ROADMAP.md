@@ -4,7 +4,7 @@ Paste everything below the line into a new Claude session to pick the work back 
 
 ---
 
-You're continuing work on **Pulse Optimizer**, a free, open-source (MIT) Windows PC optimizer for gamers, with a large Roblox audience. The repository is `PulseOptimizerApp/PulseOptimizer` on GitHub (it moved from `PulseOptimizer-app/PulseOptimizer`, which was suspended; Core/AppInfo.cs lists both). The website is `PulseOptimizerApp/pulseoptimizerapp.github.io`, and its download buttons always point to the latest GitHub release. The latest release is **v0.3.0** (see Status below).
+You're continuing work on **Pulse Optimizer**, a free, open-source (MIT) Windows PC optimizer for gamers, with a large Roblox audience. The repository is `PulseOptimizerApp/Pulse` on GitHub (it moved from `PulseOptimizer-app/PulseOptimizer`, which was suspended; Core/AppInfo.cs lists both). The website is `PulseOptimizerApp/pulseoptimizerapp.github.io`, and its download buttons always point to the latest GitHub release. The latest release is **v0.3.0** (see Status below).
 
 ## How the project works (read before changing anything)
 
@@ -187,4 +187,4 @@ The owner wants Pulse's UI on the same level as the best apps in the world (thin
 
 ## First message to send in the new session
 
-> Read ROADMAP.md in PulseOptimizerApp/PulseOptimizer and follow it. Start with section [number], item [number], unless I say otherwise. Tell me your plan in a few lines first.
+> Read ROADMAP.md in PulseOptimizerApp/Pulse and follow it. Start with section [number], item [number], unless I say otherwise. Tell me your plan in a few lines first.

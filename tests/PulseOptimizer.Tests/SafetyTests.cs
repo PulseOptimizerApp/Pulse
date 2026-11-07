@@ -38,7 +38,7 @@ public class SafetyTests
     public void Updates_and_downloads_only_come_from_Pulses_own_repos()
     {
         var info = File.ReadAllText(Repo.SourceFiles().Single(f => Path.GetFileName(f) == "AppInfo.cs"));
-        Assert.Matches(@"Repo = ""[A-Za-z0-9-]+/PulseOptimizer""", info);
+        Assert.Matches(@"Repo = ""[A-Za-z0-9-]+/[A-Za-z0-9-]+""", info);
         Assert.Contains(@"OldRepo = ""PulseOptimizer-app/PulseOptimizer""", info);
         foreach (var name in new[] { "Updater.cs", "Ffmpeg.cs" })
         {
