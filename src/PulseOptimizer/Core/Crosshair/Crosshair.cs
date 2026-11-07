@@ -45,6 +45,22 @@ public sealed class CrosshairStyle
     /// <summary>Scales everything (1 = the pixel sizes as written, like in the game).</summary>
     public double Size { get; set; } = 1;
 
+    /// <summary>"build" (the settings above), "draw" (<see cref="Pixels"/>) or "image" (<see cref="ImageFile"/>).</summary>
+    public string Mode { get; set; } = "build";
+    /// <summary>A drawn crosshair: <see cref="GridSize"/>² cells, row by row, each "" (empty) or "#RRGGBB", joined with ';'.</summary>
+    public string Pixels { get; set; }
+    public int GridSize { get; set; } = 21;
+    /// <summary>A picture crosshair: a PNG in Pulse's data folder.</summary>
+    public string ImageFile { get; set; }
+
+    public string[] PixelCells()
+    {
+        var cells = (Pixels ?? "").Split(';');
+        var all = new string[GridSize * GridSize];
+        for (int i = 0; i < all.Length; i++) all[i] = i < cells.Length ? cells[i] : "";
+        return all;
+    }
+
     public CrosshairStyle Copy()
     {
         var c = (CrosshairStyle)MemberwiseClone();
@@ -56,6 +72,8 @@ public sealed class CrosshairStyle
     /// <summary>How far the crosshair reaches from the center, in pixels (for sizing the overlay window).</summary>
     public double Reach()
     {
+        if (Mode == "draw") return (GridSize / 2.0 + 2) * Math.Max(0.1, Size);
+        if (Mode == "image") return 128 * Math.Max(0.1, Size);
         double r = Dot ? DotSize / 2 : 0;
         foreach (var l in new[] { Inner, Outer })
             if (l.Show) r = Math.Max(r, l.Offset + Math.Max(l.Length, l.VLength) + l.Thickness);
@@ -134,6 +152,7 @@ public static class ValorantCode
     /// <summary>A VALORANT code for this crosshair (the ring and T-shape have no VALORANT setting and are left out).</summary>
     public static string Write(CrosshairStyle s)
     {
+        if (s.Mode is "draw" or "image") return "";
         var d = new CrosshairStyle();
         var sb = new StringBuilder("0;P");
         void Add(string k, string v) => sb.Append(';').Append(k).Append(';').Append(v);

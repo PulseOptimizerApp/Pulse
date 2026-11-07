@@ -62,9 +62,9 @@ public partial class CrosshairPage : UserControl, IPage
 
     void Layout(double width)
     {
-        bool narrow = width < 980;
+        bool narrow = width < 820;
         Columns.ColumnDefinitions[1].Width = new GridLength(narrow ? 0 : 18);
-        Columns.ColumnDefinitions[2].Width = narrow ? new GridLength(0) : new GridLength(380);
+        Columns.ColumnDefinitions[2].Width = narrow ? new GridLength(0) : new GridLength(360);
         if (narrow && RightCol.Parent == Columns && Grid.GetColumn(RightCol) == 2)
         {
             Grid.SetColumn(RightCol, 0);
@@ -83,7 +83,7 @@ public partial class CrosshairPage : UserControl, IPage
     {
         _preview.Crosshair = St;
         _preview.InvalidateVisual();
-        if (_codeOut != null) _codeOut.Text = ValorantCode.Write(St);
+        if (_codeOut != null) _codeOut.Text = St.Mode is "draw" or "image" ? Loc.T("Drawn and picture crosshairs don't have a VALORANT code.") : ValorantCode.Write(St);
         if (rebuildEditor) BuildEditor();
         CrosshairService.Refresh();
         _save.Stop(); _save.Start();
@@ -166,7 +166,7 @@ public partial class CrosshairPage : UserControl, IPage
         outRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         _codeOut = new TextBlock
         {
-            Text = ValorantCode.Write(St), FontFamily = (FontFamily)FindResource("MonoFont"), FontSize = 12, Foreground = Res("TextBrush"),
+            Text = St.Mode is "draw" or "image" ? Loc.T("Drawn and picture crosshairs don't have a VALORANT code.") : ValorantCode.Write(St), FontFamily = (FontFamily)FindResource("MonoFont"), FontSize = 12, Foreground = Res("TextBrush"),
             TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center,
         };
         outRow.Children.Add(new Border { Background = Res("Surface2Brush"), BorderBrush = Res("BorderBrush"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(8), Padding = new Thickness(12, 8, 12, 8), Child = _codeOut });
@@ -325,7 +325,26 @@ public partial class CrosshairPage : UserControl, IPage
     void BuildEditor()
     {
         _editor.Children.Clear();
-        _editor.Children.Add(Title("Edit"));
+        _editor.Children.Add(Title("Make your own"));
+        // Three ways to make one: VALORANT-style settings, drawing pixels, or a picture.
+        var modes = new WrapPanel { Margin = new Thickness(0, 0, 0, 6) };
+        foreach (var (key, label, glyph) in new[] { ("build", "Build", "\uE713"), ("draw", "Draw", "\uE70F"), ("image", "Image", "\uEB9F") })
+        {
+            bool on = (St.Mode ?? "build") == key;
+            var sp = new StackPanel { Orientation = Orientation.Horizontal };
+            sp.Children.Add(new TextBlock { Text = glyph, FontFamily = (FontFamily)FindResource("IconFont"), FontSize = 12, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 7, 0) });
+            sp.Children.Add(new TextBlock { Text = Loc.T(label), FontWeight = FontWeights.SemiBold });
+            var b = new Border
+            {
+                CornerRadius = new CornerRadius(9), Padding = new Thickness(14, 7, 14, 8), Margin = new Thickness(0, 0, 8, 8), Cursor = Cursors.Hand, Child = sp,
+                Background = on ? Res("SurfaceHoverBrush") : Res("Surface2Brush"), BorderBrush = on ? Res("AccentBrush") : Res("BorderBrush"), BorderThickness = new Thickness(1),
+            };
+            if (!on) b.MouseLeftButtonUp += (_, _) => { St.Mode = key; if (key == "draw" && string.IsNullOrEmpty(St.Pixels)) St.Pixels = Seed(St); Changed(rebuildEditor: true); };
+            modes.Children.Add(b);
+        }
+        _editor.Children.Add(modes);
+        if (St.Mode == "draw") { BuildDraw(); return; }
+        if (St.Mode == "image") { BuildImage(); return; }
 
         // Color: VALORANT's eight, plus any color.
         _editor.Children.Add(Label("Color"));
@@ -372,6 +391,135 @@ public partial class CrosshairPage : UserControl, IPage
         _editor.Children.Add(Switch("T-shape (no top line)", null, () => St.NoTop, v => St.NoTop = v, redraw: true));
         _editor.Children.Add(new Border { Height = 1, Background = Res("BorderBrush"), Margin = new Thickness(0, 12, 0, 12) });
         _editor.Children.Add(Slider("Overall size", 0.5, 4, 0.25, () => St.Size, v => St.Size = v, times: true));
+    }
+
+    // ───────── Draw: paint pixels on a grid ─────────
+
+    static string _drawColor = "#00FFFF";
+    static bool _mirror = true, _erase;
+
+    /// <summary>Starts a drawing from the current built crosshair, so you edit rather than start from nothing.</summary>
+    static string Seed(CrosshairStyle s)
+    {
+        int n = 21, c = n / 2;
+        var cells = new string[n * n];
+        var col = s.Color ?? "#FFFFFF";
+        void Set(int x, int y) { if (x >= 0 && y >= 0 && x < n && y < n) cells[y * n + x] = col; }
+        if (s.Inner.Show)
+            for (int i = 0; i < Math.Min(8, (int)s.Inner.Length); i++)
+            {
+                int d = (int)s.Inner.Offset + 1 + i;
+                Set(c + d, c); Set(c - d, c); Set(c, c + d); if (!s.NoTop) Set(c, c - d);
+            }
+        if (s.Dot || !s.Inner.Show) Set(c, c);
+        return string.Join(";", cells.Select(x => x ?? ""));
+    }
+
+    void BuildDraw()
+    {
+        int n = St.GridSize;
+        var cells = St.PixelCells();
+        _editor.Children.Add(Label("Click or drag to paint. Each square is one pixel on your screen (at size 1×)."));
+        var tools = new WrapPanel { Margin = new Thickness(0, 0, 0, 10) };
+        foreach (var hex in ValorantCode.Colors.Append("#000000"))
+        {
+            bool on = !_erase && hex.Equals(_drawColor, StringComparison.OrdinalIgnoreCase);
+            var sw = new Border { Width = 22, Height = 22, CornerRadius = new CornerRadius(11), Margin = new Thickness(0, 0, 6, 6), Cursor = Cursors.Hand, Background = new SolidColorBrush(CrosshairVisual.ParseColor(hex)), BorderThickness = new Thickness(on ? 3 : 1), BorderBrush = on ? Res("TextBrush") : Res("BorderBrush"), ToolTip = hex };
+            var h = hex;
+            sw.MouseLeftButtonUp += (_, _) => { _drawColor = h; _erase = false; BuildEditor(); };
+            tools.Children.Add(sw);
+        }
+        _editor.Children.Add(tools);
+        var opts = new WrapPanel { Margin = new Thickness(0, 0, 0, 10) };
+        var erase = new ToggleButton { Style = (Style)FindResource("LinkToggle"), Content = Loc.T("Eraser"), IsChecked = _erase, Margin = new Thickness(0, 0, 16, 0) };
+        erase.Click += (_, _) => { _erase = erase.IsChecked == true; BuildEditor(); };
+        var mirror = new ToggleButton { Style = (Style)FindResource("LinkToggle"), Content = Loc.T("Mirror (4 ways)"), IsChecked = _mirror, Margin = new Thickness(0, 0, 16, 0) };
+        mirror.Click += (_, _) => _mirror = mirror.IsChecked == true;
+        var clear = new Button { Style = (Style)FindResource("LinkButton"), Content = Loc.T("Clear") };
+        clear.Click += (_, _) => { St.Pixels = string.Join(";", new string[n * n].Select(_ => "")); Changed(rebuildEditor: true); };
+        opts.Children.Add(erase); opts.Children.Add(mirror); opts.Children.Add(clear);
+        _editor.Children.Add(opts);
+
+        // The grid: cells sized to fit, center marked.
+        const double cell = 15;
+        var grid = new Canvas { Width = n * cell, Height = n * cell, Background = Backdrop("dark"), Cursor = Cursors.Pen, HorizontalAlignment = HorizontalAlignment.Left, ClipToBounds = true };
+        var rects = new Rectangle[n * n];
+        for (int y = 0; y < n; y++)
+            for (int x = 0; x < n; x++)
+            {
+                var r = new Rectangle { Width = cell - 1, Height = cell - 1, Stroke = null };
+                Canvas.SetLeft(r, x * cell); Canvas.SetTop(r, y * cell);
+                rects[y * n + x] = r;
+                grid.Children.Add(r);
+            }
+        void Paint(int i)
+        {
+            var c = cells[i];
+            bool center = i == (n / 2) * n + n / 2;
+            rects[i].Fill = string.IsNullOrEmpty(c) ? new SolidColorBrush(Color.FromArgb(center ? (byte)0x30 : (byte)0x14, 255, 255, 255)) : new SolidColorBrush(CrosshairVisual.ParseColor(c));
+        }
+        for (int i = 0; i < cells.Length; i++) Paint(i);
+        bool painting = false;
+        void At(Point p)
+        {
+            int x = (int)(p.X / cell), y = (int)(p.Y / cell);
+            if (x < 0 || y < 0 || x >= n || y >= n) return;
+            var value = _erase ? "" : _drawColor;
+            var targets = _mirror ? new[] { (x, y), (n - 1 - x, y), (x, n - 1 - y), (n - 1 - x, n - 1 - y) } : new[] { (x, y) };
+            bool changed = false;
+            foreach (var (tx, ty) in targets)
+            {
+                int i = ty * n + tx;
+                if (cells[i] == value) continue;
+                cells[i] = value; Paint(i); changed = true;
+            }
+            if (!changed) return;
+            St.Pixels = string.Join(";", cells);
+            _preview.InvalidateVisual();
+        }
+        grid.MouseLeftButtonDown += (_, e) => { painting = true; grid.CaptureMouse(); At(e.GetPosition(grid)); };
+        grid.MouseMove += (_, e) => { if (painting) At(e.GetPosition(grid)); };
+        grid.MouseLeftButtonUp += (_, _) => { painting = false; grid.ReleaseMouseCapture(); Changed(); };
+        _editor.Children.Add(new Border { CornerRadius = new CornerRadius(8), ClipToBounds = true, HorizontalAlignment = HorizontalAlignment.Left, BorderBrush = Res("BorderBrush"), BorderThickness = new Thickness(1), Child = grid });
+        _editor.Children.Add(new Border { Height = 1, Background = Res("BorderBrush"), Margin = new Thickness(0, 14, 0, 12) });
+        _editor.Children.Add(Slider("Overall size", 1, 4, 1, () => St.Size, v => St.Size = v, times: true));
+    }
+
+    // ───────── Image: any PNG ─────────
+
+    void BuildImage()
+    {
+        _editor.Children.Add(Label("Use any picture as your crosshair. A PNG with a see-through background works best (64 × 64 or smaller)."));
+        var img = CrosshairVisual.LoadImage(St.ImageFile);
+        if (img != null) _editor.Children.Add(Dim(Loc.F("{0} × {1} pixels", img.PixelWidth, img.PixelHeight), 12));
+        var pick = new Button { Style = (Style)FindResource("PrimaryButton"), Content = Loc.T(img == null ? "Choose a picture" : "Choose another picture"), HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 10, 0, 0) };
+        pick.Click += (_, _) =>
+        {
+            var dlg = new Microsoft.Win32.OpenFileDialog { Filter = Loc.T("Pictures") + "|*.png;*.gif;*.bmp;*.jpg;*.jpeg", Title = Loc.T("Choose a crosshair picture") };
+            if (dlg.ShowDialog() != true) return;
+            try
+            {
+                var dir = System.IO.Path.Combine(TweakEngine.DataDir, "crosshairs");
+                Directory.CreateDirectory(dir);
+                var src = System.Windows.Media.Imaging.BitmapFrame.Create(new Uri(dlg.FileName), System.Windows.Media.Imaging.BitmapCreateOptions.None, System.Windows.Media.Imaging.BitmapCacheOption.OnLoad);
+                if (src.PixelWidth > 256 || src.PixelHeight > 256)
+                {
+                    double f = 256.0 / Math.Max(src.PixelWidth, src.PixelHeight);
+                    src = System.Windows.Media.Imaging.BitmapFrame.Create(new System.Windows.Media.Imaging.TransformedBitmap(src, new ScaleTransform(f, f)));
+                }
+                var enc = new System.Windows.Media.Imaging.PngBitmapEncoder();
+                enc.Frames.Add(src);
+                var file = System.IO.Path.Combine(dir, "crosshair-" + DateTime.Now.Ticks + ".png");
+                using (var fs = File.Create(file)) enc.Save(fs);
+                St.ImageFile = file;
+                St.Mode = "image";
+                Changed(rebuildEditor: true);
+            }
+            catch (Exception ex) { _ = MainWindow.Instance.Alert(Loc.T("Couldn't use that picture"), ex.Message); }
+        };
+        _editor.Children.Add(pick);
+        _editor.Children.Add(new Border { Height = 1, Background = Res("BorderBrush"), Margin = new Thickness(0, 14, 0, 12) });
+        _editor.Children.Add(Slider("Overall size", 0.25, 4, 0.25, () => St.Size, v => St.Size = v, times: true));
     }
 
     void SetCustom(string text)

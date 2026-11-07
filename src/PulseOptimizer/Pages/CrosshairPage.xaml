@@ -24,7 +24,7 @@
             </Grid>
 
             <Grid x:Name="Columns" Margin="0,22,0,0">
-                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="18"/><ColumnDefinition Width="380"/></Grid.ColumnDefinitions>
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="18"/><ColumnDefinition Width="360"/></Grid.ColumnDefinitions>
                 <StackPanel x:Name="LeftCol"/>
                 <StackPanel x:Name="RightCol" Grid.Column="2"/>
             </Grid>

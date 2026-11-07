@@ -26,9 +26,57 @@ public sealed class CrosshairVisual : FrameworkElement
         IsHitTestVisible = false;
     }
 
+    /// <summary>A drawn (pixel grid) or picture crosshair, centered, in whole screen pixels.</summary>
+    void RenderCustom(DrawingContext dc, CrosshairStyle s, double dpi)
+    {
+        double k = Math.Max(0.1, s.Size) * _zoom;
+        double cx = Math.Round(ActualWidth * dpi / 2) / dpi, cy = Math.Round(ActualHeight * dpi / 2) / dpi;
+        if (s.Mode == "image")
+        {
+            var img = LoadImage(s.ImageFile);
+            if (img == null) return;
+            double w = Math.Round(img.PixelWidth * k) / dpi, h = Math.Round(img.PixelHeight * k) / dpi;
+            RenderOptions.SetBitmapScalingMode(this, k >= 2 ? BitmapScalingMode.NearestNeighbor : BitmapScalingMode.HighQuality);
+            dc.DrawImage(img, new Rect(Math.Round((cx - w / 2) * dpi) / dpi, Math.Round((cy - h / 2) * dpi) / dpi, w, h));
+            return;
+        }
+        var cells = s.PixelCells();
+        int n = s.GridSize;
+        double px = Math.Max(1, Math.Round(k)) / dpi; // one drawn pixel = whole screen pixels
+        double left = cx - n / 2 * px - px / 2 + (n % 2 == 0 ? px / 2 : 0), top = cy - n / 2 * px - px / 2 + (n % 2 == 0 ? px / 2 : 0);
+        left = Math.Round(left * dpi) / dpi; top = Math.Round(top * dpi) / dpi;
+        var brushes = new Dictionary<string, Brush>();
+        for (int y = 0; y < n; y++)
+            for (int x = 0; x < n; x++)
+            {
+                var c = cells[y * n + x];
+                if (string.IsNullOrEmpty(c)) continue;
+                if (!brushes.TryGetValue(c, out var b)) { b = new SolidColorBrush(ParseColor(c)); b.Freeze(); brushes[c] = b; }
+                dc.DrawRectangle(b, null, new Rect(left + x * px, top + y * px, px, px));
+            }
+    }
+
     public static Color ParseColor(string hex)
     {
         try { return (Color)ColorConverter.ConvertFromString(hex); } catch { return Colors.White; }
+    }
+
+    static readonly Dictionary<string, System.Windows.Media.Imaging.BitmapImage> Images = new();
+
+    public static System.Windows.Media.Imaging.BitmapImage LoadImage(string path)
+    {
+        if (string.IsNullOrEmpty(path) || !File.Exists(path)) return null;
+        lock (Images)
+        {
+            if (Images.TryGetValue(path, out var hit)) return hit;
+            try
+            {
+                var img = new System.Windows.Media.Imaging.BitmapImage();
+                img.BeginInit(); img.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad; img.UriSource = new Uri(path); img.EndInit(); img.Freeze();
+                return Images[path] = img;
+            }
+            catch { return null; }
+        }
     }
 
     protected override void OnRender(DrawingContext dc)
@@ -36,6 +84,7 @@ public sealed class CrosshairVisual : FrameworkElement
         var s = _style;
         if (s == null) return;
         double dpi = VisualTreeHelper.GetDpi(this).DpiScaleX;
+        if (s.Mode == "draw" || s.Mode == "image") { RenderCustom(dc, s, dpi); return; }
         double k = Math.Max(0.1, s.Size) * _zoom;           // screen pixels per crosshair pixel
         double P(double px) => Math.Round(px * k) / dpi;    // crosshair pixels → whole screen pixels → WPF units
         double cx = Math.Round(ActualWidth * dpi / 2) / dpi, cy = Math.Round(ActualHeight * dpi / 2) / dpi;

@@ -30,6 +30,26 @@ public static class MouseDrivers
 
     /// <summary>Why the drivers couldn't start (no WebView2 runtime, bundle missing…), or null.</summary>
     public static string Problem { get; private set; }
+
+    /// <summary>What the driver engine is doing, for the page's progress line ("Starting the mouse drivers…").</summary>
+    public static string Step { get; private set; } = "";
+    public static event Action StepChanged;
+    /// <summary>Every step and error since Pulse started, for "Copy details".</summary>
+    public static readonly List<string> Log = new();
+
+    static void Note(string step)
+    {
+        Step = step;
+        lock (Log) { Log.Add($"{DateTime.Now:HH:mm:ss.fff} {step}"); if (Log.Count > 300) Log.RemoveRange(0, 100); }
+        try { TweakEngine.AddLog("mouse", step); } catch { }
+        StepChanged?.Invoke();
+    }
+
+    static async Task<T> Within<T>(Task<T> task, int ms, string what)
+    {
+        if (await Task.WhenAny(task, Task.Delay(ms)) != task) throw new TimeoutException(what + " took too long.");
+        return await task;
+    }
     public static bool Running => _web != null;
 
     public static bool BundleIncluded => Assembly.GetExecutingAssembly().GetManifestResourceNames().Contains("mouse-drivers.js");
@@ -41,6 +61,7 @@ public static class MouseDrivers
         try
         {
             if (!BundleIncluded) throw new InvalidOperationException("This build of Pulse doesn't include the mouse drivers.");
+            Note("Starting the mouse drivers…");
             string version;
             try { version = CoreWebView2Environment.GetAvailableBrowserVersionString(); }
             catch { version = null; }
@@ -55,8 +76,13 @@ public static class MouseDrivers
                 "<!doctype html><meta charset=utf-8><meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'self'; script-src 'self'; connect-src 'none'; img-src 'none'\"><script src=\"mouse-drivers.js\"></script>");
 
             _window = new HwndSource(new HwndSourceParameters("Pulse mouse drivers") { Width = 1, Height = 1, WindowStyle = unchecked((int)0x80000000) /* WS_POPUP, never shown */ });
-            var env = await CoreWebView2Environment.CreateAsync(null, Path.Combine(TweakEngine.DataDir, "webview2"));
-            _controller = await env.CreateCoreWebView2ControllerAsync(_window.Handle);
+            Note("WebView2 " + version + ": creating the driver engine");
+            // An elevated Pulse needs its own engine folder and no browser extras; each step has a time limit so a
+            // stuck engine shows an error instead of loading forever.
+            var options = new CoreWebView2EnvironmentOptions("--disable-features=msSmartScreenProtection --no-first-run");
+            var env = await Within(CoreWebView2Environment.CreateAsync(null, Path.Combine(TweakEngine.DataDir, "webview2"), options), 20000, "Starting WebView2");
+            Note("Creating the driver page");
+            _controller = await Within(env.CreateCoreWebView2ControllerAsync(_window.Handle), 20000, "Creating the driver page");
             _controller.IsVisible = false;
             _web = _controller.CoreWebView2;
             var st = _web.Settings;
@@ -73,13 +99,17 @@ public static class MouseDrivers
             };
             _web.WebMessageReceived += OnMessage;
             _ready = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            _web.ProcessFailed += (_, e) => Note("Driver engine stopped: " + e.ProcessFailedKind);
+            Note("Loading the drivers");
             _web.Navigate($"https://{Host}/host.html");
-            if (await Task.WhenAny(_ready.Task, Task.Delay(15000)) != _ready.Task) throw new TimeoutException("The mouse drivers didn't start.");
+            if (await Task.WhenAny(_ready.Task, Task.Delay(15000)) != _ready.Task) throw new TimeoutException("The mouse drivers didn't load.");
+            Note("Drivers ready");
             Problem = null;
         }
         catch (Exception ex)
         {
             Problem = ex.Message;
+            Note("Couldn't start: " + ex.GetType().Name + ": " + ex.Message);
             Stop();
             throw;
         }
@@ -112,20 +142,23 @@ public static class MouseDrivers
         if (await Task.WhenAny(tcs.Task, Task.Delay(timeoutMs)) != tcs.Task)
         {
             Pending.Remove(id);
+            Note($"No answer to {(string)msg["cmd"]} {(string)msg["method"]} within {timeoutMs / 1000} s");
             throw new TimeoutException("The mouse didn't answer. Check that it's switched on and connected.");
         }
-        return await tcs.Task;
+        try { return await tcs.Task; }
+        catch (Exception ex) { Note($"{(string)msg["cmd"]} {(string)msg["method"]}: {ex.Message}"); throw; }
     }
 
     /// <summary>Every device a driver recognises (one per mouse).</summary>
     public static async Task<List<DriverDevice>> Scan()
     {
-        var r = await Api(new JsonObject { ["cmd"] = "scan" }, 30000);
+        Note("Looking for mice");
+        var r = await Api(new JsonObject { ["cmd"] = "scan" }, 15000);
         return r?.AsArray().Select(n => new DriverDevice((string)n["key"], (string)n["brand"], (string)n["productName"] ?? "", (int)n["vendorId"], (int)n["productId"])).ToList() ?? new();
     }
 
     /// <summary>Everything the mouse reports (name, battery, DPI, polling rate, what it supports…).</summary>
-    public static Task<JsonNode> Status(string key) => Api(new JsonObject { ["cmd"] = "status", ["key"] = key });
+    public static Task<JsonNode> Status(string key, int timeoutMs = 8000) => Api(new JsonObject { ["cmd"] = "status", ["key"] = key }, timeoutMs);
 
     /// <summary>Calls one of the driver's settings methods (setDpi, setPollingRate, setActiveDpiStage…).</summary>
     public static Task<JsonNode> Invoke(string key, string method, params object[] args)
@@ -177,13 +210,15 @@ public static class MouseDrivers
             {
                 case "list":
                     _hid = await Task.Run(NativeHid.List);
+                    Note($"{_hid.Count} USB input devices");
                     reply["data"] = new JsonArray(_hid.Select(Describe).ToArray());
                     break;
                 case "open":
                     if (!OpenDevices.ContainsKey(key))
                     {
                         var info = _hid.FirstOrDefault(d => d.Key == key) ?? throw new InvalidOperationException("Device not found.");
-                        var open = new NativeHid.Open(info);
+                        Note($"Opening {info.ProductName} ({info.VendorId:X4}:{info.ProductId:X4})");
+                        var open = await Task.Run(() => new NativeHid.Open(info));
                         open.Input += (reportId, data) => _window?.Dispatcher.BeginInvoke(() =>
                             _web?.PostWebMessageAsJson(new JsonObject { ["t"] = "input", ["key"] = key, ["reportId"] = reportId, ["data"] = Convert.ToBase64String(data) }.ToJsonString()));
                         OpenDevices[key] = open;

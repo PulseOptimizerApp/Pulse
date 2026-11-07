@@ -33,6 +33,7 @@ public partial class MousePage : UserControl, IPage, IReleasable
         public string Key;
         public DriverDevice Driver;
         public JsonNode Status;
+        public string StatusError;
         public GearDevice Raw;
         public string Name => (string)Status?["name"] is { Length: > 0 } n ? n : Driver?.ProductName is { Length: > 0 } p ? p : Raw?.Name ?? "Mouse";
         public string Brand => Driver?.Brand ?? Raw?.Maker ?? "";
@@ -73,43 +74,55 @@ public partial class MousePage : UserControl, IPage, IReleasable
         if (_loading) return;
         _loading = true;
         RefreshBtn.IsEnabled = false;
-        Show();
+        _problem = null;
+        Action step = () => Dispatcher.BeginInvoke(() => { if (_progress != null) _progress.Text = Loc.T(MouseDrivers.Step); });
+        MouseDrivers.StepChanged += step;
         try
         {
+            // 1. Mice Windows sees: on screen at once (measure only until a driver answers).
             var raw = await Task.Run(() => InputDevices.List().Where(d => d.Kind == DeviceKind.Mouse).ToList());
-            var found = new List<Mouse>();
+            var keep = _mice.Where(m => m.Driver != null).ToList();
+            _mice.Clear();
+            _mice.AddRange(keep);
+            foreach (var r in raw)
+                if (!_mice.Any(m => Same(m, r))) _mice.Add(new Mouse { Key = "raw-" + r.Key, Raw = r });
+            Show();
+
+            // 2. The drivers: which mice they can configure, then each one's settings.
             try
             {
                 await MouseDrivers.Start();
-                foreach (var d in await MouseDrivers.Scan())
+                var found = await MouseDrivers.Scan();
+                foreach (var d in found)
                 {
-                    var m = new Mouse { Key = d.Key, Driver = d };
-                    try { m.Status = await MouseDrivers.Status(d.Key); } catch { }
-                    // keyboards and headsets some drivers also know are for the Keyboard and audio page
-                    if (m.Status?["kind"] is JsonValue k && (string)k == "keyboard") continue;
-                    found.Add(m);
+                    var m = _mice.FirstOrDefault(x => x.Driver?.Key == d.Key) ?? new Mouse { Key = d.Key, Driver = d };
+                    m.Driver = d;
+                    _mice.RemoveAll(x => x.Driver == null && x.Raw != null && Same(m, x.Raw));
+                    m.Raw ??= raw.FirstOrDefault(r => Same(m, r));
+                    if (!_mice.Contains(m)) _mice.Add(m);
+                    Show();
+                    try { m.Status = await MouseDrivers.Status(d.Key); }
+                    catch (Exception ex) { m.StatusError = ex.Message; }
+                    if (m.Status?["kind"] is JsonValue k && (string)k == "keyboard") _mice.Remove(m);
+                    Show();
                 }
-                _problem = null;
             }
             catch (Exception ex) { _problem = MouseDrivers.Problem ?? ex.Message; }
-            // Mice no driver knows: measure only.
-            foreach (var r in raw)
-            {
-                bool known = found.Any(f => f.Driver != null && f.Driver.VendorId.ToString("X4") == r.Vid && f.Driver.ProductId.ToString("X4") == r.Pid);
-                if (known) { foreach (var f in found.Where(f => f.Driver.VendorId.ToString("X4") == r.Vid && f.Driver.ProductId.ToString("X4") == r.Pid)) f.Raw ??= r; continue; }
-                found.Add(new Mouse { Key = "raw-" + r.Key, Raw = r });
-            }
-            _mice.Clear();
-            _mice.AddRange(found.OrderBy(m => m.Driver == null).ThenBy(m => m.Name));
+            _mice.Sort((a, b) => (a.Driver == null).CompareTo(b.Driver == null) is var c && c != 0 ? c : string.Compare(a.Name, b.Name, StringComparison.CurrentCultureIgnoreCase));
             if (_openKey != null && !_mice.Any(m => m.Key == _openKey)) _openKey = null;
         }
         finally
         {
+            MouseDrivers.StepChanged -= step;
             _loading = false;
             RefreshBtn.IsEnabled = true;
             Show();
         }
     }
+
+    static bool Same(Mouse m, GearDevice r) => m.Driver != null && m.Driver.VendorId.ToString("X4") == r.Vid && m.Driver.ProductId.ToString("X4") == r.Pid;
+
+    TextBlock _progress;
 
     async void Refresh_Click(object sender, RoutedEventArgs e) => await Load();
     void AllMice_Click(object sender, RoutedEventArgs e) { _openKey = null; Show(); }
@@ -341,20 +354,36 @@ public partial class MousePage : UserControl, IPage, IReleasable
         var sub = T(Loc.T("Your mice. Pick one to change its DPI, polling rate and buttons. Changes are saved on the mouse, so they work in every game."), 13, null, "TextDimBrush");
         sub.Margin = new Thickness(0, 6, 0, 26);
         root.Children.Add(sub);
+        if (_loading)
+        {
+            var sp = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 18) };
+            var ring = new Ellipse { Width = 14, Height = 14, StrokeThickness = 2, Stroke = Res("AccentBrush"), StrokeDashArray = new DoubleCollection { 2.5, 2 }, RenderTransformOrigin = new Point(0.5, 0.5), RenderTransform = new RotateTransform(), Margin = new Thickness(0, 0, 10, 0) };
+            ring.RenderTransform.BeginAnimation(RotateTransform.AngleProperty, new DoubleAnimation(0, 360, TimeSpan.FromSeconds(1.1)) { RepeatBehavior = RepeatBehavior.Forever });
+            sp.Children.Add(ring);
+            _progress = T(Loc.T(MouseDrivers.Step.Length > 0 ? MouseDrivers.Step : "Looking for mice…"), 12.5, null, "TextDimBrush");
+            sp.Children.Add(_progress);
+            root.Children.Add(sp);
+        }
         if (_problem != null)
         {
             var warn = new Border
             {
                 Background = B(Amber, 0x18), BorderBrush = B(Amber, 0x50), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(10), Padding = new Thickness(14, 10, 14, 10), Margin = new Thickness(0, 0, 0, 18),
-                Child = new TextBlock { Text = Loc.T(_problem), Foreground = B(Amber), FontSize = 12.5, TextWrapping = TextWrapping.Wrap },
             };
+            var wsp = new StackPanel();
+            wsp.Children.Add(new TextBlock { Text = Loc.T("Mouse settings couldn't start") + ": " + Loc.T(_problem), Foreground = B(Amber), FontSize = 12.5, TextWrapping = TextWrapping.Wrap });
+            wsp.Children.Add(T(Loc.T("Your mice are still listed below for measuring. Press Scan again to retry, or copy the details and send them to the Pulse team."), 12, null, "TextDimBrush").Also(x => x.Margin = new Thickness(0, 4, 0, 6)));
+            var copy = new Button { Style = (Style)FindResource("LinkButton"), Content = Loc.T("Copy details"), HorizontalAlignment = HorizontalAlignment.Left };
+            copy.Click += (_, _) => { try { lock (MouseDrivers.Log) Clipboard.SetText(string.Join(Environment.NewLine, MouseDrivers.Log)); MainWindow.Instance.Toast(Loc.T("Copied.")); } catch { } };
+            wsp.Children.Add(copy);
+            warn.Child = wsp;
             root.Children.Add(warn);
         }
         var wrap = new WrapPanel { HorizontalAlignment = HorizontalAlignment.Center };
         foreach (var m in _mice) wrap.Children.Add(Card(m));
         if (_mice.Count == 0)
         {
-            var e = T(Loc.T(_loading ? "Looking for mice…" : "No mice found. Plug one in or turn it on, then press Scan again."), 13, null, "TextDimBrush");
+            var e = T(Loc.T(_loading ? "" : "No mice found. Plug one in or turn it on, then press Scan again."), 13, null, "TextDimBrush");
             e.HorizontalAlignment = HorizontalAlignment.Center;
             wrap.Children.Add(e);
         }
@@ -382,6 +411,8 @@ public partial class MousePage : UserControl, IPage, IReleasable
         head.Children.Add(top);
         head.Children.Add(new TextBlock { Text = string.Join(" · ", new[] { m.Brand, Loc.T("Mouse") }.Where(x => x.Length > 0)), FontSize = 12, Foreground = Res("TextDimBrush"), Margin = new Thickness(0, 6, 0, 8) });
         head.Children.Add(Stats(m));
+        if (m.Driver != null && m.Status == null)
+            head.Children.Add(T(m.StatusError != null ? Loc.T("Couldn't read it") + ": " + m.StatusError : Loc.T("Reading settings…"), 11.5, null, m.StatusError != null ? "WarnBrush" : "TextFaintBrush"));
         DockPanel.SetDock(head, Dock.Top);
         dock.Children.Add(head);
         var btn = new Button { Style = (Style)FindResource("PrimaryButton"), Content = Loc.T("Configure"), HorizontalAlignment = HorizontalAlignment.Stretch, Margin = new Thickness(0, 10, 0, 0), Padding = new Thickness(0, 9, 0, 9) };
