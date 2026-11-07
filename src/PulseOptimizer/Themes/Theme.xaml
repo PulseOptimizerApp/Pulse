@@ -9,15 +9,15 @@
     <FontFamily x:Key="MonoFont">Cascadia Mono, Consolas</FontFamily>
 
     <!-- ═════════ Colors ═════════ -->
-    <Color x:Key="BgColor">#0B0C10</Color>
-    <Color x:Key="Bg2Color">#0F1117</Color>
-    <Color x:Key="SurfaceColor">#14161D</Color>
-    <Color x:Key="Surface2Color">#1A1D26</Color>
-    <Color x:Key="SurfaceHoverColor">#1F2330</Color>
-    <Color x:Key="BorderColor">#232733</Color>
-    <Color x:Key="TextColor">#ECEEF3</Color>
-    <Color x:Key="TextDimColor">#8B90A0</Color>
-    <Color x:Key="TextFaintColor">#6E7488</Color>
+    <Color x:Key="BgColor">#0A0A0C</Color>
+    <Color x:Key="Bg2Color">#0D0D10</Color>
+    <Color x:Key="SurfaceColor">#111114</Color>
+    <Color x:Key="Surface2Color">#17171B</Color>
+    <Color x:Key="SurfaceHoverColor">#1D1D22</Color>
+    <Color x:Key="BorderColor">#222228</Color>
+    <Color x:Key="TextColor">#EDEDEF</Color>
+    <Color x:Key="TextDimColor">#8A8A93</Color>
+    <Color x:Key="TextFaintColor">#6B6B75</Color>
     <Color x:Key="AccentAColor">#22D3EE</Color>
     <Color x:Key="AccentBColor">#8B5CF6</Color>
     <Color x:Key="AccentMidColor">#5B8CFF</Color>
@@ -51,8 +51,8 @@
         <GradientStop Color="{StaticResource AccentBColor}" Offset="1"/>
     </LinearGradientBrush>
     <RadialGradientBrush x:Key="GlowBrush">
-        <GradientStop Color="#558B5CF6" Offset="0"/>
-        <GradientStop Color="#2222D3EE" Offset="0.45"/>
+        <GradientStop Color="#148B5CF6" Offset="0"/>
+        <GradientStop Color="#0822D3EE" Offset="0.45"/>
         <GradientStop Color="#0022D3EE" Offset="1"/>
     </RadialGradientBrush>
 
@@ -68,21 +68,21 @@
     <!-- ═════════ Text ═════════ -->
     <Style x:Key="H1" TargetType="TextBlock">
         <Setter Property="FontFamily" Value="{StaticResource DisplayFont}"/>
-        <Setter Property="FontSize" Value="28"/>
+        <Setter Property="FontSize" Value="26"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
         <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
     </Style>
     <Style x:Key="H2" TargetType="TextBlock">
         <Setter Property="FontFamily" Value="{StaticResource DisplayFont}"/>
-        <Setter Property="FontSize" Value="18"/>
+        <Setter Property="FontSize" Value="17"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
         <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
     </Style>
     <Style x:Key="Sub" TargetType="TextBlock">
-        <Setter Property="FontSize" Value="14"/>
+        <Setter Property="FontSize" Value="13.5"/>
         <Setter Property="Foreground" Value="{StaticResource TextDimBrush}"/>
         <Setter Property="TextWrapping" Value="Wrap"/>
-        <Setter Property="LineHeight" Value="21"/>
+        <Setter Property="LineHeight" Value="20"/>
     </Style>
     <Style x:Key="Label" TargetType="TextBlock">
         <Setter Property="FontSize" Value="11"/>
@@ -90,7 +90,7 @@
         <Setter Property="Foreground" Value="{StaticResource TextFaintBrush}"/>
     </Style>
     <Style x:Key="CardTitle" TargetType="TextBlock">
-        <Setter Property="FontSize" Value="15"/>
+        <Setter Property="FontSize" Value="14.5"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
         <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
         <Setter Property="TextWrapping" Value="Wrap"/>
@@ -126,15 +126,16 @@
     <!-- ═════════ Card ═════════ -->
     <!-- The one card per page that matters most: Pulse's gradient, so it's the first thing you see -->
     <LinearGradientBrush x:Key="HeroFill" StartPoint="0,0" EndPoint="1,1">
-        <GradientStop Color="#1F22D3EE" Offset="0"/>
-        <GradientStop Color="#1F8B5CF6" Offset="1"/>
+        <GradientStop Color="#0C22D3EE" Offset="0"/>
+        <GradientStop Color="#0C8B5CF6" Offset="1"/>
     </LinearGradientBrush>
     <LinearGradientBrush x:Key="HeroEdge" StartPoint="0,0" EndPoint="1,1">
-        <GradientStop Color="#6622D3EE" Offset="0"/>
-        <GradientStop Color="#668B5CF6" Offset="1"/>
+        <GradientStop Color="#3322D3EE" Offset="0"/>
+        <GradientStop Color="#2A2A31" Offset="0.35"/>
+        <GradientStop Color="#2A2A31" Offset="1"/>
     </LinearGradientBrush>
     <Style x:Key="HeroCard" TargetType="Border">
-        <Setter Property="CornerRadius" Value="16"/>
+        <Setter Property="CornerRadius" Value="12"/>
         <Setter Property="Padding" Value="24,20"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="Background" Value="{StaticResource HeroFill}"/>
@@ -145,13 +146,13 @@
         <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
         <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
         <Setter Property="BorderThickness" Value="1"/>
-        <Setter Property="CornerRadius" Value="12"/>
+        <Setter Property="CornerRadius" Value="10"/>
         <Setter Property="Padding" Value="20,18"/>
     </Style>
     <Style x:Key="HoverCard" TargetType="Border" BasedOn="{StaticResource Card}">
         <Style.Triggers>
             <Trigger Property="IsMouseOver" Value="True">
-                <Setter Property="BorderBrush" Value="#343A4C"/>
+                <Setter Property="BorderBrush" Value="#30303A"/>
             </Trigger>
         </Style.Triggers>
     </Style>
@@ -172,7 +173,7 @@
         <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
         <Setter Property="FontSize" Value="13"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
-        <Setter Property="Padding" Value="18,9"/>
+        <Setter Property="Padding" Value="16,8"/>
     </Style>
 
     <Style x:Key="PrimaryButton" TargetType="Button" BasedOn="{StaticResource ButtonBase}">
@@ -182,8 +183,8 @@
                 <ControlTemplate TargetType="Button">
                     <Grid RenderTransformOrigin="0.5,0.5">
                         <Grid.RenderTransform><ScaleTransform x:Name="Sc"/></Grid.RenderTransform>
-                        <Border CornerRadius="10" Background="{StaticResource AccentGradient}"/>
-                        <Border x:Name="Shine" CornerRadius="10" Background="White" Opacity="0"/>
+                        <Border CornerRadius="8" Background="{StaticResource AccentGradient}"/>
+                        <Border x:Name="Shine" CornerRadius="8" Background="White" Opacity="0"/>
                         <ContentPresenter Margin="{TemplateBinding Padding}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Grid>
                     <ControlTemplate.Triggers>
@@ -221,7 +222,7 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
-                    <Border x:Name="Bd" CornerRadius="10" Background="{TemplateBinding Background}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                    <Border x:Name="Bd" CornerRadius="8" Background="{TemplateBinding Background}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
                             RenderTransformOrigin="0.5,0.5">
                         <Border.RenderTransform><ScaleTransform x:Name="Sc"/></Border.RenderTransform>
                         <ContentPresenter Margin="{TemplateBinding Padding}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
@@ -350,20 +351,20 @@
 
     <!-- ═════════ Navigation ═════════ -->
     <Style x:Key="NavButton" TargetType="RadioButton">
-        <Setter Property="Height" Value="40"/>
+        <Setter Property="Height" Value="36"/>
         <Setter Property="Margin" Value="0,0,0,2"/>
         <Setter Property="Cursor" Value="Hand"/>
         <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
         <Setter Property="Foreground" Value="{StaticResource TextDimBrush}"/>
-        <Setter Property="FontSize" Value="14"/>
+        <Setter Property="FontSize" Value="13.5"/>
         <Setter Property="GroupName" Value="Nav"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="RadioButton">
-                    <Border x:Name="Bd" CornerRadius="10" Background="Transparent" Padding="16,0">
+                    <Border x:Name="Bd" CornerRadius="8" Background="Transparent" Padding="14,0">
                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                             <TextBlock Text="{Binding Path=(ui:Icon.Glyph), RelativeSource={RelativeSource TemplatedParent}}"
-                                       FontFamily="{StaticResource IconFont}" FontSize="16" Width="22" VerticalAlignment="Center"/>
+                                       FontFamily="{StaticResource IconFont}" FontSize="15" Width="20" VerticalAlignment="Center"/>
                             <ContentPresenter Margin="12,0,0,0" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Border>
@@ -389,9 +390,9 @@
             <Setter.Value>
                 <ControlTemplate TargetType="RadioButton">
                     <Grid>
-                        <Border x:Name="Bd" CornerRadius="16" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"/>
-                        <Border x:Name="On" CornerRadius="16" Background="{StaticResource AccentGradient}" Opacity="0"/>
-                        <ContentPresenter Margin="14,6" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        <Border x:Name="Bd" CornerRadius="8" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"/>
+                        <Border x:Name="On" CornerRadius="8" Background="#1F5B8CFF" BorderBrush="#995B8CFF" BorderThickness="1" Opacity="0"/>
+                        <ContentPresenter Margin="12,6" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Grid>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Bd" Property="Background" Value="{StaticResource SurfaceHoverBrush}"/></Trigger>
@@ -424,7 +425,7 @@
             <Setter.Value>
                 <ControlTemplate TargetType="CheckBox">
                     <Grid Width="46" Height="26" Background="Transparent">
-                        <Border CornerRadius="13" Background="#262E40" BorderBrush="#36405A" BorderThickness="1"/>
+                        <Border CornerRadius="13" Background="#26262C" BorderBrush="#34343C" BorderThickness="1"/>
                         <Border x:Name="TrackOn" CornerRadius="13" Background="{StaticResource AccentGradient}" Opacity="0"/>
                         <Ellipse x:Name="Knob" Width="18" Height="18" Fill="White" HorizontalAlignment="Left" Margin="4,0,0,0">
                             <Ellipse.RenderTransform><TranslateTransform X="0"/></Ellipse.RenderTransform>
@@ -464,7 +465,7 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="TextBox">
-                    <Border x:Name="Bd" CornerRadius="10" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" Padding="12,8">
+                    <Border x:Name="Bd" CornerRadius="8" Background="{StaticResource Bg2Brush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" Padding="12,8">
                         <Grid>
                             <TextBlock x:Name="Hint" Text="{TemplateBinding Tag}" Foreground="{StaticResource TextFaintBrush}" IsHitTestVisible="False" Visibility="Collapsed"/>
                             <ScrollViewer x:Name="PART_ContentHost" VerticalAlignment="Center"/>
@@ -492,7 +493,7 @@
                     <Setter Property="Template">
                         <Setter.Value>
                             <ControlTemplate TargetType="ListBoxItem">
-                                <Border x:Name="Bd" CornerRadius="10" Padding="12,9" Margin="0,0,0,6" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
+                                <Border x:Name="Bd" CornerRadius="8" Padding="12,9" Margin="0,0,0,6" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
                                     <ContentPresenter/>
                                 </Border>
                                 <ControlTemplate.Triggers>
@@ -596,7 +597,7 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="ToggleButton">
-                    <Border x:Name="Bd" CornerRadius="10" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
+                    <Border x:Name="Bd" CornerRadius="8" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
                         <TextBlock Text="&#xE70D;" FontFamily="{StaticResource IconFont}" FontSize="10" Foreground="{StaticResource TextDimBrush}"
                                    HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,12,0"/>
                     </Border>
@@ -718,7 +719,7 @@
             <Setter.Value>
                 <ControlTemplate TargetType="CheckBox">
                     <Grid Width="24" Height="24" Background="Transparent">
-                        <Ellipse x:Name="Ring" Stroke="#3A4562" StrokeThickness="2"/>
+                        <Ellipse x:Name="Ring" Stroke="#3A3A44" StrokeThickness="2"/>
                         <Ellipse x:Name="Fill" Fill="{StaticResource AccentGradient}" Opacity="0"/>
                         <TextBlock x:Name="Mark" Text="&#xE73E;" FontFamily="{StaticResource IconFont}" FontSize="12" Foreground="White"
                                    HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0"/>

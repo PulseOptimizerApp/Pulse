@@ -15,7 +15,7 @@
     <Grid x:Name="Root" RenderTransformOrigin="0.5,0.5">
         <Grid.RenderTransform><ScaleTransform x:Name="RootScale" ScaleX="1" ScaleY="1"/></Grid.RenderTransform>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="232"/>
+            <ColumnDefinition Width="220"/>
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
@@ -25,23 +25,23 @@
 
         <!-- Ambient glow behind content -->
         <Ellipse x:Name="Glow" Grid.Column="1" Grid.RowSpan="2" Width="620" Height="620" HorizontalAlignment="Right" VerticalAlignment="Top"
-                 Margin="0,-300,-200,0" Fill="{StaticResource GlowBrush}" IsHitTestVisible="False" Opacity="0.6"/>
+                 Margin="0,-300,-200,0" Fill="{StaticResource GlowBrush}" IsHitTestVisible="False" Opacity="0.6" Visibility="Collapsed"/>
 
         <!-- ═════════ Sidebar ═════════ -->
         <Border Grid.RowSpan="2" Background="{StaticResource Bg2Brush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,1,0">
             <Grid Margin="16,0,16,16">
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="84"/>
+                    <RowDefinition Height="76"/>
                     <RowDefinition Height="*"/>
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,10,0,0">
                     <!-- Pulse logo (assets/icon.svg rendered at 128 px) -->
-                    <Image Source="/Assets/logo-128.png" Width="42" Height="42" RenderOptions.BitmapScalingMode="HighQuality"/>
+                    <Image Source="/Assets/logo-128.png" Width="34" Height="34" RenderOptions.BitmapScalingMode="HighQuality"/>
                     <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="Pulse" FontFamily="{StaticResource DisplayFont}" FontSize="20" FontWeight="Bold"/>
+                            <TextBlock Text="Pulse" FontFamily="{StaticResource DisplayFont}" FontSize="18" FontWeight="SemiBold"/>
                             <TextBlock x:Name="VersionText" FontFamily="{StaticResource MonoFont}" FontSize="11" Foreground="{StaticResource TextDimBrush}" VerticalAlignment="Center" Margin="10,3,0,0"/>
                         </StackPanel>
                         <TextBlock Text="EVIDENCE-BASED OPTIMIZER" FontSize="10" FontWeight="SemiBold" Foreground="{StaticResource TextFaintBrush}"/>
@@ -49,9 +49,9 @@
                 </StackPanel>
 
                 <Grid Grid.Row="1" Margin="0,4,0,0">
-                    <Border x:Name="NavHighlight" Height="40" VerticalAlignment="Top" CornerRadius="10" Background="{StaticResource SurfaceBrush}" IsHitTestVisible="False">
+                    <Border x:Name="NavHighlight" Height="36" VerticalAlignment="Top" CornerRadius="8" Background="{StaticResource Surface2Brush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" IsHitTestVisible="False">
                         <Border.RenderTransform><TranslateTransform x:Name="NavHighlightT"/></Border.RenderTransform>
-                        <Border Width="3" Height="18" CornerRadius="2" HorizontalAlignment="Left" Background="{StaticResource AccentGradientV}"/>
+                        <Border Width="3" Height="16" CornerRadius="2" HorizontalAlignment="Left" Margin="-1,0,0,0" Background="{StaticResource AccentGradientV}"/>
                     </Border>
                     <StackPanel x:Name="NavPanel">
                         <RadioButton Style="{StaticResource NavButton}" Tag="home" ui:Icon.Glyph="&#xE80F;" Content="Home" IsChecked="True" Checked="Nav_Checked" Click="Nav_Click"/>
@@ -73,7 +73,7 @@
                 </Grid>
 
                 <!-- Live mini stats (and what Clips is doing) -->
-                <Border Grid.Row="2" Style="{StaticResource Card}" Padding="14,12" Background="{StaticResource SurfaceBrush}">
+                <Border Grid.Row="2" Style="{StaticResource Card}" Padding="14,12" Background="{StaticResource Bg2Brush}">
                     <StackPanel>
                         <Border x:Name="ClipsPill" CornerRadius="10" Padding="10,8" Margin="0,0,0,12" Background="#1434D399" BorderBrush="#4034D399" BorderThickness="1"
                                 Visibility="Collapsed" Cursor="Hand" MouseLeftButtonUp="ClipsPill_Click">
