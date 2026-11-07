@@ -2,7 +2,9 @@
 
 Pulse is an open-source, evidence-based Windows optimizer. It finds what's actually holding a PC back first, only offers tweaks that Microsoft documents and that fit that PC, measures whether they help in your own game, and can undo every change exactly.
 
-**Official download:** this repository's [Releases](../../releases) page only. Pulse never asks you to turn off your antivirus or add an exclusion. If a copy does, it's fake.
+**Official download:** this repository's [Releases](../../releases) page, or the website [pulseoptimizerapp.github.io](https://pulseoptimizerapp.github.io/), which links to it.
+
+> **Pulse moved.** Pulse's first home, `PulseOptimizer-app/PulseOptimizer`, is on hold. This is Pulse's home now. Versions 0.4.11 and older look for updates at the old address, so download 0.4.12 once from here; from then on Pulse updates itself from here (and still checks the old address too, in case it comes back). Pulse never asks you to turn off your antivirus or add an exclusion. If a copy does, it's fake.
 
 ## What it does
 
@@ -17,11 +19,11 @@ Pulse is an open-source, evidence-based Windows optimizer. It finds what's actua
 
 **Clean up**, **Startup apps** (the same switch as Task Manager, with advice per app), **Security** (Microsoft Defender scans plus a check of every place malware hides to start with Windows, mapped to MITRE ATT&CK), and **Undo & restore** (restore points, undo per tweak or everything, activity log).
 
-**Clips** (opt-in) is an instant replay: press a hotkey to save the last moments of your game. The replay waits in memory, recording uses your graphics card's own encoder (NVIDIA NVENC, AMD AMF or Intel Quick Sync) and Windows' screen capture, and clips stay in one folder on your PC. Turning Clips on downloads [FFmpeg](https://ffmpeg.org) (GPL) once from this repository's release page, checked against the SHA-256 built into Pulse; it runs as a separate program. That's the only download Pulse ever makes.
+**Clips** (opt-in) is an instant replay that can also clip big plays automatically (3Ks, aces, pentas) and show a recap of each match (map, agent or champion, K/D/A, headshots, rank): press a hotkey to save the last moments of your game. The replay waits in memory, recording uses your graphics card's own encoder (NVIDIA NVENC, AMD AMF or Intel Quick Sync) and Windows' screen capture, and clips stay in one folder on your PC. Turning Clips on downloads [FFmpeg](https://ffmpeg.org) (GPL) once from this repository's release page, checked against the SHA-256 built into Pulse; it runs as a separate program. Besides updates, that's the only download Pulse ever makes.
 
 ## What it never does
 - Never changes a setting without saving the exact previous value first.
-- Never uploads anything. It only downloads from its own GitHub releases: FFmpeg when you turn on Clips (below), and new versions of Pulse when you press Install on the update card. The lag checks only send pings.
+- Never uploads anything. It only downloads from its own GitHub releases: FFmpeg when you turn on Clips (below), and new versions of Pulse when you press Install on the update card. The lag checks only send pings. Match recaps read each game's own official data: Counter-Strike 2 and Dota 2 send it to Pulse on your PC, League of Legends serves it on your PC, and for VALORANT Pulse asks Riot for your own last match using the Riot Client's sign-in on your PC.
 - Never reads, writes or injects into games or other processes.
 - Never turns off your antivirus or adds exclusions.
 - Never applies tweaks that Microsoft documents as unused, or undocumented ones as speed boosts.

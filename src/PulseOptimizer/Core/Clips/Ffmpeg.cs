@@ -13,7 +13,7 @@ namespace Pulse.Core.Clips;
 /// </summary>
 public static class Ffmpeg
 {
-    public const string Repo = "PulseOptimizer-app/PulseOptimizer";
+    public static string Repo => AppInfo.Repo;
     public const string AssetName = "ffmpeg-win64.zip";
 
     public static string Dir => Path.Combine(TweakEngine.DataDir, "ffmpeg");
@@ -71,9 +71,23 @@ public static class Ffmpeg
         }
     }
 
-    static string ReleaseUrl(string file) => AppVersion == "0.0.0"
-        ? $"https://github.com/{Repo}/releases/latest/download/{file}"
-        : $"https://github.com/{Repo}/releases/download/v{AppVersion}/{file}";
+    static string ReleaseUrl(string repo, string file) => AppVersion == "0.0.0"
+        ? $"https://github.com/{repo}/releases/latest/download/{file}"
+        : $"https://github.com/{repo}/releases/download/v{AppVersion}/{file}";
+
+    /// <summary>The first of Pulse's homes (<see cref="AppInfo.Repos"/>) that has this file; the checksum is checked either way.</summary>
+    static async Task<HttpResponseMessage> FromAnyHome(HttpClient http, string file, CancellationToken ct)
+    {
+        HttpResponseMessage last = null;
+        foreach (var repo in AppInfo.Repos)
+        {
+            last?.Dispose();
+            try { last = await http.GetAsync(ReleaseUrl(repo, file), HttpCompletionOption.ResponseHeadersRead, ct); }
+            catch (HttpRequestException) when (repo != AppInfo.Repos[^1]) { last = null; continue; }
+            if (last.IsSuccessStatusCode) return last;
+        }
+        return last;
+    }
 
     /// <summary>Downloads, checks and unpacks FFmpeg. Progress is 0..1.</summary>
     public static async Task Install(IProgress<double> progress, CancellationToken ct)
@@ -87,13 +101,15 @@ public static class Ffmpeg
         var expected = AppVersion == "0.0.0" ? "" : ExpectedSha256; // test builds download the latest release's FFmpeg
         if (expected.Length == 0)
         {
-            var sums = await http.GetStringAsync(ReleaseUrl("SHA256SUMS.txt"), ct);
+            using var sumsResp = await FromAnyHome(http, "SHA256SUMS.txt", ct);
+            sumsResp.EnsureSuccessStatusCode();
+            var sums = await sumsResp.Content.ReadAsStringAsync(ct);
             expected = sums.Split('\n').Select(l => l.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries))
                 .FirstOrDefault(p => p.Length == 2 && p[1] == AssetName)?[0]?.ToLowerInvariant() ?? "";
             if (expected.Length == 0) throw new InvalidOperationException("The release doesn't list FFmpeg's checksum, so Pulse won't use it.");
         }
 
-        using (var resp = await http.GetAsync(ReleaseUrl(AssetName), HttpCompletionOption.ResponseHeadersRead, ct))
+        using (var resp = await FromAnyHome(http, AssetName, ct))
         {
             if (!resp.IsSuccessStatusCode)
                 throw new InvalidOperationException($"Couldn't download FFmpeg (HTTP {(int)resp.StatusCode}). Check your internet connection and try again.");

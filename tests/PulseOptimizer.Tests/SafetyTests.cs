@@ -35,6 +35,19 @@ public class SafetyTests
             "Ffmpeg.cs", "Updater.cs", "LeagueLive.cs", "ValorantMatches.cs");
 
     [Fact]
+    public void Updates_and_downloads_only_come_from_Pulses_own_repos()
+    {
+        var info = File.ReadAllText(Repo.SourceFiles().Single(f => Path.GetFileName(f) == "AppInfo.cs"));
+        Assert.Matches(@"Repo = ""[A-Za-z0-9-]+/PulseOptimizer""", info);
+        Assert.Contains(@"OldRepo = ""PulseOptimizer-app/PulseOptimizer""", info);
+        foreach (var name in new[] { "Updater.cs", "Ffmpeg.cs" })
+        {
+            var src = File.ReadAllText(Repo.SourceFiles().Single(f => Path.GetFileName(f) == name));
+            Assert.DoesNotMatch(@"github\.com/[A-Za-z]", src); // every GitHub URL is built from AppInfo's repos
+        }
+    }
+
+    [Fact]
     public void Match_recaps_only_talk_to_this_PC_and_Riot()
     {
         foreach (var name in new[] { "LeagueLive.cs", "ValorantMatches.cs", "GsiServer.cs" })
@@ -53,7 +66,7 @@ public class SafetyTests
         var src = File.ReadAllText(Repo.SourceFiles().Single(f => Path.GetFileName(f) == "Ffmpeg.cs"));
         var urls = Regex.Matches(src, @"https?://[^\s""{}]+").Select(m => m.Value).Distinct().ToList();
         Assert.All(urls, u => Assert.StartsWith("https://github.com/", u));
-        Assert.Contains("PulseOptimizer-app/PulseOptimizer", src);
+        Assert.Contains("AppInfo.Repo", src);
         Assert.Contains("SHA256", src); // checked before use
         Assert.DoesNotContain("PostAsync", src);
         Assert.DoesNotContain("PutAsync", src);

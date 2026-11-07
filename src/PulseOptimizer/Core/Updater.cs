@@ -12,21 +12,34 @@ namespace Pulse.Core;
 /// </summary>
 public static class Updater
 {
-    const string Repo = "PulseOptimizer-app/PulseOptimizer";
-    const string Latest = "https://github.com/" + Repo + "/releases/latest";
+    /// <summary>The repo the newest version was found in (installs come from the same place).</summary>
+    static string _foundIn = AppInfo.Repo;
 
-    /// <summary>The version tag of the newest release ("0.3.1"), or null if it couldn't be checked.</summary>
+    /// <summary>
+    /// The version tag of the newest release ("0.3.1"), or null if it couldn't be checked. Looks at every home Pulse
+    /// has had (<see cref="AppInfo.Repos"/>) and takes the newest, so a move never strands anyone.
+    /// </summary>
     public static async Task<string> LatestVersion(CancellationToken ct = default)
     {
-        try
+        string best = null;
+        using var http = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false }) { Timeout = TimeSpan.FromSeconds(15) };
+        http.DefaultRequestHeaders.UserAgent.ParseAdd("PulseOptimizer");
+        foreach (var repo in AppInfo.Repos)
         {
-            using var http = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false }) { Timeout = TimeSpan.FromSeconds(15) };
-            http.DefaultRequestHeaders.UserAgent.ParseAdd("PulseOptimizer");
-            // GitHub answers /releases/latest with a redirect to /releases/tag/vX.Y.Z.
-            using var r = await http.GetAsync(Latest, ct);
-            return TagFromUrl(r.Headers.Location?.ToString());
+            try
+            {
+                // GitHub answers /releases/latest with a redirect to /releases/tag/vX.Y.Z.
+                using var r = await http.GetAsync($"https://github.com/{repo}/releases/latest", ct);
+                var v = TagFromUrl(r.Headers.Location?.ToString());
+                if (v != null && (best == null || Version.Parse(v) > Version.Parse(best)))
+                {
+                    best = v;
+                    _foundIn = repo;
+                }
+            }
+            catch { }
         }
-        catch { return null; }
+        return best;
     }
 
     internal static string TagFromUrl(string url)
@@ -53,7 +66,8 @@ public static class Updater
         {
             using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(10) };
             http.DefaultRequestHeaders.UserAgent.ParseAdd("PulseOptimizer");
-            string Url(string file) => $"https://github.com/{Repo}/releases/download/v{version}/{file}";
+            var repo = _foundIn;
+            string Url(string file) => $"https://github.com/{repo}/releases/download/v{version}/{file}";
 
             var sums = await http.GetStringAsync(Url("SHA256SUMS.txt"), ct);
             var expected = sums.Split('\n').Select(l => l.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries))

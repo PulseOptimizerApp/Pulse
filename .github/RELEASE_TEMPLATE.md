@@ -8,13 +8,7 @@ Pulse never asks you to turn off your antivirus or add an exclusion. If a copy a
 Windows may show "Windows protected your PC" because Pulse isn't code-signed yet. Click **More info → Run anyway**, after checking the SHA-256 below if you want to be sure.
 
 ## What's in this release
-First public release.
-- **Diagnose:** finds real problems first: monitor plugged into the motherboard or below its max refresh rate, single-channel or slow RAM, games on a hard drive, Wi-Fi lag, CPU throttling, high driver load, old graphics drivers, low disk space, startup bloat, and Defender problems.
-- **Tweaks:** documented, reversible settings, each labelled by evidence and only offered when your PC qualifies. Tweaks Microsoft documents as unused are left out on purpose.
-- **Measure:** before/after tests in your own game with Intel's PresentMon, plus controller and mouse polling, background CPU and boot time.
-- **Clean up, Startup apps, Security** (Microsoft Defender scans and a startup/persistence check) and **Undo & restore**.
-
-This is an early release: please report anything that looks wrong on the Issues tab.
+See the notes above, and the full list of changes on the website.
 
 ## Verify your download
 **SHA-256**
