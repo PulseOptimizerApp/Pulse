@@ -608,6 +608,9 @@ public partial class MainWindow : Window
         _ = Task.Delay(8000).ContinueWith(_ => Dispatcher.InvokeAsync(Check));
     }
 
+    void VersionChip_Hover(object sender, MouseEventArgs e) =>
+        VersionChip.Background = VersionChip.IsMouseOver ? (Brush)FindResource("Surface2Brush") : Brushes.Transparent;
+
     /// <summary>Clicking the version number checks for an update right away (even one you skipped).</summary>
     async void Version_Click(object sender, MouseButtonEventArgs e)
     {

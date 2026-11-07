@@ -42,7 +42,13 @@
                     <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="Pulse" FontFamily="{StaticResource DisplayFont}" FontSize="18" FontWeight="SemiBold"/>
-                            <TextBlock x:Name="VersionText" FontFamily="{StaticResource MonoFont}" FontSize="11" Foreground="{StaticResource TextDimBrush}" VerticalAlignment="Center" Margin="10,3,0,0" Cursor="Hand" ToolTip="Check for updates" MouseLeftButtonUp="Version_Click"/>
+                            <!-- The version is a small button: click it to check for updates. It sits in the title bar's drag area, so it must
+                                 opt out of window dragging (IsHitTestVisibleInChrome) or clicks never reach it. -->
+                            <Border x:Name="VersionChip" Margin="8,2,0,0" Padding="6,1,6,2" CornerRadius="6" Background="Transparent" Cursor="Hand"
+                                    VerticalAlignment="Center" ToolTip="Check for updates" WindowChrome.IsHitTestVisibleInChrome="True"
+                                    MouseLeftButtonUp="Version_Click" MouseEnter="VersionChip_Hover" MouseLeave="VersionChip_Hover">
+                                <TextBlock x:Name="VersionText" FontFamily="{StaticResource MonoFont}" FontSize="11" Foreground="{StaticResource TextDimBrush}"/>
+                            </Border>
                         </StackPanel>
                         <TextBlock Text="GAMING PC COMPANION" FontSize="10" FontWeight="SemiBold" Foreground="{StaticResource TextFaintBrush}"/>
                     </StackPanel>
