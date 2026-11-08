@@ -24,7 +24,7 @@ public partial class ValorantPage : UserControl, IPage
     public ValorantPage()
     {
         InitializeComponent();
-        foreach (var (key, title) in new[] { ("coach", "Coach"), ("tracker", "Tracker"), ("maps", "Heatmaps"), ("review", "Death review"), ("store", "Store"), ("overview", "Lobby & matches") })
+        foreach (var (key, title) in new[] { ("coach", "Coach"), ("tracker", "Tracker"), ("intel", "Intel"), ("maps", "Heatmaps"), ("review", "Death review"), ("store", "Store"), ("overview", "Lobby & matches") })
             Tabs.Children.Add(TabButton(key, title));
         Unloaded += (_, _) => { StopReview(); StopRoundPlay(); };
     }
@@ -91,6 +91,7 @@ public partial class ValorantPage : UserControl, IPage
             case "review": BuildReview(); break;
             case "store": BuildStore(); break;
             case "tracker": BuildTracker(); break;
+            case "intel": BuildIntel(); break;
             default:
                 Root.Children.Add(LobbyCard());
                 Root.Children.Add(MatchesCard());

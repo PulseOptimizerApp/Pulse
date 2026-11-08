@@ -4,6 +4,7 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Shapes;
 using Pulse.Core;
 using Pulse.Core.Games;
 using Pulse.Core.Games.Live;
@@ -426,9 +427,46 @@ public partial class ValorantPage
 
     // ───────── match history ─────────
 
-    FrameworkElement HistoryPanel(Profile p, List<VMatch> ms)
+    static string _hfMap = "", _hfAgent = "", _hfResult = "";
+    static int _hfDays;
+
+    /// <summary>Map, agent, result and date filters for the match list.</summary>
+    FrameworkElement HistoryFilters(Profile p, List<VMatch> all)
+    {
+        var bar = new WrapPanel { Margin = new Thickness(12, 8, 12, 8) };
+        ComboBox Pick(string any, IEnumerable<(string Key, string Label)> items, string sel, Action<string> set)
+        {
+            var b = new ComboBox { MinWidth = 130, Margin = new Thickness(0, 0, 8, 0) };
+            b.Items.Add(new ComboBoxItem { Content = Loc.T(any), Tag = "" });
+            foreach (var (k, l) in items) b.Items.Add(new ComboBoxItem { Content = l, Tag = k });
+            b.SelectedIndex = Math.Max(0, b.Items.Cast<ComboBoxItem>().ToList().FindIndex(i => (string)i.Tag == sel));
+            b.SelectionChanged += (_, _) => { if (b.SelectedItem is ComboBoxItem ci) { set((string)ci.Tag); Build(); } };
+            return b;
+        }
+        bar.Children.Add(Pick("All maps", all.Select(m => m.Map).Where(x => !string.IsNullOrEmpty(x)).Distinct().OrderBy(x => x).Select(x => (x, x)), _hfMap, v => _hfMap = v));
+        bar.Children.Add(Pick("All agents", all.Select(m => m.Players.FirstOrDefault(x => x.Id == p.Puuid)?.Agent).Where(x => !string.IsNullOrEmpty(x)).Distinct().OrderBy(x => x).Select(x => (x, x)), _hfAgent, v => _hfAgent = v));
+        bar.Children.Add(Pick("Wins and losses", new[] { ("win", Loc.T("Wins")), ("loss", Loc.T("Losses")) }, _hfResult, v => _hfResult = v));
+        bar.Children.Add(Pick("Any date", new[] { ("1", Loc.T("Today")), ("7", Loc.T("Last 7 days")), ("30", Loc.T("Last 30 days")), ("90", Loc.T("Last 90 days")) }, _hfDays > 0 ? _hfDays.ToString(CultureInfo.InvariantCulture) : "", v => _hfDays = v.Length > 0 ? int.Parse(v, CultureInfo.InvariantCulture) : 0));
+        if (_hfMap.Length + _hfAgent.Length + _hfResult.Length > 0 || _hfDays > 0)
+        {
+            var clear = Btn("Clear filters");
+            clear.Click += (_, _) => { _hfMap = _hfAgent = _hfResult = ""; _hfDays = 0; Build(); };
+            bar.Children.Add(clear);
+        }
+        return bar;
+    }
+
+    static List<VMatch> HistoryFiltered(Profile p, List<VMatch> ms) => ms.Where(m =>
+        (_hfMap.Length == 0 || m.Map == _hfMap)
+        && (_hfAgent.Length == 0 || m.Players.FirstOrDefault(x => x.Id == p.Puuid)?.Agent == _hfAgent)
+        && (_hfResult.Length == 0 || Pulse.Core.Games.Valorant.Intel.Util.Won(m, p.Puuid) == (_hfResult == "win"))
+        && (_hfDays == 0 || m.StartUtc.ToLocalTime().Date > DateTime.Today.AddDays(-_hfDays))).ToList();
+
+    FrameworkElement HistoryPanel(Profile p, List<VMatch> all)
     {
         var sp = new StackPanel();
+        sp.Children.Add(HistoryFilters(p, all));
+        var ms = HistoryFiltered(p, all);
         var heads = new[] { "", "Match", "Result", "", "Place", "K / D / A", "K/D", "HS%", "ADR", "ACS", "DDΔ", "Score" };
         var widths = new double[] { 44, 0, 84, 30, 92, 84, 50, 50, 56, 50, 50, 52 };
         var head = new Grid { Margin = new Thickness(0, 0, 0, 0) };
@@ -454,10 +492,10 @@ public partial class ValorantPage
             sum.Children.Add(Txt("   ADR " + N(d.DamagePerRound), 12, TpBody));
             Grid.SetColumn(sum, 1); dayBar.Children.Add(sum);
             sp.Children.Add(dayBar);
-            if (sp.Children.Count == 1) sp.Children.Insert(0, head);
+            if (sp.Children.Count == 2) sp.Children.Insert(1, head);
             foreach (var m in day.Matches) sp.Children.Add(HistoryRow(m, p.Puuid, widths));
         }
-        if (ms.Count == 0) sp.Children.Add(Txt(Loc.T("No matches here. Try another playlist or act."), 12, TpMuted).Also(t => t.Margin = new Thickness(12)));
+        if (ms.Count == 0) sp.Children.Add(Txt(Loc.T("No matches here. Try another playlist, act or filter."), 12, TpMuted).Also(t => t.Margin = new Thickness(12)));
         if (!p.FromYourMatches && ValorantSearch.HasMore(p))
         {
             var more = Btn(_trMoreBusy ? "Loading…" : "Load 10 more matches");
@@ -572,7 +610,7 @@ public partial class ValorantPage
 
         // Tabs.
         var tabs = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
-        foreach (var (key, label) in new[] { ("scoreboard", "Scoreboard"), ("performance", "Performance"), ("economy", "Economy"), ("rounds", "Rounds"), ("duels", "Duels") })
+        foreach (var (key, label) in new[] { ("scoreboard", "Scoreboard"), ("performance", "Performance"), ("economy", "Economy"), ("rounds", "Rounds"), ("duels", "Duels"), ("autopsy", "Autopsy") })
             tabs.Children.Add(Chip(Loc.T(label), "trmatchtab", _trMatchTab == key, () => { _trMatchTab = key; Build(); }));
         yield return tabs;
 
@@ -582,8 +620,41 @@ public partial class ValorantPage
             "economy" => EconomyView(m, b),
             "rounds" => RoundsView(m, b, viewer),
             "duels" => DuelsView(m, b, viewer),
+            "autopsy" => AutopsyView(m, viewer),
             _ => ScoreboardView(m, b, viewer),
         };
+    }
+
+    /// <summary>What happened in the match (facts) kept apart from what it might mean (interpretations).</summary>
+    FrameworkElement AutopsyView(VMatch m, string viewer)
+    {
+        var pool = _trSearched != null && _trSearched.Puuid == viewer ? _trSearched.Matches : VStore.All.Where(x => x.Players.Any(p => p.Id == viewer)).OrderByDescending(x => x.StartUtc).ToList();
+        Pulse.Core.Games.Valorant.Intel.Expected.Line line = null;
+        try
+        {
+            var mmr = Pulse.Core.Games.Valorant.Intel.MmrModel.Run(pool, viewer);
+            line = Pulse.Core.Games.Valorant.Intel.Expected.Of(pool, viewer, mmr).Lines.FirstOrDefault(l => l.Match.Id == m.Id);
+        }
+        catch { }
+        var r = Pulse.Core.Games.Valorant.Intel.Autopsy.Of(m, viewer, line);
+        var sp = new StackPanel();
+        void Block(string title, List<string> items, Color dot)
+        {
+            sp.Children.Add(Txt(Loc.T(title), 12, TpMuted, true).Also(t => t.Margin = new Thickness(12, 10, 12, 4)));
+            if (items.Count == 0) sp.Children.Add(Txt(Loc.T("Nothing stands out."), 12.5, TpMuted).Also(t => t.Margin = new Thickness(12, 2, 12, 4)));
+            foreach (var i in items)
+            {
+                var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(12, 3, 12, 3) };
+                row.Children.Add(new Ellipse { Width = 6, Height = 6, Fill = B(dot), Margin = new Thickness(0, 6, 10, 0), VerticalAlignment = VerticalAlignment.Top });
+                row.Children.Add(Txt(i, 12.5, TpBody).Also(t => { t.TextWrapping = TextWrapping.Wrap; t.TextTrimming = TextTrimming.None; t.MaxWidth = 900; }));
+                sp.Children.Add(row);
+            }
+        }
+        Block("What happened", r.Facts, TpInk);
+        Block("What it might mean", r.Interpretations, TpGold);
+        sp.Children.Add(Txt(Loc.T(line == null ? "No expectation for this match: it needs 3 earlier matches from this player." : "Facts come straight from Riot's match record; the second list is Pulse's reading of them and can be wrong."), 11.5, TpMuted)
+            .Also(t => { t.Margin = new Thickness(12, 10, 12, 12); t.TextWrapping = TextWrapping.Wrap; t.TextTrimming = TextTrimming.None; }));
+        return Flat("Match autopsy", sp);
     }
 
     /// <summary>The player cell: agent, rank, party mark and Riot ID (click to open their profile).</summary>
