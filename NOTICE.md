@@ -5,8 +5,6 @@ Releases up to and including v0.4.17 were published under the MIT license.
 
 ## Included work
 
-- **Equalizer APO** is not included; Pulse writes settings for it when you install it yourself (GPL-2.0, https://sourceforge.net/projects/equalizerapo/).
-- **NAudio** — © Mark Heath and contributors, MIT license. Used for headphone audio and clip sound.
 - **PresentMon** — © Intel Corporation, MIT license.
 - **FFmpeg** — downloaded separately on demand (GPL), run as its own program.
 

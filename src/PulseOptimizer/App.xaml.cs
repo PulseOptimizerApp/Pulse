@@ -91,8 +91,7 @@ public partial class App : Application
             Ui.MatchService.Init();
             Ui.GameSessionService.Init();
             Ui.CrosshairService.Init();
-            try { Core.Audio.EqApo.ClearMic(); } catch { } // the Mic studio was removed: undo its Equalizer APO mic settings
-            try { Core.Audio.GameAudio.Init(); } catch { }
+            try { Core.Audio.OldAudioCleanup.Run(); } catch { } // the Mic studio and Headphones were removed: undo their Equalizer APO settings
         }
 
         // Started at sign-in for Clips: stay in the tray until the user opens Pulse.
@@ -194,7 +193,6 @@ public partial class App : Application
         try { Ui.MatchService.Shutdown(); } catch { }
         try { Ui.GameSessionService.Shutdown(); } catch { }
         try { Ui.CrosshairService.Shutdown(); } catch { }
-        try { Core.Audio.GameAudio.Shutdown(); } catch { }
         try { Ui.TrayIcon.Hide(); } catch { }
         try { _instance?.ReleaseMutex(); } catch { }
         base.OnExit(e);

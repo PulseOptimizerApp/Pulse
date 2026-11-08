@@ -177,7 +177,6 @@ public partial class MainWindow : Window
                 "macros" => new MacrosPage(),
                 "guide" => new GuidePage(),
                 "crosshair" => new CrosshairPage(),
-                "audio" => new HeadphonesPage(),
                 "games" => new GamesPage(),
                 "cleanup" => new DeclutterPage(),
                 "startup" => new StartupPage(),

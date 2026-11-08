@@ -5,7 +5,7 @@ using System.Text.Json.Nodes;
 namespace Pulse.Core;
 
 /// <summary>
-/// Moves Pulse's settings to another PC: crosshairs (and their pictures), headphone EQ, macros, clips settings, overlay, Roblox, reaction history and app options go into one .pulsebackup file.
+/// Moves Pulse's settings to another PC: crosshairs (and their pictures), macros, clips settings, overlay, Roblox, reaction history and app options go into one .pulsebackup file.
 /// What belongs to this PC stays behind: tweak backups and undo history, restore points, key remaps, game file
 /// backups and health snapshots (restoring those on another PC would undo things that were never done there).
 /// </summary>
@@ -19,7 +19,7 @@ public static class SettingsBackup
     internal static readonly string[] Portable =
     {
         "Settings", "GameChecklist", "CustomGames", "Roblox", "Clips", "Reaction", "Macros", "MacroList", "MacroOptions",
-        "GameSession", "Crosshair", "GameAudio",
+        "GameSession", "Crosshair",
     };
 
     public static void Export(string path)
