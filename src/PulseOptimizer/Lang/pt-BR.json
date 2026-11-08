@@ -3278,5 +3278,9 @@
  "Clips imported": "Clipes importados",
  "{0} clips from {1} are in your library, using no extra space.": "{0} clipes do {1} estão na sua biblioteca, sem usar espaço extra.",
  "{0} clips from {1} are in your library ({2} copied from another drive).": "{0} clipes do {1} estão na sua biblioteca ({2} copiados de outro disco).",
- "The import didn't finish": "A importação não terminou"
+ "The import didn't finish": "A importação não terminou",
+ "Your VB-CABLE is already carrying your voice for the Mic studio, so game sound can't share it (your friends would hear your game). Add Hi-Fi Cable for the game, or turn the Mic studio off to use VB-CABLE here.": "Seu VB-CABLE já leva sua voz para o estúdio de microfone, então o som do jogo não pode dividir com ele (seus amigos ouviriam seu jogo). Adicione o Hi-Fi Cable para o jogo, ou desligue o estúdio de microfone para usar o VB-CABLE aqui.",
+ "Instant": "Instantânea",
+ "Instant holds each key for 2 ms and starts again on every press: made for quick binds like 1 then Q. If a game misses keys, use Fast.": "Instantânea segura cada tecla por 2 ms e recomeça a cada toque: feita para atalhos rápidos como 1 e depois Q. Se um jogo perder teclas, use Rápida.",
+ "The Mic studio hit a problem and restarted: ": "O estúdio de microfone teve um problema e reiniciou: "
 }

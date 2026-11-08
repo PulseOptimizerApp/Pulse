@@ -483,6 +483,11 @@ public partial class MacrosPage : UserControl, IPage, IReleasable
         var sp = new StackPanel { Margin = new Thickness(0, 18, 0, 0) };
         var toggle = new Button { Style = (Style)FindResource("LinkButton"), Content = Loc.T(_moreOpen ? "▾  Fewer options" : "▸  More options (where it works, timing)"), HorizontalAlignment = HorizontalAlignment.Left };
         toggle.Click += (_, _) => { _moreOpen = !_moreOpen; BuildEditor(); };
+        if (m.Kind == "sequence")
+        {
+            sp.Children.Add(Row("Speed", Chips(new[] { ("Normal", "normal"), ("Fast", "fast"), ("Instant", "instant") }, m.Speed ?? "normal", v => m.Speed = v)));
+            sp.Children.Add(Indent(Note("Instant holds each key for 2 ms and starts again on every press: made for quick binds like 1 then Q. If a game misses keys, use Fast.", top: 0)));
+        }
         sp.Children.Add(toggle);
         if (!_moreOpen) return sp;
         var box = new Border { CornerRadius = new CornerRadius(12), BorderBrush = (Brush)FindResource("BorderBrush"), BorderThickness = new Thickness(1), Padding = new Thickness(16, 10, 16, 10), Margin = new Thickness(0, 8, 0, 0) };

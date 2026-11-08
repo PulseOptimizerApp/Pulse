@@ -221,8 +221,14 @@ public sealed class MacroEngine : IDisposable
                 case "once":
                     if (rising)
                     {
-                        if (run != null) { run.Stop(); _runs.TryRemove(def.Id, out _); } // pressing again stops it
-                        else if (allowed) { run = new Runner(def, NewSink(def), oneShot: true); _runs[def.Id] = run; run.Start(); }
+                        bool quick = def.Speed is "fast" or "instant";
+                        if (run != null && !quick) { run.Stop(); _runs.TryRemove(def.Id, out _); } // pressing again stops it
+                        else
+                        {
+                            // Quick binds start again on every press, so spamming the key never gets swallowed.
+                            if (run != null) { run.Stop(); _runs.TryRemove(def.Id, out _); }
+                            if (allowed) { run = new Runner(def, NewSink(def), oneShot: true); _runs[def.Id] = run; run.Start(); }
+                        }
                         changed = true;
                     }
                     break;
@@ -319,7 +325,7 @@ public sealed class MacroEngine : IDisposable
 
         void Do(MacroStep s)
         {
-            double Hold(double dflt) => MacroPolicy.StepWait(s.Ms > 0 ? s.Ms : dflt, s.Ms > 0 ? s.RandomMs : 0, _def.Humanize, _rng);
+            double Hold(double dflt) => MacroPolicy.StepWait(s.Ms > 0 ? s.Ms : MacroPolicy.HoldFor(_def.Speed, dflt), s.Ms > 0 ? s.RandomMs : 0, _def.Humanize, _rng);
             switch (s.Do)
             {
                 case "tap":

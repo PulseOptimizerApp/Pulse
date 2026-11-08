@@ -30,6 +30,11 @@ public class MacroDef
 
     /// <summary>Wait times vary by up to this share each way, so it doesn't look robotic (0 = exact).</summary>
     public double Humanize { get; set; }
+    /// <summary>
+    /// "normal" (keys held 25 ms), "fast" (8 ms) or "instant" (2 ms, for quick binds like 1+Q). Fast and instant also
+    /// restart the macro when you press its key again while it's still going, instead of stopping it.
+    /// </summary>
+    public string Speed { get; set; } = "normal";
 
     public MacroSettings Clicker { get; set; }
     public List<MacroStep> Steps { get; set; } = new();
@@ -170,6 +175,9 @@ public static class MacroPolicy
     }
 
     /// <summary>Sequence step timing: the wait, plus random extra, varied by the humanize share.</summary>
+    /// <summary>How long a tap or click holds the key when the step doesn't say: shorter for fast and instant macros.</summary>
+    public static double HoldFor(string speed, double normal) => speed switch { "instant" => 2, "fast" => Math.Min(normal, 8), _ => normal };
+
     public static double StepWait(double ms, double randomMs, double humanize, Random rng)
     {
         double w = ms + (randomMs > 0 ? rng.NextDouble() * randomMs : 0);

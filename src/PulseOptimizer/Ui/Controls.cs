@@ -100,8 +100,11 @@ public static class Anim
     {
         if (d is FrameworkElement fe && (bool)e.NewValue)
         {
+            // Only the first time a card appears: replaying it on every tab switch made switching stutter.
             fe.Opacity = 0;
-            fe.Loaded += (_, _) => Play(fe);
+            RoutedEventHandler once = null;
+            once = (_, _) => { fe.Loaded -= once; Play(fe); };
+            fe.Loaded += once;
         }
     }
 
@@ -110,12 +113,10 @@ public static class Anim
         var now = DateTime.Now;
         if ((now - _last).TotalMilliseconds > 250) _seq = 0;
         _last = now;
-        var delay = TimeSpan.FromMilliseconds(Math.Min(_seq++, 12) * 35);
-        var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
-        var tt = new TranslateTransform(0, 14);
-        fe.RenderTransform = tt;
-        fe.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(380)) { BeginTime = delay, EasingFunction = ease });
-        tt.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(14, 0, TimeSpan.FromMilliseconds(420)) { BeginTime = delay, EasingFunction = ease });
+        var delay = TimeSpan.FromMilliseconds(Math.Min(_seq++, 6) * 20);
+        // A short fade only: no sliding, so nothing has to re-render its position every frame.
+        fe.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(160)) { BeginTime = delay, FillBehavior = FillBehavior.Stop });
+        fe.Opacity = 1;
     }
 
     /// <summary>Animates a horizontal bar's ScaleX to a 0–1 fraction.</summary>

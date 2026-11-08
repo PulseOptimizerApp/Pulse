@@ -41,7 +41,7 @@ public partial class MicPage : UserControl, IPage, IReleasable
             if (S.Enabled && MicStudio.Running && MicStudio.OutputName == null && MicStudio.FindCable() != null) MicStudio.Refresh();
         };
         _changed = () => Dispatcher.BeginInvoke(() => { UpdateState(); Build(); });
-        Loaded += (_, _) => { MicStudio.Changed += _changed; _meters.Start(); _cableWatch.Start(); UpdateState(); Build(); };
+        Loaded += (_, _) => { MicStudio.Changed += _changed; _meters.Start(); _cableWatch.Start(); UpdateState(); };
         Unloaded += (_, _) => Release();
         EnabledSwitch.IsChecked = S.Enabled;
         UpdateState();
@@ -213,7 +213,7 @@ public partial class MicPage : UserControl, IPage, IReleasable
             b.HorizontalAlignment = HorizontalAlignment.Left;
             outCtl = b;
         }
-        g.Children.Add(Node("", "Discord, games, OBS", MicStudio.OutputName != null ? Loc.F("Pick \"{0}\" as the mic", CableOutName(MicStudio.OutputName)) : Loc.T("Needs a virtual cable"), outCtl, 4));
+        g.Children.Add(Node("", "Discord, games, OBS", MicStudio.OutputName != null ? Loc.F("Pick \"{0}\" as the mic", MicStudio.MicNameFor(MicStudio.OutputName)) : Loc.T("Needs a virtual cable"), outCtl, 4));
         root.Children.Add(g);
 
         if (S.Enabled && !MicStudio.Running && MicStudio.Problem != null && MicStudio.Problem != "NoCable")
@@ -292,7 +292,6 @@ public partial class MicPage : UserControl, IPage, IReleasable
         return Card(root);
     }
 
-    static string CableOutName(string input) => input.Replace("CABLE Input", "CABLE Output").Replace("Voicemeeter Input", "Voicemeeter Out B1").Replace("VoiceMeeter Input", "VoiceMeeter Output");
 
     UIElement Node(string glyph, string title, string sub, FrameworkElement below, int col, bool accent = false)
     {
@@ -356,7 +355,7 @@ public partial class MicPage : UserControl, IPage, IReleasable
     {
         var sp = new StackPanel();
         sp.Children.Add(Title("Use it in your apps"));
-        var name = CableOutName(MicStudio.OutputName);
+        var name = MicStudio.MicNameFor(MicStudio.OutputName);
         var g = new UniformGrid3();
         g.Add(AppTip("Discord", Loc.F("Settings → Voice & Video → Input device: \"{0}\". Turn off Discord's own noise suppression, since Pulse already removes noise.", name)));
         g.Add(AppTip("Games", Loc.F("In the game's audio settings, pick \"{0}\" as the microphone. Or make it the default mic in Windows so every game uses it.", name)));

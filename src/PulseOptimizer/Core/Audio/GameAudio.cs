@@ -50,11 +50,9 @@ public static class GameAudio
     public static GameAudioSettings S => TweakEngine.State.GameAudio ??= new GameAudioSettings();
     static readonly object Lock = new();
     static WasapiCapture _cap;
-    static WasapiOut _out;
-    static BufferedWaveProvider _buf;
+    static OutStream _out;
     static GameAudioChain _chain;
-    static float[] _stereo = Array.Empty<float>();
-    static byte[] _bytes = Array.Empty<byte>();
+    static float[] _stereo = Array.Empty<float>(), _left = Array.Empty<float>(), _right = Array.Empty<float>();
     static Timer _retry;
 
     public static bool Running => _cap != null;
@@ -68,46 +66,23 @@ public static class GameAudio
 
     public record Device(string Id, string Name);
 
-    static readonly string[] CableOutputs = { "CABLE Output", "CABLE-A Output", "CABLE-B Output", "Hi-Fi Cable Output", "Voicemeeter Out", "VoiceMeeter Output", "VoiceMeeter Aux Output" };
-    public static bool IsCableOut(string n) => CableOutputs.Any(c => n?.Contains(c, StringComparison.OrdinalIgnoreCase) == true);
-    /// <summary>The name to pick as the game's sound output for a cable's recording side.</summary>
-    public static string PlaybackNameFor(string sourceName) => (sourceName ?? "").Replace("Hi-Fi Cable Output", "Hi-Fi Cable Input").Replace("CABLE-A Output", "CABLE-A Input")
-        .Replace("CABLE-B Output", "CABLE-B Input").Replace("CABLE Output", "CABLE Input").Replace("VoiceMeeter Aux Output", "VoiceMeeter Aux Input").Replace("VoiceMeeter Output", "VoiceMeeter Input");
+    public static bool IsCableOut(string n) => Cables.IsVirtual(n);
+    /// <summary>The name to pick as the game's sound output for a cable's recording side ("CABLE Output" → "CABLE In 16ch").</summary>
+    public static string PlaybackNameFor(string sourceName) => sourceName == null ? "" : Cables.OtherEnd(sourceName, wantInput: false);
 
     /// <summary>Cable recording sides a game can play into (the Mic studio's cable is left out).</summary>
     public static List<Device> Sources()
     {
-        var list = new List<Device>();
-        try
-        {
-            using var en = new MMDeviceEnumerator();
-            foreach (var d in en.EnumerateAudioEndPoints(DataFlow.Capture, DeviceState.Active))
-            {
-                try { if (IsCableOut(d.FriendlyName)) list.Add(new Device(d.ID, d.FriendlyName)); } catch { }
-                d.Dispose();
-            }
-        }
-        catch { }
+        var list = Cables.Devices().Where(d => d.Input && Cables.IsVirtual(d.Name)).Select(d => new Device(d.Id, d.Name)).ToList();
         // The Mic studio sends your voice through its cable; using the same one here would mix the game into your mic.
-        var micCable = MicStudio.OutputName;
-        if (micCable != null) list.RemoveAll(d => PlaybackNameFor(d.Name).Equals(micCable, StringComparison.OrdinalIgnoreCase));
+        var micCable = MicStudio.S.Enabled ? MicStudio.OutputName ?? MicStudio.FindCable()?.Name : null;
+        if (micCable != null) list.RemoveAll(d => Cables.SameCable(d.Name, micCable));
         return list.OrderBy(d => d.Name.Contains("Hi-Fi") ? 0 : 1).ThenBy(d => d.Name).ToList();
     }
 
     public static List<Device> Headphones()
     {
-        var list = new List<Device>();
-        try
-        {
-            using var en = new MMDeviceEnumerator();
-            foreach (var d in en.EnumerateAudioEndPoints(DataFlow.Render, DeviceState.Active))
-            {
-                try { if (!MicStudio.IsCable(d.FriendlyName) && !d.FriendlyName.Contains("Hi-Fi Cable", StringComparison.OrdinalIgnoreCase) && !d.FriendlyName.Contains("CABLE", StringComparison.Ordinal)) list.Add(new Device(d.ID, d.FriendlyName)); } catch { }
-                d.Dispose();
-            }
-        }
-        catch { }
-        return list;
+        return Cables.Devices().Where(d => !d.Input && !Cables.IsVirtual(d.Name)).Select(d => new Device(d.Id, d.Name)).ToList();
     }
 
     public static void Init() { if (S.Enabled) Start(); }
@@ -145,10 +120,7 @@ public static class GameAudio
                 var wf = _cap.WaveFormat;
                 SourceChannels = wf.Channels;
                 _chain = new GameAudioChain(wf.SampleRate);
-                _buf = new BufferedWaveProvider(WaveFormat.CreateIeeeFloatWaveFormat(wf.SampleRate, 2)) { BufferDuration = TimeSpan.FromSeconds(1), DiscardOnBufferOverflow = true, ReadFully = true };
-                _out = new WasapiOut(dst, AudioClientShareMode.Shared, true, 20);
-                _out.Init(_buf);
-                _out.Play();
+                _out = new OutStream(dst, 20);
                 _cap.DataAvailable += (_, e) => OnData(e.Buffer, e.BytesRecorded, wf);
                 _cap.RecordingStopped += (_, e) => { if (e.Exception != null && S.Enabled) ThreadPool.QueueUserWorkItem(_ => Fail("The game audio stopped (a device was unplugged). Trying again…")); };
                 _cap.StartRecording();
@@ -158,7 +130,7 @@ public static class GameAudio
         Changed?.Invoke();
     }
 
-    static bool IsLoop(string output, string source) => PlaybackNameFor(source).Equals(output, StringComparison.OrdinalIgnoreCase) || MicStudio.IsCable(output) || output.Contains("Hi-Fi Cable", StringComparison.OrdinalIgnoreCase);
+    static bool IsLoop(string output, string source) => Cables.IsVirtual(output);
 
     static void Fail(string message)
     {
@@ -173,26 +145,31 @@ public static class GameAudio
     static void Stop(bool keepRetry)
     {
         if (!keepRetry) { _retry?.Dispose(); _retry = null; Problem = null; }
-        WasapiCapture cap; WasapiOut o;
-        lock (Lock) { cap = _cap; o = _out; _cap = null; _out = null; _buf = null; _chain = null; }
+        WasapiCapture cap; OutStream o;
+        lock (Lock) { cap = _cap; o = _out; _cap = null; _out = null; _chain = null; }
         try { cap?.StopRecording(); cap?.Dispose(); } catch { }
-        try { o?.Stop(); o?.Dispose(); } catch { }
+        o?.Dispose();
         if (!keepRetry) Changed?.Invoke();
     }
 
     static void OnData(byte[] buf, int count, WaveFormat wf)
     {
-        lock (Lock)
+        // The audio thread: an exception here would close Pulse, so it's caught and game audio restarts.
+        try
         {
-            if (_chain == null || _buf == null) return;
-            int ch = Math.Max(1, wf.Channels), bps = wf.BitsPerSample / 8, n = count / (bps * ch);
-            if (_stereo.Length < n * 2) { _stereo = new float[n * 2]; _bytes = new byte[n * 8]; }
-            _chain.Process(buf, n, ch, bps, _stereo, S);
-            // The cable and the headphones run on different clocks: never let the delay build up.
-            if (_buf.BufferedDuration.TotalMilliseconds > 60) return;
-            Buffer.BlockCopy(_stereo, 0, _bytes, 0, n * 8);
-            _buf.AddSamples(_bytes, 0, n * 8);
+            lock (Lock)
+            {
+                if (_chain == null || _out == null) return;
+                int ch = Math.Max(1, wf.Channels), bps = wf.BitsPerSample / 8, n = count / (bps * ch);
+                if (_stereo.Length < n * 2) { _stereo = new float[n * 2]; _left = new float[n]; _right = new float[n]; }
+                _chain.Process(buf, n, ch, bps, _stereo, S);
+                // The cable and the headphones run on different clocks: never let the delay build up.
+                if (_out.BufferedMs > 60) return;
+                for (int i = 0; i < n; i++) { _left[i] = _stereo[i * 2]; _right[i] = _stereo[i * 2 + 1]; }
+                _out.Write(_left.AsSpan(0, n), _right.AsSpan(0, n), wf.SampleRate);
+            }
         }
+        catch (Exception ex) { ThreadPool.QueueUserWorkItem(_ => Fail("Game audio hit a problem and restarted: " + ex.Message)); }
     }
 }
 

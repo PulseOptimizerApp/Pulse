@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Interop;
 using NAudio.CoreAudioApi;
 using NAudio.Wave;
+using Pulse.Core.Audio;
 
 namespace Pulse.Core.Mic;
 
@@ -17,13 +18,11 @@ public static class MicStudio
 
     static readonly object Lock = new();
     static WasapiCapture _cap;
-    static WasapiOut _out, _hear;
-    static BufferedWaveProvider _outBuf, _hearBuf;
+    static OutStream _out, _hear;
     static MicChain _chain;
     static Resampler _resampler;
     static readonly List<float> _pending = new(4096), _mono = new(4096);
     static readonly float[] _frame = new float[MicChain.Frame], _mix = new float[MicChain.Frame];
-    static readonly byte[] _bytes = new byte[MicChain.Frame * 8];
     static readonly List<Voice> _voices = new();
     static Timer _retry;
     static int _starting;
@@ -70,34 +69,29 @@ public static class MicStudio
 
     public record Device(string Id, string Name, bool IsDefault);
 
-    static readonly string[] CableInputs = { "CABLE Input", "CABLE-A Input", "CABLE-B Input", "Voicemeeter Input", "Voicemeeter AUX Input", "VoiceMeeter Input", "VoiceMeeter Aux Input" };
-    static readonly string[] CableOutputs = { "CABLE Output", "CABLE-A Output", "CABLE-B Output", "Voicemeeter Out", "VoiceMeeter Output", "VoiceMeeter Aux Output" };
 
-    public static bool IsCable(string name) => CableInputs.Any(c => name?.Contains(c, StringComparison.OrdinalIgnoreCase) == true);
-    static bool IsCableOut(string name) => CableOutputs.Any(c => name?.Contains(c, StringComparison.OrdinalIgnoreCase) == true);
+    /// <summary>A virtual cable (VB-CABLE, including newer "CABLE In 16ch", Hi-Fi Cable, Voicemeeter).</summary>
+    public static bool IsCable(string name) => Cables.IsVirtual(name);
+    static bool IsCableOut(string name) => Cables.IsVirtual(name);
 
     /// <summary>Real microphones (virtual cable outputs are left out so Pulse can't feed itself).</summary>
     public static List<Device> Mics() => List(DataFlow.Capture).Where(d => !IsCableOut(d.Name)).ToList();
     public static List<Device> Outputs() => List(DataFlow.Render);
-    public static Device FindCable() => Outputs().FirstOrDefault(d => d.Name.Contains("CABLE Input", StringComparison.OrdinalIgnoreCase)) ?? Outputs().FirstOrDefault(d => IsCable(d.Name));
-
-    static List<Device> List(DataFlow flow)
+    /// <summary>The cable for your voice: VB-CABLE first (any version), then Voicemeeter. Hi-Fi Cable is left for Headphones.</summary>
+    public static Device FindCable()
     {
-        var list = new List<Device>();
-        try
-        {
-            using var en = new MMDeviceEnumerator();
-            string def = null;
-            try { using var d = en.GetDefaultAudioEndpoint(flow, flow == DataFlow.Capture ? Role.Communications : Role.Multimedia); def = d.ID; } catch { }
-            foreach (var d in en.EnumerateAudioEndPoints(flow, DeviceState.Active))
-            {
-                try { list.Add(new Device(d.ID, d.FriendlyName, d.ID == def)); } catch { }
-                d.Dispose();
-            }
-        }
-        catch { }
-        return list.OrderByDescending(d => d.IsDefault).ThenBy(d => d.Name).ToList();
+        var outs = Outputs().Where(d => IsCable(d.Name)).ToList();
+        return outs.FirstOrDefault(d => d.Name.StartsWith("CABLE", StringComparison.OrdinalIgnoreCase) && Cables.Family(d.Name).Equals("VB-Audio Virtual Cable", StringComparison.OrdinalIgnoreCase))
+            ?? outs.FirstOrDefault(d => d.Name.StartsWith("CABLE", StringComparison.OrdinalIgnoreCase))
+            ?? outs.FirstOrDefault(d => d.Name.Contains("Voicemeeter", StringComparison.OrdinalIgnoreCase))
+            ?? outs.FirstOrDefault(d => !d.Name.Contains("Hi-Fi", StringComparison.OrdinalIgnoreCase));
     }
+
+    /// <summary>What apps pick as their mic for this cable ("CABLE In 16ch (...)" → "CABLE Output (...)").</summary>
+    public static string MicNameFor(string cable) => Cables.OtherEnd(cable, wantInput: true);
+
+    static List<Device> List(DataFlow flow) =>
+        Cables.Devices().Where(d => d.Input == (flow == DataFlow.Capture)).Select(d => new Device(d.Id, d.Name, false)).OrderBy(d => d.Name).ToList();
 
     static MMDevice Get(MMDeviceEnumerator en, string id, DataFlow flow, Role role)
     {
@@ -116,6 +110,12 @@ public static class MicStudio
             Problem = null;
             using var en = new MMDeviceEnumerator();
             var mic = Get(en, S.CaptureId, DataFlow.Capture, Role.Communications);
+            // Windows' default mic is often the cable itself once VB-CABLE is set up for Discord: use a real mic then.
+            if (mic != null && IsCableOut(mic.FriendlyName) && string.IsNullOrEmpty(S.CaptureId))
+            {
+                var real = Mics().FirstOrDefault();
+                mic = real != null ? en.GetDevice(real.Id) : null;
+            }
             if (mic == null) { Fail("No microphone found. Plug one in and Pulse will pick it up."); return; }
             if (IsCableOut(mic.FriendlyName)) { Fail("That's the virtual cable, not a microphone. Pick your real mic."); return; }
             InputName = mic.FriendlyName;
@@ -133,10 +133,7 @@ public static class MicStudio
                 if (outDev != null)
                 {
                     OutputName = outDev.FriendlyName;
-                    _outBuf = new BufferedWaveProvider(WaveFormat.CreateIeeeFloatWaveFormat(MicChain.Rate, 2)) { BufferDuration = TimeSpan.FromSeconds(1), DiscardOnBufferOverflow = true, ReadFully = true };
-                    _out = new WasapiOut(outDev, AudioClientShareMode.Shared, true, 20);
-                    _out.Init(_outBuf);
-                    _out.Play();
+                    _out = new OutStream(outDev, 20);
                 }
                 else { OutputName = null; Problem = "NoCable"; }
 
@@ -178,21 +175,21 @@ public static class MicStudio
     static void Stop(bool keepRetry)
     {
         if (!keepRetry) { _retry?.Dispose(); _retry = null; Problem = null; }
-        WasapiCapture cap; WasapiOut o, h; MicChain chain;
+        WasapiCapture cap; OutStream o, h; MicChain chain;
         // Take everything out under the lock, then dispose outside it: disposing waits for the audio thread, which may be
         // waiting for the lock.
         lock (Lock)
         {
             cap = _cap; o = _out; h = _hear; chain = _chain;
-            _cap = null; _out = null; _outBuf = null; _hear = null; _hearBuf = null; _chain = null;
+            _cap = null; _out = null; _hear = null; _chain = null;
             lock (_voices) _voices.Clear();
             lock (_clipCache) _clipCache.Clear();
             _checkRec = null;
         }
         try { cap?.StopRecording(); } catch { }
         try { cap?.Dispose(); } catch { }
-        try { o?.Stop(); o?.Dispose(); } catch { }
-        try { h?.Stop(); h?.Dispose(); } catch { }
+        o?.Dispose();
+        h?.Dispose();
         chain?.Dispose();
         if (!keepRetry) Changed?.Invoke();
     }
@@ -207,12 +204,9 @@ public static class MicStudio
                 using var en = new MMDeviceEnumerator();
                 var dev = en.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
                 if (IsCable(dev.FriendlyName)) return; // never echo into the cable
-                _hearBuf = new BufferedWaveProvider(WaveFormat.CreateIeeeFloatWaveFormat(MicChain.Rate, 2)) { BufferDuration = TimeSpan.FromSeconds(1), DiscardOnBufferOverflow = true, ReadFully = true };
-                _hear = new WasapiOut(dev, AudioClientShareMode.Shared, true, 30);
-                _hear.Init(_hearBuf);
-                _hear.Play();
+                _hear = new OutStream(dev, 30);
             }
-            catch { _hear = null; _hearBuf = null; }
+            catch { _hear = null; }
         }
     }
 
@@ -233,6 +227,13 @@ public static class MicStudio
     // ───────── the audio thread ─────────
 
     static void OnData(byte[] buf, int count, WaveFormat wf)
+    {
+        // This runs on the audio thread: an exception here would close Pulse, so it's caught and the studio restarts.
+        try { OnDataCore(buf, count, wf); }
+        catch (Exception ex) { ThreadPool.QueueUserWorkItem(_ => Fail("The Mic studio hit a problem and restarted: " + ex.Message)); }
+    }
+
+    static void OnDataCore(byte[] buf, int count, WaveFormat wf)
     {
         lock (Lock)
         {
@@ -284,22 +285,22 @@ public static class MicStudio
         if (Muted) Array.Clear(_frame);
 
         // To the cable: voice + soundboard.
-        if (_outBuf != null)
+        if (_out != null)
         {
             Array.Copy(_frame, _mix, MicChain.Frame);
             MixVoices(_mix, cable: true);
             // Clocks drift a little between the mic and the cable; never let the delay build up.
-            if (_outBuf.BufferedDuration.TotalMilliseconds < 80) Write(_outBuf, _mix);
+            if (_out.BufferedMs < 80) _out.Write(_mix, _mix, MicChain.Rate);
         }
 
         // To your headphones: your voice (when listening to yourself) + sounds you hear yourself.
-        if (_hearBuf != null)
+        if (_hear != null)
         {
             bool checkPlaying;
             lock (_voices) checkPlaying = _voices.Any(v => v.Tag == "check");
             if (S.Monitor && !checkPlaying) Array.Copy(_frame, _mix, MicChain.Frame); else Array.Clear(_mix);
             MixVoices(_mix, cable: false);
-            if (_hearBuf.BufferedDuration.TotalMilliseconds < 90) Write(_hearBuf, _mix);
+            if (_hear.BufferedMs < 90) _hear.Write(_mix, _mix, MicChain.Rate);
         }
         else
         {
@@ -323,7 +324,7 @@ public static class MicStudio
                 }
             }
             // Positions move on once per frame: after the cable pass when it exists, otherwise after the headphones pass.
-            if (!cable || _outBuf == null || _hearBuf == null)
+            if (!cable || _out == null || _hear == null)
             {
                 foreach (var v in _voices) v.Pos += MicChain.Frame;
                 _voices.RemoveAll(v => v.Pos >= v.Data.Length);
@@ -331,15 +332,6 @@ public static class MicStudio
         }
     }
 
-    static void Write(BufferedWaveProvider b, float[] mono)
-    {
-        for (int i = 0; i < MicChain.Frame; i++)
-        {
-            BitConverter.TryWriteBytes(new Span<byte>(_bytes, i * 8, 4), mono[i]);
-            BitConverter.TryWriteBytes(new Span<byte>(_bytes, i * 8 + 4, 4), mono[i]);
-        }
-        b.AddSamples(_bytes, 0, _bytes.Length);
-    }
 
     // ───────── soundboard ─────────
 
@@ -359,7 +351,7 @@ public static class MicStudio
         lock (_voices)
         {
             _voices.RemoveAll(v => v.Tag == item.File); // pressing again restarts it
-            _voices.Add(new Voice { Data = data, Volume = vol, ToCable = _outBuf != null, ToHear = S.HearSounds, Tag = item.File });
+            _voices.Add(new Voice { Data = data, Volume = vol, ToCable = _out != null, ToHear = S.HearSounds, Tag = item.File });
         }
         return null;
     }

@@ -32,7 +32,7 @@ public partial class HeadphonesPage : UserControl, IPage, IReleasable
         _meter.Tick += (_, _) => { if (_level != null && IsVisible) _level.Set(GameAudio.Running ? GameAudio.Peak : 0); };
         _watch.Tick += (_, _) => { if (S.Enabled && GameAudio.Problem == "NoCable" && GameAudio.Sources().Count > 0) GameAudio.Refresh(); };
         _changed = () => Dispatcher.BeginInvoke(() => { UpdateState(); Build(); });
-        Loaded += (_, _) => { GameAudio.Changed += _changed; _meter.Start(); _watch.Start(); UpdateState(); Build(); };
+        Loaded += (_, _) => { GameAudio.Changed += _changed; _meter.Start(); _watch.Start(); UpdateState(); };
         Unloaded += (_, _) => Release();
         UpdateState();
         Build();
@@ -151,6 +151,9 @@ public partial class HeadphonesPage : UserControl, IPage, IReleasable
         var sp = new StackPanel();
         sp.Children.Add(Title("One-time setup: a second virtual cable"));
         sp.Children.Add(Dim(Loc.T("Games play into a virtual cable, Pulse tunes the sound and sends it to your headphones. Use a different cable from the Mic studio's: VB-Audio Hi-Fi Cable is free."), 12.5));
+        bool micHasIt = MicStudio.S.Enabled && Pulse.Core.Audio.Cables.Devices().Any(d => d.Input && Pulse.Core.Audio.Cables.IsVirtual(d.Name));
+        if (micHasIt)
+            sp.Children.Add(Dim(Loc.T("Your VB-CABLE is already carrying your voice for the Mic studio, so game sound can't share it (your friends would hear your game). Add Hi-Fi Cable for the game, or turn the Mic studio off to use VB-CABLE here."), 12.5, "WarnBrush").Also(t => t.Margin = new Thickness(0, 8, 0, 0)));
         var steps = new StackPanel { Margin = new Thickness(0, 12, 0, 0) };
         foreach (var (i, line) in new[] { "Download VB-Audio Hi-Fi Cable and run its installer as administrator.", "Come back here: Pulse finds it by itself.", "Set your game's sound output to \"Hi-Fi Cable Input\" (Windows sound settings → Volume mixer, or the game's audio settings)." }.Select((l, i) => (i, l)))
             steps.Children.Add(Dim($"{i + 1}.  " + Loc.T(line), 13, "TextBrush").Also(t => t.Margin = new Thickness(0, 0, 0, 6)));

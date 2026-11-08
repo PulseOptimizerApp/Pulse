@@ -177,7 +177,6 @@ public partial class MainWindow : Window
                 "macros" => new MacrosPage(),
                 "guide" => new GuidePage(),
                 "crosshair" => new CrosshairPage(),
-                "devices" => new DevicesPage(),
                 "mic" => new MicPage(),
                 "audio" => new HeadphonesPage(),
                 "games" => new GamesPage(),
@@ -191,13 +190,15 @@ public partial class MainWindow : Window
         }
 
         PageHost.Content = page;
-        var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
-        PageHost.BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(300)) { EasingFunction = ease });
-        PageHostT.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(18, 0, TimeSpan.FromMilliseconds(380)) { EasingFunction = ease });
+        // Quick and light: a 120 ms fade, no slide. The page refreshes itself right after it's on screen, so the
+        // switch itself never waits for it.
+        PageHost.BeginAnimation(OpacityProperty, new DoubleAnimation(0.4, 1, TimeSpan.FromMilliseconds(120)));
+        PageHostT.BeginAnimation(TranslateTransform.YProperty, null);
+        PageHostT.Y = 0;
 
         var p = _pendingParameter;
         _pendingParameter = null;
-        if (page is IPage ip) ip.OnShown(p);
+        if (page is IPage ip) Dispatcher.BeginInvoke(() => { if (PageHost.Content == page) ip.OnShown(p); }, System.Windows.Threading.DispatcherPriority.Background);
     }
 
     // ───────── Dialogs ─────────
