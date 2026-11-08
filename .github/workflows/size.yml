@@ -1,0 +1,64 @@
+name: Size and memory check
+
+# Builds Pulse.exe several ways and measures each: file size, memory after opening, and time to show the window.
+# Run by hand (Actions tab, or the API). Nothing is published.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  measure:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Build and measure each way
+        shell: pwsh
+        run: |
+          $variants = [ordered]@{
+            'current (R2R, uncompressed)' = '-p:PublishReadyToRun=true -p:EnableCompressionInSingleFile=false'
+            'R2R, not composite'          = '-p:PublishReadyToRun=true -p:PublishReadyToRunComposite=false -p:EnableCompressionInSingleFile=false'
+            'no R2R, uncompressed'        = '-p:PublishReadyToRun=false -p:EnableCompressionInSingleFile=false'
+            'R2R, compressed'             = '-p:PublishReadyToRun=true -p:EnableCompressionInSingleFile=true'
+            'no R2R, compressed'          = '-p:PublishReadyToRun=false -p:EnableCompressionInSingleFile=true'
+          }
+          $rows = @()
+          $i = 0
+          foreach ($name in $variants.Keys) {
+            $i++
+            $out = "out$i"
+            $extra = $variants[$name] -split ' '
+            dotnet publish src/PulseOptimizer/PulseOptimizer.csproj -c Release -r win-x64 --self-contained true `
+              -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true @extra -o $out | Out-Null
+            $exe = Join-Path $out 'Pulse.exe'
+            $mb = [math]::Round((Get-Item $exe).Length / 1MB, 1)
+            # Three launches each: time until the window exists, then memory once it has settled.
+            $starts = @(); $ws = @(); $priv = @()
+            for ($run = 0; $run -lt 3; $run++) {
+              $sw = [Diagnostics.Stopwatch]::StartNew()
+              $p = Start-Process $exe -PassThru
+              while ($p.MainWindowHandle -eq 0 -and $sw.Elapsed.TotalSeconds -lt 30) { Start-Sleep -Milliseconds 50; $p.Refresh() }
+              $starts += $sw.Elapsed.TotalSeconds
+              Start-Sleep -Seconds 12
+              $p.Refresh()
+              $ws += $p.WorkingSet64 / 1MB; $priv += $p.PrivateMemorySize64 / 1MB
+              Stop-Process -Id $p.Id -Force
+              Start-Sleep -Seconds 2
+            }
+            $rows += [pscustomobject]@{
+              Build = $name; 'Size MB' = $mb
+              'Opens in s' = [math]::Round(($starts | Measure-Object -Average).Average, 2)
+              'Memory MB (working set)' = [math]::Round(($ws | Measure-Object -Average).Average)
+              'Private MB' = [math]::Round(($priv | Measure-Object -Average).Average)
+            }
+          }
+          $rows | Format-Table -AutoSize | Out-String -Width 200
+          "| Build | Size MB | Opens in s | Memory MB | Private MB |`n|---|---|---|---|---|" >> $env:GITHUB_STEP_SUMMARY
+          foreach ($r in $rows) { "| $($r.Build) | $($r.'Size MB') | $($r.'Opens in s') | $($r.'Memory MB (working set)') | $($r.'Private MB') |" >> $env:GITHUB_STEP_SUMMARY }

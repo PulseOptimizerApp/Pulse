@@ -54,6 +54,11 @@ public static class GameSessionService
     static Core.Reports.ReportState R => TweakEngine.State.Report ??= new Core.Reports.ReportState();
     static Core.Reports.PlaySession _session;
 
+    /// <summary>A game is running (as far as Pulse is watching for one).</summary>
+    public static bool GameRunning => _pid > 0;
+    /// <summary>A game started (true) or closed (false).</summary>
+    public static event Action<bool> GameChanged;
+
     static async Task Tick()
     {
         bool want = S.GameMode || S.Overlay || R.TrackPlay;
@@ -63,12 +68,15 @@ public static class GameSessionService
         if (pid == 0)
         {
             if (_pid != 0) { EndSession(); StopOverlay(); GamePowerPlan.End(); }
+            bool was = _pid > 0;
             _pid = 0;
+            if (was) GameChanged?.Invoke(false);
             return;
         }
         if (pid == _pid) return;
         EndSession();
         _pid = pid;
+        try { GameChanged?.Invoke(true); } catch { }
 
         if (S.GameMode) GamePowerPlan.Start(); else GamePowerPlan.End();
         StopOverlay();
@@ -120,6 +128,8 @@ public static class GameSessionService
     {
         if (_frames == null || _overlay == null || _sampling) return;
         if (!_frames.Running) { EndSession(); StopOverlay(); _pid = -1; return; }
+        // Hidden with the hotkey: nothing to draw, so read nothing (the frame count for the weekly report carries on).
+        if (_hiddenByKey) return;
         var (fps, low, ms) = _frames.Now();
         var reading = new OverlayReading { Fps = fps, Low1 = low, FrameMs = ms, Graph = S.OverlayGraph ? _frames.Recent(3) : null, Clock = DateTime.Now };
         // Counters and the GPU kernel query run off the UI thread, and only the ones that are shown.

@@ -266,6 +266,7 @@ public partial class ClipsPage : UserControl, IPage, IReleasable
 
     void UpdateUsage()
     {
+        if (MainWindow.Instance?.Quiet == true) return; // Pulse is behind a game or minimized
         if (StatusCard.Visibility != Visibility.Visible) return;
         SessionNowText.Text = ClipsService.SessionActive
             ? Loc.F("Stop recording ({0})", TimeSpan.FromSeconds(ClipsService.SessionSeconds).ToString(@"h\:mm\:ss", CultureInfo.InvariantCulture))

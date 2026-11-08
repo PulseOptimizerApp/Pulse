@@ -45,6 +45,7 @@ public partial class MeasurePage : UserControl, IPage
 
     async void RefreshGames()
     {
+        if (MainWindow.Instance?.Quiet == true) return; // Pulse is behind a game or minimized
         if (_refreshing || _test != null) return;
         _refreshing = true;
         try

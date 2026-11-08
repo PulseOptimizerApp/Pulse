@@ -19,10 +19,14 @@ public sealed class GpuMeter : IDisposable
     const int PDH_MORE_DATA = unchecked((int)0x800007D2);
 
     IntPtr _query, _counter;
-    readonly bool _ok;
+    readonly bool _ok, _nvidia;
 
     public GpuMeter()
     {
+        // NVIDIA cards: ask the driver directly. It's one cheap call, where Windows' GPU counters walk every engine of
+        // every process (noticeable CPU time with a game running).
+        try { _nvidia = Pulse.Core.Gpu.Nvml.Available; } catch { _nvidia = false; }
+        if (_nvidia) return;
         try
         {
             _ok = PdhOpenQuery(null, IntPtr.Zero, out _query) == 0
@@ -35,6 +39,15 @@ public sealed class GpuMeter : IDisposable
     /// <summary>0..1, or null when this PC doesn't expose GPU counters.</summary>
     public double? Sample()
     {
+        if (_nvidia)
+        {
+            try
+            {
+                if (Pulse.Core.Gpu.Nvml.Device is IntPtr d && Pulse.Core.Gpu.Nvml.Utilization(d, out var u) == 0) return Math.Clamp(u.Gpu / 100.0, 0, 1);
+            }
+            catch { }
+            return null;
+        }
         if (!_ok) return null;
         try
         {

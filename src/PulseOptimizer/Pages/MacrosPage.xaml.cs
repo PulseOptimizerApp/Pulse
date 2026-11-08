@@ -1260,6 +1260,7 @@ end
 
     void Refresh()
     {
+        if (MainWindow.Instance?.Quiet == true) return; // Pulse is behind a game or minimized
         LiveCps.Text = (MacroService.Engine?.LiveCps ?? 0).ToString(CultureInfo.CurrentCulture);
         RunningCount.Text = (MacroService.Engine?.RunningCount ?? 0).ToString(CultureInfo.CurrentCulture);
         if (_padCps == null) return;

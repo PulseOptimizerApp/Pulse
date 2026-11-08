@@ -63,6 +63,7 @@ public partial class DiagnosePage : UserControl, IPage
 
     void UpdateLive()
     {
+        if (MainWindow.Instance?.Quiet == true) return; // Pulse is behind a game or minimized
         var cpu = _cpu.Sample();
         var m = Native.Memory();
         double used = m.ullTotalPhys - m.ullAvailPhys;

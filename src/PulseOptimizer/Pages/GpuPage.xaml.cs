@@ -142,6 +142,7 @@ public partial class GpuPage : UserControl
 
     async void Tick(object sender, EventArgs e)
     {
+        if (MainWindow.Instance?.Quiet == true) return; // Pulse is behind a game or minimized
         if (!Nvml.Available || _tiles.Count == 0) return;
         GpuReading r = null;
         try { r = await Task.Run(GpuTuning.Read); } catch { }

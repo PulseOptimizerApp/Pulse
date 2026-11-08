@@ -66,6 +66,12 @@ public partial class MainWindow : Window
         // Clipped in a game? The next time you switch to Pulse it opens on your clips.
         ClipsService.Saved += _ => Dispatcher.InvokeAsync(() => { if (!IsActive) _clippedWhileAway = true; });
         Activated += (_, _) => { LeaveLean(); OpenClipsIfClipped(); CheckForUpdateSoon(); };
+        // Playing with Pulse open behind the game (or on another screen): live readouts pause until you click back into Pulse.
+        Deactivated += (_, _) => { if (GameSessionService.GameRunning) GoLean(dropScreens: false); };
+        GameSessionService.GameChanged += running => Dispatcher.InvokeAsync(() =>
+        {
+            if (running && !IsActive && IsVisible && WindowState != WindowState.Minimized) GoLean(dropScreens: false);
+        });
         SourceInitialized += (_, _) => Native.StyleWindow(new WindowInteropHelper(this).Handle);
         StateChanged += (_, _) =>
         {
@@ -533,6 +539,8 @@ public partial class MainWindow : Window
     // ───────── Lean mode: hidden or minimized next to a game, Pulse should cost (almost) nothing ─────────
 
     bool _lean;
+    /// <summary>Pulse is minimized, in the tray or behind a game: live readouts on screens can skip their updates.</summary>
+    public bool Quiet => _lean;
 
     /// <summary>
     /// Stops everything only the window needs (live stats, animations) and hands memory back to Windows. With
@@ -540,6 +548,7 @@ public partial class MainWindow : Window
     /// </summary>
     void GoLean(bool dropScreens)
     {
+        if (_lean) return;
         _lean = true;
         LiveStats.Updated -= UpdateMini;
         LiveStats.Stop();

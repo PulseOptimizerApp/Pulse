@@ -22,7 +22,7 @@ public sealed class InputOverlayView : FrameworkElement
     /// <summary>How tall the overlay is, as a share of the picture's height (on screen and in exported copies).</summary>
     public const double Share = 0.17;
 
-    public static Size BaseSize(string kind) => kind == "kbm" ? new Size(Pad + KbW + 12 + MouseW + Pad, Pad + KbH + Pad) : new Size(330, 196);
+    public static Size BaseSize(string kind) => kind == "kbm" ? new Size(Pad + KbW + 14 + MouseW + Pad, Pad + KbH + Pad) : new Size(330, 196);
 
     protected override Size MeasureOverride(Size available) => BaseSize(_kind);
 
@@ -72,7 +72,7 @@ public sealed class InputOverlayView : FrameworkElement
 
     // ───────── keyboard + mouse ─────────
 
-    const double U = 30, G = 4, Pad = 10, MouseW = 62;
+    const double U = 30, G = 4, Pad = 10, MouseW = 64, MouseH = 104, Split = 42;
     // The keys games use, in their real positions. Each: (label, virtual key, width in key units); vk -1 = gap.
     static readonly (string L, int Vk, double W)[][] Rows =
     {
@@ -100,39 +100,53 @@ public sealed class InputOverlayView : FrameworkElement
                 x += w * U + G;
                 if (vk < 0) continue;
                 bool on = held.Contains(vk);
-                dc.DrawRoundedRectangle(on ? Lit : KeyFill, on ? LitEdge : KeyEdge, rect, 6, 6);
+                // Keycaps: a darker lip under keys at rest; a pressed key sinks onto it.
+                if (!on && _theme.Plate != Brushes.Transparent) dc.DrawRoundedRectangle(Lip, null, new Rect(rect.X, rect.Y + 2, rect.Width, rect.Height), 7, 7);
+                var cap = on ? new Rect(rect.X, rect.Y + 1, rect.Width, rect.Height - 1) : _theme.Plate != Brushes.Transparent ? new Rect(rect.X, rect.Y, rect.Width, rect.Height - 2) : rect;
+                dc.DrawRoundedRectangle(on ? Lit : KeyFill, on ? LitEdge : KeyEdge, cap, 7, 7);
                 if (label.Length > 0)
                 {
                     var ft = new FormattedText(label, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, Face, label.Length > 1 ? 9.5 : 12.5, on ? LitText : KeyText, dip);
-                    dc.DrawText(ft, new Point(rect.X + (rect.Width - ft.Width) / 2, rect.Y + (rect.Height - ft.Height) / 2));
+                    dc.DrawText(ft, new Point(cap.X + (cap.Width - ft.Width) / 2, cap.Y + (cap.Height - ft.Height) / 2));
                 }
             }
         }
-        DrawMouse(dc, Pad + KbW + 12, Pad, (MouseButton)(_frame?.Mouse ?? 0));
+        DrawMouse(dc, Pad + KbW + 14, Pad + (KbH - MouseH) / 2, (MouseButton)(_frame?.Mouse ?? 0));
     }
+
+    static readonly Brush Lip = B(0x73000000);
+    static readonly Pen Seam = P(0x8C000000, 1.6);
+    static Geometry Shape(string d) { var g = Geometry.Parse(d); g.Freeze(); return g; }
+    // A classic mouse seen from above, 64 × 104: two buttons split down the middle, a curved seam where they meet the palm.
+    static readonly Geometry MouseBody = Shape("M32 0 C50 0 64 12 64 36 L64 66 C64 90 50 104 32 104 C14 104 0 90 0 66 L0 36 C0 12 14 0 32 0 Z");
+    static readonly Geometry LeftButton = Shape("M-2 -2 H31 V40 C20 42 8 44 -2 46 Z");
+    static readonly Geometry RightButton = Shape("M33 -2 H66 V46 C56 44 44 42 33 40 Z");
+    static readonly Geometry ButtonSeam = Shape("M0 46 C12 43 22 40 32 40 C42 40 52 43 64 46");
 
     void DrawMouse(DrawingContext dc, double x, double y, MouseButton m)
     {
-        double w = MouseW, h = KbH;
-        var body = new Rect(x, y, w, h);
-        var shell = new RectangleGeometry(body, w / 2, w / 2 + 4);
-        dc.DrawGeometry(KeyFill, KeyEdge, shell);
-        double split = y + h * 0.42;
-        // Left and right buttons: the top part, split down the middle.
-        dc.PushClip(shell);
-        if (m.HasFlag(MouseButton.Left)) dc.DrawRectangle(Lit, null, new Rect(x, y, w / 2, split - y));
-        if (m.HasFlag(MouseButton.Right)) dc.DrawRectangle(Lit, null, new Rect(x + w / 2, y, w / 2, split - y));
+        bool On(MouseButton b) => m.HasFlag(b);
+        var seam = _theme.Plate == Brushes.Transparent ? KeyEdge : Seam;
+        dc.PushTransform(new TranslateTransform(x, y));
+        dc.DrawGeometry(KeyFill, KeyEdge, MouseBody);
+        dc.PushClip(MouseBody);
+        if (On(MouseButton.Left)) dc.DrawGeometry(Lit, null, LeftButton);
+        if (On(MouseButton.Right)) dc.DrawGeometry(Lit, null, RightButton);
         dc.Pop();
-        dc.DrawLine(KeyEdge, new Point(x + w / 2, y), new Point(x + w / 2, split));
-        dc.DrawLine(KeyEdge, new Point(x + 3, split), new Point(x + w - 3, split));
-        // Wheel.
-        bool wheel = m.HasFlag(MouseButton.Middle) || m.HasFlag(MouseButton.WheelUp) || m.HasFlag(MouseButton.WheelDown);
-        dc.DrawRoundedRectangle(wheel ? Lit : Plate, wheel ? LitEdge : KeyEdge, new Rect(x + w / 2 - 5, y + 14, 10, 22), 5, 5);
+        dc.DrawLine(seam, new Point(MouseW / 2, 1), new Point(MouseW / 2, Split - 2));
+        dc.DrawGeometry(null, seam, ButtonSeam);
+        // Wheel, with grip lines when it's not being used.
+        bool wheel = On(MouseButton.Middle) || On(MouseButton.WheelUp) || On(MouseButton.WheelDown);
+        dc.DrawRoundedRectangle(wheel ? Lit : WheelWell, wheel ? LitEdge : KeyEdge, new Rect(27.5, 10, 9, 20), 4.5, 4.5);
+        if (!wheel) for (int i = 0; i < 4; i++) dc.DrawLine(Grip, new Point(30, 14 + i * 4), new Point(34, 14 + i * 4));
         // Side buttons on the left edge.
-        double sy = split + 10;
-        dc.DrawRoundedRectangle(m.HasFlag(MouseButton.Forward) ? Lit : KeyFill, m.HasFlag(MouseButton.Forward) ? LitEdge : KeyEdge, new Rect(x - 3, sy, 8, 18), 3, 3);
-        dc.DrawRoundedRectangle(m.HasFlag(MouseButton.Back) ? Lit : KeyFill, m.HasFlag(MouseButton.Back) ? LitEdge : KeyEdge, new Rect(x - 3, sy + 22, 8, 18), 3, 3);
+        dc.DrawRoundedRectangle(On(MouseButton.Forward) ? Lit : KeyFill, On(MouseButton.Forward) ? LitEdge : KeyEdge, new Rect(-2.5, Split + 8, 5, 15), 2.5, 2.5);
+        dc.DrawRoundedRectangle(On(MouseButton.Back) ? Lit : KeyFill, On(MouseButton.Back) ? LitEdge : KeyEdge, new Rect(-2.5, Split + 26, 5, 15), 2.5, 2.5);
+        dc.Pop();
     }
+
+    static readonly Brush WheelWell = B(0xD90B0D12);
+    static readonly Pen Grip = P(0x40FFFFFF);
 
     // ───────── controller ─────────
 
