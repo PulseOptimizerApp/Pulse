@@ -37,7 +37,7 @@ public partial class SecurityPage : UserControl, IPage
             (fg, bg) = (Palette.Warn, Palette.WarnSoft);
             StatusTitle.Text = "Microsoft Defender isn't your active antivirus";
             StatusDetail.Text = s.Products.Count > 0
-                ? $"Windows reports: {string.Join(", ", s.Products)}. That's fine if you trust it — but Pulse's scans use Defender, so they won't run while another antivirus is in charge."
+                ? $"Windows reports: {string.Join(", ", s.Products)}. That's fine if you trust it, but Pulse's scans use Defender, so they won't run while another antivirus is in charge."
                 : "Windows didn't report any active antivirus. Turn Defender back on in Windows Security.";
         }
         else
@@ -52,7 +52,7 @@ public partial class SecurityPage : UserControl, IPage
                 $"Last quick scan: {Age(s.QuickScanAgeDays)} · Last full scan: {Age(s.FullScanAgeDays)}",
                 $"Tamper protection: {(s.TamperProtected ? "on" : "off")}",
             };
-            if (active) lines.Add($"{s.Threats.Count(t => t.Active)} threat(s) weren't fully removed — see the history below.");
+            if (active) lines.Add($"{s.Threats.Count(t => t.Active)} threat(s) weren't fully removed. See the history below.");
             StatusDetail.Text = string.Join("\n", lines);
         }
         ShieldIcon.Foreground = fg;
@@ -121,7 +121,7 @@ public partial class SecurityPage : UserControl, IPage
             ScanResult.Text = message;
             ScanResult.Foreground = threats ? Palette.Bad : (Brush)FindResource("TextBrush");
             ScanResult.Visibility = Visibility.Visible;
-            if (threats) MainWindow.Instance.Toast("Defender found threats — see the history below.", ToastKind.Warning);
+            if (threats) MainWindow.Instance.Toast("Defender found threats. See the history below.", ToastKind.Warning);
             else MainWindow.Instance.Toast(message);
         }
         finally
@@ -152,7 +152,7 @@ public partial class SecurityPage : UserControl, IPage
         int bad = _audit.Count(i => i.Level == Severity.Problem);
         int review = _audit.Count(i => i.Level == Severity.Check);
         AuditSummary.Text = bad == 0 && review == 0
-            ? $"Checked {_audit.Count} startup entries — nothing unusual found."
+            ? $"Checked {_audit.Count} startup entries. Nothing unusual found."
             : $"Checked {_audit.Count} startup entries: {bad} suspicious, {review} to review.";
         AuditSummary.Foreground = bad > 0 ? Palette.Bad : review > 0 ? Palette.Warn : Palette.Good;
         AuditSummary.Visibility = Visibility.Visible;

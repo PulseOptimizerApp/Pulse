@@ -26,7 +26,7 @@
                         <StackPanel>
                             <TextBlock Style="{StaticResource H2}" Text="Automatic safety net"/>
                             <TextBlock Style="{StaticResource Body}" Margin="0,6,0,0"
-                                       Text="Create a restore point before the first change in each session. Recommended — it takes up to a minute, once."/>
+                                       Text="Create a restore point before the first change in each session. Recommended: it takes up to a minute, once."/>
                             <Button Style="{StaticResource LinkButton}" HorizontalAlignment="Left" Margin="0,12,0,0" Content="Open Pulse's backup folder" Click="OpenData_Click"/>
                         </StackPanel>
                         <CheckBox x:Name="AutoRp" Grid.Column="1" Style="{StaticResource Switch}" VerticalAlignment="Top" Margin="16,2,0,0" Click="AutoRp_Click"/>

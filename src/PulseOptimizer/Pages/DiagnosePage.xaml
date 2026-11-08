@@ -6,7 +6,7 @@
         <StackPanel Margin="0,6,0,40">
             <TextBlock Style="{StaticResource H1}" Text="Diagnose"/>
             <TextBlock Style="{StaticResource Sub}" Margin="0,6,0,0" MaxWidth="760" HorizontalAlignment="Left"
-                       Text="Pulse looks for real problems on this PC first — a monitor stuck at 60 Hz or RAM at its slow default speed is a bigger win than any tweak. Nothing changes until you choose to fix it."/>
+                       Text="Pulse looks for real problems on this PC first: a monitor stuck at 60 Hz or RAM at its slow default speed is a bigger win than any tweak. Nothing changes until you choose to fix it."/>
 
             <!-- Summary + live usage -->
             <Grid Margin="0,22,0,0">
@@ -21,7 +21,6 @@
                         <TextBlock Style="{StaticResource Label}" Text="CHECKUP"/>
                         <Grid Width="150" Height="150" Margin="0,16,0,12">
                             <ui:Ring x:Name="SummaryRing" Thickness="10" Brush="{StaticResource AccentGradient}">
-                                <ui:Ring.Effect><DropShadowEffect Color="#5B8CFF" BlurRadius="28" ShadowDepth="0" Opacity="0.45"/></ui:Ring.Effect>
                             </ui:Ring>
                             <ui:Spinner x:Name="SummarySpinner" Width="150" Height="150" Thickness="10" Brush="{StaticResource AccentGradient}" Visibility="Collapsed"/>
                             <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
@@ -104,7 +103,7 @@
                                                         <Grid Margin="0,0,0,10">
                                                             <Grid.ColumnDefinitions><ColumnDefinition Width="30"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                                             <Border Width="22" Height="22" CornerRadius="10" Background="{StaticResource AccentGradient}" VerticalAlignment="Top" HorizontalAlignment="Left">
-                                                                <TextBlock Text="{Binding Number}" Foreground="White" FontSize="12" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                                <TextBlock Text="{Binding Number}" Foreground="{StaticResource OnAccentBrush}" FontSize="12" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                                             </Border>
                                                             <TextBlock Grid.Column="1" Text="{Binding Text}" Style="{StaticResource Body}" Foreground="{StaticResource TextBrush}" Margin="0,1,0,0"/>
                                                         </Grid>

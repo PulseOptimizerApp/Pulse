@@ -95,14 +95,14 @@
                 <Border x:Name="PitchCard" CornerRadius="16" Padding="30,26" Margin="0,22,0,0" BorderThickness="1" ui:Anim.Reveal="True">
                     <Border.Background>
                         <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                            <GradientStop Color="#2622D3EE" Offset="0"/>
-                            <GradientStop Color="#268B5CF6" Offset="1"/>
+                            <GradientStop Color="#26F2EFE8" Offset="0"/>
+                            <GradientStop Color="#26F2EFE8" Offset="1"/>
                         </LinearGradientBrush>
                     </Border.Background>
                     <Border.BorderBrush>
                         <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                            <GradientStop Color="#7722D3EE" Offset="0"/>
-                            <GradientStop Color="#778B5CF6" Offset="1"/>
+                            <GradientStop Color="#77F2EFE8" Offset="0"/>
+                            <GradientStop Color="#77F2EFE8" Offset="1"/>
                         </LinearGradientBrush>
                     </Border.BorderBrush>
                     <StackPanel>
@@ -635,7 +635,7 @@
                                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                         </Border>
                                         <ControlTemplate.Triggers>
-                                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Bd" Property="Background" Value="#CC22D3EE"/></Trigger>
+                                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Bd" Property="Background" Value="#CC2A2926"/></Trigger>
                                         </ControlTemplate.Triggers>
                                     </ControlTemplate>
                                 </Button.Template>

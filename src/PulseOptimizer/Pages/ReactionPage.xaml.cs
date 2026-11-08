@@ -21,13 +21,13 @@ public partial class ReactionPage : UserControl, IPage
     {
         (ReactionMode.Simple, "Reaction", "Wait for the screen to light up, then click as fast as you can. Clicking early counts as a mistake."),
         (ReactionMode.Choice, "Left or right", "One side lights up: click that side, or press A for left and D for right. Reacting and choosing at once, like most games."),
-        (ReactionMode.GoNoGo, "Don't click on red", "Click when the circle is cyan, hold still when it's red. Trains not shooting at the wrong thing. Gets harder as you get it right."),
+        (ReactionMode.GoNoGo, "Don't click on red", "Click when the circle is white, hold still when it's red. Trains not shooting at the wrong thing. Gets harder as you get it right."),
         (ReactionMode.Flick, "Flick", "A target appears somewhere: move to it and click it. Targets get smaller as you get faster."),
     };
 
-    static readonly Brush Go = (Brush)new BrushConverter().ConvertFrom("#22D3EE");
+    static readonly Brush Go = (Brush)new BrushConverter().ConvertFrom("#F2EFE8");
     static readonly Brush NoGo = (Brush)new BrushConverter().ConvertFrom("#F43F5E");
-    static readonly Brush Lit = (Brush)new BrushConverter().ConvertFrom("#4022D3EE");
+    static readonly Brush Lit = (Brush)new BrushConverter().ConvertFrom("#40F2EFE8");
 
     enum Phase { Idle, Waiting, Signal, Feedback }
 
@@ -160,7 +160,7 @@ public partial class ReactionPage : UserControl, IPage
     Ellipse AddCircle(double fx, double fy, double size, Brush fill)
     {
         double w = Arena.ActualWidth, h = Arena.ActualHeight;
-        var c = new Ellipse { Width = size, Height = size, Fill = fill, Effect = new System.Windows.Media.Effects.DropShadowEffect { Color = ((SolidColorBrush)fill).Color, BlurRadius = 30, ShadowDepth = 0, Opacity = 0.8 } };
+        var c = new Ellipse { Width = size, Height = size, Fill = fill };
         Canvas.SetLeft(c, fx * w - size / 2);
         Canvas.SetTop(c, fy * h - size / 2);
         Field.Children.Add(c);
@@ -294,8 +294,8 @@ public partial class ReactionPage : UserControl, IPage
         // Tier bands behind the curve, so it's easy to read where a time falls.
         var bands = new (double From, double To, string Name, string Color)[]
         {
-            (PopMin, 180, "Elite", "#3322D3EE"), (180, 220, "Very fast", "#2622D3EE"), (220, 250, "Fast", "#1A22D3EE"),
-            (250, 300, "Average", "#12A78BFA"), (300, 350, "A bit slow", "#0CA78BFA"), (350, PopMax, "Slow today", "#06A78BFA"),
+            (PopMin, 180, "Elite", "#33F2EFE8"), (180, 220, "Very fast", "#26F2EFE8"), (220, 250, "Fast", "#1AF2EFE8"),
+            (250, 300, "Average", "#12F2EFE8"), (300, 350, "A bit slow", "#0CF2EFE8"), (350, PopMax, "Slow today", "#06F2EFE8"),
         };
         foreach (var b in bands)
         {
@@ -320,7 +320,7 @@ public partial class ReactionPage : UserControl, IPage
             line.Segments.Add(new LineSegment(new Point(X(ms), Y(ms)), true));
         }
         fig.Segments.Add(new LineSegment(new Point(w, bottom), true));
-        var area = new LinearGradientBrush(Color.FromArgb(0x66, 0x22, 0xD3, 0xEE), Color.FromArgb(0x10, 0xA7, 0x8B, 0xFA), 90);
+        var area = new LinearGradientBrush(Color.FromArgb(0x55, 0xF2, 0xEF, 0xE8), Color.FromArgb(0x08, 0xF2, 0xEF, 0xE8), 90);
         PopChart.Children.Add(new System.Windows.Shapes.Path { Data = new PathGeometry(new[] { fig }), Fill = area });
         PopChart.Children.Add(new System.Windows.Shapes.Path { Data = new PathGeometry(new[] { line }), Stroke = (Brush)FindResource("AccentGradient"), StrokeThickness = 2 });
 
@@ -408,7 +408,7 @@ public partial class ReactionPage : UserControl, IPage
         double avg = recent.Average();
         double sd = recent.Count > 1 ? Math.Sqrt(recent.Sum(v => (v - avg) * (v - avg)) / (recent.Count - 1)) : 0;
         double band = Math.Max(sd, avg * 0.04);
-        var rect = new Rectangle { Width = w, Height = Math.Max(2, Y(avg - band) - Y(avg + band)), Fill = (Brush)new BrushConverter().ConvertFrom("#1422D3EE"), RadiusX = 6, RadiusY = 6 };
+        var rect = new Rectangle { Width = w, Height = Math.Max(2, Y(avg - band) - Y(avg + band)), Fill = (Brush)new BrushConverter().ConvertFrom("#14F2EFE8"), RadiusX = 6, RadiusY = 6 };
         Canvas.SetTop(rect, Y(avg + band));
         Chart.Children.Add(rect);
 

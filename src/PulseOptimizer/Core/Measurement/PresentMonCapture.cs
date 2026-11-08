@@ -84,7 +84,7 @@ public static class PresentMonCapture
     public static CaptureResult Parse(string csvPath)
     {
         var lines = File.ReadAllLines(csvPath);
-        if (lines.Length < 2) return Fail("The capture was empty — was the game in focus and rendering?", csvPath);
+        if (lines.Length < 2) return Fail("The capture was empty. Was the game in focus and rendering?", csvPath);
 
         var header = lines[0].Split(',');
         int Col(params string[] names)

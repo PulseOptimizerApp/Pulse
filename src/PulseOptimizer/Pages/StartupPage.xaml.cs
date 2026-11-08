@@ -56,6 +56,6 @@ public partial class StartupPage : UserControl, IPage
         if (File.Exists(item.ExePath))
             Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{item.ExePath}\"") { UseShellExecute = true });
         else
-            MainWindow.Instance.Toast("That file no longer exists — this is a leftover entry you can turn off.", ToastKind.Info);
+            MainWindow.Instance.Toast("That file no longer exists. This is a leftover entry you can turn off.", ToastKind.Info);
     }
 }

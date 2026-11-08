@@ -6,7 +6,7 @@
         <StackPanel Margin="0,6,0,40">
             <TextBlock Style="{StaticResource H1}" Text="Security"/>
             <TextBlock Style="{StaticResource Sub}" Margin="0,6,0,0" MaxWidth="760" HorizontalAlignment="Left"
-                       Text="Pulse uses Microsoft Defender's engine to scan — it's updated several times a day and already on your PC — and adds a check of every place malware hides to start with Windows. No scanner catches 100% of malware, so the startup check also flags anything unusual for you to review."/>
+                       Text="Pulse uses Microsoft Defender's engine to scan (it's updated several times a day and already on your PC) and adds a check of every place malware hides to start with Windows. No scanner catches 100% of malware, so the startup check also flags anything unusual for you to review."/>
 
             <!-- Status -->
             <Border Style="{StaticResource Card}" Margin="0,22,0,0" ui:Anim.Reveal="True">
@@ -66,7 +66,7 @@
                         <StackPanel>
                             <TextBlock Style="{StaticResource H2}" Text="Startup and hiding-place check"/>
                             <TextBlock Style="{StaticResource Body}" Margin="0,6,0,0" MaxWidth="680" HorizontalAlignment="Left"
-                                       Text="Looks at every place programs use to start automatically — registry Run keys, Startup folders, scheduled tasks, services, Winlogon and WMI subscriptions — and flags unsigned files, files in temporary folders, hidden PowerShell and other tricks malware uses. Flagged doesn't mean infected; it means look closer."/>
+                                       Text="Looks at every place programs use to start automatically (registry Run keys, Startup folders, scheduled tasks, services, Winlogon and WMI subscriptions) and flags unsigned files, files in temporary folders, hidden PowerShell and other tricks malware uses. Flagged doesn't mean infected; it means look closer."/>
                         </StackPanel>
                         <Button x:Name="AuditBtn" Style="{StaticResource PrimaryButton}" HorizontalAlignment="Right" VerticalAlignment="Top" Content="Run check" Click="Audit_Click"/>
                     </Grid>

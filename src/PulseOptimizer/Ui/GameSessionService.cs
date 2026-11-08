@@ -103,7 +103,7 @@ sealed class FpsOverlay : Window
         WindowStyle = WindowStyle.None; AllowsTransparency = true; Background = Brushes.Transparent;
         Topmost = true; ShowInTaskbar = false; ShowActivated = false; ResizeMode = ResizeMode.NoResize;
         SizeToContent = SizeToContent.WidthAndHeight; Focusable = false; IsHitTestVisible = false;
-        var accent = new LinearGradientBrush(Color.FromRgb(0x22, 0xD3, 0xEE), Color.FromRgb(0x8B, 0x5C, 0xF6), 0);
+        var accent = new SolidColorBrush(Color.FromRgb(0xF2, 0xEF, 0xE8));
         var stack = new StackPanel();
         var top = new StackPanel { Orientation = Orientation.Horizontal };
         top.Children.Add(new Border { Width = 3, Height = 18, CornerRadius = new CornerRadius(2), Background = accent, Margin = new Thickness(0, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center });

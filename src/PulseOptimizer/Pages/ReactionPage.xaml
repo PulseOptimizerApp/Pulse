@@ -21,8 +21,8 @@
                     <Border x:Name="Glow" Opacity="0" IsHitTestVisible="False">
                         <Border.Background>
                             <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                <GradientStop Color="#5522D3EE" Offset="0"/>
-                                <GradientStop Color="#558B5CF6" Offset="1"/>
+                                <GradientStop Color="#55F2EFE8" Offset="0"/>
+                                <GradientStop Color="#55F2EFE8" Offset="1"/>
                             </LinearGradientBrush>
                         </Border.Background>
                     </Border>

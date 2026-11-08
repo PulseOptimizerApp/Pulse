@@ -7,7 +7,7 @@
         <StackPanel>
             <TextBlock Style="{StaticResource H1}" Text="Startup apps"/>
             <TextBlock Style="{StaticResource Sub}" Margin="0,6,0,0" MaxWidth="760" HorizontalAlignment="Left"
-                       Text="Programs that launch when you sign in, using memory and CPU in the background while you play. Turning one off doesn't uninstall it — it just stops it starting automatically. It's the same switch as Task Manager's Startup tab, so both always agree."/>
+                       Text="Programs that launch when you sign in, using memory and CPU in the background while you play. Turning one off doesn't uninstall it. It just stops it starting automatically. It's the same switch as Task Manager's Startup tab, so both always agree."/>
             <TextBlock x:Name="CountText" Style="{StaticResource Body}" Margin="0,22,0,0"/>
         </StackPanel>
 

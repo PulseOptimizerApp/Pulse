@@ -12,14 +12,14 @@
             <Border CornerRadius="12" Padding="24,20" Margin="0,22,0,0" BorderThickness="1" ui:Anim.Reveal="True">
                 <Border.Background>
                     <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                        <GradientStop Color="#1F22D3EE" Offset="0"/>
-                        <GradientStop Color="#1F8B5CF6" Offset="1"/>
+                        <GradientStop Color="#1FF2EFE8" Offset="0"/>
+                        <GradientStop Color="#1FF2EFE8" Offset="1"/>
                     </LinearGradientBrush>
                 </Border.Background>
                 <Border.BorderBrush>
                     <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                        <GradientStop Color="#6622D3EE" Offset="0"/>
-                        <GradientStop Color="#668B5CF6" Offset="1"/>
+                        <GradientStop Color="#66F2EFE8" Offset="0"/>
+                        <GradientStop Color="#66F2EFE8" Offset="1"/>
                     </LinearGradientBrush>
                 </Border.BorderBrush>
                 <Grid>

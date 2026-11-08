@@ -171,9 +171,9 @@ public static class DeclutterEngine
             Drive = letter, Total = drive.TotalSize, Free = drive.AvailableFreeSpace,
             Slices = new()
             {
-                new("Games", games, "#5B8CFF"),
-                new("Apps", apps, "#22D3EE"),
-                new("Your files", files, "#8B5CF6"),
+                new("Games", games, "#E0773F"),
+                new("Apps", apps, "#F2EFE8"),
+                new("Your files", files, "#8DB596"),
                 new("Windows and other", rest, "#5D6272"),
                 new("Clutter", clutterBytes, "#F87171"),
             },

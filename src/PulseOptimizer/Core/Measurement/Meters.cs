@@ -105,7 +105,7 @@ public static class ControllerPollingMeter
     internal static PollingResult Summarize(string device, List<double> stamps, string note)
     {
         if (stamps.Count < 50)
-            return new PollingResult(device, 0, 0, stamps.Count, "Not enough movement recorded — keep moving the stick or mouse during the test. " + note);
+            return new PollingResult(device, 0, 0, stamps.Count, "Not enough movement recorded. Keep moving the stick or mouse during the test. " + note);
         var gaps = stamps.Zip(stamps.Skip(1), (a, b) => b - a)
                          .Where(g => g < 50) // ignore pauses in movement
                          .OrderBy(g => g).ToList();

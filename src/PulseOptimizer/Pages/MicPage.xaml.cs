@@ -298,7 +298,7 @@ public partial class MicPage : UserControl, IPage, IReleasable
     {
         var sp = new StackPanel();
         var top = new StackPanel { Orientation = Orientation.Horizontal };
-        var badge = new Border { Width = 34, Height = 34, CornerRadius = new CornerRadius(10), Background = accent ? Res("AccentBrush") : Res("Surface2Brush"), Child = Icon(glyph, 15, accent ? Brushes.White : Res("TextBrush")) };
+        var badge = new Border { Width = 34, Height = 34, CornerRadius = new CornerRadius(10), Background = accent ? Res("AccentBrush") : Res("Surface2Brush"), Child = Icon(glyph, 15, accent ? Res("OnAccentBrush") : Res("TextBrush")) };
         ((TextBlock)badge.Child).HorizontalAlignment = HorizontalAlignment.Center;
         top.Children.Add(badge);
         var tx = new StackPanel { Margin = new Thickness(10, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };

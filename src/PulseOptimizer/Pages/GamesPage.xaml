@@ -185,14 +185,14 @@
                     <Border x:Name="AutoCard" CornerRadius="12" Padding="22,18" Margin="0,0,0,16" BorderThickness="1" Visibility="Collapsed">
                         <Border.Background>
                             <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                <GradientStop Color="#1F22D3EE" Offset="0"/>
-                                <GradientStop Color="#1F8B5CF6" Offset="1"/>
+                                <GradientStop Color="#1FF2EFE8" Offset="0"/>
+                                <GradientStop Color="#1FF2EFE8" Offset="1"/>
                             </LinearGradientBrush>
                         </Border.Background>
                         <Border.BorderBrush>
                             <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                <GradientStop Color="#6622D3EE" Offset="0"/>
-                                <GradientStop Color="#668B5CF6" Offset="1"/>
+                                <GradientStop Color="#66F2EFE8" Offset="0"/>
+                                <GradientStop Color="#66F2EFE8" Offset="1"/>
                             </LinearGradientBrush>
                         </Border.BorderBrush>
                         <Grid>

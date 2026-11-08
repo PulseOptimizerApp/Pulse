@@ -108,7 +108,7 @@ public class Tweak : Observable
     {
         Evidence.Documented => "Documented by Microsoft",
         Evidence.Gated => "Helps only on some PCs",
-        _ => "Comfort / privacy — no speed claim",
+        _ => "Comfort / privacy: no speed claim",
     };
 
     public string RiskText => Risk.ToString();

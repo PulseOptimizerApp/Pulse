@@ -107,7 +107,7 @@ public partial class DiagnosePage : UserControl, IPage
         SummaryRing.Value = 0;
         SummaryRing.AnimateTo(findings.Count == 0 ? 0 : 100.0 * ok / findings.Count);
         SummaryText.Text = problems == 0 && checks == 0
-            ? "No problems found. Your PC is set up well — tweaks will only make small differences from here."
+            ? "No problems found. Your PC is set up well, so tweaks will only make small differences from here."
             : $"{problems} problem{(problems == 1 ? "" : "s")} and {checks} thing{(checks == 1 ? "" : "s")} worth checking, listed below with the most impactful first.";
         FindingsHeader.Visibility = Visibility.Visible;
         FindingsList.ItemsSource = findings;

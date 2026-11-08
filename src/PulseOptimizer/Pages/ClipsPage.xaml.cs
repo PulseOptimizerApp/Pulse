@@ -51,7 +51,7 @@ public class ClipVm : Observable
     public Visibility SelectVisibility => _selecting ? Visibility.Visible : Visibility.Collapsed;
     public Visibility DeleteVisibility => _selecting ? Visibility.Collapsed : Visibility.Visible;
     public Visibility CheckVisibility => _selected ? Visibility.Visible : Visibility.Collapsed;
-    public Brush CheckBrush => _selected ? new SolidColorBrush(Color.FromRgb(0x22, 0xD3, 0xEE)) : new SolidColorBrush(Color.FromArgb(0x66, 0, 0, 0));
+    public Brush CheckBrush => _selected ? new SolidColorBrush(Color.FromRgb(0xF2, 0xEF, 0xE8)) : new SolidColorBrush(Color.FromArgb(0x66, 0, 0, 0));
 }
 
 public partial class ClipsPage : UserControl, IPage, IReleasable

@@ -10,7 +10,7 @@ namespace Pulse.Ui;
 public abstract class GuideChart : FrameworkElement
 {
     public static readonly Color Green = Color.FromRgb(0x34, 0xD3, 0x99), Amber = Color.FromRgb(0xFB, 0xBF, 0x24),
-        Red = Color.FromRgb(0xF8, 0x71, 0x71), Cyan = Color.FromRgb(0x22, 0xD3, 0xEE), Violet = Color.FromRgb(0x8B, 0x5C, 0xF6);
+        Red = Color.FromRgb(0xE5, 0x67, 0x4F), Cyan = Color.FromRgb(0xF2, 0xEF, 0xE8), Violet = Color.FromRgb(0xE0, 0x77, 0x3F);
 
     /// <summary>Green when close to launch price, amber when noticeably above, red when far above.</summary>
     public static Color ForMarkup(double pct) => pct < 0.15 ? Green : pct < 0.5 ? Amber : Red;

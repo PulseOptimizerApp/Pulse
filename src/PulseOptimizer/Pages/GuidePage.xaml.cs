@@ -31,7 +31,7 @@ public partial class GuidePage : UserControl
     }
 
     static readonly Color Green = GuideChart.Green, Amber = GuideChart.Amber, Red = GuideChart.Red, Cyan = GuideChart.Cyan, Violet = GuideChart.Violet,
-        Blue = Color.FromRgb(0x5B, 0x8C, 0xFF), Grey = Color.FromRgb(0x8A, 0x8A, 0x93);
+        Blue = Color.FromRgb(0xE0, 0x77, 0x3F), Grey = Color.FromRgb(0x9C, 0x98, 0x8F);
 
     public GuidePage()
     {

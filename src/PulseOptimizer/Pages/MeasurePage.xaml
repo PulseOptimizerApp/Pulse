@@ -45,7 +45,7 @@
                         <!-- Step 1 -->
                         <StackPanel>
                             <StackPanel Orientation="Horizontal">
-                                <Border Style="{StaticResource StepNum}"><TextBlock Text="1" Foreground="White" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+                                <Border Style="{StaticResource StepNum}"><TextBlock Text="1" Foreground="{StaticResource OnAccentBrush}" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
                                 <TextBlock Style="{StaticResource StepText}" Text="Choose a tweak"/>
                             </StackPanel>
                             <ListBox x:Name="TweakPick" Style="{StaticResource PickList}" Margin="0,14,0,0" SelectionChanged="Pick_Changed">
@@ -65,7 +65,7 @@
                         <!-- Step 2 -->
                         <StackPanel Grid.Column="2">
                             <StackPanel Orientation="Horizontal">
-                                <Border Style="{StaticResource StepNum}"><TextBlock Text="2" Foreground="White" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+                                <Border Style="{StaticResource StepNum}"><TextBlock Text="2" Foreground="{StaticResource OnAccentBrush}" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
                                 <TextBlock Style="{StaticResource StepText}" Text="Start your game"/>
                             </StackPanel>
 
@@ -108,7 +108,7 @@
                             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                             <StackPanel>
                                 <StackPanel Orientation="Horizontal">
-                                    <Border Style="{StaticResource StepNum}"><TextBlock Text="3" Foreground="White" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+                                    <Border Style="{StaticResource StepNum}"><TextBlock Text="3" Foreground="{StaticResource OnAccentBrush}" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
                                     <TextBlock x:Name="PlanText" Style="{StaticResource StepText}"/>
                                     <Button Style="{StaticResource LinkButton}" Content="Change" Margin="12,0,0,0" VerticalAlignment="Center" Click="ChangePlan_Click"/>
                                 </StackPanel>

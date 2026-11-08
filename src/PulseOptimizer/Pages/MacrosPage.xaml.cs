@@ -441,7 +441,7 @@ public partial class MacrosPage : UserControl, IPage, IReleasable
         g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         var badge = new Border { Width = 26, Height = 26, CornerRadius = new CornerRadius(13), Background = (Brush)FindResource("AccentGradient"), VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 0, 12, 0) };
-        badge.Child = new TextBlock { Text = n.ToString(CultureInfo.CurrentCulture), Foreground = Brushes.White, FontWeight = FontWeights.Bold, FontSize = 13, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+        badge.Child = new TextBlock { Text = n.ToString(CultureInfo.CurrentCulture), Foreground = (Brush)FindResource("OnAccentBrush"), FontWeight = FontWeights.Bold, FontSize = 13, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
         g.Children.Add(badge);
         var sp = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
         sp.Children.Add(new TextBlock { Style = (Style)FindResource("CardTitle"), Text = Loc.T(title), FontSize = 15 });

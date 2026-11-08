@@ -54,7 +54,7 @@ public partial class MousePage : UserControl, IPage, IReleasable
     Action _onTick;
     static readonly DispatcherTimer StopLater = new() { Interval = TimeSpan.FromSeconds(45) };
 
-    static readonly Color Green = Color.FromRgb(0x34, 0xD3, 0x99), Amber = Color.FromRgb(0xFB, 0xBF, 0x24), Red = Color.FromRgb(0xF8, 0x71, 0x71);
+    static readonly Color Green = Color.FromRgb(0x7D, 0xC5, 0x8E), Amber = Color.FromRgb(0xE3, 0xB0, 0x4B), Red = Color.FromRgb(0xE5, 0x67, 0x4F);
 
     static MousePage() => StopLater.Tick += (_, _) => { StopLater.Stop(); MouseDrivers.Stop(); };
 

@@ -63,7 +63,7 @@ public static class Cleaner
         new CleanCategory
         {
             Id = "user-temp", Name = "Your temporary files", Glyph = "", Selected = true,
-            Description = "Files apps create while they work and forget to remove — installers, unpacked updates, logs.",
+            Description = "Files apps create while they work and forget to remove: installers, unpacked updates, logs.",
             MinAge = TimeSpan.FromHours(2),
             Targets = () => new[] { new CleanTarget(Path.GetTempPath()) }
         },

@@ -37,8 +37,8 @@ public partial class DevicesPage : UserControl, IPage, IReleasable
     readonly DispatcherTimer _tick = new() { Interval = TimeSpan.FromMilliseconds(100) };
     Action _onTick;
 
-    static readonly Color Green = Color.FromRgb(0x34, 0xD3, 0x99), Amber = Color.FromRgb(0xFB, 0xBF, 0x24), Cyan = Color.FromRgb(0x22, 0xD3, 0xEE),
-        Red = Color.FromRgb(0xF8, 0x71, 0x71), Violet = Color.FromRgb(0x8B, 0x5C, 0xF6);
+    static readonly Color Green = Color.FromRgb(0x7D, 0xC5, 0x8E), Amber = Color.FromRgb(0xE3, 0xB0, 0x4B), Cyan = Color.FromRgb(0xF2, 0xEF, 0xE8),
+        Red = Color.FromRgb(0xF8, 0x71, 0x71), Violet = Color.FromRgb(0xE0, 0x77, 0x3F);
 
     public DevicesPage()
     {
@@ -244,8 +244,7 @@ public partial class DevicesPage : UserControl, IPage, IReleasable
             {
                 Text = i.Glyph, FontFamily = Icons, FontSize = iconSize, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
                 Margin = new Thickness(0, 0, 0, height * 0.08),
-                Foreground = new LinearGradientBrush(Color.FromRgb(0xF2, 0xF4, 0xF7), Color.FromRgb(0x8A, 0x90, 0x9C), 90),
-                Effect = new DropShadowEffect { BlurRadius = 28, ShadowDepth = 0, Opacity = 0.45, Color = Green },
+                Foreground = new SolidColorBrush(Color.FromRgb(0xC9, 0xC5, 0xBC)),
             });
         return g;
     }
@@ -1002,7 +1001,7 @@ sealed class RateGauge : FrameworkElement
         double frac = _shown <= 0 ? 0 : Math.Clamp(Math.Log(_shown / 100.0) / Math.Log(8000 / 100.0), 0, 1);
         if (frac > 0.005)
         {
-            var accent = new LinearGradientBrush(Color.FromRgb(0x22, 0xD3, 0xEE), Color.FromRgb(0x34, 0xD3, 0x99), 0);
+            var accent = new SolidColorBrush(Color.FromRgb(0xF2, 0xEF, 0xE8));
             dc.DrawGeometry(null, new Pen(accent, 10) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round }, Arc(start, start + sweep * frac));
         }
         var text = TryFindResource("TextBrush") as Brush ?? Brushes.White;

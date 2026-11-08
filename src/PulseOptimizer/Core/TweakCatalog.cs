@@ -123,7 +123,7 @@ public static class TweakCatalog
             SourceName = "Microsoft Learn: Detect and block potentially unwanted applications", SourceUrl = SrcPua,
             Title = "Block adware and bundled junk",
             Summary = "Switches Microsoft Defender from only logging unwanted apps to actually blocking them.",
-            Explain = "Potentially unwanted apps — adware, browser hijackers, bundled crypto miners, fake 'PC cleaners' — aren't classed as viruses. On current Defender versions this protection runs in Audit mode by default, which logs them but lets them install. Block mode stops them.",
+            Explain = "Potentially unwanted apps (adware, browser hijackers, bundled crypto miners, fake 'PC cleaners') aren't classed as viruses. On current Defender versions this protection runs in Audit mode by default, which logs them but lets them install. Block mode stops them.",
             Changes = "Defender → PUAProtection = 1 (Block). Undo restores your previous mode.",
             Gain = "Fewer junk programs sneaking in with downloads.",
             Tradeoff = "Occasionally blocks a legitimate tool that bundles offers; you can allow it in Windows Security.",

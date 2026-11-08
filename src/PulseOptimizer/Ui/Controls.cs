@@ -139,6 +139,12 @@ public static class Icon
         new FrameworkPropertyMetadata(""));
     public static string GetGlyph(DependencyObject d) => (string)d.GetValue(GlyphProperty);
     public static void SetGlyph(DependencyObject d, string v) => d.SetValue(GlyphProperty, v);
+
+    /// <summary>Pulse's own line icon (24×24 path data, drawn with a 2 px round stroke). Used instead of the glyph when set.</summary>
+    public static readonly DependencyProperty PathProperty = DependencyProperty.RegisterAttached("Path", typeof(System.Windows.Media.Geometry), typeof(Icon),
+        new FrameworkPropertyMetadata(null));
+    public static System.Windows.Media.Geometry GetPath(DependencyObject d) => (System.Windows.Media.Geometry)d.GetValue(PathProperty);
+    public static void SetPath(DependencyObject d, System.Windows.Media.Geometry v) => d.SetValue(PathProperty, v);
 }
 
 public class BoolToVisibility : IValueConverter

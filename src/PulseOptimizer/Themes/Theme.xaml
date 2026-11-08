@@ -9,18 +9,21 @@
     <FontFamily x:Key="MonoFont">Cascadia Mono, Consolas</FontFamily>
 
     <!-- ═════════ Colors ═════════ -->
-    <Color x:Key="BgColor">#0A0A0C</Color>
-    <Color x:Key="Bg2Color">#0D0D10</Color>
-    <Color x:Key="SurfaceColor">#111114</Color>
-    <Color x:Key="Surface2Color">#17171B</Color>
-    <Color x:Key="SurfaceHoverColor">#1D1D22</Color>
-    <Color x:Key="BorderColor">#222228</Color>
-    <Color x:Key="TextColor">#EDEDEF</Color>
-    <Color x:Key="TextDimColor">#8A8A93</Color>
-    <Color x:Key="TextFaintColor">#6B6B75</Color>
-    <Color x:Key="AccentAColor">#22D3EE</Color>
-    <Color x:Key="AccentBColor">#8B5CF6</Color>
-    <Color x:Key="AccentMidColor">#5B8CFF</Color>
+    <Color x:Key="BgColor">#0C0C0B</Color>
+    <Color x:Key="Bg2Color">#0F0F0E</Color>
+    <Color x:Key="SurfaceColor">#141413</Color>
+    <Color x:Key="Surface2Color">#1B1B19</Color>
+    <Color x:Key="SurfaceHoverColor">#22221F</Color>
+    <Color x:Key="BorderColor">#2A2926</Color>
+    <Color x:Key="TextColor">#F2EFE8</Color>
+    <Color x:Key="TextDimColor">#9C988F</Color>
+    <Color x:Key="TextFaintColor">#6F6C65</Color>
+    <!-- Pulse has one accent, the logo's cream: no gradients, no glow. The old names are kept so every page follows. -->
+    <Color x:Key="AccentAColor">#F2EFE8</Color>
+    <Color x:Key="AccentBColor">#F2EFE8</Color>
+    <Color x:Key="AccentMidColor">#F2EFE8</Color>
+    <!-- Text and icons that sit on the accent. -->
+    <Color x:Key="OnAccentColor">#141413</Color>
 
     <SolidColorBrush x:Key="BgBrush" Color="{StaticResource BgColor}"/>
     <SolidColorBrush x:Key="Bg2Brush" Color="{StaticResource Bg2Color}"/>
@@ -32,14 +35,19 @@
     <SolidColorBrush x:Key="TextDimBrush" Color="{StaticResource TextDimColor}"/>
     <SolidColorBrush x:Key="TextFaintBrush" Color="{StaticResource TextFaintColor}"/>
     <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource AccentAColor}"/>
-    <SolidColorBrush x:Key="GoodBrush" Color="#34D399"/>
-    <SolidColorBrush x:Key="WarnBrush" Color="#FBBF24"/>
-    <SolidColorBrush x:Key="BadBrush" Color="#F87171"/>
-    <SolidColorBrush x:Key="InfoBrush" Color="#60A5FA"/>
-    <SolidColorBrush x:Key="GoodSoftBrush" Color="#2634D399"/>
-    <SolidColorBrush x:Key="WarnSoftBrush" Color="#26FBBF24"/>
-    <SolidColorBrush x:Key="BadSoftBrush" Color="#26F87171"/>
-    <SolidColorBrush x:Key="InfoSoftBrush" Color="#2660A5FA"/>
+    <SolidColorBrush x:Key="OnAccentBrush" Color="{StaticResource OnAccentColor}"/>
+    <!-- Chart series that need telling apart: cream, ember, sage. -->
+    <SolidColorBrush x:Key="Series1Brush" Color="#F2EFE8"/>
+    <SolidColorBrush x:Key="Series2Brush" Color="#E0773F"/>
+    <SolidColorBrush x:Key="Series3Brush" Color="#8DB596"/>
+    <SolidColorBrush x:Key="GoodBrush" Color="#7DC58E"/>
+    <SolidColorBrush x:Key="WarnBrush" Color="#E3B04B"/>
+    <SolidColorBrush x:Key="BadBrush" Color="#E5674F"/>
+    <SolidColorBrush x:Key="InfoBrush" Color="#9FB3C8"/>
+    <SolidColorBrush x:Key="GoodSoftBrush" Color="#267DC58E"/>
+    <SolidColorBrush x:Key="WarnSoftBrush" Color="#26E3B04B"/>
+    <SolidColorBrush x:Key="BadSoftBrush" Color="#26E5674F"/>
+    <SolidColorBrush x:Key="InfoSoftBrush" Color="#1FF2EFE8"/>
 
     <LinearGradientBrush x:Key="AccentGradient" StartPoint="0,0" EndPoint="1,1">
         <GradientStop Color="{StaticResource AccentAColor}" Offset="0"/>
@@ -50,11 +58,7 @@
         <GradientStop Color="{StaticResource AccentAColor}" Offset="0"/>
         <GradientStop Color="{StaticResource AccentBColor}" Offset="1"/>
     </LinearGradientBrush>
-    <RadialGradientBrush x:Key="GlowBrush">
-        <GradientStop Color="#148B5CF6" Offset="0"/>
-        <GradientStop Color="#0822D3EE" Offset="0.45"/>
-        <GradientStop Color="#0022D3EE" Offset="1"/>
-    </RadialGradientBrush>
+    <SolidColorBrush x:Key="GlowBrush" Color="Transparent"/>
 
     <!-- ═════════ Converters ═════════ -->
     <ui:BoolToVisibility x:Key="BoolToVis"/>
@@ -177,14 +181,14 @@
     </Style>
 
     <Style x:Key="PrimaryButton" TargetType="Button" BasedOn="{StaticResource ButtonBase}">
-        <Setter Property="Foreground" Value="White"/>
+        <Setter Property="Foreground" Value="{StaticResource OnAccentBrush}"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
                     <Grid RenderTransformOrigin="0.5,0.5">
                         <Grid.RenderTransform><ScaleTransform x:Name="Sc"/></Grid.RenderTransform>
                         <Border CornerRadius="8" Background="{StaticResource AccentGradient}"/>
-                        <Border x:Name="Shine" CornerRadius="8" Background="White" Opacity="0"/>
+                        <Border x:Name="Shine" CornerRadius="8" Background="Black" Opacity="0"/>
                         <ContentPresenter Margin="{TemplateBinding Padding}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Grid>
                     <ControlTemplate.Triggers>
@@ -372,8 +376,18 @@
                 <ControlTemplate TargetType="RadioButton">
                     <Border x:Name="Bd" CornerRadius="8" Background="Transparent" Padding="14,0">
                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                            <TextBlock x:Name="Ico" Text="{Binding Path=(ui:Icon.Glyph), RelativeSource={RelativeSource TemplatedParent}}"
-                                       FontFamily="{StaticResource IconFont}" FontSize="14.5" Width="20" VerticalAlignment="Center"/>
+                            <Grid Width="20" VerticalAlignment="Center">
+                                <TextBlock x:Name="Ico" Text="{Binding Path=(ui:Icon.Glyph), RelativeSource={RelativeSource TemplatedParent}}"
+                                           FontFamily="{StaticResource IconFont}" FontSize="14.5" VerticalAlignment="Center"
+                                           Visibility="{Binding Path=(ui:Icon.Path), RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource NoValueToVis}}"/>
+                                <Viewbox x:Name="IcoBox" Width="18" Height="18" HorizontalAlignment="Left"
+                                         Visibility="{Binding Path=(ui:Icon.Path), RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource HasValueToVis}}">
+                                    <Canvas Width="24" Height="24">
+                                        <Path x:Name="IcoPath" Data="{Binding Path=(ui:Icon.Path), RelativeSource={RelativeSource TemplatedParent}}"
+                                              Stroke="{TemplateBinding Foreground}" StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
+                                    </Canvas>
+                                </Viewbox>
+                            </Grid>
                             <ContentPresenter Margin="11,0,0,0" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Border>
@@ -390,6 +404,7 @@
                             <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
                             <Setter Property="FontWeight" Value="SemiBold"/>
                             <Setter TargetName="Ico" Property="Foreground" Value="{StaticResource AccentBrush}"/>
+                            <Setter TargetName="IcoPath" Property="StrokeThickness" Value="2.2"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -408,7 +423,7 @@
                 <ControlTemplate TargetType="RadioButton">
                     <Grid>
                         <Border x:Name="Bd" CornerRadius="8" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"/>
-                        <Border x:Name="On" CornerRadius="8" Background="#1F5B8CFF" BorderBrush="#995B8CFF" BorderThickness="1" Opacity="0"/>
+                        <Border x:Name="On" CornerRadius="8" Background="#14F2EFE8" BorderBrush="#99F2EFE8" BorderThickness="1" Opacity="0"/>
                         <ContentPresenter Margin="12,6" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Grid>
                     <ControlTemplate.Triggers>
@@ -444,12 +459,13 @@
                     <Grid Width="46" Height="26" Background="Transparent">
                         <Border CornerRadius="13" Background="#26262C" BorderBrush="#34343C" BorderThickness="1"/>
                         <Border x:Name="TrackOn" CornerRadius="13" Background="{StaticResource AccentGradient}" Opacity="0"/>
-                        <Ellipse x:Name="Knob" Width="18" Height="18" Fill="White" HorizontalAlignment="Left" Margin="4,0,0,0">
+                        <Ellipse x:Name="Knob" Width="18" Height="18" Fill="#F2EFE8" HorizontalAlignment="Left" Margin="4,0,0,0">
                             <Ellipse.RenderTransform><TranslateTransform X="0"/></Ellipse.RenderTransform>
                         </Ellipse>
                     </Grid>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Knob" Property="Fill" Value="{StaticResource OnAccentBrush}"/>
                             <Trigger.EnterActions>
                                 <BeginStoryboard><Storyboard>
                                     <DoubleAnimation Storyboard.TargetName="Knob" Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.X)" To="20" Duration="0:0:0.22">
@@ -738,7 +754,7 @@
                     <Grid Width="24" Height="24" Background="Transparent">
                         <Ellipse x:Name="Ring" Stroke="#3A3A44" StrokeThickness="2"/>
                         <Ellipse x:Name="Fill" Fill="{StaticResource AccentGradient}" Opacity="0"/>
-                        <TextBlock x:Name="Mark" Text="&#xE73E;" FontFamily="{StaticResource IconFont}" FontSize="12" Foreground="White"
+                        <TextBlock x:Name="Mark" Text="&#xE73E;" FontFamily="{StaticResource IconFont}" FontSize="12" Foreground="{StaticResource OnAccentBrush}"
                                    HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0"/>
                     </Grid>
                     <ControlTemplate.Triggers>
