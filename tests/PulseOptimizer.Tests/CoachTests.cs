@@ -29,14 +29,14 @@ public class CoachTests
             Kill(1, 142000, 20000, Mate, E1, 900, 100, Pos(Mate, 300, 100), Pos(E1, 900, 100), Pos(Mate2, 5000, 5000), Pos(E2, 7000, 0)),
             Kill(2, 240000, 15000, Me, E2, 1000, 0, Pos(Me, 0, 0), Pos(Mate, 200, 0), Pos(E1, 2000, 0), Pos(E2, 1000, 0), Pos(Mate2, 5000, 5000)),
         };
-        string P(string id, string team, string agent) =>
-            "{\"subject\":\"" + id + "\",\"teamId\":\"" + team + "\",\"characterId\":\"\",\"competitiveTier\":12,\"stats\":{\"kills\":1,\"deaths\":1,\"assists\":0,\"score\":100,\"roundsPlayed\":3,\"abilityCasts\":{\"grenadeCasts\":3,\"ability1Casts\":2,\"ability2Casts\":1,\"ultimateCasts\":0}}}";
+        string P(string id, string team, string agent, int k = 1, int d = 1) =>
+            "{\"subject\":\"" + id + "\",\"teamId\":\"" + team + "\",\"characterId\":\"\",\"competitiveTier\":12,\"stats\":{\"kills\":" + k + ",\"deaths\":" + d + ",\"assists\":0,\"score\":100,\"roundsPlayed\":3,\"abilityCasts\":{\"grenadeCasts\":3,\"ability1Casts\":2,\"ability2Casts\":1,\"ultimateCasts\":0}}}";
         string Round(int n, string winner, string planter = null) =>
             "{\"roundNum\":" + n + ",\"winningTeam\":\"" + winner + "\",\"roundResultCode\":\"Elimination\",\"bombPlanter\":\"" + (planter ?? "") + "\",\"plantRoundTime\":" + (planter != null ? 50000 : 0) + ",\"playerStats\":[{\"subject\":\"" + Me + "\",\"damage\":[{\"receiver\":\"" + E2 + "\",\"damage\":150,\"headshots\":1,\"bodyshots\":2,\"legshots\":0}],\"economy\":{\"loadoutValue\":3900,\"spent\":3900,\"remaining\":200}}]}";
         var json = $$"""
         {
           "matchInfo": {"matchId":"m1","mapId":"/Game/Maps/Ascent/Ascent","queueID":"{{queue}}","gameStartMillis":1762560000000,"gameLengthMillis":1800000},
-          "players": [{{P(Me, "Red", "Jett")}},{{P(Mate, "Red", "Sova")}},{{P(Mate2, "Red", "Omen")}},{{P(E1, "Blue", "Reyna")}},{{P(E2, "Blue", "Sage")}}],
+          "players": [{{P(Me, "Red", "Jett", 1, 2)}},{{P(Mate, "Red", "Sova")}},{{P(Mate2, "Red", "Omen")}},{{P(E1, "Blue", "Reyna")}},{{P(E2, "Blue", "Sage")}}],
           "teams": [{"teamId":"Red","won":true,"roundsWon":2},{"teamId":"Blue","won":false,"roundsWon":1}],
           "roundResults": [{{Round(0, "Blue")}},{{Round(1, "Red", Mate)}},{{Round(2, "Red")}}],
           "kills": [{{string.Join(",", kills)}}]
@@ -319,18 +319,48 @@ public class TrackerTests
     [Fact]
     public void Smurf_chance_adds_up_signs_and_one_alone_is_never_likely()
     {
-        var skill = Tracker.Skills[0];
         var p = new Profile { Tier = 9 }; // Silver 1
-        for (int i = 0; i < 3; i++) p.Skills.Add(new SkillScore(skill, 30, 5, 18)); // plays like Diamond 3
+        p.Totals.Matches = 6; p.Totals.Kills = 120; p.Totals.Deaths = 60; // K/D 2.0
         var one = Tracker.SmurfChance(p, Pulse.Core.Games.Live.Smurf.None);
         Assert.Single(one.Signs);
-        Assert.Equal(35, one.Score);
-        p.Totals.Matches = 6; p.Totals.Kills = 120; p.Totals.Deaths = 60; // K/D 2.0
+        Assert.Equal(25, one.Score);
+        p.Totals.Rounds = 100; p.Totals.KastRounds = 82; // KAST 82%
         var two = Tracker.SmurfChance(p, Pulse.Core.Games.Live.Smurf.None);
         Assert.Equal(2, two.Signs.Count);
         Assert.Equal(45, two.Score);
         var clean = Tracker.SmurfChance(new Profile { Tier = 9 }, Pulse.Core.Games.Live.Smurf.None);
         Assert.Equal(0, clean.Score);
+    }
+
+    /// <summary>A Radiant player on a Diamond 2 account: 80% of 10 won, K/D 1.46, +25 RR a win, KAST 76%.</summary>
+    static Profile RadiantOnDiamond()
+    {
+        var p = new Profile { Tier = 17, CompareTier = 17, ActWinPct = 80, ActGames = 10 };
+        p.Totals.Matches = 10; p.Totals.Wins = 8; p.Totals.Kills = 204; p.Totals.Deaths = 140; p.Totals.Rounds = 222; p.Totals.KastRounds = 169;
+        return p;
+    }
+
+    [Fact]
+    public void A_radiant_smurfing_in_diamond_reads_as_a_certain_smurf()
+    {
+        var p = RadiantOnDiamond();
+        var account = Pulse.Core.Games.Live.ValorantLobby.SmurfSigns(0, 17, 17, 80, 10, new[] { 25, 26, 24, -12, 25, 25 });
+        var s = Tracker.SmurfChance(p, account);
+        Assert.Equal(100, s.Score);
+    }
+
+    [Fact]
+    public void Winning_that_much_on_a_new_account_is_worth_a_look_but_not_proof()
+    {
+        var p = RadiantOnDiamond();
+        var (cheat, _) = Tracker.CheatSignals(p);
+        Assert.InRange(cheat.Score, 50, 60);         // win rate and K/D
+        p.Level = 45;
+        (cheat, _) = Tracker.CheatSignals(p);
+        Assert.InRange(cheat.Score, 60, 70);         // plus a fairly new account
+        var normal = new Profile { Tier = 17, CompareTier = 17, ActWinPct = 52, ActGames = 40 };
+        normal.Totals.Matches = 10; normal.Totals.Wins = 5; normal.Totals.Kills = 160; normal.Totals.Deaths = 150; normal.Totals.Rounds = 220;
+        Assert.Equal(0, Tracker.CheatSignals(normal).Signals.Score);
     }
 
     static VMatch Lobby(int myTier, int othersTier, bool won, int i)

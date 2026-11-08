@@ -163,6 +163,55 @@ public static class ValorantLobby
         return (tier, rr, peak, peakAct, win, games);
     }
 
+    /// <summary>One competitive act: the rank it ended on (or is on now), games, wins, and the best rank won at in it.</summary>
+    public sealed record ActLine(string Id, string Name, DateTime StartUtc, DateTime EndUtc, int Tier, int Games, int Wins, int Peak, bool Current)
+    {
+        public double WinPct => Games > 0 ? 100.0 * Wins / Games : double.NaN;
+    }
+
+    /// <summary>Every act from the content list, oldest first, each ending when the next begins (UTC).</summary>
+    internal static List<(string Id, string Name, DateTime Start, DateTime End, bool Active)> Acts()
+    {
+        var acts = (_seasons ?? new()).Where(x => x.Act && x.Start != default).OrderBy(x => x.Start).ToList();
+        var list = new List<(string, string, DateTime, DateTime, bool)>();
+        for (int i = 0; i < acts.Count; i++)
+            list.Add((acts[i].Id, ActName(acts[i].Id), acts[i].Start.ToUniversalTime(), i + 1 < acts.Count ? acts[i + 1].Start.ToUniversalTime() : DateTime.MaxValue, acts[i].Active));
+        return list;
+    }
+
+    /// <summary>A player's competitive history act by act (newest first), from Riot's rank record.</summary>
+    internal static async Task<List<ActLine>> ActHistory(ValorantMatches.Session s, string puuid)
+    {
+        try
+        {
+            await LoadContent(s);
+            using var doc = await ValorantMatches.Get(s, $"https://pd.{s.Shard}.a.pvp.net/mmr/v1/players/{puuid}");
+            return doc == null ? new() : ReadActs(doc.RootElement, Acts());
+        }
+        catch { return new(); }
+    }
+
+    internal static List<ActLine> ReadActs(JsonElement root, List<(string Id, string Name, DateTime Start, DateTime End, bool Active)> acts)
+    {
+        var list = new List<ActLine>();
+        if (root.Get("QueueSkills", "competitive", "SeasonalInfoBySeasonID") is not { ValueKind: JsonValueKind.Object } bySeason) return list;
+        foreach (var season in bySeason.EnumerateObject())
+        {
+            var v = season.Value;
+            var a = acts.FirstOrDefault(x => x.Id == season.Name);
+            int Fix(int t) => a.Start != default && a.Start < AscendantAdded && t >= 21 ? t + 3 : t;
+            int games = v.Int("NumberOfGames");
+            if (games == 0 && v.Int("CompetitiveTier") == 0) continue;
+            int peak = 0;
+            if (v.Get("WinsByTier") is { ValueKind: JsonValueKind.Object } wins)
+                foreach (var w in wins.EnumerateObject())
+                    if (int.TryParse(w.Name, out var t) && w.Value.ValueKind == JsonValueKind.Number && w.Value.GetInt32() > 0) peak = Math.Max(peak, Fix(t));
+            list.Add(new ActLine(season.Name, a.Name is { Length: > 0 } n ? n : ActName(season.Name), a.Start, a.End == default ? DateTime.MaxValue : a.End,
+                Fix(v.Int("CompetitiveTier")), games, v.Int("NumberOfWins"), peak, a.Active));
+        }
+        return list.OrderByDescending(x => x.StartUtc).ToList();
+    }
+
     /// <summary>RR won or lost in the player's last competitive games (newest first), from Riot's competitive updates.</summary>
     /// <summary>
     /// The lobby of a match that just ended, from Riot's own match record (the same names and stats its match
@@ -176,6 +225,7 @@ public static class ValorantLobby
         await LoadContent(s);
         // Riot IDs: from the match record when it had them, else from Riot's name service (the match is over).
         var names = vm.Names != null ? new Dictionary<string, string>(vm.Names) : new Dictionary<string, string>();
+        foreach (var p in vm.Players) if (!string.IsNullOrEmpty(p.Name)) names.TryAdd(p.Id, p.Name);
         if (vm.Players.Any(p => !names.ContainsKey(p.Id)))
             try { foreach (var kv in await Names(s, vm.Players.Select(p => p.Id).ToList())) if (!string.IsNullOrEmpty(kv.Value)) names.TryAdd(kv.Key, kv.Value); } catch { }
         var list = new List<LobbyPlayer>();
@@ -261,13 +311,13 @@ public static class ValorantLobby
         }
         if (games >= 10 && winPercent >= 0)
         {
-            if (winPercent >= 75) { score += 30; signs.Add(Pulse.Ui.Loc.F("Wins {0}% of {1} games this act", winPercent, games)); }
-            else if (winPercent >= 65) { score += 20; signs.Add(Pulse.Ui.Loc.F("Wins {0}% of {1} games this act", winPercent, games)); }
+            if (winPercent >= 75) { score += 40; signs.Add(Pulse.Ui.Loc.F("Wins {0}% of {1} games this act", winPercent, games)); }
+            else if (winPercent >= 65) { score += 25; signs.Add(Pulse.Ui.Loc.F("Wins {0}% of {1} games this act", winPercent, games)); }
         }
         if (level > 0 && tier >= 3)
         {
             if (level <= 30) { score += 25; signs.Add(Pulse.Ui.Loc.F("New account (level {0}) in ranked", level)); }
-            else if (level <= 60) { score += 12; signs.Add(Pulse.Ui.Loc.F("Fairly new account (level {0})", level)); }
+            else if (level <= 60) { score += 15; signs.Add(Pulse.Ui.Loc.F("Fairly new account (level {0})", level)); }
         }
         if (peak >= 3 && tier >= 3 && peak - tier >= 6) { score += 15; signs.Add(Pulse.Ui.Loc.F("Peaked {0}, now {1}", ValorantMatches.RankName(peak), ValorantMatches.RankName(tier))); }
         // A single sign on its own is weak: cap it so one alone never says "likely".
@@ -276,6 +326,9 @@ public static class ValorantLobby
     }
 
     /// <summary>Agent names and the list of acts (with start dates) from Riot's content service.</summary>
+    /// <summary>When the current act started (UTC), once the content list has been read; null before.</summary>
+    internal static DateTime? CurrentActStart() => _seasons?.FirstOrDefault(x => x.Act && x.Active) is { Id: { Length: > 0 } } a && a.Start != default ? a.Start.ToUniversalTime() : null;
+
     /// <summary>An agent's name from the Riot Client's content list, when it has been read this session.</summary>
     internal static string ContentAgent(string id) => _agents != null && _agents.TryGetValue(id, out var a) && !string.IsNullOrEmpty(a) ? a : null;
 

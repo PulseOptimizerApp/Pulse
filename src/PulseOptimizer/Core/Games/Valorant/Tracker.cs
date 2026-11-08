@@ -40,6 +40,13 @@ public sealed class Profile
     public int CompareTier;
     /// <summary>For profiles from your matches: games together on your team, and against you.</summary>
     public int With, WithWins, Against, AgainstWins;
+    /// <summary>Searched profiles: the account's own smurf signs (kept to score again after loading more), and where the match history continues.</summary>
+    public Smurf Account = Smurf.None;
+    /// <summary>Competitive history act by act, newest first (from Riot's rank record).</summary>
+    public List<Pulse.Core.Games.Live.ValorantLobby.ActLine> Acts = new();
+    public List<string> PendingIds = new();
+    public int HistoryNext;
+    public bool HistoryEnd;
 }
 
 /// <summary>
@@ -158,6 +165,9 @@ public static class Tracker
         if (avgAcs > 0 && !double.IsNaN(t.Acs)) o["rating"] = t.Acs / avgAcs;
         if (t.Rounds >= 5)
         {
+            o["kd"] = t.KdRatio;
+            o["kpr"] = t.KillsPerRound;
+            o["kad"] = t.Deaths > 0 ? (double)(t.Kills + t.Assists) / t.Deaths : t.Kills + t.Assists;
             if (!double.IsNaN(t.DamageDelta)) o["dd"] = t.DamageDelta;
             if (!double.IsNaN(t.OpeningNetPer100)) o["open"] = t.OpeningNetPer100;
         }
@@ -183,6 +193,9 @@ public static class Tracker
         s.All["rating"] = new();
         s.All["dd"] = new();
         s.All["open"] = new();
+        s.All["kd"] = new();
+        s.All["kpr"] = new();
+        s.All["kad"] = new();
         var rows = new List<Dictionary<string, double>>();
         void Add(int tier, Dictionary<string, double> vals)
         {
@@ -312,6 +325,13 @@ public static class Tracker
         return new Rating(overall, atkAvg > 0 ? atkMine / atkAvg : double.NaN, defAvg > 0 ? defMine / defAvg : double.NaN, TopPercent(scale.All["rating"], overall));
     }
 
+    /// <summary>"Top X%" for any number Pulse keeps per player-match ("adr", "kd", "hs", "kast", "dd", "acs", "kpr", "kad"…); NaN until there are 20.</summary>
+    public static double TopPercentOf(string id, double value)
+    {
+        var scale = Build(VStore.All);
+        return scale.All.TryGetValue(id, out var l) ? TopPercent(l, value) : double.NaN;
+    }
+
     /// <summary>The typical value of a skill or stat at one rank (NaN when there aren't 8 players at it yet).</summary>
     public static double MedianAt(string id, int tier)
     {
@@ -337,9 +357,10 @@ public static class Tracker
     }
 
     /// <summary>
-    /// Cheating signals: five checks, each against players at the same rank in the saved matches. A signal is a
-    /// number almost nobody at that rank reaches (their top 2.5%), or aim far ahead of everything else. Good players
-    /// trip one now and then; several together are what's worth a look. It's never proof.
+    /// Cheating signals, from the four numbers a pro would look at: K/D, headshot rate, clutches and win rate. Each is
+    /// checked against players at the same rank in the saved matches where there are enough of them (their top 2.5%),
+    /// and against levels almost nobody honest reaches. Very good players trip one now and then; several together
+    /// (above all aim and K/D at once) are what's worth a look. It's never proof.
     /// </summary>
     public static (Smurf Signals, int Checked) CheatSignals(Profile p)
     {
@@ -347,42 +368,62 @@ public static class Tracker
         int tier = p.CompareTier;
         var signs = new List<string>();
         int done = 0;
-        double Top(string id) => tier >= 3 && scale.ByTier[id].TryGetValue(tier, out var l) && l.Count >= 15 ? Quantile(l, 0.975) : Quantile(scale.All[id], 0.99);
+        double score = 0;
+        double Top(string id) => tier >= 3 && scale.ByTier.TryGetValue(id, out var by) && by.TryGetValue(tier, out var l) && l.Count >= 15 ? Quantile(l, 0.975)
+            : scale.All.TryGetValue(id, out var all) && all.Count >= 40 ? Quantile(all, 0.99) : double.NaN;
         string rank = tier >= 3 ? ValorantMatches.RankName(tier) : Pulse.Ui.Loc.T("their rank");
         var t = p.Totals;
+        bool aim = false, frags = false;
 
+        // Headshot rate: the hardest number to fake honestly.
         if (t.Head + t.Body + t.Legs >= 150)
         {
             done++;
-            var lim = Top("hs");
-            if (!double.IsNaN(lim) && t.HeadshotPct >= Math.Max(lim, 35)) signs.Add(Pulse.Ui.Loc.F("Headshot rate {0:0}%, higher than almost every {1} player", t.HeadshotPct, rank));
+            double lim = Top("hs");
+            if (t.HeadshotPct >= 40 || (!double.IsNaN(lim) && t.HeadshotPct >= Math.Max(lim, 33)))
+            {
+                aim = true;
+                score += t.HeadshotPct >= 40 ? 30 : 20;
+                signs.Add(Pulse.Ui.Loc.F("Headshot rate {0:0}%, higher than almost every {1} player", t.HeadshotPct, rank));
+            }
         }
-        if (t.Rounds >= 60)
-        {
-            done++;
-            var lim = Top("adr");
-            if (!double.IsNaN(lim) && t.Adr >= lim) signs.Add(Pulse.Ui.Loc.F("{0:0} damage per round, higher than almost every {1} player", t.Adr, rank));
-            done++;
-            var fl = Top("fk");
-            if (!double.IsNaN(fl) && t.FirstKillsPer100 >= fl && t.OpeningWinPct >= 70) signs.Add(Pulse.Ui.Loc.F("Wins {0:0}% of opening duels", t.OpeningWinPct));
-        }
+        // K/D: 1.4 and up is already rare; 2.0 almost never happens honestly over several matches.
         if (t.Matches >= 5)
         {
             done++;
-            if (t.KdRatio >= 2.5 && tier >= 12) signs.Add(Pulse.Ui.Loc.F("K/D of {0:0.00} at {1}", t.KdRatio, rank));
+            double lim = Top("kd");
+            if (t.KdRatio >= 2.0) { frags = true; score += 30; signs.Add(Pulse.Ui.Loc.F("K/D of {0:0.00} over {1} matches", t.KdRatio, t.Matches)); }
+            else if (t.KdRatio >= 1.4 || (!double.IsNaN(lim) && t.KdRatio >= Math.Max(lim, 1.4)))
+            { frags = true; score += 20; signs.Add(Pulse.Ui.Loc.F("K/D of {0:0.00} over {1} matches", t.KdRatio, t.Matches)); }
         }
-        var aim = p.Skills.FirstOrDefault(k => k.Skill.Id == "aim");
-        var sense = p.Skills.Where(k => (k.Skill.Id == "positioning" || k.Skill.Id == "utility" || k.Skill.Id == "trading") && k.PlaysLikeTier > 0).ToList();
-        if (aim != null && aim.PlaysLikeTier > 0 && sense.Count >= 2)
+        // Clutches: most players win about 1 in 5.
+        if (t.ClutchChances >= 6)
         {
             done++;
-            double other = sense.Average(k => k.PlaysLikeTier);
-            if (aim.PlaysLikeTier - other >= 9)
-                signs.Add(Pulse.Ui.Loc.F("Aim plays like {0}, but positioning and utility like {1}", ValorantMatches.RankName(aim.PlaysLikeTier), ValorantMatches.RankName((int)Math.Round(other))));
+            if (t.ClutchWinPct >= 50) { score += 20; signs.Add(Pulse.Ui.Loc.F("Won {0} of {1} clutches ({2:0}%; most players win about 20%)", t.ClutchWins, t.ClutchChances, t.ClutchWinPct)); }
+            else if (t.ClutchWinPct >= 38) { score += 10; signs.Add(Pulse.Ui.Loc.F("Won {0} of {1} clutches ({2:0}%; most players win about 20%)", t.ClutchWins, t.ClutchChances, t.ClutchWinPct)); }
         }
-        // Each signal adds 20. Few rounds means less certainty, so small samples are held back.
-        double score = signs.Count * 20;
-        if (t.Rounds < 120) score *= 0.6;
+        // Win rate: the act's when Riot shares it, else the matches Pulse saw. These are recent games, so once a
+        // player reaches the rank they belong at and their win rate settles near 50%, this sign goes away by itself.
+        bool act = p.ActGames >= 10 && p.ActWinPct >= 0;
+        double win = act ? p.ActWinPct : t.WinPct;
+        int games = act ? p.ActGames : t.Matches;
+        if (games >= 10)
+        {
+            done++;
+            if (win >= 75) { score += 35; signs.Add(Pulse.Ui.Loc.F("Won {0:0}% of {1} games", win, games)); }
+            else if (win >= 65) { score += 20; signs.Add(Pulse.Ui.Loc.F("Won {0:0}% of {1} games", win, games)); }
+        }
+        // A new account winning like that is the classic pattern.
+        int level = LevelOf(p);
+        if (level > 0 && win >= 65 && games >= 10)
+        {
+            if (level <= 30) { score += 20; signs.Add(Pulse.Ui.Loc.F("New account (level {0})", level)); }
+            else if (level <= 60) { score += 10; signs.Add(Pulse.Ui.Loc.F("Fairly new account (level {0})", level)); }
+        }
+        // Aim and frags far out together is the pattern that matters most.
+        if (aim && frags) score += 15;
+        if (t.Rounds < 120) score *= 0.6;            // few rounds: less certain
         if (signs.Count == 1) score = Math.Min(score, 25);
         return (new Smurf((int)Math.Round(Math.Min(100, score)), signs), done);
     }
@@ -462,33 +503,42 @@ public static class Tracker
     }
 
     /// <summary>
-    /// How likely the account is a smurf, from signs: the account's own (RR per win, win rate this act, peak far above
-    /// now), plus what only a tracker sees: skills that play like a much higher rank than the one they're in, and a
-    /// win rate or K/D far above their lobby in the matches Pulse saw. One sign alone never says "likely".
+    /// How likely the account is a smurf, from what gives smurfs away: a win rate far above 50%, a high K/D, a low
+    /// account level, and KAST (being useful in almost every round). Plus RR per win from the account itself: big RR
+    /// gains are Riot saying the hidden rating is well above the rank. One sign alone never says "likely".
     /// </summary>
+    /// <summary>The account level: Riot's lookup when known, else the highest in their matches (0 if unknown).</summary>
+    static int LevelOf(Profile p) => p.Level > 0 ? p.Level : p.Matches.Select(m => m.Players.FirstOrDefault(x => x.Id == p.Puuid)?.Level ?? 0).DefaultIfEmpty(0).Max();
+
     public static Smurf SmurfChance(Profile p, Smurf account)
     {
-        int score = account.Score;
-        var signs = new List<string>(account.Signs);
-        int rankNow = p.Tier >= 3 ? p.Tier : p.CompareTier;
-        if (rankNow >= 3)
-        {
-            var gaps = p.Skills.Where(k => k.PlaysLikeTier > 0).Select(k => k.PlaysLikeTier - rankNow).ToList();
-            if (gaps.Count >= 3)
-            {
-                double gap = gaps.Average();
-                int like = (int)Math.Round(rankNow + gap);
-                if (gap >= 6) { score += 35; signs.Add(Pulse.Ui.Loc.F("Plays like {0}, ranked {1}", ValorantMatches.RankName(Math.Min(27, like)), ValorantMatches.RankName(rankNow))); }
-                else if (gap >= 4) { score += 20; signs.Add(Pulse.Ui.Loc.F("Plays like {0}, ranked {1}", ValorantMatches.RankName(Math.Min(27, like)), ValorantMatches.RankName(rankNow))); }
-            }
-        }
+        int score = 0;
+        var signs = new List<string>();
+        // The account's own signs (RR per win, act win rate, level, peak) from Riot.
+        score += account.Score;
+        signs.AddRange(account.Signs);
         var t = p.Totals;
-        if (p.FromYourMatches && t.Matches >= 8)
+        bool actWinCounted = p.ActGames >= 10 && p.ActWinPct >= 65;
+        // Win rate in the matches Pulse sees (when the account's act win rate didn't already count).
+        if (!actWinCounted && t.Matches >= 8)
         {
-            if (t.WinPct >= 75) { score += 25; signs.Add(Pulse.Ui.Loc.F("Won {0:0}% of the {1} matches Pulse saw", t.WinPct, t.Matches)); }
-            else if (t.WinPct >= 65) { score += 15; signs.Add(Pulse.Ui.Loc.F("Won {0:0}% of the {1} matches Pulse saw", t.WinPct, t.Matches)); }
+            if (t.WinPct >= 75) { score += 40; signs.Add(Pulse.Ui.Loc.F("Won {0:0}% of the {1} matches Pulse saw", t.WinPct, t.Matches)); }
+            else if (t.WinPct >= 65) { score += 25; signs.Add(Pulse.Ui.Loc.F("Won {0:0}% of the {1} matches Pulse saw", t.WinPct, t.Matches)); }
+            else if (t.WinPct >= 58) { score += 10; signs.Add(Pulse.Ui.Loc.F("Won {0:0}% of the {1} matches Pulse saw", t.WinPct, t.Matches)); }
         }
-        if (t.Matches >= 5 && t.KdRatio >= 1.6) { score += 10; signs.Add(Pulse.Ui.Loc.F("K/D of {0:0.00} over {1} matches", t.KdRatio, t.Matches)); }
+        if (t.Matches >= 5)
+        {
+            if (t.KdRatio >= 1.4) { score += 25; signs.Add(Pulse.Ui.Loc.F("K/D of {0:0.00} over {1} matches", t.KdRatio, t.Matches)); }
+            else if (t.KdRatio >= 1.2) { score += 15; signs.Add(Pulse.Ui.Loc.F("K/D of {0:0.00} over {1} matches", t.KdRatio, t.Matches)); }
+            if (t.KastPct >= 80) { score += 20; signs.Add(Pulse.Ui.Loc.F("KAST {0:0}%: useful in almost every round", t.KastPct)); }
+            else if (t.KastPct >= 75) { score += 12; signs.Add(Pulse.Ui.Loc.F("KAST {0:0}%: useful in almost every round", t.KastPct)); }
+        }
+        // Account level from the matches, when Riot's own lookup didn't give one (it's counted there otherwise).
+        if (p.Level == 0 && LevelOf(p) is var level and > 0 && (p.Tier >= 3 ? p.Tier : p.CompareTier) >= 3)
+        {
+            if (level <= 30) { score += 25; signs.Add(Pulse.Ui.Loc.F("New account (level {0}) in ranked", level)); }
+            else if (level <= 60) { score += 15; signs.Add(Pulse.Ui.Loc.F("Fairly new account (level {0})", level)); }
+        }
         if (signs.Count == 1) score = Math.Min(score, 40);
         return new Smurf(Math.Min(100, score), signs);
     }

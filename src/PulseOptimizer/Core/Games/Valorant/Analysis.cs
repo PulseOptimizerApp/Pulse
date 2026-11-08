@@ -245,8 +245,10 @@ public static class Analysis
             }
             foreach (var d in r.Damage.Where(d => d.To == who && m.TeamOf(d.From) is { Length: > 0 } ft && ft != team)) t.DamageTaken += d.Amount;
         }
-        t.Kills = m.Kills.Count(x => x.Killer == who && x.Victim != who && m.TeamOf(x.Victim) != team);
-        t.Deaths = m.Kills.Count(x => x.Victim == who);
+        // Kills and deaths as on Riot's own scoreboard (what trackers show); the kill feed only when the scoreboard is empty.
+        int feedKills = m.Kills.Count(x => x.Killer == who && x.Victim != who && m.TeamOf(x.Victim) != team), feedDeaths = m.Kills.Count(x => x.Victim == who);
+        t.Kills = me.Kills + me.Deaths > 0 ? me.Kills : feedKills;
+        t.Deaths = me.Kills + me.Deaths > 0 ? me.Deaths : feedDeaths;
         t.Assists = me.Assists;
         t.Score = me.Score;
         foreach (var d in Deaths(m, who))

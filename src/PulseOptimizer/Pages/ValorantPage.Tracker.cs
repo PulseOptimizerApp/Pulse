@@ -30,7 +30,7 @@ public partial class ValorantPage
     static List<int> _trRr;
     string _trAgent;
     static readonly Dictionary<string, (int Tier, int Peak)> _trPeaks = new();
-    static bool _trPeaksBusy, _trAutoTried;
+    static bool _trPeaksBusy, _trAutoTried, _trNamesTried;
 
     void BuildTracker()
     {
@@ -54,27 +54,44 @@ public partial class ValorantPage
         }
         var me = matches.Count > 0 ? matches[0].Me : null;
         var people = Tracker.People(matches).Take(14).ToList();
-        if (people.Count > 0 && S.PlayerSearch && people.Any(p => !_trNames.ContainsKey(p.Puuid)) && !_trBusy) _ = LoadNames(people.Select(p => p.Puuid).ToList());
+        // Riot IDs for players in matches saved before Pulse kept them: one lookup per session.
+        if (!_trNamesTried && !_trBusy && matches.Count > 0)
+        {
+            var missing = NameBook.Missing(matches.SelectMany(m => m.Players.Select(x => x.Id)));
+            if (missing.Count > 0) { _trNamesTried = true; _ = LoadNames(missing.Take(100).ToList()); }
+        }
+
+        // A match page replaces the profile while it's open.
+        if (_trMatchId != null)
+        {
+            var open = (_trSearched?.Matches ?? new()).Concat(VStore.All).FirstOrDefault(m => m.Id == _trMatchId);
+            if (open != null)
+            {
+                string viewer = _trSearched != null && _trSel == _trSearched.Puuid && !_trSearched.FromYourMatches ? _trSearched.Puuid : _trSel ?? me ?? open.Me;
+                if (open.Players.All(x => x.Id != viewer)) viewer = open.Me;
+                foreach (var e in MatchPage(open, viewer)) Root.Children.Add(e);
+                return;
+            }
+            _trMatchId = null;
+        }
 
         // Who to show.
         var pick = new WrapPanel();
-        if (me != null) pick.Children.Add(Chip(Loc.T("You"), "trwho", _trSel == null || _trSel == me, () => { _trSel = me; Build(); }));
+        if (me != null) pick.Children.Add(Chip(NameBook.Get(me) is { } myName ? Loc.T("You") + " · " + myName : Loc.T("You"), "trwho", _trSel == null || _trSel == me, () => { _trSel = me; _trQueue = null; Build(); }));
         if (_trSearched != null)
         {
             var sp = _trSearched;
-            pick.Children.Add(Chip("🔍 " + sp.Name, "trwho", _trSel == sp.Puuid && !sp.FromYourMatches, () => { _trSel = sp.Puuid; Build(); }));
+            pick.Children.Add(Chip("🔍 " + sp.Name, "trwho", _trSel == sp.Puuid && !sp.FromYourMatches, () => { _trSel = sp.Puuid; _trQueue = null; Build(); }));
         }
         foreach (var k in people)
         {
             var id = k.Puuid;
-            var label = _trNames.TryGetValue(id, out var n) && !string.IsNullOrEmpty(n) ? n : $"{k.Agent} · {ValorantMatches.RankName(k.Tier)}".Trim(' ', '·');
-            pick.Children.Add(Chip($"{label}  ×{k.Games}", "trwho", _trSel == id, () => { _trSel = id; Build(); }));
+            var label = NameBook.Get(id) ?? $"{k.Agent} · {ValorantMatches.RankName(k.Tier)}".Trim(' ', '·');
+            pick.Children.Add(Chip($"{label}  ×{k.Games}", "trwho", _trSel == id, () => { _trSel = id; _trQueue = null; Build(); }));
         }
         var pickCard = new StackPanel();
         pickCard.Children.Add(Label(people.Count > 0 ? "You and the people from your matches" : "Profile"));
         pickCard.Children.Add(pick);
-        if (people.Count > 0 && !S.PlayerSearch)
-            pickCard.Children.Add(Faint(Loc.T("People show as agent and rank. Their names appear when player search is on."), 11.5, 4));
         Root.Children.Add(Card(pickCard));
 
         Profile p;
@@ -82,13 +99,13 @@ public partial class ValorantPage
         else if (me != null)
         {
             p = Tracker.FromYourMatches(matches, _trSel ?? me);
-            p.Name = p.IsYou ? Loc.T("You") : _trNames.GetValueOrDefault(p.Puuid) ?? "";
+            p.Name = NameBook.Get(p.Puuid) ?? (p.IsYou ? Loc.T("You") : "");
             if (p.IsYou)
             {
                 if (_trMyRank is { } r)
                 {
                     p.Tier = r.Tier; p.Rr = r.Rr; p.Peak = Math.Max(r.Peak, r.Tier); p.PeakAct = r.PeakAct; p.ActWinPct = r.Win; p.ActGames = r.Games;
-                    p.LastTier = r.LastTier; p.Level = r.Level;
+                    p.LastTier = r.LastTier; p.Level = r.Level; p.Acts = r.Acts ?? new();
                     Tracker.Finish(p, ValorantLobby.SmurfSigns(r.Level, r.Tier, r.Peak, r.Win, r.Games, r.RrChanges ?? new()));
                 }
                 if (DateTime.UtcNow - _trMyRankAt > TimeSpan.FromMinutes(5)) _ = LoadMyRank();
@@ -108,16 +125,26 @@ public partial class ValorantPage
         var row = new Grid { Margin = new Thickness(0, 12, 0, 0) };
         row.ColumnDefinitions.Add(new ColumnDefinition { MaxWidth = 380 });
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        var box = new TextBox { Style = (Style)FindResource("SearchBox"), Tag = Loc.T("Search a Riot ID: Name#TAG"), IsEnabled = S.PlayerSearch, VerticalContentAlignment = VerticalAlignment.Center };
+        var box = new TextBox { Style = (Style)FindResource("SearchBox"), Tag = Loc.T("Search a Riot ID: Name#TAG"), VerticalContentAlignment = VerticalAlignment.Center };
         row.Children.Add(box);
-        var go = Btn(S.PlayerSearch ? "Search" : "Turn on player search", true);
+        var go = Btn("Search", true);
         go.Margin = new Thickness(10, 0, 0, 0);
         Grid.SetColumn(go, 1);
         row.Children.Add(go);
         sp.Children.Add(row);
+        // Someone from your own matches opens straight away, with nothing asked of Riot.
+        bool OpenKnown(string text)
+        {
+            var hit = NameBook.Find(text.Trim(), 50).FirstOrDefault(x => x.Name.Equals(text.Trim(), StringComparison.OrdinalIgnoreCase));
+            if (hit.Puuid == null || !CoachMatches().Any(m => m.Players.Any(x => x.Id == hit.Puuid))) return false;
+            OpenPlayer(hit.Puuid);
+            return true;
+        }
         async Task Run()
         {
             if (_trBusy) return;
+            if (OpenKnown(box.Text)) return;
+            if (!S.PlayerSearch) { await TurnOnSearch(); if (!S.PlayerSearch) return; }
             _trBusy = true;
             _trStatus = Loc.T("Searching…");
             SetTrStatus();
@@ -135,28 +162,62 @@ public partial class ValorantPage
                 r = new ValorantSearch.Result(null, "Search failed. Try again in a minute.");
             }
             _trBusy = false;
-            if (r.Profile != null) { _trSearched = r.Profile; _trSel = r.Profile.Puuid; }
+            if (r.Profile != null)
+            {
+                _trSearched = r.Profile; _trSel = r.Profile.Puuid; _trQueue = null; _trAct = "all"; _trMatchId = null;
+                S.RecentSearches.RemoveAll(x => x.Equals(r.Profile.Name, StringComparison.OrdinalIgnoreCase));
+                S.RecentSearches.Insert(0, r.Profile.Name);
+                if (S.RecentSearches.Count > 8) S.RecentSearches.RemoveRange(8, S.RecentSearches.Count - 8);
+                TweakEngine.Save();
+            }
             _trStatus = r.Error != null ? Loc.T(r.Error) : null;
             if (r.Profile != null) TweakEngine.AddLog("valorant", "Tracker search");
             if (_tab == "tracker") Build();
         }
-        go.Click += async (_, _) =>
+        async Task TurnOnSearch()
         {
-            if (!S.PlayerSearch)
+            bool ok = await MainWindow.Instance.Confirm(Loc.T("Turn on player search?"),
+                Loc.T("Players from your own matches open without this. Searching anyone else reads that player's rank and recent matches through the Riot Client's login on your PC, the way tracker apps do. It isn't an official Riot feature, and Riot's own rules only let trackers show players who opted in, so it carries a risk to your account, like the live lobby. Pulse saves nothing that identifies the players you search: only anonymous numbers (rank and stats) that make skill comparisons more accurate."),
+                Loc.T("Turn it on"), Loc.T("Cancel"));
+            if (!ok) return;
+            S.PlayerSearch = true;
+            TweakEngine.AddLog("valorant", "VALORANT player search turned on (risk accepted)");
+            TweakEngine.Save();
+        }
+        go.Click += async (_, _) => await Run();
+        _trSearchFor = async riotId => { box.Text = riotId; await Run(); };
+        // Suggestions while typing: everyone in your matches whose Riot ID matches.
+        var pop = new Popup { PlacementTarget = box, Placement = PlacementMode.Bottom, StaysOpen = false, AllowsTransparency = true };
+        var list = new StackPanel();
+        pop.Child = new Border { Background = B(Color.FromRgb(0x1B, 0x1E, 0x24)), BorderBrush = B(Color.FromRgb(0x2C, 0x30, 0x38)), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(6), Padding = new Thickness(4), MinWidth = 300, Child = list };
+        box.TextChanged += (_, _) =>
+        {
+            var text = box.Text.Trim();
+            list.Children.Clear();
+            if (text.Length < 2) { pop.IsOpen = false; return; }
+            foreach (var (id, name) in NameBook.Find(text, 8))
             {
-                bool ok = await MainWindow.Instance.Confirm(Loc.T("Turn on player search?"),
-                    Loc.T("Searching a Riot ID reads that player's rank and recent matches through the Riot Client's login on your PC, the way tracker apps do. It isn't an official Riot feature, and Riot's own rules only let trackers show players who opted in, so it carries a risk to your account, like the live lobby. Pulse saves nothing that identifies the players you search: only anonymous numbers (rank and stats) that make skill comparisons more accurate."),
-                    Loc.T("Turn it on"), Loc.T("Cancel"));
-                if (!ok) return;
-                S.PlayerSearch = true;
-                TweakEngine.AddLog("valorant", "VALORANT player search turned on (risk accepted)");
-                TweakEngine.Save();
-                Build();
-                return;
+                var item = new Button { Style = (Style)FindResource("GhostButton"), HorizontalContentAlignment = HorizontalAlignment.Left, Padding = new Thickness(10, 6, 10, 6), Margin = new Thickness(0, 1, 0, 1), Content = name };
+                var pick = name;
+                item.Click += async (_, _) => { pop.IsOpen = false; box.Text = pick; await Run(); };
+                list.Children.Add(item);
             }
-            await Run();
+            pop.IsOpen = list.Children.Count > 0 && box.IsKeyboardFocused;
         };
-        box.KeyDown += async (_, e) => { if (e.Key == Key.Enter && S.PlayerSearch) await Run(); };
+        box.KeyDown += async (_, e) => { if (e.Key == Key.Enter) { pop.IsOpen = false; await Run(); } };
+        if (S.RecentSearches.Count > 0)
+        {
+            var recent = new WrapPanel { Margin = new Thickness(0, 10, 0, 0) };
+            recent.Children.Add(Faint(Loc.T("Recent:"), 11.5, 0).Also(t => { t.VerticalAlignment = VerticalAlignment.Center; t.Margin = new Thickness(0, 0, 8, 6); }));
+            foreach (var r in S.RecentSearches)
+            {
+                var b = new Button { Style = (Style)FindResource("GhostButton"), Content = r, Padding = new Thickness(10, 3, 10, 4), Margin = new Thickness(0, 0, 6, 6), FontSize = 12 };
+                var id = r;
+                b.Click += async (_, _) => { box.Text = id; await Run(); };
+                recent.Children.Add(b);
+            }
+            sp.Children.Add(recent);
+        }
         _trStatusLabel = Faint(_trStatus ?? "", 11.5, 8);
         _trStatusLabel.Visibility = _trStatus != null ? Visibility.Visible : Visibility.Collapsed;
         sp.Children.Add(_trStatusLabel);
@@ -179,9 +240,13 @@ public partial class ValorantPage
     async Task LoadNames(List<string> ids)
     {
         _trBusy = true;
-        try { foreach (var kv in await Task.Run(() => ValorantSearch.NamesFor(ids))) _trNames[kv.Key] = kv.Value; }
+        try
+        {
+            var found = await Task.Run(() => ValorantSearch.NamesFor(ids));
+            NameBook.Add(found);
+            foreach (var kv in found) _trNames[kv.Key] = kv.Value;
+        }
         catch { }
-        foreach (var id in ids) _trNames.TryAdd(id, null);
         _trBusy = false;
         if (_tab == "tracker") Build();
     }
@@ -253,13 +318,13 @@ public partial class ValorantPage
                 g.ColumnDefinitions.Add(new ColumnDefinition());
                 g.Children.Add(new TextBlock { Text = $"#{rank++}", FontSize = 12.5, FontWeight = FontWeights.Bold, Foreground = Res(t.You ? "AccentBrush" : "TextFaintBrush"), VerticalAlignment = VerticalAlignment.Center });
                 if (MatchArt.RankIcon(t.Tier) is { } ri) { var im = new Image { Source = ri, Width = 24, Height = 24 }; Grid.SetColumn(im, 1); g.Children.Add(im); }
-                var who = t.You ? Loc.T("You") : S.PlayerSearch && _trNames.TryGetValue(t.Puuid, out var n) && !string.IsNullOrEmpty(n) ? n : ValorantMatches.RankName(t.Tier) is { Length: > 0 } rn ? Loc.F("{0} player", rn) : Loc.T("Player");
+                var who = t.You ? Loc.T("You") : NameBook.Get(t.Puuid) is { } n ? n : ValorantMatches.RankName(t.Tier) is { Length: > 0 } rn ? Loc.F("{0} player", rn) : Loc.T("Player");
                 var w = new TextBlock { Text = who, FontSize = 12.5, FontWeight = t.You ? FontWeights.Bold : FontWeights.SemiBold, Foreground = Res(t.You ? "AccentBrush" : "TextBrush"), VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
                 Grid.SetColumn(w, 2); g.Children.Add(w);
                 var st = new TextBlock { Text = Loc.F("{0:0} ACS · {1:0.00} K/D · {2} matches", t.Acs, t.Kd, t.Matches), FontSize = 12, Foreground = Res("TextDimBrush"), VerticalAlignment = VerticalAlignment.Center };
                 Grid.SetColumn(st, 3); g.Children.Add(st);
                 var row = new Border { Background = t.You ? Res("Surface2Brush") : Brushes.Transparent, CornerRadius = new CornerRadius(6), Padding = new Thickness(8, 4, 8, 4), Child = g };
-                if (!t.You) { var id = t.Puuid; row.Cursor = Cursors.Hand; row.MouseLeftButtonUp += (_, _) => { _trSel = id; Build(); }; }
+                if (!t.You) { var id = t.Puuid; row.Cursor = Cursors.Hand; row.MouseLeftButtonUp += (_, _) => OpenPlayer(id); }
                 sp.Children.Add(row);
             }
         }
@@ -378,7 +443,7 @@ public partial class ValorantPage
                 g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(220) });
                 g.ColumnDefinitions.Add(new ColumnDefinition());
                 if (MatchArt.AgentIcon(r.Agent) is { } ai) g.Children.Add(new Image { Source = ai, Width = 24, Height = 24, HorizontalAlignment = HorizontalAlignment.Left }.Also(i => RenderOptions.SetBitmapScalingMode(i, BitmapScalingMode.HighQuality)));
-                var name = S.PlayerSearch && _trNames.TryGetValue(r.Puuid, out var n) && !string.IsNullOrEmpty(n) ? n : $"{r.Agent} · {ValorantMatches.RankName(r.Tier)}";
+                var name = NameBook.Get(r.Puuid) ?? $"{r.Agent} · {ValorantMatches.RankName(r.Tier)}";
                 var t1 = new TextBlock { Text = name, FontSize = 12.5, FontWeight = FontWeights.SemiBold, Foreground = Res("TextBrush"), VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
                 Grid.SetColumn(t1, 1); g.Children.Add(t1);
                 var t2 = new TextBlock { Text = Loc.F("met {0} times · you won {1}", r.Times, r.YourWins), FontSize = 12, Foreground = Res("TextDimBrush"), VerticalAlignment = VerticalAlignment.Center };

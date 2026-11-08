@@ -20,7 +20,7 @@ public partial class ValorantPage
 {
     static readonly Color Green = Color.FromRgb(0x3D, 0xDC, 0x84), Yellow = Color.FromRgb(0xFA, 0xD6, 0x63), Red = Color.FromRgb(0xFF, 0x5A, 0x4E),
         Blue = Color.FromRgb(0x4D, 0xA3, 0xFF), Purple = Color.FromRgb(0xC9, 0xA2, 0xFF), Orange = Color.FromRgb(0xFF, 0x7A, 0x59), Cyan = Color.FromRgb(0x59, 0xD4, 0xE8),
-        Grey = Color.FromRgb(0x8A, 0x8F, 0x98);
+        Grey = Color.FromRgb(0x8A, 0x8F, 0x98), Gold = Color.FromRgb(0xF5, 0xB9, 0x42);
 
     static Color A(Color c, byte a) => Color.FromArgb(a, c.R, c.G, c.B);
     static SolidColorBrush B(Color c) { var b = new SolidColorBrush(c); b.Freeze(); return b; }
@@ -401,6 +401,10 @@ public partial class ValorantPage
 
     // ───────── the whole profile ─────────
 
+    /// <summary>
+    /// A profile, top to bottom: the header, the four gauges and skills (Pulse's own), then the tracker: playlist and
+    /// act filters, overview, the side panels and match history, and Pulse's insights at the end.
+    /// </summary>
     IEnumerable<FrameworkElement> ProfileView(Profile p)
     {
         var mainAgent = p.Matches.Select(m => m.Players.FirstOrDefault(x => x.Id == p.Puuid)?.Agent).Where(a => !string.IsNullOrEmpty(a))
@@ -421,7 +425,7 @@ public partial class ValorantPage
         var cheatC = p.Cheat.Score >= 60 ? Red : p.Cheat.Score >= 30 ? Yellow : Green;
         gauges.Children.Add(GaugeA("Cheating signals", IconShield, p.CheatChecks == 0 ? double.NaN : p.Cheat.Score / 100.0, p.CheatChecks == 0 ? "–" : $"{p.Cheat.Score}", p.CheatChecks == 0 ? "" : "%", cheatC,
             p.CheatChecks == 0 ? "Not enough data" : p.Cheat.Score >= 60 ? "High risk" : p.Cheat.Score >= 30 ? "Elevated" : "Low risk",
-            Loc.F("{0} of {1} signals", p.Cheat.Signs.Count, Math.Max(p.CheatChecks, 5)),
+            Loc.F("{0} of {1} signals", p.Cheat.Signs.Count, Math.Max(p.CheatChecks, 4)),
             p.Cheat.Signs.Count > 0 ? string.Join(" · ", p.Cheat.Signs) : p.CheatChecks == 0 ? Loc.T("Needs about 5 matches to check.") : Loc.F("Nothing unusual for {0}.", p.CompareTier >= 3 ? ValorantMatches.RankName(p.CompareTier) : Loc.T("their rank"))));
         var smC = p.Smurf.Score >= 60 ? Red : p.Smurf.Score >= 35 ? Yellow : Green;
         gauges.Children.Add(GaugeA("Smurf chance", IconMask, p.Smurf.Score / 100.0, $"{p.Smurf.Score}", "%", smC,
@@ -433,10 +437,10 @@ public partial class ValorantPage
         gauges.Children.Add(GaugeA("Win rate", IconTrophy, t.WinPct / 100, $"{t.WinPct:0}", "%", winC,
             t.WinPct >= 55 ? "Climbing" : t.WinPct <= 45 ? "Struggling" : "Even", Loc.F("{0} won of {1}", t.Wins, t.Matches),
             maps.Count >= 2 ? Loc.F("Best map {0} {1:0}% · weakest {2} {3:0}%", maps[0].Map, maps[0].Win, maps[^1].Map, maps[^1].Win) : Loc.T("Best and worst maps show after two games on each.")));
-        var kdC = t.KdRatio >= 1.2 ? Blue : t.KdRatio >= 0.9 ? Yellow : Red;
+        var kdC = t.KdRatio >= 1.4 ? Gold : t.KdRatio >= 1.2 ? Blue : t.KdRatio >= 0.9 ? Yellow : Red;
         var acsTop = p.Stats.FirstOrDefault(x => x.Skill.Id == "acs");
         gauges.Children.Add(GaugeA("K/D", IconCross, t.KdRatio / 2, t.KdRatio.ToString("0.00", CultureInfo.CurrentCulture), "", kdC,
-            t.KdRatio >= 1.2 ? "Strong" : t.KdRatio >= 0.9 ? "Average" : "Below average", Loc.F("{0} kills · {1} deaths", t.Kills, t.Deaths),
+            t.KdRatio >= 1.4 ? "Elite" : t.KdRatio >= 1.2 ? "Strong" : t.KdRatio >= 0.9 ? "Average" : "Below average", Loc.F("{0} kills · {1} deaths", t.Kills, t.Deaths),
             (acsTop != null && !double.IsNaN(acsTop.TopPercent) ? Loc.F("Top {0:0}% in your matches", acsTop.TopPercent) + " · " : "") + Loc.F("{0:0} ACS", t.Acs)));
         yield return gauges;
 
@@ -457,15 +461,28 @@ public partial class ValorantPage
         sk.Children.Add(row);
         yield return Card2(sk, Purple);
 
-        // Pulse Score and the stats, then accuracy, weapons, roles, maps and agents: plain panels, dense like a tracker.
-        yield return PanelRow((ScorePanel(p), 230), (StatGrid(p), 0));
-        yield return PanelRow((AccuracyPanel(p), 1), (WeaponsPanel(p), 1.25), (RolesPanel(p), 1));
-        yield return PanelRow((MapsPanel(p), 1), (AgentsTable(p), 2.1));
-        if (!p.IsYou) yield return Faint(Loc.T("Cheating signals and smurf chance add up warning signs; they're hints, not proof. Some players are just good, or improving fast."), 11.5, 0);
+        // The tracker.
+        yield return FilterBar(p);
+        var ms = CurrentFilter(p).Apply(p.Matches).OrderByDescending(m => m.StartUtc).ToList();
+        yield return OverviewPanel(ms, p.Puuid);
+        var left = new StackPanel();
+        left.Children.Add(ScorePanel(ms, p.Puuid));
+        if (p.Acts.Count > 0) left.Children.Add(ActsPanel(p));
+        left.Children.Add(AccuracyPanel(ms, p.Puuid));
+        left.Children.Add(RolesPanel(ms, p.Puuid));
+        left.Children.Add(WeaponsPanel(ms, p.Puuid));
+        left.Children.Add(MapsPanel(ms, p.Puuid));
+        var right = new StackPanel();
+        right.Children.Add(AgentsTable(ms, p.Puuid));
+        right.Children.Add(HistoryPanel(p, ms));
+        yield return PanelRow((left, 340), (right, 0));
+        if (!p.FromYourMatches) yield return Faint(Loc.T("Searched profiles start with the player's last 10 matches; load more under match history. Only anonymous numbers from them are kept (each player's rank and stats, no names), to make skill comparisons more accurate."), 11.5, 0);
+        if (!p.IsYou) yield return Faint(Loc.T("Cheating signals and smurf chance add up warning signs; they're hints, not proof. Some players are just good, or improving fast."), 11.5, 4);
 
-        // You: who you're up against, MMR, agents, tier list (each says what it needs when it can't show yet).
+        // Pulse insights for you: who you're up against, MMR, agents, tier list.
         if (p.IsYou)
         {
+            yield return SectionHead("Pulse insights", Loc.T("What only Pulse works out")).Also(h => h.Margin = new Thickness(0, 14, 0, 10));
             var opp = Tracker.Against(mine);
             yield return opp != null ? OppositionCard(opp) : Card2(Waiting("Who you're up against", "Shows the ranks of your enemies and teammates once you have a match saved where most players are ranked."), Red);
             yield return MmrCard(mmr, p);
@@ -476,28 +493,6 @@ public partial class ValorantPage
             int counted = all.Count(m => VMatch.Counts(m.Queue));
             yield return tiers.Count >= 4 ? TierListCard(tiers, counted) : Card2(Waiting("Agent tier list in your lobbies", Loc.F("Needs about 8 games per agent across your saved matches. You have {0} matches so far.", counted)), Yellow);
         }
-
-        // Recent matches.
-        var recent = new StackPanel();
-        int recentN = Math.Min(12, p.Matches.Count), recentW = p.Matches.Take(12).Count(m => WonFor(m, p.Puuid));
-        recent.Children.Add(SectionHead("Recent matches", Loc.F("{0}W {1}L in the last {2}", recentW, recentN - recentW, recentN)));
-        var strip = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
-        foreach (var m in p.Matches.Take(20).Reverse())
-        {
-            bool won = WonFor(m, p.Puuid);
-            var c = won ? Green : Red;
-            strip.Children.Add(new Border
-            {
-                Width = 24, Height = 24, CornerRadius = new CornerRadius(5), Margin = new Thickness(0, 0, 5, 5), Background = B(A(c, 0x2E)), BorderBrush = B(c), BorderThickness = new Thickness(1),
-                Child = new TextBlock { Text = Loc.T(won ? "W" : "L"), FontSize = 11, FontWeight = FontWeights.ExtraBold, Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center },
-                ToolTip = $"{m.Map} · {m.Players.FirstOrDefault(x => x.Id == p.Puuid)?.Agent}",
-            });
-        }
-        recent.Children.Add(strip);
-        foreach (var m in p.Matches.Take(10)) recent.Children.Add(MatchRowWithBoard(m, p.Puuid));
-        recent.Children.Add(Faint(Loc.T("Click a match for its full scoreboard."), 11, 4));
-        if (!p.FromYourMatches) recent.Children.Add(Faint(Loc.T("Searched profiles use that player's last 10 competitive, unrated, premier and swiftplay matches. Only anonymous numbers from them are kept (each player's rank and stats, no names), to make skill comparisons more accurate."), 11.5, 10));
-        yield return Card2(recent, Green);
     }
 
     /// <summary>A section that can't show yet: what it needs, and (when Pulse has few of your matches) a button to fetch them.</summary>

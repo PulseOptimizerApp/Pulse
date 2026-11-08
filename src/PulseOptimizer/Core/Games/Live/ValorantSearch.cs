@@ -112,18 +112,47 @@ public static class ValorantSearch
         async Task<(int, int, int, string, int, int)> MmrAfterContent() { try { await content; } catch { } return await ValorantLobby.Mmr(s, puuid); }
         var mmrTask = MmrAfterContent();
         var gainsTask = ValorantLobby.RecentGains(s, puuid);
+        async Task<List<ValorantLobby.ActLine>> ActsAfterContent() { try { await content; } catch { } return await ValorantLobby.ActHistory(s, puuid); }
+        var actsTask = ActsAfterContent();
         var histTask = ValorantMatches.Get(s, $"https://pd.{s.Shard}.a.pvp.net/match-history/v1/history/{puuid}?startIndex=0&endIndex=20");
 
-        var ids = new List<string>();
+        var all = new List<string>();
+        int listed = 0;
         try
         {
             using var hist = await histTask;
             if (hist?.RootElement.Get("History") is { ValueKind: JsonValueKind.Array } h)
-                ids = h.EnumerateArray().Where(x => VMatch.Counts(x.Str("QueueID"))).Select(x => x.Str("MatchID")).Where(x => x.Length > 0).Take(10).ToList();
+            {
+                listed = h.GetArrayLength();
+                all = h.EnumerateArray().Where(x => VMatch.Counts(x.Str("QueueID"))).Select(x => x.Str("MatchID")).Where(x => x.Length > 0).ToList();
+            }
         }
         catch { }
+        var ids = all.Take(10).ToList();
+        var matches = await Fetch(s, puuid, ids, progress, ct);
 
-        var have = ids.Count > 0 ? VStore.All.Where(m => ids.Contains(m.Id)).ToDictionary(m => m.Id) : new();
+        try { await content; } catch { }
+        var (tier, rr, peak, peakAct, win, games) = await mmrTask;
+        var gains = await gainsTask;
+        var p = Tracker.FromTheirMatches(puuid, matches);
+        p.Name = name;
+        p.PendingIds = all.Skip(10).ToList();
+        p.HistoryNext = 20;
+        p.HistoryEnd = listed < 20;
+        p.Tier = tier; p.Rr = rr; p.Peak = Math.Max(peak, tier); p.PeakAct = ValorantLobby.ActName(peakAct); p.ActWinPct = win; p.ActGames = games;
+        p.IsYou = puuid == s.Puuid;
+        if (tier < 3) p.LastTier = await ValorantLobby.LastTier(s, puuid);
+        p.Acts = await actsTask;
+        p.Account = ValorantLobby.SmurfSigns(0, tier, peak, win, games, gains);
+        Tracker.Finish(p, p.Account);
+        if (matches.Count == 0 && tier == 0) return new Result(p, "Found the player, but Riot didn't share any matches or rank for them.");
+        return new Result(p, null);
+    }
+
+    /// <summary>Match details for these ids, 4 at a time, with one retry each; matches already on this PC are used as they are.</summary>
+    static async Task<List<VMatch>> Fetch(ValorantMatches.Session s, string puuid, List<string> ids, IProgress<string> progress, CancellationToken ct)
+    {
+        var have = ids.Count > 0 ? VStore.All.Where(m => ids.Contains(m.Id) && m.Version >= VMatch.CurrentVersion).ToDictionary(m => m.Id) : new();
         var found = new VMatch[ids.Count];
         int done = 0;
         using var gate = new SemaphoreSlim(4);
@@ -154,25 +183,43 @@ public static class ValorantSearch
         }
         await Task.WhenAll(Enumerable.Range(0, ids.Count).Select(One));
         var matches = found.Where(m => m != null).ToList();
-
         // Their players' ranks and stats (no names or ids) sharpen "plays like" for every profile.
         foreach (var m in matches) RankSamples.Add(m, Tracker.ScaleValues);
         _ = Task.Run(RankSamples.Save);
-
-        try { await content; } catch { }
-        var (tier, rr, peak, peakAct, win, games) = await mmrTask;
-        var gains = await gainsTask;
-        var p = Tracker.FromTheirMatches(puuid, matches);
-        p.Name = name;
-        p.Tier = tier; p.Rr = rr; p.Peak = Math.Max(peak, tier); p.PeakAct = ValorantLobby.ActName(peakAct); p.ActWinPct = win; p.ActGames = games;
-        p.IsYou = puuid == s.Puuid;
-        if (tier < 3) p.LastTier = await ValorantLobby.LastTier(s, puuid);
-        Tracker.Finish(p, ValorantLobby.SmurfSigns(0, tier, peak, win, games, gains));
-        if (matches.Count == 0 && tier == 0) return new Result(p, "Found the player, but Riot didn't share any matches or rank for them.");
-        return new Result(p, null);
+        return matches;
     }
 
-    public sealed record Mine(int Tier, int Rr, int Peak, string PeakAct, int Win, int Games, int LastTier, int Level, List<int> RrChanges);
+    /// <summary>The next 10 matches of a searched player (further back in their history), added to the profile.</summary>
+    public static async Task<string> More(Profile p, IProgress<string> progress = null, CancellationToken ct = default)
+    {
+        var s = await ValorantMatches.Login();
+        if (s == null) return "Open VALORANT or the Riot Client first, then try again.";
+        // Fill the queue from the next pages of their history until there are 10 matches to read (or it runs out).
+        while (p.PendingIds.Count < 10 && !p.HistoryEnd && p.HistoryNext < 200)
+        {
+            using var hist = await ValorantMatches.Get(s, $"https://pd.{s.Shard}.a.pvp.net/match-history/v1/history/{p.Puuid}?startIndex={p.HistoryNext}&endIndex={p.HistoryNext + 20}");
+            if (hist?.RootElement.Get("History") is not { ValueKind: JsonValueKind.Array } h) { p.HistoryEnd = true; break; }
+            int got = h.GetArrayLength();
+            var known = p.Matches.Select(m => m.Id).ToHashSet();
+            p.PendingIds.AddRange(h.EnumerateArray().Where(x => VMatch.Counts(x.Str("QueueID"))).Select(x => x.Str("MatchID")).Where(x => x.Length > 0 && !known.Contains(x) && !p.PendingIds.Contains(x)));
+            p.HistoryNext += 20;
+            if (got < 20) p.HistoryEnd = true;
+            await Task.Delay(300, ct);
+        }
+        var ids = p.PendingIds.Take(10).ToList();
+        if (ids.Count == 0) return "That's every match Riot keeps for this player.";
+        p.PendingIds.RemoveRange(0, ids.Count);
+        var more = await Fetch(s, p.Puuid, ids, progress, ct);
+        p.Matches = p.Matches.Concat(more).GroupBy(m => m.Id).Select(g => g.First()).OrderByDescending(m => m.StartUtc).ToList();
+        p.Totals = Pulse.Core.Games.Valorant.Analysis.For(p.Matches, p.Puuid);
+        Tracker.Finish(p, p.Account);
+        return null;
+    }
+
+    /// <summary>More matches can be loaded for this searched player.</summary>
+    public static bool HasMore(Profile p) => p.PendingIds.Count > 0 || !p.HistoryEnd;
+
+    public sealed record Mine(int Tier, int Rr, int Peak, string PeakAct, int Win, int Games, int LastTier, int Level, List<int> RrChanges, List<ValorantLobby.ActLine> Acts);
 
     /// <summary>Your own live rank, level and RR changes, for your profile (null when the Riot Client isn't running).</summary>
     public static async Task<Mine> MyRank()
@@ -184,7 +231,8 @@ public static class ValorantSearch
         int last = tier < 3 ? await ValorantLobby.LastTier(s, s.Puuid) : 0;
         int level = await ValorantLobby.MyLevel(s);
         var gains = await ValorantLobby.RecentGains(s, s.Puuid);
-        return new Mine(tier, rr, Math.Max(peak, tier), ValorantLobby.ActName(act), win, games, last, level, gains);
+        var acts = await ValorantLobby.ActHistory(s, s.Puuid);
+        return new Mine(tier, rr, Math.Max(peak, tier), ValorantLobby.ActName(act), win, games, last, level, gains, acts);
     }
 
     /// <summary>Your RR change in each of your last 10 competitive matches (wins positive, losses negative).</summary>

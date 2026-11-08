@@ -144,6 +144,8 @@ public class ClipSettings
     public bool AfterMatchLobby { get; set; } = true;
     /// <summary>VALORANT tracker: searching any Riot ID (off until the user accepts the risk).</summary>
     public bool PlayerSearch { get; set; }
+    /// <summary>Riot IDs searched recently in the tracker, newest first (on this PC only).</summary>
+    public List<string> RecentSearches { get; set; } = new();
     /// <summary>A random password the games' state integrations send, so only they can talk to Pulse's listener.</summary>
     public string GsiToken { get; set; } = "";
 

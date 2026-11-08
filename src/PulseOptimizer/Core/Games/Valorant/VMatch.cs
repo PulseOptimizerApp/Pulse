@@ -17,6 +17,12 @@ public sealed class VPlayer
     public string Agent { get; set; } = "";
     /// <summary>Riot's id for the agent, so a name can be found later for agents newer than Pulse.</summary>
     public string AgentId { get; set; } = "";
+    /// <summary>Riot ID ("Name#TAG") as in the match record; null in matches saved by older versions of Pulse.</summary>
+    public string Name { get; set; }
+    /// <summary>Account level at the time of the match (0 when unknown).</summary>
+    public int Level { get; set; }
+    /// <summary>Players who queued together share this id.</summary>
+    public string Party { get; set; } = "";
     public int Kills { get; set; }
     public int Deaths { get; set; }
     public int Assists { get; set; }
@@ -84,6 +90,10 @@ public sealed class VRound
     public long PlantMs { get; set; } = -1;
     public string Site { get; set; }
     public Dictionary<string, VEco> Eco { get; set; } = new();
+    /// <summary>Who defused the spike, if anyone.</summary>
+    public string Defuser { get; set; }
+    /// <summary>Riot's round "ceremony": "CeremonyAce", "CeremonyClutch", "CeremonyFlawless", "CeremonyThrifty", "CeremonyTeamAce"… ("" or "CeremonyDefault" otherwise).</summary>
+    public string Ceremony { get; set; } = "";
     public List<VDamage> Damage { get; set; } = new();
     /// <summary>Players who used at least one ability this round (only filled when Riot sends per-round ability data).</summary>
     public List<string> UsedAbility { get; set; }
@@ -92,7 +102,7 @@ public sealed class VRound
 /// <summary>
 /// One of your VALORANT matches with everything the coach needs: every kill with where all ten players stood, the
 /// rounds, damage and economy. Saved compressed in Pulse's data folder (valorant\matches), only on this PC.
-/// Player names are never saved; players are kept by Riot's random account id only.
+/// Players' Riot IDs are kept with the match, as in the game's own match history, and only on this PC.
 /// </summary>
 public sealed class VMatch
 {
@@ -111,6 +121,8 @@ public sealed class VMatch
     /// <summary>The team that attacked in the first round ("Red" or "Blue").</summary>
     public string FirstAttack { get; set; } = "Red";
     public int Version { get; set; } = 1;
+    /// <summary>Matches saved before this version lack Riot IDs, parties and round ceremonies, and are downloaded again.</summary>
+    public const int CurrentVersion = 2;
     /// <summary>Riot IDs from the match record, kept in memory only (never saved): for the after-match lobby.</summary>
     [System.Text.Json.Serialization.JsonIgnore] public Dictionary<string, string> Names { get; set; }
 
@@ -151,6 +163,7 @@ public sealed class VMatch
         if (info.ValueKind != JsonValueKind.Object) return null;
         var m = new VMatch
         {
+            Version = CurrentVersion,
             Id = info.Str("matchId"), MapUrl = info.Str("mapId"), Map = ValorantMatches.MapName(info.Str("mapId"), maps),
             Queue = info.Str("queueID"), Me = me,
             StartUtc = info.Get("gameStartMillis") is { ValueKind: JsonValueKind.Number } s ? DateTimeOffset.FromUnixTimeMilliseconds(s.GetInt64()).UtcDateTime : DateTime.UtcNow,
@@ -166,6 +179,8 @@ public sealed class VMatch
                 m.Players.Add(new VPlayer
                 {
                     Id = p.Str("subject"), Team = p.Str("teamId"), AgentId = charId,
+                    Name = p.Str("gameName") is { Length: > 0 } gn ? gn + "#" + p.Str("tagLine") : null,
+                    Level = p.Int("accountLevel"), Party = p.Str("partyId"),
                     Agent = agents != null && agents.TryGetValue(charId, out var a) && !string.IsNullOrEmpty(a) ? a : ValorantMatches.AgentName(charId),
                     Kills = p.Int("stats", "kills"), Deaths = p.Int("stats", "deaths"), Assists = p.Int("stats", "assists"),
                     Score = p.Int("stats", "score"), Rounds = p.Int("stats", "roundsPlayed"), Tier = p.Int("competitiveTier"), Casts = casts,
@@ -188,6 +203,7 @@ public sealed class VMatch
                     N = r.Int("roundNum"), Winner = r.Str("winningTeam"), Result = r.Str("roundResultCode"),
                     Planter = NullIfEmpty(r.Str("bombPlanter")), Site = NullIfEmpty(r.Str("plantSite")),
                     PlantMs = r.Str("bombPlanter").Length > 0 && Long(r, "plantRoundTime") > 0 ? Long(r, "plantRoundTime") : -1,
+                    Defuser = NullIfEmpty(r.Str("bombDefuser")), Ceremony = r.Str("roundCeremony"),
                 };
                 var used = new List<string>();
                 if (r.Get("playerStats") is { ValueKind: JsonValueKind.Array } ps)
@@ -275,7 +291,7 @@ public static class VStore
     public static bool Has(string id) => File.Exists(Path.Combine(Dir, id + ".json.gz"));
 
     /// <summary>Saved, but by an older Pulse that couldn't name every agent (worth downloading again).</summary>
-    public static bool Incomplete(string id) => All.FirstOrDefault(m => m.Id == id) is { } m && m.Players.Any(p => p.Agent.Length == 0);
+    public static bool Incomplete(string id) => All.FirstOrDefault(m => m.Id == id) is { } m && (m.Version < VMatch.CurrentVersion || m.Players.Any(p => p.Agent.Length == 0));
 
     public static void Save(VMatch m)
     {
