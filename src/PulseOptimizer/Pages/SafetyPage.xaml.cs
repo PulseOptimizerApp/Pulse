@@ -21,6 +21,28 @@ public partial class SafetyPage : UserControl, IPage
         else { Elevation.Disable(); TweakEngine.AddLog("app", "Asks for admin rights again"); }
     }
 
+    void Startup_Click(object sender, RoutedEventArgs e)
+    {
+        bool on = StartupSwitch.IsChecked == true;
+        var st = TweakEngine.State.Settings;
+        st.StartWithWindows = on;
+        if (!Pulse.Ui.ClipsService.SetStartWithWindows(on))
+        {
+            st.StartWithWindows = false;
+            StartupSwitch.IsChecked = false;
+            MainWindow.Instance.Toast("Windows didn't allow it.", ToastKind.Warning);
+        }
+        else TweakEngine.AddLog("app", on ? "Starts with Windows" : "Doesn't start with Windows");
+        TweakEngine.Save();
+        TrayRow.Visibility = st.StartWithWindows ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    void Tray_Click(object sender, RoutedEventArgs e)
+    {
+        TweakEngine.State.Settings.StartInTray = TraySwitch.IsChecked == true;
+        TweakEngine.Save();
+    }
+
     void Render()
     {
         var st = TweakEngine.State;
@@ -29,6 +51,9 @@ public partial class SafetyPage : UserControl, IPage
             : "Pulse hasn't created one yet. Windows may have its own restore points; open System Restore to see them.";
         AutoRp.IsChecked = st.Settings.AutoRestorePoint;
         NoPromptSwitch.IsChecked = Elevation.IsOn();
+        StartupSwitch.IsChecked = st.Settings.StartWithWindows;
+        TraySwitch.IsChecked = st.Settings.StartInTray;
+        TrayRow.Visibility = st.Settings.StartWithWindows ? Visibility.Visible : Visibility.Collapsed;
 
         var applied = TweakCatalog.All.Where(t => st.Applied.ContainsKey(t.Id)).ToList();
         AppliedList.ItemsSource = applied;

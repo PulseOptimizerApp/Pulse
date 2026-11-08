@@ -1,4 +1,4 @@
-# Pulse Optimizer
+# Pulse
 
 Pulse is an open-source, evidence-based Windows optimizer. It finds what's actually holding a PC back first, only offers tweaks that Microsoft documents and that fit that PC, measures whether they help in your own game, and can undo every change exactly.
 
@@ -41,18 +41,18 @@ It asks for admin because tweaks change system-wide settings, and scans and rest
 NetworkThrottlingIndex and TCPNoDelay (Nagle's algorithm) aren't in Microsoft's documentation, but many players ask for them. Pulse offers them as optional, labelled *Helps only on some PCs*, with that explained, and Measure shows whether they help on your PC.
 
 ## Verify your download
-Every release lists the SHA-256 of `PulseOptimizer.exe`, and carries a **build attestation**: signed proof from GitHub that it was built from this repository's public code. To check it, install the [GitHub CLI](https://cli.github.com) and run:
+Every release lists the SHA-256 of `Pulse.exe`, and carries a **build attestation**: signed proof from GitHub that it was built from this repository's public code. To check it, install the [GitHub CLI](https://cli.github.com) and run:
 ```
-gh attestation verify PulseOptimizer.exe --repo OWNER/REPO
+gh attestation verify Pulse.exe --repo OWNER/REPO
 ```
 Replace `OWNER/REPO` with this repository's name.
 
 ## Build it yourself
-Double-click `build.bat`. It installs the .NET 8 SDK if needed, builds a single `PulseOptimizer.exe` into `dist`, and downloads PresentMon into `dist\tools`.
+Double-click `build.bat`. It installs the .NET 8 SDK if needed, builds a single `Pulse.exe` into `dist`, and downloads PresentMon into `dist\tools`.
 
 ## Releasing (maintainers)
 1. Push to `main`. The **Build and test** workflow runs the tests and builds the exe on Windows.
-2. Create and push a tag like `v0.1.0` (or draft a release with that tag). The workflow publishes the release with `PulseOptimizer.exe`, `SHA256SUMS.txt` and the build attestation.
+2. Create and push a tag like `v0.1.0` (or draft a release with that tag). The workflow publishes the release with `Pulse.exe`, `SHA256SUMS.txt` and the build attestation.
 3. Edit the release notes' "What changed" and add the VirusTotal link.
 
 ## Signing

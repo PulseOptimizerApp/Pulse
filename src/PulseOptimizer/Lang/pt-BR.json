@@ -1126,7 +1126,7 @@
  "Protected": "Protegido",
  "Protection needs attention": "A proteção precisa de atenção",
  "Publisher": "Editora",
- "Pulse Optimizer weekly tune-up": "Manutenção semanal do Pulse Optimizer",
+ "Pulse Optimizer weekly tune-up": "Manutenção semanal do Pulse",
  "Pulse changed {0} video settings in {1}. Undo puts your old settings back exactly.": "O Pulse mudou {0} configurações de vídeo em {1}. Desfazer volta exatamente suas configurações antigas.",
  "Pulse checked this for you.": "O Pulse verificou isso para você.",
  "Pulse covers cleanup; known to push offers": "O Pulse já cuida da limpeza; conhecido por empurrar ofertas",
@@ -1616,7 +1616,6 @@
  "Pick where clips are saved": "Escolha onde os clipes são salvos",
  "Play a sound when a clip is saved": "Tocar um som ao salvar um clipe",
  "Press the keys…": "Aperte as teclas…",
- "Pulse Optimizer: Clips is on": "Pulse Optimizer: Clipes ativados",
  "Pulse is still clipping": "O Pulse continua gravando clipes",
  "Pulse keeps the last moments of your game ready. One key saves them as a clip, in full quality, without the ads, accounts and background apps other clippers bring.": "O Pulse deixa prontos os últimos momentos da sua partida. Uma tecla salva como clipe, em qualidade total, sem os anúncios, contas e apps em segundo plano de outros programas de clipes.",
  "Ready for Discord": "Pronto para o Discord",
@@ -3193,5 +3192,9 @@
  "Sensitivity": "Sensibilidade",
  "Type your sensitivity and DPI.": "Digite sua sensibilidade e DPI.",
  "{0} cm for a full turn ({1} in)": "{0} cm para uma volta completa ({1} pol)",
- "Same DPI in every game. Turn off mouse acceleration in each game for this to match.": "Mesmo DPI em todos os jogos. Desative a aceleração do mouse em cada jogo para bater."
+ "Same DPI in every game. Turn off mouse acceleration in each game for this to match.": "Mesmo DPI em todos os jogos. Desative a aceleração do mouse em cada jogo para bater.",
+ "Pulse: Clips is on": "Pulse: Clipes ativados",
+ "Pulse opens a few seconds after you sign in, without the admin prompt, so your crosshair, mic, clips and macros are ready before you start a game.": "O Pulse abre alguns segundos depois que você entra no Windows, sem o aviso de administrador, para sua mira, microfone, clipes e macros estarem prontos antes de jogar.",
+ "Start in the tray (the window stays closed until you open it)": "Iniciar na bandeja (a janela fica fechada até você abrir)",
+ "Windows didn't allow it.": "O Windows não permitiu."
 }

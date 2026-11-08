@@ -224,7 +224,7 @@ public partial class MeasurePage : UserControl, IPage
         if (!await MainWindow.Instance.Confirm("Restart now?", "Save anything you have open first. Pulse will turn the tweak on and restart in a few seconds.", "Restart"))
             return;
         await Task.Run(() => { _test.PrepareNext(); _test.MarkRestartRequested(); });
-        Process.Start(new ProcessStartInfo("shutdown", "/r /t 5 /c \"Pulse Optimizer: restarting to finish a measurement\"") { UseShellExecute = false, CreateNoWindow = true });
+        Process.Start(new ProcessStartInfo("shutdown", "/r /t 5 /c \"Pulse: restarting to finish a measurement\"") { UseShellExecute = false, CreateNoWindow = true });
     }
 
     void Finish_Click(object sender, RoutedEventArgs e)

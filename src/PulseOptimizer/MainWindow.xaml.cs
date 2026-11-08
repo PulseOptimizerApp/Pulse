@@ -78,16 +78,9 @@ public partial class MainWindow : Window
     void OnLoaded(object sender, RoutedEventArgs e)
     {
         if (Updater.JustUpdatedTo is string v) Dispatcher.BeginInvoke(() => Toast(Loc.F("Updated to Pulse {0}.", v)), System.Windows.Threading.DispatcherPriority.ApplicationIdle);
-        // Intro: fade and settle in.
-        var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
+        // A short fade in: quick, no zoom.
         Root.Opacity = 0;
-        Root.BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(450)) { EasingFunction = ease });
-        RootScale.BeginAnimation(ScaleTransform.ScaleXProperty, new DoubleAnimation(0.985, 1, TimeSpan.FromMilliseconds(500)) { EasingFunction = ease });
-        RootScale.BeginAnimation(ScaleTransform.ScaleYProperty, new DoubleAnimation(0.985, 1, TimeSpan.FromMilliseconds(500)) { EasingFunction = ease });
-
-        // Ambient glow slowly breathes.
-        Glow.BeginAnimation(OpacityProperty, new DoubleAnimation(0.45, 0.7, TimeSpan.FromSeconds(5))
-        { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever, EasingFunction = new SineEase() });
+        Root.BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(140)));
 
         LiveStats.Updated += UpdateMini;
         LiveStats.Start();
@@ -541,7 +534,6 @@ public partial class MainWindow : Window
         _lean = true;
         LiveStats.Updated -= UpdateMini;
         LiveStats.Stop();
-        Glow.BeginAnimation(OpacityProperty, null);
         if (dropScreens && Overlay.Visibility != Visibility.Visible) // nothing running in a dialog
         {
             PageHost.Content = null;
@@ -567,8 +559,6 @@ public partial class MainWindow : Window
         _leanTrim?.Stop();
         LiveStats.Updated += UpdateMini;
         LiveStats.Start();
-        Glow.BeginAnimation(OpacityProperty, new DoubleAnimation(0.45, 0.7, TimeSpan.FromSeconds(5))
-        { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever, EasingFunction = new SineEase() });
         if (PageHost.Content == null)
         {
             var key = NavPanel.Children.OfType<RadioButton>().FirstOrDefault(r => r.IsChecked == true)?.Tag as string ?? "home";

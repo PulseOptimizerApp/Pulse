@@ -73,7 +73,7 @@ public static class TrayIcon
         uID = 1,
         uCallbackMessage = WM_APP_TRAY,
         hIcon = _icon,
-        szTip = Loc.T("Pulse Optimizer: Clips is on"),
+        szTip = Loc.T("Pulse: Clips is on"),
         szInfo = "", szInfoTitle = "",
     };
 

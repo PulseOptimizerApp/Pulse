@@ -1,6 +1,6 @@
 name: Build and test
 
-# Builds PulseOptimizer.exe on GitHub's own Windows machines, straight from this public source code.
+# Builds Pulse.exe on GitHub's own Windows machines, straight from this public source code.
 # Every run publishes the SHA-256 of the .exe so anyone can confirm a download matches this code.
 
 on:
@@ -71,8 +71,9 @@ jobs:
           $version = if ($env:GITHUB_REF_TYPE -eq 'tag') { $env:GITHUB_REF_NAME.TrimStart('v') } else { '0.0.0' }
           # Not compressed on purpose: a compressed single-file app unpacks every assembly into private memory at
           # startup (tens of MB in Task Manager). Uncompressed, Windows maps them straight from the exe instead.
+          # ReadyToRun: Pulse's own code ships already compiled, so it opens without waiting for the JIT.
           dotnet publish src/PulseOptimizer/PulseOptimizer.csproj -c Release -r win-x64 --self-contained true `
-            -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=false -p:Version=$version -o out
+            -p:PublishSingleFile=true -p:PublishReadyToRun=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=false -p:Version=$version -o out
 
       # Code signing (optional, recommended): see "Signing" in README.md.
 
@@ -80,25 +81,29 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force dist | Out-Null
-          Copy-Item out/PulseOptimizer.exe dist/PulseOptimizer.exe
-          $exe = (Get-FileHash dist/PulseOptimizer.exe -Algorithm SHA256).Hash.ToLower()
+          Copy-Item out/Pulse.exe dist/Pulse.exe
+          # The same file under the old name, so copies from before the rename (which look for PulseOptimizer.exe) still update.
+          Copy-Item out/Pulse.exe dist/PulseOptimizer.exe
+          $exe = (Get-FileHash dist/Pulse.exe -Algorithm SHA256).Hash.ToLower()
           $ff = (Get-FileHash dist/ffmpeg-win64.zip -Algorithm SHA256).Hash.ToLower()
-          "$exe  PulseOptimizer.exe`n$ff  ffmpeg-win64.zip" | Out-File dist/SHA256SUMS.txt -Encoding ascii
+          "$exe  Pulse.exe`n$exe  PulseOptimizer.exe`n$ff  ffmpeg-win64.zip" | Out-File dist/SHA256SUMS.txt -Encoding ascii
           Get-Content dist/SHA256SUMS.txt
           "### SHA-256`n``````n$(Get-Content dist/SHA256SUMS.txt -Raw)``````" >> $env:GITHUB_STEP_SUMMARY
 
       # Signed proof that these files were built by this workflow from this repo's public code.
-      # Anyone can check a download with:  gh attestation verify PulseOptimizer.exe --repo OWNER/REPO
+      # Anyone can check a download with:  gh attestation verify Pulse.exe --repo OWNER/REPO
       - name: Attest build provenance
         if: github.event_name != 'pull_request'
         uses: actions/attest-build-provenance@v1
         with:
-          subject-path: dist/PulseOptimizer.exe
+          subject-path: |
+            dist/Pulse.exe
+            dist/PulseOptimizer.exe
 
-      # Uploaded unzipped, so the Actions page gives a plain PulseOptimizer.exe.
+      # Uploaded unzipped, so the Actions page gives a plain Pulse.exe.
       - uses: actions/upload-artifact@v7
         with:
-          path: dist/PulseOptimizer.exe
+          path: dist/Pulse.exe
           archive: false
 
       - name: Add hashes to release notes
@@ -115,6 +120,7 @@ jobs:
           body_path: .github/RELEASE_TEMPLATE.md
           append_body: true
           files: |
+            dist/Pulse.exe
             dist/PulseOptimizer.exe
             dist/SHA256SUMS.txt
             dist/ffmpeg-win64.zip

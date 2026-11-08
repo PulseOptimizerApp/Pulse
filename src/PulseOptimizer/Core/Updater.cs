@@ -74,7 +74,7 @@ public static class Updater
         var exe = Environment.ProcessPath;
         if (exe == null) return "Couldn't find Pulse's own file.";
         var dir = Path.GetDirectoryName(exe)!;
-        var staged = Path.Combine(dir, "PulseOptimizer.update.exe");
+        var staged = Path.Combine(dir, "Pulse.update.exe");
         try
         {
             using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(10) };
@@ -84,10 +84,10 @@ public static class Updater
 
             var sums = await http.GetStringAsync(Url("SHA256SUMS.txt"), ct);
             var expected = sums.Split('\n').Select(l => l.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries))
-                .FirstOrDefault(p => p.Length == 2 && p[1].TrimStart('*') == "PulseOptimizer.exe")?[0]?.ToLowerInvariant();
+                .FirstOrDefault(p => p.Length == 2 && p[1].TrimStart('*') == "Pulse.exe")?[0]?.ToLowerInvariant();
             if (string.IsNullOrEmpty(expected)) return "The new version doesn't list its checksum yet. Try again in a few minutes.";
 
-            using (var resp = await http.GetAsync(Url("PulseOptimizer.exe"), HttpCompletionOption.ResponseHeadersRead, ct))
+            using (var resp = await http.GetAsync(Url("Pulse.exe"), HttpCompletionOption.ResponseHeadersRead, ct))
             {
                 resp.EnsureSuccessStatusCode();
                 long total = resp.Content.Headers.ContentLength ?? 0, got = 0;
@@ -124,6 +124,9 @@ public static class Updater
 
     static string MarkerFor(string dir) => Path.Combine(dir, "PulseOptimizer.update.txt");
 
+    /// <summary>The waiting download: Pulse.update.exe, or PulseOptimizer.update.exe from versions before the rename.</summary>
+    static string StagedIn(string dir) => new[] { "Pulse.update.exe", "PulseOptimizer.update.exe" }.Select(n => Path.Combine(dir, n)).FirstOrDefault(File.Exists) ?? Path.Combine(dir, "Pulse.update.exe");
+
     /// <summary>Set at start-up when this run is the version an update just installed.</summary>
     public static string JustUpdatedTo { get; private set; }
 
@@ -149,7 +152,7 @@ public static class Updater
                 File.WriteAllText(marker, ""); // done
                 return false;
             }
-            var staged = Path.Combine(dir, "PulseOptimizer.update.exe");
+            var staged = StagedIn(dir);
             int tries = int.TryParse(parts[2], out var t) ? t : 0;
             if (tries >= 2 || !File.Exists(staged)) { File.WriteAllText(marker, ""); return false; }
             string actual;
@@ -214,7 +217,7 @@ public static class Updater
         {
             var exe = Environment.ProcessPath;
             if (exe == null) return;
-            var staged = Path.Combine(Path.GetDirectoryName(exe)!, "PulseOptimizer.update.exe");
+            var staged = StagedIn(Path.GetDirectoryName(exe)!);
             if (string.Equals(staged, exe, StringComparison.OrdinalIgnoreCase) || !File.Exists(staged)) return;
             var marker = MarkerFor(Path.GetDirectoryName(exe)!);
             if (File.Exists(marker) && File.ReadAllText(marker).Trim().Length > 0) return; // still waiting to be swapped in

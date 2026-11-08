@@ -10,7 +10,7 @@
     <LangVersion>latest</LangVersion>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>app.ico</ApplicationIcon>
-    <AssemblyName>PulseOptimizer</AssemblyName>
+    <AssemblyName>Pulse</AssemblyName>
     <RootNamespace>Pulse</RootNamespace>
     <Version>0.1.0</Version>
     <Deterministic>true</Deterministic>
@@ -18,10 +18,10 @@
     <DebugType>none</DebugType>
 
     <!-- File properties shown in Windows (right-click > Properties > Details). -->
-    <Product>Pulse Optimizer</Product>
-    <AssemblyTitle>Pulse Optimizer</AssemblyTitle>
+    <Product>Pulse</Product>
+    <AssemblyTitle>Pulse</AssemblyTitle>
     <Description>Open-source gaming PC companion. Not affiliated with Microsoft or Intel.</Description>
-    <Company>Pulse Optimizer (open source)</Company>
+    <Company>Pulse (open source)</Company>
     <Copyright>AGPL-3.0-or-later</Copyright>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>

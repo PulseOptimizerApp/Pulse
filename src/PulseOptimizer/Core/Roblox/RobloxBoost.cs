@@ -418,7 +418,7 @@ public static class RobloxBoost
 
     public static bool HandlerIsPulse() =>
         Reg.Get(RobloxUser.UserRoot.Hive, UserKey("roblox-player"), "") is string cmd && cmd.Contains("--roblox", StringComparison.Ordinal)
-        && cmd.Contains(Path.GetFileName(Environment.ProcessPath ?? "PulseOptimizer.exe"), StringComparison.OrdinalIgnoreCase);
+        && cmd.Contains(Path.GetFileName(Environment.ProcessPath ?? "Pulse.exe"), StringComparison.OrdinalIgnoreCase);
 
     /// <summary>Makes Roblox's Play button go through Pulse (remembering Roblox's own command to put back later).</summary>
     public static void EnableLaunch()

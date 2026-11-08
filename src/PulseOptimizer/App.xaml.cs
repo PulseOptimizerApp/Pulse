@@ -83,20 +83,26 @@ public partial class App : Application
         ListenForShow(window);
         ListenForQuit(window);
         SessionEnding += (_, _) => window.PrepareForExit();
-        Ui.ClipsService.Init();
-        Ui.MacroService.Init();
-        Ui.MatchService.Init();
-        Ui.GameSessionService.Init();
-        Ui.CrosshairService.Init();
-        try { Core.Mic.MicStudio.Init(); } catch { }
+        // Background features start right after the window is up, so it appears without waiting for them.
+        void StartServices()
+        {
+            Ui.ClipsService.Init();
+            Ui.MacroService.Init();
+            Ui.MatchService.Init();
+            Ui.GameSessionService.Init();
+            Ui.CrosshairService.Init();
+            try { Core.Mic.MicStudio.Init(); } catch { }
+        }
 
         // Started at sign-in for Clips: stay in the tray until the user opens Pulse.
+        var st0 = Core.TweakEngine.State.Settings;
         bool tray = e.Args.Contains("--tray", StringComparer.OrdinalIgnoreCase) &&
-                    (Core.TweakEngine.State.Clips is { Enabled: true } || Ui.MacroService.Options.StartWithWindows);
-        if (tray) Ui.TrayIcon.Show();
+                    (Core.TweakEngine.State.Clips is { Enabled: true } || Ui.MacroService.Options.StartWithWindows || (st0.StartWithWindows && st0.StartInTray));
+        if (tray) { Ui.TrayIcon.Show(); StartServices(); }
         else
         {
             window.Show();
+            window.Dispatcher.BeginInvoke(StartServices, System.Windows.Threading.DispatcherPriority.Loaded);
             // Once: offer to skip the admin prompt on future launches.
             window.Dispatcher.BeginInvoke(async () =>
             {
@@ -206,6 +212,6 @@ public partial class App : Application
         if (MainWindow is Pulse.MainWindow w && w.IsLoaded)
             _ = w.Alert("Something went wrong", e.Exception.Message + "\n\nNothing was left half-changed: tweaks roll back automatically if they fail.");
         else
-            MessageBox.Show(e.Exception.ToString(), "Pulse Optimizer");
+            MessageBox.Show(e.Exception.ToString(), "Pulse");
     }
 }

@@ -46,6 +46,25 @@
                 </Grid>
             </Border>
 
+            <Border Style="{StaticResource Card}" Margin="0,16,0,0" ui:Anim.Reveal="True">
+                <StackPanel>
+                    <Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource H2}" Text="Start Pulse with Windows"/>
+                            <TextBlock Style="{StaticResource Body}" Margin="0,6,0,0" TextWrapping="Wrap" MaxWidth="760" HorizontalAlignment="Left"
+                                       Text="Pulse opens a few seconds after you sign in, without the admin prompt, so your crosshair, mic, clips and macros are ready before you start a game."/>
+                        </StackPanel>
+                        <CheckBox x:Name="StartupSwitch" Grid.Column="1" Style="{StaticResource Switch}" VerticalAlignment="Top" Margin="16,2,0,0" Click="Startup_Click"/>
+                    </Grid>
+                    <Grid x:Name="TrayRow" Margin="0,14,0,0">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <TextBlock Style="{StaticResource RowLabel}" Text="Start in the tray (the window stays closed until you open it)"/>
+                        <CheckBox x:Name="TraySwitch" Grid.Column="1" Style="{StaticResource Switch}" Click="Tray_Click"/>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
             <Grid Margin="0,28,0,12">
                 <TextBlock Style="{StaticResource H2}" Text="Tweaks Pulse has applied" VerticalAlignment="Center"/>
                 <Button x:Name="UndoAllBtn" Style="{StaticResource GhostButton}" HorizontalAlignment="Right" Content="Undo everything" Click="UndoAll_Click"/>

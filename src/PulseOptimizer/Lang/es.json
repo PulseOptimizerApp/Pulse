@@ -1126,7 +1126,7 @@
  "Protected": "Protegido",
  "Protection needs attention": "La protección necesita atención",
  "Publisher": "Editor",
- "Pulse Optimizer weekly tune-up": "Mantenimiento semanal de Pulse Optimizer",
+ "Pulse Optimizer weekly tune-up": "Mantenimiento semanal de Pulse",
  "Pulse changed {0} video settings in {1}. Undo puts your old settings back exactly.": "Pulse cambió {0} ajustes de video en {1}. Deshacer devuelve tus ajustes anteriores exactamente.",
  "Pulse checked this for you.": "Pulse lo comprobó por ti.",
  "Pulse covers cleanup; known to push offers": "Pulse ya se encarga de la limpieza; conocido por mostrar ofertas",
@@ -1616,7 +1616,6 @@
  "Pick where clips are saved": "Elige dónde se guardan los clips",
  "Play a sound when a clip is saved": "Reproducir un sonido al guardar un clip",
  "Press the keys…": "Pulsa las teclas…",
- "Pulse Optimizer: Clips is on": "Pulse Optimizer: Clips activado",
  "Pulse is still clipping": "Pulse sigue grabando clips",
  "Pulse keeps the last moments of your game ready. One key saves them as a clip, in full quality, without the ads, accounts and background apps other clippers bring.": "Pulse tiene listos los últimos momentos de tu partida. Una tecla los guarda como clip, en calidad completa, sin los anuncios, cuentas y apps en segundo plano de otros programas de clips.",
  "Ready for Discord": "Listo para Discord",
@@ -3193,5 +3192,9 @@
  "Sensitivity": "Sensibilidad",
  "Type your sensitivity and DPI.": "Escribe tu sensibilidad y DPI.",
  "{0} cm for a full turn ({1} in)": "{0} cm para una vuelta completa ({1} in)",
- "Same DPI in every game. Turn off mouse acceleration in each game for this to match.": "Mismo DPI en todos los juegos. Desactiva la aceleración del ratón en cada juego para que coincida."
+ "Same DPI in every game. Turn off mouse acceleration in each game for this to match.": "Mismo DPI en todos los juegos. Desactiva la aceleración del ratón en cada juego para que coincida.",
+ "Pulse: Clips is on": "Pulse: Clips activado",
+ "Pulse opens a few seconds after you sign in, without the admin prompt, so your crosshair, mic, clips and macros are ready before you start a game.": "Pulse se abre unos segundos después de iniciar sesión, sin el aviso de administrador, para que tu mira, micrófono, clips y macros estén listos antes de jugar.",
+ "Start in the tray (the window stays closed until you open it)": "Iniciar en la bandeja (la ventana sigue cerrada hasta que la abras)",
+ "Windows didn't allow it.": "Windows no lo permitió."
 }

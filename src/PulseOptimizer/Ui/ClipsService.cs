@@ -503,7 +503,7 @@ public static class ClipsService
 
     // ───────── Start with Windows ─────────
 
-    const string TaskName = "Pulse Optimizer clips";
+    const string TaskName = "Pulse", OldTaskName = "Pulse Optimizer clips";
 
     /// <summary>
     /// Starts Pulse in the tray at sign-in (with the admin rights it already has, so no prompt). Clips and Macros share
@@ -511,11 +511,13 @@ public static class ClipsService
     /// </summary>
     public static bool SetStartWithWindows(bool on)
     {
-        if (!on && (TweakEngine.State.Clips?.StartWithWindows == true || TweakEngine.State.MacroOptions?.StartWithWindows == true)) return true;
+        if (!on && (TweakEngine.State.Clips?.StartWithWindows == true || TweakEngine.State.MacroOptions?.StartWithWindows == true
+                    || TweakEngine.State.Settings.StartWithWindows)) return true;
         var schtasks = Path.Combine(Environment.SystemDirectory, "schtasks.exe");
         var exe = Environment.ProcessPath;
+        Shell.Run(schtasks, $"/Delete /F /TN \"{OldTaskName}\""); // the name from before the rename
         var r = on
-            ? Shell.Run(schtasks, $"/Create /F /TN \"{TaskName}\" /TR \"\\\"{exe}\\\" --tray\" /SC ONLOGON /RL HIGHEST /DELAY 0000:30")
+            ? Shell.Run(schtasks, $"/Create /F /TN \"{TaskName}\" /TR \"\\\"{exe}\\\" --tray\" /SC ONLOGON /RL HIGHEST /DELAY 0000:10")
             : Shell.Run(schtasks, $"/Delete /F /TN \"{TaskName}\"");
         return r.Code == 0 || !on;
     }

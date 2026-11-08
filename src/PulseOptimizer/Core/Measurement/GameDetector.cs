@@ -17,7 +17,7 @@ public static class GameDetector
     {
         // Windows and Pulse itself
         "explorer", "ApplicationFrameHost", "TextInputHost", "SystemSettings", "Taskmgr", "ShellExperienceHost",
-        "StartMenuExperienceHost", "SearchHost", "LockApp", "PulseOptimizer", "WindowsTerminal", "cmd", "powershell", "pwsh",
+        "StartMenuExperienceHost", "SearchHost", "LockApp", "PulseOptimizer", "Pulse", "WindowsTerminal", "cmd", "powershell", "pwsh",
         "ShellHost", "Widgets", "WidgetBoard", "PhoneExperienceHost", "LogonUI", "consent", "dwm", "SecurityHealthSystray",
         // Screenshot tools: their full-screen overlay (Win+Shift+S) isn't a game, and recording it breaks the snip
         "ScreenClippingHost", "SnippingTool", "ScreenSketch", "ShareX", "Lightshot", "Greenshot", "Snagit32", "SnagitEditor",

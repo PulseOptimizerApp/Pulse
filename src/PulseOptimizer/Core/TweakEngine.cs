@@ -30,6 +30,10 @@ public class AppSettings
     public bool CheckForUpdates { get; set; } = true;
     /// <summary>A version the user chose to skip.</summary>
     public string SkippedVersion { get; set; } = "";
+    /// <summary>Start Pulse when you sign in to Windows (through Task Scheduler, so there's no admin prompt).</summary>
+    public bool StartWithWindows { get; set; }
+    /// <summary>When started with Windows, wait in the tray instead of opening the window.</summary>
+    public bool StartInTray { get; set; } = true;
 }
 
 public class AppState
@@ -213,7 +217,7 @@ $old = (Get-ItemProperty -Path $k -Name SystemRestorePointCreationFrequency -Err
 Set-ItemProperty -Path $k -Name SystemRestorePointCreationFrequency -Value 0 -Type DWord -ErrorAction SilentlyContinue
 try {
   Enable-ComputerRestore -Drive ""$env:SystemDrive\"" -ErrorAction SilentlyContinue
-  Checkpoint-Computer -Description 'Pulse Optimizer' -RestorePointType MODIFY_SETTINGS -ErrorAction Stop
+  Checkpoint-Computer -Description 'Pulse' -RestorePointType MODIFY_SETTINGS -ErrorAction Stop
   'OK'
 } catch {
   'ERR: ' + $_.Exception.Message

@@ -1,5 +1,5 @@
 ## Download
-Download **PulseOptimizer.exe** below and run it. It's a single file: nothing to unzip or install.
+Download **Pulse.exe** below and run it. It's a single file: nothing to unzip or install.
 
 This page is the only official download. If you got Pulse anywhere else, delete it and download it here.
 
@@ -18,9 +18,9 @@ See the notes above, and the full list of changes on the website.
 
 **Build proof.** This release was built by GitHub Actions from this repository's public code. To check it yourself, install the [GitHub CLI](https://cli.github.com) and run:
 ```
-gh attestation verify PulseOptimizer.exe --repo {{REPO}}
+gh attestation verify Pulse.exe --repo {{REPO}}
 ```
 
-**VirusTotal:** (paste the VirusTotal link for PulseOptimizer.exe here)
+**VirusTotal:** (paste the VirusTotal link for Pulse.exe here)
 
 Pulse is open source and is not affiliated with Microsoft or Intel.

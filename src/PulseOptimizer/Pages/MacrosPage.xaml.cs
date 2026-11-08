@@ -524,7 +524,7 @@ public partial class MacrosPage : UserControl, IPage, IReleasable
                 var name = MacroService.ForegroundApp();
                 pick.Content = Loc.T("Pick the window");
                 pick.IsEnabled = true;
-                if (string.IsNullOrEmpty(name) || name.Equals("PulseOptimizer", StringComparison.OrdinalIgnoreCase)) { MainWindow.Instance.Toast("Click the program's window within 3 seconds, then try again.", ToastKind.Info); return; }
+                if (string.IsNullOrEmpty(name) || name.Equals("PulseOptimizer", StringComparison.OrdinalIgnoreCase) || name.Equals("Pulse", StringComparison.OrdinalIgnoreCase)) { MainWindow.Instance.Toast("Click the program's window within 3 seconds, then try again.", ToastKind.Info); return; }
                 box.Text = name;
             };
             row.Children.Add(pick);
