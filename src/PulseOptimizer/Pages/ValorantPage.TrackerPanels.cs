@@ -4,6 +4,7 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
+using Pulse.Core;
 using Pulse.Core.Games;
 using Pulse.Core.Games.Live;
 using Pulse.Core.Games.Valorant;
