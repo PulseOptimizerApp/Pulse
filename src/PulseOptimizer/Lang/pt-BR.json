@@ -3309,5 +3309,6 @@
  "Equalizer APO is a free, open-source add-on that lets Windows change your headset's sound. Pulse sets it up for you after this.": "O Equalizer APO é um complemento grátis e de código aberto que permite ao Windows alterar o som do seu fone. O Pulse configura tudo depois disso.",
  "When its Configurator opens, tick your headset under Playback devices.": "Quando o Configurator abrir, marque seu fone em Playback devices.",
  "Restart your PC. Pulse does the rest.": "Reinicie o PC. O Pulse faz o resto.",
- "Needs Equalizer APO": "Precisa do Equalizer APO"
+ "Needs Equalizer APO": "Precisa do Equalizer APO",
+ "No cable (Equalizer APO)": "Sem cabo (Equalizer APO)"
 }

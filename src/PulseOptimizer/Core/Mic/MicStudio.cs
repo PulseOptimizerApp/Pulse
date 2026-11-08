@@ -92,14 +92,15 @@ public static class MicStudio
     /// <summary>Real microphones (virtual cable outputs are left out so Pulse can't feed itself).</summary>
     public static List<Device> Mics() => List(DataFlow.Capture).Where(d => !IsCableOut(d.Name)).ToList();
     public static List<Device> Outputs() => List(DataFlow.Render);
-    /// <summary>The cable for your voice: VB-CABLE first (any version), then Voicemeeter. Hi-Fi Cable is left for Headphones.</summary>
+    /// <summary>The cable for your voice: VB-CABLE first (any version), then CABLE-A/B. Hi-Fi Cable is left for Headphones.</summary>
     public static Device FindCable()
     {
         var outs = Outputs().Where(d => IsCable(d.Name)).ToList();
         return outs.FirstOrDefault(d => d.Name.StartsWith("CABLE", StringComparison.OrdinalIgnoreCase) && Cables.Family(d.Name).Equals("VB-Audio Virtual Cable", StringComparison.OrdinalIgnoreCase))
             ?? outs.FirstOrDefault(d => d.Name.StartsWith("CABLE", StringComparison.OrdinalIgnoreCase))
-            ?? outs.FirstOrDefault(d => d.Name.Contains("Voicemeeter", StringComparison.OrdinalIgnoreCase))
-            ?? outs.FirstOrDefault(d => !d.Name.Contains("Hi-Fi", StringComparison.OrdinalIgnoreCase));
+            ?? outs.FirstOrDefault(d => !d.Name.Contains("Hi-Fi", StringComparison.OrdinalIgnoreCase) && !Cables.IsVoicemeeter(d.Name));
+        // Voicemeeter is never picked by itself: its ins and outs only connect while its mixer runs and is routed.
+        // People who use it choose its input in the list.
     }
 
     /// <summary>What apps pick as their mic for this cable ("CABLE In 16ch (...)" → "CABLE Output (...)").</summary>

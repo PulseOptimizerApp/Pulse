@@ -42,3 +42,23 @@ public class EqApoTests
         Assert.Contains("Filter: ON PK Fc 4000 Hz Gain 5 dB Q 1.4", cfg);
     }
 }
+
+public class CableTests
+{
+    [Fact]
+    public void Newer_vb_cable_and_voicemeeter_names_are_cables()
+    {
+        Assert.True(Cables.IsVirtual("CABLE In 16ch (VB-Audio Virtual Cable)"));
+        Assert.True(Cables.IsVirtual("Voicemeeter In 3 (VB-Audio Voicemeeter VAIO)"));
+        Assert.False(Cables.IsVirtual("Microphone (RIG-M2 PRO HD)"));
+    }
+
+    [Fact]
+    public void Ends_pair_up_correctly()
+    {
+        Assert.True(Cables.SameCable("CABLE In 16ch (VB-Audio Virtual Cable)", "CABLE Output (VB-Audio Virtual Cable)"));
+        Assert.True(Cables.SameCable("Voicemeeter In 3 (VB-Audio Voicemeeter VAIO)", "Voicemeeter Out 3 (VB-Audio Voicemeeter VAIO)"));
+        Assert.False(Cables.SameCable("Voicemeeter In 3 (VB-Audio Voicemeeter VAIO)", "Voicemeeter Out 1 (VB-Audio Voicemeeter VAIO)"));
+        Assert.False(Cables.SameCable("CABLE In 16ch (VB-Audio Virtual Cable)", "Hi-Fi Cable Output (VB-Audio Hi-Fi Cable)"));
+    }
+}

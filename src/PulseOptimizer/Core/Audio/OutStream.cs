@@ -84,9 +84,27 @@ public static class Cables
         return a >= 0 ? f : name.Split(' ')[0];
     }
 
-    /// <summary>Whether a playback and a recording device are the two ends of the same cable.</summary>
-    public static bool SameCable(string a, string b) => a != null && b != null && Family(a).Equals(Family(b), StringComparison.OrdinalIgnoreCase)
-        && (Family(a).Contains("Voicemeeter", StringComparison.OrdinalIgnoreCase) ? a.Contains("AUX", StringComparison.OrdinalIgnoreCase) == b.Contains("AUX", StringComparison.OrdinalIgnoreCase) : true);
+    public static bool IsVoicemeeter(string name) => name?.Contains("Voicemeeter", StringComparison.OrdinalIgnoreCase) == true;
+
+    /// <summary>
+    /// Whether a playback and a recording device are the two ends of the same cable. Voicemeeter has many numbered
+    /// ins and outs that only connect through its mixer, so "In 3" only pairs with "Out 3" (and "AUX" with "AUX").
+    /// </summary>
+    public static bool SameCable(string a, string b)
+    {
+        if (a == null || b == null || !Family(a).Equals(Family(b), StringComparison.OrdinalIgnoreCase)) return false;
+        if (!IsVoicemeeter(a)) return true;
+        return a.Contains("AUX", StringComparison.OrdinalIgnoreCase) == b.Contains("AUX", StringComparison.OrdinalIgnoreCase) && VmIndex(a) == VmIndex(b);
+    }
+
+    /// <summary>"Voicemeeter In 3 (...)" → 3, "Voicemeeter Out B2 (...)" → 2, "Voicemeeter Input (...)" → 1.</summary>
+    internal static int VmIndex(string name)
+    {
+        int cut = name.IndexOf('(');
+        var label = cut > 0 ? name[..cut] : name;
+        var m = System.Text.RegularExpressions.Regex.Match(label, @"(\d+)\s*$");
+        return m.Success ? int.Parse(m.Groups[1].Value) : 1;
+    }
 
     static (DateTime At, List<(string Id, string Name, bool Input)> List) _cache;
 

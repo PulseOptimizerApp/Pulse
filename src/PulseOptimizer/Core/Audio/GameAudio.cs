@@ -9,7 +9,7 @@ public sealed class GameAudioSettings
 {
     public bool Enabled { get; set; }
     /// <summary>"apo": EQ inside Windows on your headset via Equalizer APO, no cable. "cable": through a virtual cable.</summary>
-    public string Engine { get; set; } = "apo";
+    public string Engine { get; set; } = "cable";
     /// <summary>The virtual cable's recording side that games play into (e.g. "CABLE-A Output"); empty = found automatically.</summary>
     public string SourceId { get; set; } = "";
     /// <summary>Your headphones; empty = the Windows default (never a cable).</summary>
@@ -108,7 +108,7 @@ public static class GameAudio
             using var en = new MMDeviceEnumerator();
             MMDevice src = null;
             if (!string.IsNullOrEmpty(S.SourceId)) try { src = en.GetDevice(S.SourceId); if (src.State != DeviceState.Active) src = null; } catch { }
-            if (src == null) { var first = Sources().FirstOrDefault(); if (first != null) src = en.GetDevice(first.Id); }
+            if (src == null) { var first = Sources().FirstOrDefault(d => !Cables.IsVoicemeeter(d.Name)); if (first != null) src = en.GetDevice(first.Id); }
             if (src == null) { Problem = "NoCable"; Changed?.Invoke(); return; }
 
             MMDevice dst = null;

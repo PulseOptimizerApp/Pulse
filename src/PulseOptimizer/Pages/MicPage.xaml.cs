@@ -100,11 +100,11 @@ public partial class MicPage : UserControl, IPage, IReleasable
         var wrap = new WrapPanel { Margin = new Thickness(0, 0, 0, 14) };
         foreach (var (key, label, tip) in new[]
         {
-            ("apo", "No cable (recommended)", "Windows changes your real mic, so Discord and games keep using it. Uses Equalizer APO."),
             ("cable", "Virtual cable", "Pulse processes your voice and sends it through VB-CABLE. Needed for voice effects and the soundboard."),
+            ("apo", "No cable (Equalizer APO)", "Windows changes your real mic, so Discord and games keep using it. Uses Equalizer APO."),
         })
         {
-            var rb = new RadioButton { Style = (Style)FindResource("Chip"), Content = Loc.T(label), GroupName = "mic-engine", IsChecked = (S.Engine ?? "apo") == key, ToolTip = Loc.T(tip), Margin = new Thickness(0, 0, 6, 0) };
+            var rb = new RadioButton { Style = (Style)FindResource("Chip"), Content = Loc.T(label), GroupName = "mic-engine", IsChecked = (S.Engine ?? "cable") == key, ToolTip = Loc.T(tip), Margin = new Thickness(0, 0, 6, 0) };
             rb.Checked += (_, _) => { if (S.Engine == key) return; S.Engine = key; TweakEngine.Save(); MicStudio.Refresh(); Build(); };
             wrap.Children.Add(rb);
         }

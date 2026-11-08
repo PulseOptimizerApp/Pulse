@@ -98,9 +98,9 @@ public partial class HeadphonesPage : UserControl, IPage, IReleasable
     {
         var sp = new StackPanel();
         var modes = new WrapPanel { Margin = new Thickness(0, 0, 0, 14) };
-        foreach (var (key, label) in new[] { ("apo", "No cable (recommended)"), ("cable", "Virtual cable") })
+        foreach (var (key, label) in new[] { ("cable", "Virtual cable"), ("apo", "No cable (Equalizer APO)") })
         {
-            var rb = new RadioButton { Style = (Style)FindResource("Chip"), Content = Loc.T(label), GroupName = "hp-engine", IsChecked = (S.Engine ?? "apo") == key, Margin = new Thickness(0, 0, 6, 0) };
+            var rb = new RadioButton { Style = (Style)FindResource("Chip"), Content = Loc.T(label), GroupName = "hp-engine", IsChecked = (S.Engine ?? "cable") == key, Margin = new Thickness(0, 0, 6, 0) };
             rb.Checked += (_, _) => { if (S.Engine == key) return; S.Engine = key; TweakEngine.Save(); GameAudio.Refresh(); Build(); };
             modes.Children.Add(rb);
         }
