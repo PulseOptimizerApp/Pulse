@@ -535,3 +535,59 @@ ConvertTo-Json -Depth 5 -Compress ([pscustomobject]@{ Adapters = @($out); Rsc = 
         Shell.PowerShell(script.ToString(), 120_000);
     }
 }
+
+/// <summary>
+/// Sets one "Key=Value;" entry inside DirectX's per-user graphics settings (the switches on Settings → System →
+/// Display → Graphics), keeping every other entry exactly as it was. Undo puts back just that entry.
+/// </summary>
+public class DxGlobalAction : TweakAction
+{
+    public const string Path = @"Software\Microsoft\DirectX\UserGpuPreferences", Name = "DirectXUserGlobalSettings";
+    readonly string _key, _value;
+
+    public DxGlobalAction(string key, string value) { _key = key; _value = value; }
+
+    internal static List<(string Key, string Value)> Parse(string s)
+    {
+        var list = new List<(string, string)>();
+        foreach (var part in (s ?? "").Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            int eq = part.IndexOf('=');
+            if (eq > 0) list.Add((part[..eq], part[(eq + 1)..]));
+        }
+        return list;
+    }
+
+    internal static string With(string s, string key, string value)
+    {
+        var list = Parse(s);
+        int i = list.FindIndex(p => p.Key.Equals(key, StringComparison.OrdinalIgnoreCase));
+        if (value == null) { if (i >= 0) list.RemoveAt(i); }
+        else if (i >= 0) list[i] = (list[i].Key, value);
+        else list.Add((key, value));
+        return string.Concat(list.Select(p => p.Key + "=" + p.Value + ";"));
+    }
+
+    static string Current => Reg.Get(RegistryHive.CurrentUser, Path, Name) as string ?? "";
+
+    public override bool? Check() =>
+        Parse(Current).Any(p => p.Key.Equals(_key, StringComparison.OrdinalIgnoreCase) && p.Value == _value);
+
+    public override ActionBackup Apply()
+    {
+        var old = Parse(Current).Where(p => p.Key.Equals(_key, StringComparison.OrdinalIgnoreCase)).Select(p => p.Value).FirstOrDefault();
+        var b = new ActionBackup { Kind = "dx-global" };
+        b.Data["key"] = _key;
+        b.Data["had"] = old != null ? "1" : "0";
+        b.Data["old"] = old ?? "";
+        Reg.Set(RegistryHive.CurrentUser, Path, Name, With(Current, _key, _value), RegistryValueKind.String);
+        return b;
+    }
+
+    public override void Revert(ActionBackup backup)
+    {
+        // Without a backup, removing the entry hands the choice back to Windows' default.
+        string old = backup != null && backup.Data.TryGetValue("had", out var had) && had == "1" ? backup.Data["old"] : null;
+        Reg.Set(RegistryHive.CurrentUser, Path, Name, With(Current, _key, old), RegistryValueKind.String);
+    }
+}

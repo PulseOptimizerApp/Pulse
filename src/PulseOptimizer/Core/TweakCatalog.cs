@@ -673,7 +673,98 @@ public static class TweakCatalog
                 CU(@"Software\Microsoft\Windows\DWM", "EnableAeroPeek", 0, def: 1),
             }
         },
+
+        // ═════════════ Added in 0.4.25 after a fresh round of research ═════════════
+
+        new Tweak
+        {
+            Id = "windowed-opt", Category = TweakCategory.Gaming, Risk = Risk.Safe,
+            Evidence = Evidence.Documented, Proof = ProofMetric.Latency, Recommended = true,
+            SourceName = "Microsoft Support: Optimizations for windowed games in Windows 11", SourceUrl = SrcWindowed,
+            Title = "Optimizations for windowed games",
+            Summary = "Borderless and windowed DirectX 10 and 11 games get the same low-latency path as fullscreen.",
+            Explain = "Older DirectX 10 and 11 games in a window use the 'blt' way of showing frames, which adds a copy and some delay. Microsoft's switch moves them to the newer 'flip' model that DirectX 12 games already use, and it's needed for Auto HDR and variable refresh rate in a window. It's the same switch as Settings → System → Display → Graphics.",
+            Changes = @"HKCU\Software\Microsoft\DirectX\UserGpuPreferences → DirectXUserGlobalSettings: SwapEffectUpgradeEnable=1 (other entries kept)",
+            Gain = "Microsoft says it lowers frame latency for DX10/11 games in windowed and borderless mode. DirectX 12 and Vulkan games don't change.",
+            Tradeoff = "A few old games can show tearing; cap the frame rate or turn V-Sync on if you see it. You can turn it off for one game in Windows' Graphics settings.",
+            Gate = () => SystemInfo.Build >= 22621 ? Yes() : No("Needs Windows 11 22H2 or newer."),
+            Actions = { new DxGlobalAction("SwapEffectUpgradeEnable", "1") }
+        },
+        new Tweak
+        {
+            Id = "windows-vrr", Category = TweakCategory.Gaming, Risk = Risk.Safe,
+            Evidence = Evidence.Gated, Proof = ProofMetric.None,
+            SourceName = "Microsoft DirectX blog: the redesigned Graphics settings page", SourceUrl = SrcGraphicsPage,
+            Title = "Variable refresh rate for older games",
+            Summary = "Lets G-SYNC and FreeSync work in DirectX 11 fullscreen games that don't support it themselves.",
+            Explain = "Variable refresh makes the monitor wait for each frame instead of the other way round, which removes tearing and stutter between frame rates. Microsoft's switch extends it to DirectX 11 fullscreen games that don't turn it on themselves. Windows only shows this switch on monitors and drivers that support it.",
+            Changes = @"HKCU\Software\Microsoft\DirectX\UserGpuPreferences → DirectXUserGlobalSettings: VRROptimizeEnable=1 (other entries kept)",
+            Gain = "Smoother motion in those games on a G-SYNC or FreeSync monitor. Nothing changes on a fixed-refresh monitor.",
+            Tradeoff = "Only matters if your monitor has variable refresh and it's turned on in the NVIDIA, AMD or Intel settings.",
+            Gate = () => SystemInfo.Build >= 22000 ? Yes("Turn it on if your monitor has G-SYNC or FreeSync.") : No("Needs Windows 11."),
+            Actions = { new DxGlobalAction("VRROptimizeEnable", "1") }
+        },
+        new Tweak
+        {
+            Id = "no-wu-drivers", Category = TweakCategory.Gaming, Risk = Risk.Moderate,
+            Evidence = Evidence.Documented, Proof = ProofMetric.None,
+            SourceName = "Microsoft Learn: Update/ExcludeWUDriversInQualityUpdate", SourceUrl = SrcWuDrivers,
+            Title = "Stop Windows Update replacing your graphics driver",
+            Summary = "Windows stops installing its own (often older) drivers over the ones you chose.",
+            Explain = "Windows Update sometimes installs an older graphics driver on top of the one you installed from NVIDIA, AMD or Intel, which can bring back old bugs or stutter. This sets Microsoft's 'Do not include drivers with Windows Updates' policy, the same one IT departments use.",
+            Changes = @"HKLM\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate → ExcludeWUDriversInQualityUpdate = 1",
+            Gain = "Your graphics driver stays the version you picked. No speed claim.",
+            Tradeoff = "Windows Update stops offering drivers for every device, so get new ones from the maker (graphics, chipset, Wi-Fi). Security updates for Windows itself still install.",
+            Actions = { LM(@"SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate", "ExcludeWUDriversInQualityUpdate", 1) }
+        },
+        new Tweak
+        {
+            Id = "edge-background", Category = TweakCategory.Performance, Risk = Risk.Safe,
+            Evidence = Evidence.Documented, Proof = ProofMetric.BackgroundCpu,
+            SourceName = "Microsoft Learn: Edge policy StartupBoostEnabled", SourceUrl = SrcEdgeBoost,
+            Title = "Stop Edge running in the background",
+            Summary = "Edge no longer starts with Windows or keeps running after you close it.",
+            Explain = "Edge's Startup boost loads it at sign-in so it opens faster, and background mode keeps it running after the last window closes. Both use memory and some CPU while you play. This sets Microsoft's two Edge policies to off.",
+            Changes = @"HKLM\SOFTWARE\Policies\Microsoft\Edge → StartupBoostEnabled = 0, BackgroundModeEnabled = 0",
+            Gain = "A few hundred MB of memory back on PCs that have Edge sitting in the background. Measure background CPU to see it on yours.",
+            Tradeoff = "Edge takes a moment longer to open. Edge's settings show 'managed by your organization' for these two switches; that just means a policy is set.",
+            Gate = () => File.Exists(Environment.ExpandEnvironmentVariables(@"%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe"))
+                ? Yes() : No("Microsoft Edge isn't installed."),
+            Actions =
+            {
+                LM(@"SOFTWARE\Policies\Microsoft\Edge", "StartupBoostEnabled", 0),
+                LM(@"SOFTWARE\Policies\Microsoft\Edge", "BackgroundModeEnabled", 0),
+            }
+        },
+        new Tweak
+        {
+            Id = "end-task", Category = TweakCategory.Gaming, Risk = Risk.Safe, Evidence = Evidence.NoPerformanceClaim, Recommended = true,
+            SourceName = "Windows Settings → System → For developers → End task", SourceUrl = "https://pureinfotech.com/enable-taskbar-end-task-close-apps-windows-11/",
+            Title = "End task from the taskbar",
+            Summary = "Right-click a frozen game on the taskbar and close it, without opening Task Manager.",
+            Explain = "Windows 11 has this built in but hides it: it's the 'End task' switch in Settings → System → For developers (or Advanced). It works even when the game shows 'Not responding'.",
+            Changes = @"HKCU\…\Explorer\Advanced\TaskbarDeveloperSettings → TaskbarEndTask = 1",
+            Gain = "Frozen fullscreen games are quicker to get rid of.", Tradeoff = "Ending a task loses anything unsaved in it.",
+            Gate = () => SystemInfo.Build >= 22631 ? Yes() : No("Needs Windows 11 23H2 or newer."),
+            Actions = { CU(@"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced\TaskbarDeveloperSettings", "TaskbarEndTask", 1) }
+        },
+        new Tweak
+        {
+            Id = "startup-delay", Category = TweakCategory.Performance, Risk = Risk.Safe, Evidence = Evidence.NoPerformanceClaim,
+            Title = "Start your startup apps right away",
+            Summary = "Windows stops waiting about 10 seconds after sign-in before it starts your startup apps.",
+            Explain = "After sign-in Windows holds startup apps back for a few seconds so the desktop appears first. On an SSD that wait is mostly just waiting. This removes it so Discord, your mouse software and the rest are ready sooner.",
+            Changes = @"HKCU\…\Explorer\Serialize → StartupDelayInMSec = 0",
+            Gain = "Startup apps are ready a few seconds sooner. No in-game effect.",
+            Tradeoff = "On a hard drive or with many startup apps, the desktop can feel busy for the first seconds. Fewer startup apps (Startup apps page) helps more.",
+            Actions = { CU(@"Software\Microsoft\Windows\CurrentVersion\Explorer\Serialize", "StartupDelayInMSec", 0) }
+        },
     };
+
+    const string SrcWindowed = "https://support.microsoft.com/en-us/topic/3f006843-2c7e-4ed0-9a5e-f9389e535952";
+    const string SrcGraphicsPage = "https://devblogs.microsoft.com/directx/navigating-the-redesigned-graphics-settings-page/";
+    const string SrcWuDrivers = "https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-update#excludewudriversinqualityupdate";
+    const string SrcEdgeBoost = "https://learn.microsoft.com/en-us/deployedge/microsoft-edge-browser-policies/startupboostenabled";
 
     static GateResult SecurityGate()
     {

@@ -99,3 +99,15 @@ public class UpdateResumeTests
     [Fact]
     public void Nothing_waiting_means_a_normal_start() => Assert.False(Pulse.Core.Updater.ResumeSwap());
 }
+
+public class DxGlobalTests
+{
+    [Fact]
+    public void One_entry_changes_and_the_others_stay()
+    {
+        Assert.Equal("AutoHDREnable=1;SwapEffectUpgradeEnable=1;", DxGlobalAction.With("AutoHDREnable=1;", "SwapEffectUpgradeEnable", "1"));
+        Assert.Equal("SwapEffectUpgradeEnable=1;VRROptimizeEnable=0;", DxGlobalAction.With("SwapEffectUpgradeEnable=0;VRROptimizeEnable=0;", "SwapEffectUpgradeEnable", "1"));
+        Assert.Equal("VRROptimizeEnable=0;", DxGlobalAction.With("SwapEffectUpgradeEnable=1;VRROptimizeEnable=0;", "SwapEffectUpgradeEnable", null));
+        Assert.Equal("SwapEffectUpgradeEnable=1;", DxGlobalAction.With(null, "SwapEffectUpgradeEnable", "1"));
+    }
+}
