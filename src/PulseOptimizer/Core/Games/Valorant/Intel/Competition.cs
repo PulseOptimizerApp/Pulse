@@ -161,8 +161,8 @@ public static class Expected
             // This match's lobby (without the player), for later expectations.
             var others = m.Players.Where(p => p.Id != id).ToList();
             var lobbyT = others.Select(p => Analysis.Totals(m, p.Id)).ToList();
-            double Avg(IEnumerable<double> v) => v.Where(x => !double.IsNaN(x)).DefaultIfEmpty(double.NaN).Average();
-            past.Add((m, t, others.Count > 0 ? others.Average(p => (double)p.Score) / m.Rounds.Count : t.Acs, Avg(lobbyT.Select(x => x.Adr)), Avg(lobbyT.Select(x => x.KastPct))));
+            double LobbyMean(IEnumerable<double> v) => v.Where(x => !double.IsNaN(x)).DefaultIfEmpty(double.NaN).Average();
+            past.Add((m, t, others.Count > 0 ? others.Average(p => (double)p.Score) / m.Rounds.Count : t.Acs, LobbyMean(lobbyT.Select(x => x.Adr)), LobbyMean(lobbyT.Select(x => x.KastPct))));
         }
         if (lines.Count == 0) return new Summary(lines, double.NaN, double.NaN, double.NaN, double.NaN, double.NaN, double.NaN);
         double Avg(Func<Line, double> f) => lines.Select(f).Where(v => !double.IsNaN(v) && !double.IsInfinity(v)).DefaultIfEmpty(double.NaN).Average();
