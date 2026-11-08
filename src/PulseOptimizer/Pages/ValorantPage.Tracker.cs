@@ -30,12 +30,23 @@ public partial class ValorantPage
     static List<int> _trRr;
     string _trAgent;
     static readonly Dictionary<string, (int Tier, int Peak)> _trPeaks = new();
-    static bool _trPeaksBusy;
+    static bool _trPeaksBusy, _trAutoTried;
 
     void BuildTracker()
     {
         var matches = CoachMatches();
         Root.Children.Add(SearchCard());
+        // Skills need a few matches to measure, and players at several ranks to compare with: fetch your recent ones.
+        if (matches.Count < 20 && !_downloading && !_trAutoTried) { _trAutoTried = true; _ = Download(true); }
+        if (_downloading || (_downloadText != null && matches.Count < 20))
+        {
+            var dl = new StackPanel();
+            dl.Children.Add(Heading(_downloading ? "Getting your recent matches" : "Your matches"));
+            dl.Children.Add(Dim(Loc.T("Your skills are measured from your last 30 matches, against every player in them. The more matches Pulse has, the more exact your ratings are."), 12, 4));
+            _downloadLabel = Faint(_downloadText ?? Loc.T("Connecting to the Riot Client…"), 11.5, 8);
+            dl.Children.Add(_downloadLabel);
+            Root.Children.Add(Card(dl));
+        }
         if (matches.Count == 0 && _trSearched == null)
         {
             Root.Children.Add(CoachHeader(matches));
@@ -134,7 +145,7 @@ public partial class ValorantPage
             if (!S.PlayerSearch)
             {
                 bool ok = await MainWindow.Instance.Confirm(Loc.T("Turn on player search?"),
-                    Loc.T("Searching a Riot ID reads that player's rank and recent matches through the Riot Client's login on your PC, the way tracker apps do. It isn't an official Riot feature, and Riot's own rules only let trackers show players who opted in, so it carries a risk to your account, like the live lobby. Pulse doesn't save anything about the players you search."),
+                    Loc.T("Searching a Riot ID reads that player's rank and recent matches through the Riot Client's login on your PC, the way tracker apps do. It isn't an official Riot feature, and Riot's own rules only let trackers show players who opted in, so it carries a risk to your account, like the live lobby. Pulse saves nothing that identifies the players you search: only anonymous numbers (rank and stats) that make skill comparisons more accurate."),
                     Loc.T("Turn it on"), Loc.T("Cancel"));
                 if (!ok) return;
                 S.PlayerSearch = true;

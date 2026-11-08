@@ -4244,5 +4244,11 @@
  "Earlier tests": "Testes anteriores",
  "Busy lag": "Lag ocupado",
  "Speed test": "Teste de velocidade",
- "Download, upload and ping, plus what matters for games: jitter, packet loss and lag when your connection is busy.": "Download, upload e ping, além do que importa nos jogos: jitter, perda de pacotes e lag quando a conexão está ocupada."
+ "Download, upload and ping, plus what matters for games: jitter, packet loss and lag when your connection is busy.": "Download, upload e ping, além do que importa nos jogos: jitter, perda de pacotes e lag quando a conexão está ocupada.",
+ "Searched profiles use that player's last 10 competitive, unrated, premier and swiftplay matches. Only anonymous numbers from them are kept (each player's rank and stats, no names), to make skill comparisons more accurate.": "Perfis pesquisados usam as últimas 10 partidas competitivas, sem classificação, premier e swiftplay desse jogador. Só números anônimos delas são guardados (o elo e as estatísticas de cada jogador, sem nomes), para deixar as comparações de habilidade mais precisas.",
+ "Your skills are measured from your last 30 matches, against every player in them. The more matches Pulse has, the more exact your ratings are.": "Suas habilidades são medidas pelas suas últimas 30 partidas, comparadas com todos os jogadores delas. Quanto mais partidas o Pulse tiver, mais exatas ficam suas notas.",
+ "Searching a Riot ID reads that player's rank and recent matches through the Riot Client's login on your PC, the way tracker apps do. It isn't an official Riot feature, and Riot's own rules only let trackers show players who opted in, so it carries a risk to your account, like the live lobby. Pulse saves nothing that identifies the players you search: only anonymous numbers (rank and stats) that make skill comparisons more accurate.": "Pesquisar um Riot ID lê o elo e as partidas recentes desse jogador pelo login do cliente da Riot no seu PC, como os apps de tracker fazem. Não é um recurso oficial da Riot, e as regras da Riot só permitem que trackers mostrem jogadores que aceitaram, então há um risco para sua conta, como no lobby ao vivo. O Pulse não guarda nada que identifique os jogadores pesquisados: só números anônimos (elo e estatísticas) que deixam as comparações de habilidade mais precisas.",
+ "Reading rank and matches…": "Lendo elo e partidas…",
+ "Getting your recent matches": "Baixando suas partidas recentes",
+ "Your matches": "Suas partidas"
 }

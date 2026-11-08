@@ -48,26 +48,26 @@ public static class Tracker
 {
     public static readonly Skill[] Skills =
     {
-        new("aim", "Aim", "%", t => t.HeadshotPct, t => t.Head + t.Body + t.Legs, 80, "Headshot rate: the share of hits that land on the head."),
-        new("damage", "Damage", "", t => t.Adr, t => t.Rounds, 40, "Damage per round."),
-        new("opening", "Opening duels", "%", t => t.OpeningWinPct, t => t.FirstKills + t.FirstDeaths, 8, "How often they win the first fight of the round when they're in it."),
-        new("trading", "Trading", "/100", t => t.TradeKillsPer100, t => t.Rounds, 40, "Kills that avenge a teammate within 5 seconds, per 100 rounds."),
-        new("positioning", "Positioning", "%", t => 100 - t.AlonePct, t => t.DeathsPlaced, 12, "Deaths with a teammate close enough to trade (higher is better)."),
-        new("utility", "Utility", "", t => t.AllCastsPerRound, t => t.CastRounds, 40, "Abilities used per round."),
-        new("clutch", "Clutch", "%", t => t.ClutchWinPct, t => t.ClutchChances, 4, "Rounds won when they were the last one alive."),
+        new("aim", "Aim", "%", t => t.HeadshotPct, t => t.Head + t.Body + t.Legs, 50, "Headshot rate: the share of hits that land on the head."),
+        new("damage", "Damage", "", t => t.Adr, t => t.Rounds, 20, "Damage per round."),
+        new("opening", "Opening duels", "%", t => t.OpeningWinPct, t => t.FirstKills + t.FirstDeaths, 6, "How often they win the first fight of the round when they're in it."),
+        new("trading", "Trading", "/100", t => t.TradeKillsPer100, t => t.Rounds, 20, "Kills that avenge a teammate within 5 seconds, per 100 rounds."),
+        new("positioning", "Positioning", "%", t => 100 - t.AlonePct, t => t.DeathsPlaced, 10, "Deaths with a teammate close enough to trade (higher is better)."),
+        new("utility", "Utility", "", t => t.AllCastsPerRound, t => t.CastRounds, 20, "Abilities used per round."),
+        new("clutch", "Clutch", "%", t => t.ClutchWinPct, t => t.ClutchChances, 3, "Rounds won when they were the last one alive."),
     };
 
     /// <summary>The detailed stat tiles. Untraded deaths are lower-is-better, so they're scored as their opposite.</summary>
     public static readonly Skill[] StatTiles =
     {
-        new("hs", "Headshot rate", "%", t => t.HeadshotPct, t => t.Head + t.Body + t.Legs, 80, "The share of hits that land on the head."),
-        new("adr", "Damage per round", "", t => t.Adr, t => t.Rounds, 40, "Average damage dealt each round."),
-        new("kast", "KAST", "%", t => t.KastPct, t => t.Rounds, 40, "Rounds with a kill, assist, survival or trade."),
-        new("fk", "First kills", "/100 rounds", t => t.FirstKillsPer100, t => t.Rounds, 40, "Opening kills per 100 rounds."),
-        new("untraded", "Untraded deaths", "%", t => 100 - t.UntradedPct, t => t.DeathsWithMates, 12, "Deaths no teammate traded."),
-        new("trades", "Trades", "/100 rounds", t => t.TradeKillsPer100, t => t.Rounds, 40, "Kills that avenge a teammate within 5 seconds, per 100 rounds."),
-        new("abil", "Abilities a round", "", t => t.AllCastsPerRound, t => t.CastRounds, 40, "Abilities used per round."),
-        new("acs", "ACS", "", t => t.Acs, t => t.Rounds, 40, "Average combat score per round, as on VALORANT's scoreboard."),
+        new("hs", "Headshot rate", "%", t => t.HeadshotPct, t => t.Head + t.Body + t.Legs, 50, "The share of hits that land on the head."),
+        new("adr", "Damage per round", "", t => t.Adr, t => t.Rounds, 20, "Average damage dealt each round."),
+        new("kast", "KAST", "%", t => t.KastPct, t => t.Rounds, 20, "Rounds with a kill, assist, survival or trade."),
+        new("fk", "First kills", "/100 rounds", t => t.FirstKillsPer100, t => t.Rounds, 20, "Opening kills per 100 rounds."),
+        new("untraded", "Untraded deaths", "%", t => 100 - t.UntradedPct, t => t.DeathsWithMates, 10, "Deaths no teammate traded."),
+        new("trades", "Trades", "/100 rounds", t => t.TradeKillsPer100, t => t.Rounds, 20, "Kills that avenge a teammate within 5 seconds, per 100 rounds."),
+        new("abil", "Abilities a round", "", t => t.AllCastsPerRound, t => t.CastRounds, 20, "Abilities used per round."),
+        new("acs", "ACS", "", t => t.Acs, t => t.Rounds, 20, "Average combat score per round, as on VALORANT's scoreboard."),
     };
 
     /// <summary>The value to show for a stat tile (untraded deaths are kept inverted for scoring).</summary>
@@ -82,39 +82,58 @@ public static class Tracker
     }
 
     static Scale _scale;
-    static int _scaleCount = -1;
+    static (int Matches, int Samples) _scaleKey = (-1, -1);
 
-    /// <summary>Every player-match in the saved matches, per skill, overall and by rank (rebuilt when matches are added).</summary>
+    /// <summary>One player's numbers in one match, for the scale (only the ones with enough behind them to mean something).</summary>
+    internal static Dictionary<string, double> ScaleValues(VMatch m, VPlayer p)
+    {
+        var o = new Dictionary<string, double>();
+        var t = Analysis.Totals(m, p.Id);
+        double avgAcs = m.Players.Select(x => (double)x.Score).DefaultIfEmpty(0).Average() / Math.Max(1, m.Rounds.Count);
+        if (avgAcs > 0 && !double.IsNaN(t.Acs)) o["rating"] = t.Acs / avgAcs;
+        foreach (var k in Skills.Concat(StatTiles))
+        {
+            if (o.ContainsKey(k.Id) || k.Sample(t) < Math.Max(1, k.MinSample / 4)) continue;
+            var v = k.Get(t);
+            if (!double.IsNaN(v) && !double.IsInfinity(v)) o[k.Id] = v;
+        }
+        return o;
+    }
+
+    /// <summary>
+    /// Every player-match Pulse has seen, per skill, overall and by rank: all ten players of your saved matches, plus
+    /// the anonymous rank samples from searched players' matches (rebuilt when either grows).
+    /// </summary>
     static Scale Build(IReadOnlyList<VMatch> matches)
     {
-        if (_scale != null && _scaleCount == matches.Count) return _scale;
+        var key = (matches.Count, RankSamples.Version);
+        if (_scale != null && _scaleKey == key) return _scale;
         var s = new Scale();
         foreach (var k in Skills.Concat(StatTiles)) { s.All[k.Id] = new(); s.ByTier[k.Id] = new(); }
         s.All["rating"] = new();
-        foreach (var m in matches)
-            foreach (var p in m.Players)
+        void Add(int tier, Dictionary<string, double> vals)
+        {
+            foreach (var (id, v) in vals)
             {
-                var t = Analysis.Totals(m, p.Id);
-                double avgAcs = m.Players.Select(x => (double)x.Score).DefaultIfEmpty(0).Average() / Math.Max(1, m.Rounds.Count);
-                if (avgAcs > 0 && !double.IsNaN(t.Acs)) s.All["rating"].Add(t.Acs / avgAcs);
-                foreach (var k in Skills.Concat(StatTiles))
+                if (!s.All.TryGetValue(id, out var all)) continue;
+                all.Add(v);
+                if (tier >= 3 && s.ByTier.TryGetValue(id, out var by))
                 {
-                    // One match is a small sample: only count it when the number means something.
-                    if (k.Sample(t) < Math.Max(1, k.MinSample / 6)) continue;
-                    var v = k.Get(t);
-                    if (double.IsNaN(v) || double.IsInfinity(v)) continue;
-                    s.All[k.Id].Add(v);
-                    if (p.Tier >= 3)
-                    {
-                        if (!s.ByTier[k.Id].TryGetValue(p.Tier, out var l)) s.ByTier[k.Id][p.Tier] = l = new();
-                        l.Add(v);
-                    }
+                    if (!by.TryGetValue(tier, out var l)) by[tier] = l = new();
+                    l.Add(v);
                 }
             }
+        }
+        foreach (var m in matches)
+        {
+            if (!VMatch.Counts(m.Queue)) continue;
+            foreach (var p in m.Players) Add(p.Tier, ScaleValues(m, p));
+        }
+        foreach (var r in RankSamples.Rows) Add(r.T, r.V);
         foreach (var l in s.All.Values) l.Sort();
         foreach (var d in s.ByTier.Values) foreach (var l in d.Values) l.Sort();
         _scale = s;
-        _scaleCount = matches.Count;
+        _scaleKey = key;
         return s;
     }
 
@@ -555,5 +574,5 @@ public static class Tracker
     }
 
     /// <summary>For tests.</summary>
-    internal static void Reset() { _scale = null; _scaleCount = -1; }
+    internal static void Reset() { _scale = null; _scaleKey = (-1, -1); }
 }

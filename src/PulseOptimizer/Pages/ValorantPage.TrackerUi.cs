@@ -501,7 +501,7 @@ public partial class ValorantPage
         }
         recent.Children.Add(strip);
         foreach (var m in p.Matches.Take(10)) recent.Children.Add(MatchRow(m, p.Puuid));
-        if (!p.FromYourMatches) recent.Children.Add(Faint(Loc.T("Searched profiles use that player's last 10 competitive, unrated, premier and swiftplay matches. Nothing about them is saved."), 11.5, 10));
+        if (!p.FromYourMatches) recent.Children.Add(Faint(Loc.T("Searched profiles use that player's last 10 competitive, unrated, premier and swiftplay matches. Only anonymous numbers from them are kept (each player's rank and stats, no names), to make skill comparisons more accurate."), 11.5, 10));
         yield return Card2(recent, Green);
     }
 

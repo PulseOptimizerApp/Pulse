@@ -310,30 +310,37 @@ public sealed class ValorantMatches : IDisposable
         RoundMarks marks = null;
         try { marks = await RoundStarts(); } catch { }
 
-        int added = 0, failed = 0;
+        // Three at a time, with a short pause between each: about a second a match instead of two, still gentle.
+        int added = 0, failed = 0, done = 0;
         string lastError = null;
-        for (int i = 0; i < ids.Count; i++)
+        using var gate = new SemaphoreSlim(3);
+        async Task One(string id)
         {
-            ct.ThrowIfCancellationRequested();
-            progress?.Report(("match", i, ids.Count));
+            await gate.WaitAsync(ct);
             try
             {
-                var (d, c) = await GetStatus(s, $"https://pd.{s.Shard}.a.pvp.net/match-details/v1/matches/{ids[i]}");
+                ct.ThrowIfCancellationRequested();
+                var (d, c) = await GetStatus(s, $"https://pd.{s.Shard}.a.pvp.net/match-details/v1/matches/{id}");
                 using (d)
                 {
                     if (d != null && Pulse.Core.Games.Valorant.VMatch.Parse(d.RootElement, s.Puuid, self._agents, self._maps) is { } vm)
                     {
                         vm.ZeroUtc = ZeroUtc(d.RootElement, marks); // the log still has the last session's matches
                         Pulse.Core.Games.Valorant.VStore.Save(vm);
-                        added++;
+                        Interlocked.Increment(ref added);
                     }
-                    else { failed++; lastError = d == null ? $"HTTP {c}" : "unreadable match"; }
+                    else { Interlocked.Increment(ref failed); lastError = d == null ? $"HTTP {c}" : "unreadable match"; }
                 }
-                if (c == 429) await Task.Delay(5000, ct); // Riot asked to slow down
+                await Task.Delay(c == 429 ? 5000 : 300, ct); // Riot asked to slow down, or a short breather
             }
-            catch (Exception ex) when (ex is not OperationCanceledException) { failed++; lastError = ex.Message; }
-            await Task.Delay(1200, ct); // gentle on Riot's servers
+            catch (Exception ex) when (ex is not OperationCanceledException) { Interlocked.Increment(ref failed); lastError = ex.Message; }
+            finally
+            {
+                gate.Release();
+                progress?.Report(("match", Interlocked.Increment(ref done), ids.Count));
+            }
         }
+        await Task.WhenAll(ids.Select(One));
         progress?.Report(("match", ids.Count, ids.Count));
         if (failed > 0) TweakEngine.AddLog("valorant", $"Coach download: {added} added, {failed} failed ({lastError})");
         return new BackfillResult(added, ids.Count, added == 0 && failed > 0 ? "Riot didn't send the matches (" + lastError + ")" : null);

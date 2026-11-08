@@ -120,7 +120,7 @@ public partial class ValorantPage
             : r.Error != null ? (manual ? Loc.F("{0}. Try again in a minute.", Loc.T(r.Error)) : null)
             : r.Added > 0 ? Loc.F("Added {0} matches.", r.Added)
             : manual ? Loc.T("You're up to date: every recent match is already here.") : null;
-        if (_tab is "coach" or "maps" or "review" && (manual || r.Added > 0)) Build();
+        if (_tab is "coach" or "maps" or "review" or "tracker" && (manual || r.Added > 0)) Build();
     }
 
     // ───────── what to work on ─────────

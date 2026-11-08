@@ -9,13 +9,16 @@ namespace Pulse.Core.Games.Live;
 /// Player search for the VALORANT tracker: finds a Riot ID through the Riot Client on this PC (the same lookup its
 /// friend search uses), then reads that player's rank and recent matches the way the game's own career screen does.
 /// Off unless the user turns it on and accepts the risk: it isn't an official Riot feature. Nothing about the player
-/// is saved; the profile lives in memory until Pulse closes.
+/// is saved except anonymous numbers (each player's rank and stats, no names or ids) that sharpen the
+/// "plays like" comparisons; the profile itself lives in memory until Pulse closes.
 /// </summary>
 public static class ValorantSearch
 {
     public sealed record Result(Profile Profile, string Error);
 
     static readonly Dictionary<string, (Profile P, DateTime At)> Cache = new(StringComparer.OrdinalIgnoreCase);
+    /// <summary>Riot IDs already looked up this session (an account id never changes).</summary>
+    static readonly System.Collections.Concurrent.ConcurrentDictionary<string, string> Ids = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>Splits "Name#TAG" into its two parts; null when it isn't a Riot ID.</summary>
     public static (string Name, string Tag)? ParseRiotId(string text)
@@ -36,7 +39,9 @@ public static class ValorantSearch
         if (s == null) return new Result(null, "Open VALORANT or the Riot Client first, then try again.");
 
         progress?.Report("Finding the player…");
-        var puuid = await FindPuuid(s, id.Name, id.Tag);
+        string key = $"{id.Name}#{id.Tag}";
+        if (!Ids.TryGetValue(key, out var puuid)) puuid = await FindPuuid(s, id.Name, id.Tag);
+        if (puuid != null) Ids[key] = puuid;
         if (puuid == null) return new Result(null, "No player with that Riot ID was found. Check the spelling and the tag.");
         var r = await Load(s, puuid, $"{id.Name}#{id.Tag}", progress, ct);
         if (r.Profile != null) Cache[riotId.Trim()] = (r.Profile, DateTime.UtcNow);
@@ -94,35 +99,69 @@ public static class ValorantSearch
         return null;
     }
 
-    /// <summary>Rank, peak, smurf signs and the last few competitive-style matches of one player.</summary>
+    /// <summary>
+    /// Rank, peak, smurf signs and the last few competitive-style matches of one player. Rank, RR history and the match
+    /// list are asked for at the same time, then the matches 4 at a time (matches already on this PC aren't asked for
+    /// again), so a search takes a couple of seconds instead of 15.
+    /// </summary>
     static async Task<Result> Load(ValorantMatches.Session s, string puuid, string name, IProgress<string> progress, CancellationToken ct)
     {
-        await ValorantLobby.LoadContent(s);
-        progress?.Report("Reading rank…");
-        var (tier, rr, peak, peakAct, win, games) = await ValorantLobby.Mmr(s, puuid);
-        var gains = await ValorantLobby.RecentGains(s, puuid);
+        progress?.Report("Reading rank and matches…");
+        var content = ValorantLobby.LoadContent(s);
+        // The rank needs the season list (from the content), so it follows it; everything else starts now.
+        async Task<(int, int, int, string, int, int)> MmrAfterContent() { try { await content; } catch { } return await ValorantLobby.Mmr(s, puuid); }
+        var mmrTask = MmrAfterContent();
+        var gainsTask = ValorantLobby.RecentGains(s, puuid);
+        var histTask = ValorantMatches.Get(s, $"https://pd.{s.Shard}.a.pvp.net/match-history/v1/history/{puuid}?startIndex=0&endIndex=20");
 
-        progress?.Report("Reading recent matches…");
-        var matches = new List<VMatch>();
-        using (var hist = await ValorantMatches.Get(s, $"https://pd.{s.Shard}.a.pvp.net/match-history/v1/history/{puuid}?startIndex=0&endIndex=15"))
+        var ids = new List<string>();
+        try
         {
+            using var hist = await histTask;
             if (hist?.RootElement.Get("History") is { ValueKind: JsonValueKind.Array } h)
+                ids = h.EnumerateArray().Where(x => VMatch.Counts(x.Str("QueueID"))).Select(x => x.Str("MatchID")).Where(x => x.Length > 0).Take(10).ToList();
+        }
+        catch { }
+
+        var have = ids.Count > 0 ? VStore.All.Where(m => ids.Contains(m.Id)).ToDictionary(m => m.Id) : new();
+        var found = new VMatch[ids.Count];
+        int done = 0;
+        using var gate = new SemaphoreSlim(4);
+        async Task One(int i)
+        {
+            if (have.TryGetValue(ids[i], out var known)) { found[i] = known; Interlocked.Increment(ref done); return; }
+            await gate.WaitAsync(ct);
+            try
             {
-                var ids = h.EnumerateArray().Where(x => VMatch.Counts(x.Str("QueueID"))).Select(x => x.Str("MatchID")).Where(x => x.Length > 0).Take(10).ToList();
-                for (int i = 0; i < ids.Count; i++)
+                for (int attempt = 0; attempt < 2 && found[i] == null; attempt++)
                 {
                     ct.ThrowIfCancellationRequested();
-                    progress?.Report($"match:{i + 1}:{ids.Count}");
                     try
                     {
                         using var d = await ValorantMatches.Get(s, $"https://pd.{s.Shard}.a.pvp.net/match-details/v1/matches/{ids[i]}");
-                        if (d != null && VMatch.Parse(d.RootElement, puuid, null, null) is { } vm) matches.Add(vm);
+                        if (d != null) found[i] = VMatch.Parse(d.RootElement, puuid, null, null);
                     }
+                    catch (OperationCanceledException) { throw; }
                     catch { }
-                    await Task.Delay(1200, ct); // gentle on Riot's servers
+                    if (found[i] == null && attempt == 0) await Task.Delay(800, ct); // one retry, after a pause
                 }
             }
+            finally
+            {
+                gate.Release();
+                progress?.Report($"match:{Interlocked.Increment(ref done)}:{ids.Count}");
+            }
         }
+        await Task.WhenAll(Enumerable.Range(0, ids.Count).Select(One));
+        var matches = found.Where(m => m != null).ToList();
+
+        // Their players' ranks and stats (no names or ids) sharpen "plays like" for every profile.
+        foreach (var m in matches) RankSamples.Add(m, Tracker.ScaleValues);
+        _ = Task.Run(RankSamples.Save);
+
+        try { await content; } catch { }
+        var (tier, rr, peak, peakAct, win, games) = await mmrTask;
+        var gains = await gainsTask;
         var p = Tracker.FromTheirMatches(puuid, matches);
         p.Name = name;
         p.Tier = tier; p.Rr = rr; p.Peak = Math.Max(peak, tier); p.PeakAct = ValorantLobby.ActName(peakAct); p.ActWinPct = win; p.ActGames = games;
