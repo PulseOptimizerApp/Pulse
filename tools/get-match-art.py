@@ -52,7 +52,7 @@ def main():
             if not k or not icon:
                 continue
             try:
-                save(icon, os.path.join(OUT, f"agent-{k}.png"), (128, 128))
+                save(icon, os.path.join(OUT, f"agent-{k}.png"), (256, 256))  # sharp at 64 px on 200-400% screens
                 colors = a.get("backgroundGradientColors") or []
                 if colors:
                     meta["agents"][k] = colors[0][:6]

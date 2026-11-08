@@ -73,12 +73,12 @@ static class RecapCard
             BorderThickness = new Thickness(1),
             Child = head,
         };
-        // The portrait fills the strip's height, cropped to head and shoulders, with no box of its own.
+        // The whole portrait (Riot's square agent icon, transparent around the agent) standing on the strip, not cropped.
         var portrait = new Border
         {
             Width = 64, Height = 64, ClipToBounds = true,
             Child = MatchArt.Agent(m) is { } art
-                ? new Image { Source = art, Stretch = Stretch.UniformToFill, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(-2, -1, -2, -6) }.Also(i => RenderOptions.SetBitmapScalingMode(i, BitmapScalingMode.HighQuality))
+                ? new Image { Source = art, Stretch = Stretch.Uniform, VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(3, 3, 3, 0) }.Also(i => RenderOptions.SetBitmapScalingMode(i, BitmapScalingMode.HighQuality))
                 : null,
         };
         head.Children.Add(portrait);
