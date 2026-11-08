@@ -30,6 +30,9 @@ public sealed class Profile
     public int LastTier;
     public long PlayMs;
     public Rating Rating;
+    /// <summary>Pulse Score (0–1000) averaged over the matches, and each match's own (newest first, NaN when unknown).</summary>
+    public double Score = double.NaN;
+    public List<double> ScoreHistory = new();
     public List<SkillScore> Skills = new();
     /// <summary>The detailed stat tiles (headshots, ADR, KAST, first kills, untraded deaths, trades, abilities, ACS).</summary>
     public List<SkillScore> Stats = new();
@@ -79,7 +82,48 @@ public static class Tracker
     {
         public Dictionary<string, List<double>> All = new();
         public Dictionary<string, Dictionary<int, List<double>>> ByTier = new();
+        /// <summary>Mean and spread of each Pulse Score ingredient, and every player-match's combined value (sorted).</summary>
+        public Dictionary<string, (double Mean, double Sd)> Spread = new();
+        public List<double> Composite = new();
     }
+
+    // ───────── Pulse Score ─────────
+
+    /// <summary>
+    /// What goes into the Pulse Score, and how much: combat score, damage dealt and the damage delta, KAST, opening
+    /// duels won minus lost, and trades. Each is measured against every player-match Pulse has seen.
+    /// </summary>
+    static readonly (string Id, double W)[] ScoreParts = { ("acs", 0.30), ("kast", 0.20), ("dd", 0.20), ("adr", 0.15), ("open", 0.10), ("trades", 0.05) };
+
+    static double Combine(Dictionary<string, double> v, Dictionary<string, (double Mean, double Sd)> spread)
+    {
+        double sum = 0, w = 0;
+        foreach (var (id, weight) in ScoreParts)
+            if (v.TryGetValue(id, out var x) && spread.TryGetValue(id, out var s) && s.Sd > 0)
+            {
+                sum += weight * Math.Clamp((x - s.Mean) / s.Sd, -4, 4);
+                w += weight;
+            }
+        return w >= 0.6 ? sum / w : double.NaN;
+    }
+
+    /// <summary>
+    /// Pulse Score, 0 to 1000: how one match's play ranks against every player-match Pulse has seen. 500 is the
+    /// middle player, 900 means better than 90% of them. Needs about 100 player-matches to compare with.
+    /// </summary>
+    public static double PulseScore(Dictionary<string, double> values)
+    {
+        var s = Build(VStore.All);
+        if (s.Composite.Count < 100) return double.NaN;
+        var c = Combine(values, s.Spread);
+        if (double.IsNaN(c)) return double.NaN;
+        int lo = 0, hi = s.Composite.Count;
+        while (lo < hi) { int mid = (lo + hi) / 2; if (s.Composite[mid] < c) lo = mid + 1; else hi = mid; }
+        return Math.Clamp(Math.Round(1000.0 * lo / s.Composite.Count), 1, 999);
+    }
+
+    /// <summary>One player's Pulse Score in one match.</summary>
+    public static double MatchScore(VMatch m, string id) => m.Players.FirstOrDefault(p => p.Id == id) is { } p ? PulseScore(ScaleValues(m, p)) : double.NaN;
 
     static Scale _scale;
     static (int Matches, int Samples) _scaleKey = (-1, -1);
@@ -91,6 +135,11 @@ public static class Tracker
         var t = Analysis.Totals(m, p.Id);
         double avgAcs = m.Players.Select(x => (double)x.Score).DefaultIfEmpty(0).Average() / Math.Max(1, m.Rounds.Count);
         if (avgAcs > 0 && !double.IsNaN(t.Acs)) o["rating"] = t.Acs / avgAcs;
+        if (t.Rounds >= 5)
+        {
+            if (!double.IsNaN(t.DamageDelta)) o["dd"] = t.DamageDelta;
+            if (!double.IsNaN(t.OpeningNetPer100)) o["open"] = t.OpeningNetPer100;
+        }
         foreach (var k in Skills.Concat(StatTiles))
         {
             if (o.ContainsKey(k.Id) || k.Sample(t) < Math.Max(1, k.MinSample / 4)) continue;
@@ -111,8 +160,12 @@ public static class Tracker
         var s = new Scale();
         foreach (var k in Skills.Concat(StatTiles)) { s.All[k.Id] = new(); s.ByTier[k.Id] = new(); }
         s.All["rating"] = new();
+        s.All["dd"] = new();
+        s.All["open"] = new();
+        var rows = new List<Dictionary<string, double>>();
         void Add(int tier, Dictionary<string, double> vals)
         {
+            rows.Add(vals);
             foreach (var (id, v) in vals)
             {
                 if (!s.All.TryGetValue(id, out var all)) continue;
@@ -132,6 +185,14 @@ public static class Tracker
         foreach (var r in RankSamples.Rows) Add(r.T, r.V);
         foreach (var l in s.All.Values) l.Sort();
         foreach (var d in s.ByTier.Values) foreach (var l in d.Values) l.Sort();
+        foreach (var (id, _) in ScoreParts)
+            if (s.All.TryGetValue(id, out var l) && l.Count >= 20)
+            {
+                double mean = l.Average();
+                s.Spread[id] = (mean, Math.Sqrt(l.Sum(x => (x - mean) * (x - mean)) / l.Count));
+            }
+        foreach (var r in rows) { var c = Combine(r, s.Spread); if (!double.IsNaN(c)) s.Composite.Add(c); }
+        s.Composite.Sort();
         _scale = s;
         _scaleKey = key;
         return s;
@@ -197,6 +258,9 @@ public static class Tracker
         p.Skills = Skills.Select(One).ToList();
         p.Stats = StatTiles.Select(One).ToList();
         p.PlayMs = p.Matches.Sum(m => m.LengthMs);
+        p.ScoreHistory = p.Matches.Select(m => MatchScore(m, p.Puuid)).ToList();
+        var known = p.ScoreHistory.Where(x => !double.IsNaN(x)).ToList();
+        p.Score = known.Count > 0 ? Math.Round(known.Average()) : double.NaN;
         p.Rating = RatingOf(p, scale);
     }
 

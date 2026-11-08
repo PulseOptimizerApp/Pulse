@@ -18,13 +18,14 @@ public static class MapGeo
     sealed record MapInfo(double XMul, double YMul, double XAdd, double YAdd, List<Callout> Callouts);
 
     static Dictionary<string, MapInfo> _maps;
-    static Dictionary<string, string> _weapons;
+    static Dictionary<string, string> _weapons, _weaponCats;
 
     static void Load()
     {
         if (_maps != null) return;
         _maps = new(StringComparer.OrdinalIgnoreCase);
         _weapons = new(StringComparer.OrdinalIgnoreCase);
+        _weaponCats = new(StringComparer.OrdinalIgnoreCase);
         try
         {
             var s = Application.GetResourceStream(new Uri("pack://application:,,,/Assets/Matches/meta.json", UriKind.Absolute))?.Stream;
@@ -39,6 +40,7 @@ public static class MapGeo
     {
         _maps ??= new(StringComparer.OrdinalIgnoreCase);
         _weapons ??= new(StringComparer.OrdinalIgnoreCase);
+        _weaponCats ??= new(StringComparer.OrdinalIgnoreCase);
         if (root.TryGetProperty("maps", out var maps) && maps.ValueKind == JsonValueKind.Object)
             foreach (var m in maps.EnumerateObject())
             {
@@ -58,6 +60,15 @@ public static class MapGeo
             }
         if (root.TryGetProperty("weapons", out var w) && w.ValueKind == JsonValueKind.Object)
             foreach (var p in w.EnumerateObject()) _weapons[p.Name] = p.Value.GetString();
+        if (root.TryGetProperty("weaponCats", out var wc) && wc.ValueKind == JsonValueKind.Object)
+            foreach (var p in wc.EnumerateObject()) _weaponCats[p.Name] = p.Value.GetString();
+    }
+
+    /// <summary>"Rifle", "Sniper", "Sidearm", "SMG", "Shotgun", "Heavy", "Melee"; "" when unknown.</summary>
+    public static string WeaponCategory(string id)
+    {
+        Load();
+        return id != null && _weaponCats.TryGetValue(id, out var c) ? c switch { "Sidearm" => "Sidearm", "SMG" => "SMG", "Shotgun" => "Shotgun", "Rifle" => "Rifle", "Sniper" => "Sniper", "Heavy" => "Machine gun", "Melee" => "Melee", var x => x } : "";
     }
 
     public static bool HasMap(string map) { Load(); return _maps.ContainsKey(MatchArt.Key(map)); }
@@ -91,5 +102,5 @@ public static class MapGeo
     }
 
     /// <summary>For tests.</summary>
-    internal static void Reset() { _maps = null; _weapons = null; }
+    internal static void Reset() { _maps = null; _weapons = null; _weaponCats = null; }
 }

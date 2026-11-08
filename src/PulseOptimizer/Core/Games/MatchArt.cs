@@ -29,6 +29,8 @@ public static class MatchArt
     public static ImageSource MapPicture(string map) => string.IsNullOrEmpty(map) ? null : Load($"map-{Key(map)}.jpg", 640);
     /// <summary>A VALORANT agent's portrait by name.</summary>
     public static ImageSource AgentIcon(string agent) => string.IsNullOrEmpty(agent) ? null : Load($"agent-{Key(agent)}.png", 256);
+    /// <summary>A weapon's killfeed silhouette (white on clear) by Riot's weapon id; null when it wasn't embedded.</summary>
+    public static ImageSource WeaponIcon(string id) => string.IsNullOrEmpty(id) ? null : Load($"weapon-{id.ToLowerInvariant()}.png", 192);
 
     /// <summary>The agent's own color (from the game's art), for the tint behind the portrait; null if unknown.</summary>
     public static Color? AgentColor(MatchRecord m)

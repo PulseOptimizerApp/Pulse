@@ -108,9 +108,21 @@ def main():
         print(f"Ranks: {e}")
 
     try:
+        meta["weaponCats"] = {}
         for w in get(f"{API}/weapons")["data"]:
             if w.get("uuid") and w.get("displayName"):
-                meta["weapons"][w["uuid"].lower()] = w["displayName"]
+                uid = w["uuid"].lower()
+                meta["weapons"][uid] = w["displayName"]
+                cat = (w.get("category") or "").split("::")[-1]
+                if cat:
+                    meta["weaponCats"][uid] = cat
+                # The white killfeed silhouette, the icon trackers show next to a weapon.
+                icon = w.get("killStreamIcon") or w.get("displayIcon")
+                if icon:
+                    try:
+                        save(icon, os.path.join(OUT, f"weapon-{uid}.png"), (192, 64))
+                    except Exception as e:
+                        print(f"  weapon {w['displayName']}: {e}")
                 done["weapons"] += 1
     except Exception as e:
         print(f"Weapons: {e}")

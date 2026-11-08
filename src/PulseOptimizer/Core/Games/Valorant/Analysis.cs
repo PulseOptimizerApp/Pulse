@@ -33,6 +33,8 @@ public sealed record DeathInfo(
 public sealed class PlayerTotals
 {
     public int Matches, Wins, Rounds, Kills, Deaths, Assists, Damage, Head, Body, Legs;
+    /// <summary>Damage taken from enemies (for the damage delta).</summary>
+    public int DamageTaken;
     public int KastRounds, FirstKills, FirstDeaths, TradeKills;
     /// <summary>Deaths where a teammate was still alive (the ones that could have been traded).</summary>
     public int DeathsWithMates, Untraded;
@@ -51,7 +53,7 @@ public sealed class PlayerTotals
     public void Add(PlayerTotals o)
     {
         Matches += o.Matches; Wins += o.Wins; Rounds += o.Rounds; Kills += o.Kills; Deaths += o.Deaths; Assists += o.Assists;
-        Damage += o.Damage; Head += o.Head; Body += o.Body; Legs += o.Legs; KastRounds += o.KastRounds;
+        Damage += o.Damage; DamageTaken += o.DamageTaken; Head += o.Head; Body += o.Body; Legs += o.Legs; KastRounds += o.KastRounds;
         FirstKills += o.FirstKills; FirstDeaths += o.FirstDeaths; TradeKills += o.TradeKills;
         DeathsWithMates += o.DeathsWithMates; Untraded += o.Untraded; DeathsPlaced += o.DeathsPlaced; Alone += o.Alone; Outnumbered += o.Outnumbered;
         DeathsAbilityKnown += o.DeathsAbilityKnown; NoAbility += o.NoAbility;
@@ -62,6 +64,10 @@ public sealed class PlayerTotals
 
     static double Div(double a, double b) => b > 0 ? a / b : double.NaN;
     public double Adr => Div(Damage, Rounds);
+    /// <summary>Damage delta per round: damage dealt minus damage taken (DDΔ on trackers).</summary>
+    public double DamageDelta => Div(Damage - DamageTaken, Rounds);
+    /// <summary>First kills minus first deaths, per 100 rounds.</summary>
+    public double OpeningNetPer100 => Div(100.0 * (FirstKills - FirstDeaths), Rounds);
     public double HeadshotPct => Div(100.0 * Head, Head + Body + Legs);
     public double KastPct => Div(100.0 * KastRounds, Rounds);
     public double FirstDeathsPer100 => Div(100.0 * FirstDeaths, Rounds);
@@ -237,6 +243,7 @@ public static class Analysis
             {
                 t.Damage += d.Amount; t.Head += d.Head; t.Body += d.Body; t.Legs += d.Legs;
             }
+            foreach (var d in r.Damage.Where(d => d.To == who && m.TeamOf(d.From) is { Length: > 0 } ft && ft != team)) t.DamageTaken += d.Amount;
         }
         t.Kills = m.Kills.Count(x => x.Killer == who && x.Victim != who && m.TeamOf(x.Victim) != team);
         t.Deaths = m.Kills.Count(x => x.Victim == who);

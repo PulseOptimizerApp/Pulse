@@ -315,7 +315,7 @@ public partial class ValorantPage
     FrameworkElement RatingPanel(Rating r)
     {
         var sp = new StackPanel();
-        sp.Children.Add(Caps("Pulse rating", 10.5, B(Purple)));
+        sp.Children.Add(Caps("Impact", 10.5, B(Purple)));
         sp.Children.Add(new TextBlock
         {
             Text = r == null ? "–" : r.Overall.ToString("0.00", CultureInfo.CurrentCulture), FontSize = 42, FontWeight = FontWeights.ExtraBold, Foreground = Brushes.White,
@@ -457,17 +457,11 @@ public partial class ValorantPage
         sk.Children.Add(row);
         yield return Card2(sk, Purple);
 
-        // Detailed stats.
-        var st = new StackPanel();
-        st.Children.Add(SectionHead("PULSE", Loc.F("last {0} matches · {1:N0} rounds", p.Matches.Count, t.Rounds), Blue, "STATS"));
-        var colors = new Dictionary<string, Color> { ["hs"] = Yellow, ["adr"] = Purple, ["kast"] = Blue, ["fk"] = Green, ["untraded"] = Red, ["trades"] = Orange, ["abil"] = Cyan, ["acs"] = Yellow };
-        var worst = p.IsYou ? p.Stats.Where(x => !double.IsNaN(x.TopPercent)).OrderByDescending(x => x.TopPercent).FirstOrDefault() : null;
-        var tiles = new UniformGrid { Columns = 4, Margin = new Thickness(0, 0, -10, 0) };
-        foreach (var s in p.Stats) tiles.Children.Add(StatTile(s, colors.GetValueOrDefault(s.Skill.Id, Blue), p.CompareTier, worst != null && s == worst && s.TopPercent >= 55));
-        st.Children.Add(tiles);
-        if (!p.IsYou) st.Children.Add(Faint(Loc.T("Cheating signals and smurf chance add up warning signs; they're hints, not proof. Some players are just good, or improving fast."), 11.5, 4));
-        st.Children.Add(Faint(Loc.T("\"Top %\" and \"level\" compare with every player in the matches saved on this PC, using the rank each of them had in that match. They get more precise the more you play."), 11.5, 4));
-        yield return Card2(st, Blue);
+        // Pulse Score and the stats, then accuracy, weapons, roles, maps and agents: plain panels, dense like a tracker.
+        yield return PanelRow((ScorePanel(p), 230), (StatGrid(p), 0));
+        yield return PanelRow((AccuracyPanel(p), 1), (WeaponsPanel(p), 1.25), (RolesPanel(p), 1));
+        yield return PanelRow((MapsPanel(p), 1), (AgentsTable(p), 2.1));
+        if (!p.IsYou) yield return Faint(Loc.T("Cheating signals and smurf chance add up warning signs; they're hints, not proof. Some players are just good, or improving fast."), 11.5, 0);
 
         // You: who you're up against, MMR, agents, tier list (each says what it needs when it can't show yet).
         if (p.IsYou)
@@ -500,7 +494,8 @@ public partial class ValorantPage
             });
         }
         recent.Children.Add(strip);
-        foreach (var m in p.Matches.Take(10)) recent.Children.Add(MatchRow(m, p.Puuid));
+        foreach (var m in p.Matches.Take(10)) recent.Children.Add(MatchRowWithBoard(m, p.Puuid));
+        recent.Children.Add(Faint(Loc.T("Click a match for its full scoreboard."), 11, 4));
         if (!p.FromYourMatches) recent.Children.Add(Faint(Loc.T("Searched profiles use that player's last 10 competitive, unrated, premier and swiftplay matches. Only anonymous numbers from them are kept (each player's rank and stats, no names), to make skill comparisons more accurate."), 11.5, 10));
         yield return Card2(recent, Green);
     }
