@@ -368,4 +368,11 @@ public class TrackerTests
         Assert.Equal(15, o.Toughest.Tier);
         Assert.NotEmpty(o.Repeats);
     }
+
+    [Theory]
+    [InlineData("EPISODE 9", "Episode 9")]
+    [InlineData("ACT II", "Act 2")]
+    [InlineData("V25 ACT III", "V25 Act 3")]
+    public void Act_names_read_naturally(string riot, string shown) =>
+        Assert.Equal(shown, Pulse.Core.Games.Live.ValorantLobby.Friendly(riot));
 }

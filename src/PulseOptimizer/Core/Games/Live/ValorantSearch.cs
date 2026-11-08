@@ -125,20 +125,27 @@ public static class ValorantSearch
         }
         var p = Tracker.FromTheirMatches(puuid, matches);
         p.Name = name;
-        p.Tier = tier; p.Rr = rr; p.Peak = Math.Max(peak, tier); p.PeakAct = peakAct; p.ActWinPct = win; p.ActGames = games;
+        p.Tier = tier; p.Rr = rr; p.Peak = Math.Max(peak, tier); p.PeakAct = ValorantLobby.ActName(peakAct); p.ActWinPct = win; p.ActGames = games;
         p.IsYou = puuid == s.Puuid;
-        p.Smurf = p.IsYou ? Smurf.None : Tracker.SmurfChance(p, ValorantLobby.SmurfSigns(0, tier, peak, win, games, gains));
+        if (tier < 3) p.LastTier = await ValorantLobby.LastTier(s, puuid);
+        Tracker.Finish(p, ValorantLobby.SmurfSigns(0, tier, peak, win, games, gains));
         if (matches.Count == 0 && tier == 0) return new Result(p, "Found the player, but Riot didn't share any matches or rank for them.");
         return new Result(p, null);
     }
 
-    /// <summary>Your own live rank, for your profile (null when the Riot Client isn't running).</summary>
-    public static async Task<(int Tier, int Rr, int Peak, string PeakAct, int Win, int Games)?> MyRank()
+    public sealed record Mine(int Tier, int Rr, int Peak, string PeakAct, int Win, int Games, int LastTier, int Level, List<int> RrChanges);
+
+    /// <summary>Your own live rank, level and RR changes, for your profile (null when the Riot Client isn't running).</summary>
+    public static async Task<Mine> MyRank()
     {
         var s = await ValorantMatches.Login();
         if (s == null) return null;
         await ValorantLobby.LoadContent(s);
-        return await ValorantLobby.Mmr(s, s.Puuid);
+        var (tier, rr, peak, act, win, games) = await ValorantLobby.Mmr(s, s.Puuid);
+        int last = tier < 3 ? await ValorantLobby.LastTier(s, s.Puuid) : 0;
+        int level = await ValorantLobby.MyLevel(s);
+        var gains = await ValorantLobby.RecentGains(s, s.Puuid);
+        return new Mine(tier, rr, Math.Max(peak, tier), ValorantLobby.ActName(act), win, games, last, level, gains);
     }
 
     /// <summary>Your RR change in each of your last 10 competitive matches (wins positive, losses negative).</summary>

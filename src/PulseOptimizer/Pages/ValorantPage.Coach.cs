@@ -111,7 +111,7 @@ public partial class ValorantPage
         });
         ValorantMatches.BackfillResult r;
         using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(3));
-        try { r = await ValorantMatches.Backfill(20, progress, cts.Token); }
+        try { r = await ValorantMatches.Backfill(30, progress, cts.Token); }
         catch (OperationCanceledException) { r = new ValorantMatches.BackfillResult(0, 0, "It took too long"); }
         catch (Exception ex) { r = new ValorantMatches.BackfillResult(0, 0, ex.Message); }
         _downloading = false;

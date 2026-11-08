@@ -271,19 +271,32 @@ public sealed class ValorantMatches : IDisposable
         if (s == null) return new BackfillResult(0, 0, "no-client");
         progress?.Report(("list", 0, 0));
 
-        var (history, code) = await GetStatus(s, $"https://pd.{s.Shard}.a.pvp.net/match-history/v1/history/{s.Puuid}?startIndex=0&endIndex={Math.Clamp(count, 1, 25)}");
-        if (history == null)
+        // Your history mixes every mode (Deathmatch, Team Deathmatch…); page back up to 100 games to find enough real matches.
+        var ids = new List<string>();
+        int seen = 0;
+        for (int start = 0; start < 100 && seen < count; start += 20)
         {
-            if (code is 401 or 403) { Forget(); return Fail("Riot asked to log in again", $"HTTP {code}"); }
-            return Fail(code == 429 ? "Riot says too many requests" : code == 0 ? "Riot's servers didn't answer" : "Riot refused the request", code == 0 ? "timeout" : $"HTTP {code}");
-        }
-        List<string> ids;
-        using (history)
-        {
-            if (history.RootElement.Get("History") is not { ValueKind: JsonValueKind.Array } h) return new BackfillResult(0, 0, null);
-            ids = h.EnumerateArray()
-                .Where(x => Pulse.Core.Games.Valorant.VMatch.Counts(x.Str("QueueID")))
-                .Select(x => x.Str("MatchID")).Where(id => id.Length > 0 && !Pulse.Core.Games.Valorant.VStore.Has(id)).ToList();
+            var (history, code) = await GetStatus(s, $"https://pd.{s.Shard}.a.pvp.net/match-history/v1/history/{s.Puuid}?startIndex={start}&endIndex={start + 20}");
+            if (history == null)
+            {
+                if (start > 0) break; // keep what the first pages found
+                if (code is 401 or 403) { Forget(); return Fail("Riot asked to log in again", $"HTTP {code}"); }
+                return Fail(code == 429 ? "Riot says too many requests" : code == 0 ? "Riot's servers didn't answer" : "Riot refused the request", code == 0 ? "timeout" : $"HTTP {code}");
+            }
+            int got;
+            using (history)
+            {
+                if (history.RootElement.Get("History") is not { ValueKind: JsonValueKind.Array } h) break;
+                got = h.GetArrayLength();
+                foreach (var x in h.EnumerateArray().Where(x => Pulse.Core.Games.Valorant.VMatch.Counts(x.Str("QueueID"))))
+                {
+                    seen++;
+                    var id = x.Str("MatchID");
+                    if (id.Length > 0 && !Pulse.Core.Games.Valorant.VStore.Has(id) && !ids.Contains(id)) ids.Add(id);
+                }
+            }
+            if (got < 20) break; // that was the last page
+            await Task.Delay(600, ct);
         }
         if (ids.Count == 0) return new BackfillResult(0, 0, null);
 

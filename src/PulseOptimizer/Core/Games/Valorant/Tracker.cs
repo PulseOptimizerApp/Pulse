@@ -8,6 +8,9 @@ public sealed record Skill(string Id, string Name, string Unit, Func<PlayerTotal
 /// <summary>A skill's value, where it sits among players in your matches, and the rank it plays like.</summary>
 public sealed record SkillScore(Skill Skill, double Value, double TopPercent, int PlaysLikeTier);
 
+/// <summary>Pulse rating: combat score per round against the average in the same matches (1.00 = average), and by side.</summary>
+public sealed record Rating(double Overall, double Attack, double Defense, double TopPercent);
+
 /// <summary>Everything a tracker profile shows.</summary>
 public sealed class Profile
 {
@@ -20,7 +23,18 @@ public sealed class Profile
     public int Tier, Rr, Peak, ActWinPct, ActGames, Level;
     public string PeakAct = "";
     public Smurf Smurf = Smurf.None;
+    /// <summary>Warning signs of cheating, measured against players at the same rank.</summary>
+    public Smurf Cheat = Smurf.None;
+    public int CheatChecks;
+    /// <summary>The rank after their last ranked game, when they haven't played ranked this act.</summary>
+    public int LastTier;
+    public long PlayMs;
+    public Rating Rating;
     public List<SkillScore> Skills = new();
+    /// <summary>The detailed stat tiles (headshots, ADR, KAST, first kills, untraded deaths, trades, abilities, ACS).</summary>
+    public List<SkillScore> Stats = new();
+    /// <summary>The rank to compare with: their rank now, else their last ranked one, else the typical rank of their lobbies.</summary>
+    public int CompareTier;
     /// <summary>For profiles from your matches: games together on your team, and against you.</summary>
     public int With, WithWins, Against, AgainstWins;
 }
@@ -43,6 +57,22 @@ public static class Tracker
         new("clutch", "Clutch", "%", t => t.ClutchWinPct, t => t.ClutchChances, 4, "Rounds won when they were the last one alive."),
     };
 
+    /// <summary>The detailed stat tiles. Untraded deaths are lower-is-better, so they're scored as their opposite.</summary>
+    public static readonly Skill[] StatTiles =
+    {
+        new("hs", "Headshot rate", "%", t => t.HeadshotPct, t => t.Head + t.Body + t.Legs, 80, "The share of hits that land on the head."),
+        new("adr", "Damage per round", "", t => t.Adr, t => t.Rounds, 40, "Average damage dealt each round."),
+        new("kast", "KAST", "%", t => t.KastPct, t => t.Rounds, 40, "Rounds with a kill, assist, survival or trade."),
+        new("fk", "First kills", "/100 rounds", t => t.FirstKillsPer100, t => t.Rounds, 40, "Opening kills per 100 rounds."),
+        new("untraded", "Untraded deaths", "%", t => 100 - t.UntradedPct, t => t.DeathsWithMates, 12, "Deaths no teammate traded."),
+        new("trades", "Trades", "/100 rounds", t => t.TradeKillsPer100, t => t.Rounds, 40, "Kills that avenge a teammate within 5 seconds, per 100 rounds."),
+        new("abil", "Abilities a round", "", t => t.AllCastsPerRound, t => t.CastRounds, 40, "Abilities used per round."),
+        new("acs", "ACS", "", t => t.Acs, t => t.Rounds, 40, "Average combat score per round, as on VALORANT's scoreboard."),
+    };
+
+    /// <summary>The value to show for a stat tile (untraded deaths are kept inverted for scoring).</summary>
+    public static double Shown(SkillScore s) => s.Skill.Id == "untraded" && !double.IsNaN(s.Value) ? 100 - s.Value : s.Value;
+
     // ───────── the rank scale ─────────
 
     sealed class Scale
@@ -59,12 +89,15 @@ public static class Tracker
     {
         if (_scale != null && _scaleCount == matches.Count) return _scale;
         var s = new Scale();
-        foreach (var k in Skills) { s.All[k.Id] = new(); s.ByTier[k.Id] = new(); }
+        foreach (var k in Skills.Concat(StatTiles)) { s.All[k.Id] = new(); s.ByTier[k.Id] = new(); }
+        s.All["rating"] = new();
         foreach (var m in matches)
             foreach (var p in m.Players)
             {
                 var t = Analysis.Totals(m, p.Id);
-                foreach (var k in Skills)
+                double avgAcs = m.Players.Select(x => (double)x.Score).DefaultIfEmpty(0).Average() / Math.Max(1, m.Rounds.Count);
+                if (avgAcs > 0 && !double.IsNaN(t.Acs)) s.All["rating"].Add(t.Acs / avgAcs);
+                foreach (var k in Skills.Concat(StatTiles))
                 {
                     // One match is a small sample: only count it when the number means something.
                     if (k.Sample(t) < Math.Max(1, k.MinSample / 6)) continue;
@@ -79,6 +112,7 @@ public static class Tracker
                 }
             }
         foreach (var l in s.All.Values) l.Sort();
+        foreach (var d in s.ByTier.Values) foreach (var l in d.Values) l.Sort();
         _scale = s;
         _scaleCount = matches.Count;
         return s;
@@ -135,13 +169,117 @@ public static class Tracker
     public static void Score(Profile p)
     {
         var scale = Build(VStore.All);
-        p.Skills.Clear();
-        foreach (var k in Skills)
+        SkillScore One(Skill k)
         {
-            if (k.Sample(p.Totals) < k.MinSample) { p.Skills.Add(new SkillScore(k, double.NaN, double.NaN, 0)); continue; }
+            if (k.Sample(p.Totals) < k.MinSample) return new SkillScore(k, double.NaN, double.NaN, 0);
             var v = k.Get(p.Totals);
-            p.Skills.Add(new SkillScore(k, v, TopPercent(scale.All[k.Id], v), PlaysLike(scale.ByTier[k.Id], v)));
+            return new SkillScore(k, v, TopPercent(scale.All[k.Id], v), PlaysLike(scale.ByTier[k.Id], v));
         }
+        p.Skills = Skills.Select(One).ToList();
+        p.Stats = StatTiles.Select(One).ToList();
+        p.PlayMs = p.Matches.Sum(m => m.LengthMs);
+        p.Rating = RatingOf(p, scale);
+    }
+
+    /// <summary>Combat score per round against everyone in the same matches, overall and per side.</summary>
+    static Rating RatingOf(Profile p, Scale scale)
+    {
+        double mine = 0, avg = 0, atkMine = 0, atkAvg = 0, defMine = 0, defAvg = 0;
+        foreach (var m in p.Matches)
+        {
+            var me = m.Players.FirstOrDefault(x => x.Id == p.Puuid);
+            if (me == null || m.Rounds.Count == 0 || m.Players.Count == 0) continue;
+            mine += me.Score;
+            avg += m.Players.Average(x => (double)x.Score);
+            // Per side: kills (150 each, like combat score's kill points) plus damage, against the match average.
+            var team = me.Team;
+            foreach (var r in m.Rounds)
+            {
+                bool atk = m.Attacking(team, r.N);
+                double Impact(string id) => 150.0 * m.Kills.Count(k => k.Round == r.N && k.Killer == id && m.TeamOf(k.Victim) != m.TeamOf(id))
+                    + r.Damage.Where(d => d.From == id && m.TeamOf(d.To) != m.TeamOf(id)).Sum(d => d.Amount);
+                double my = Impact(p.Puuid), all = m.Players.Average(x => Impact(x.Id));
+                if (atk) { atkMine += my; atkAvg += all; } else { defMine += my; defAvg += all; }
+            }
+        }
+        if (avg <= 0) return null;
+        double overall = mine / avg;
+        return new Rating(overall, atkAvg > 0 ? atkMine / atkAvg : double.NaN, defAvg > 0 ? defMine / defAvg : double.NaN, TopPercent(scale.All["rating"], overall));
+    }
+
+    /// <summary>The typical value of a skill or stat at one rank (NaN when there aren't 8 players at it yet).</summary>
+    public static double MedianAt(string id, int tier)
+    {
+        var scale = Build(VStore.All);
+        return scale.ByTier.TryGetValue(id, out var d) && d.TryGetValue(tier, out var l) && l.Count >= 8 ? Median(l) : double.NaN;
+    }
+
+    /// <summary>Where a bar for this skill or stat ends: about the best 5% of players in the saved matches.</summary>
+    public static double BarMax(string id, double value)
+    {
+        var scale = Build(VStore.All);
+        var top = scale.All.TryGetValue(id, out var l) ? Quantile(l, 0.95) : double.NaN;
+        if (double.IsNaN(top) || top <= 0) top = double.IsNaN(value) ? 1 : value * 1.25;
+        return Math.Max(top, double.IsNaN(value) ? 0 : value) * 1.05;
+    }
+
+    /// <summary>The value a share of the way up a sorted list (0.975: higher than 97.5% of it).</summary>
+    static double Quantile(List<double> sorted, double q)
+    {
+        if (sorted == null || sorted.Count == 0) return double.NaN;
+        var i = Math.Clamp((int)Math.Ceiling(q * sorted.Count) - 1, 0, sorted.Count - 1);
+        return sorted[i];
+    }
+
+    /// <summary>
+    /// Cheating signals: five checks, each against players at the same rank in the saved matches. A signal is a
+    /// number almost nobody at that rank reaches (their top 2.5%), or aim far ahead of everything else. Good players
+    /// trip one now and then; several together are what's worth a look. It's never proof.
+    /// </summary>
+    public static (Smurf Signals, int Checked) CheatSignals(Profile p)
+    {
+        var scale = Build(VStore.All);
+        int tier = p.CompareTier;
+        var signs = new List<string>();
+        int done = 0;
+        double Top(string id) => tier >= 3 && scale.ByTier[id].TryGetValue(tier, out var l) && l.Count >= 15 ? Quantile(l, 0.975) : Quantile(scale.All[id], 0.99);
+        string rank = tier >= 3 ? ValorantMatches.RankName(tier) : Pulse.Ui.Loc.T("their rank");
+        var t = p.Totals;
+
+        if (t.Head + t.Body + t.Legs >= 150)
+        {
+            done++;
+            var lim = Top("hs");
+            if (!double.IsNaN(lim) && t.HeadshotPct >= Math.Max(lim, 35)) signs.Add(Pulse.Ui.Loc.F("Headshot rate {0:0}%, higher than almost every {1} player", t.HeadshotPct, rank));
+        }
+        if (t.Rounds >= 60)
+        {
+            done++;
+            var lim = Top("adr");
+            if (!double.IsNaN(lim) && t.Adr >= lim) signs.Add(Pulse.Ui.Loc.F("{0:0} damage per round, higher than almost every {1} player", t.Adr, rank));
+            done++;
+            var fl = Top("fk");
+            if (!double.IsNaN(fl) && t.FirstKillsPer100 >= fl && t.OpeningWinPct >= 70) signs.Add(Pulse.Ui.Loc.F("Wins {0:0}% of opening duels", t.OpeningWinPct));
+        }
+        if (t.Matches >= 5)
+        {
+            done++;
+            if (t.KdRatio >= 2.5 && tier >= 12) signs.Add(Pulse.Ui.Loc.F("K/D of {0:0.00} at {1}", t.KdRatio, rank));
+        }
+        var aim = p.Skills.FirstOrDefault(k => k.Skill.Id == "aim");
+        var sense = p.Skills.Where(k => (k.Skill.Id == "positioning" || k.Skill.Id == "utility" || k.Skill.Id == "trading") && k.PlaysLikeTier > 0).ToList();
+        if (aim != null && aim.PlaysLikeTier > 0 && sense.Count >= 2)
+        {
+            done++;
+            double other = sense.Average(k => k.PlaysLikeTier);
+            if (aim.PlaysLikeTier - other >= 9)
+                signs.Add(Pulse.Ui.Loc.F("Aim plays like {0}, but positioning and utility like {1}", ValorantMatches.RankName(aim.PlaysLikeTier), ValorantMatches.RankName((int)Math.Round(other))));
+        }
+        // Each signal adds 20. Few rounds means less certainty, so small samples are held back.
+        double score = signs.Count * 20;
+        if (t.Rounds < 120) score *= 0.6;
+        if (signs.Count == 1) score = Math.Min(score, 25);
+        return (new Smurf((int)Math.Round(Math.Min(100, score)), signs), done);
     }
 
     // ───────── profiles from your matches ─────────
@@ -186,8 +324,10 @@ public static class Tracker
             if (sameTeam) { p.With++; if (m.Won) p.WithWins++; }
             else { p.Against++; if (m.Won) p.AgainstWins++; }
         }
+        p.CompareTier = p.Tier >= 3 ? p.Tier : TypicalLobby(ms);
         Score(p);
-        if (!p.IsYou) p.Smurf = SmurfChance(p, Smurf.None);
+        p.Smurf = SmurfChance(p, Smurf.None);
+        (p.Cheat, p.CheatChecks) = CheatSignals(p);
         return p;
     }
 
@@ -200,6 +340,22 @@ public static class Tracker
         return p;
     }
 
+    /// <summary>The typical rank of the other players in these matches (for players without a rank of their own).</summary>
+    public static int TypicalLobby(IEnumerable<VMatch> ms)
+    {
+        var tiers = ms.SelectMany(m => m.Players.Where(p => p.Id != m.Me && p.Tier >= 3).Select(p => p.Tier)).OrderBy(t => t).ToList();
+        return tiers.Count == 0 ? 0 : tiers[tiers.Count / 2];
+    }
+
+    /// <summary>Once the live rank is known: what to compare with, the smurf chance and the cheating signals.</summary>
+    public static void Finish(Profile p, Smurf account)
+    {
+        p.CompareTier = p.Tier >= 3 ? p.Tier : p.LastTier >= 3 ? p.LastTier : TypicalLobby(p.Matches);
+        Score(p);
+        p.Smurf = SmurfChance(p, account);
+        (p.Cheat, p.CheatChecks) = CheatSignals(p);
+    }
+
     /// <summary>
     /// How likely the account is a smurf, from signs: the account's own (RR per win, win rate this act, peak far above
     /// now), plus what only a tracker sees: skills that play like a much higher rank than the one they're in, and a
@@ -209,15 +365,16 @@ public static class Tracker
     {
         int score = account.Score;
         var signs = new List<string>(account.Signs);
-        if (p.Tier >= 3)
+        int rankNow = p.Tier >= 3 ? p.Tier : p.CompareTier;
+        if (rankNow >= 3)
         {
-            var gaps = p.Skills.Where(k => k.PlaysLikeTier > 0).Select(k => k.PlaysLikeTier - p.Tier).ToList();
+            var gaps = p.Skills.Where(k => k.PlaysLikeTier > 0).Select(k => k.PlaysLikeTier - rankNow).ToList();
             if (gaps.Count >= 3)
             {
                 double gap = gaps.Average();
-                int like = (int)Math.Round(p.Tier + gap);
-                if (gap >= 6) { score += 35; signs.Add(Pulse.Ui.Loc.F("Plays like {0}, ranked {1}", ValorantMatches.RankName(Math.Min(27, like)), ValorantMatches.RankName(p.Tier))); }
-                else if (gap >= 4) { score += 20; signs.Add(Pulse.Ui.Loc.F("Plays like {0}, ranked {1}", ValorantMatches.RankName(Math.Min(27, like)), ValorantMatches.RankName(p.Tier))); }
+                int like = (int)Math.Round(rankNow + gap);
+                if (gap >= 6) { score += 35; signs.Add(Pulse.Ui.Loc.F("Plays like {0}, ranked {1}", ValorantMatches.RankName(Math.Min(27, like)), ValorantMatches.RankName(rankNow))); }
+                else if (gap >= 4) { score += 20; signs.Add(Pulse.Ui.Loc.F("Plays like {0}, ranked {1}", ValorantMatches.RankName(Math.Min(27, like)), ValorantMatches.RankName(rankNow))); }
             }
         }
         var t = p.Totals;

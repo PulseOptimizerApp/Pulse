@@ -31,6 +31,22 @@ public static class ValorantLobby
     static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(15) };
     static Dictionary<string, string> _agents;
     static List<(string Id, DateTime Start, bool Act, bool Active)> _seasons;
+    static readonly Dictionary<string, string> _actNames = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>"Episode 9 · Act 2" style name of an act from its id (from Riot's own list); "" when unknown.</summary>
+    public static string ActName(string id) => id != null && _actNames.TryGetValue(id, out var n) ? n : "";
+
+    /// <summary>Riot's act and episode names in sentence case: "EPISODE 9" → "Episode 9", "ACT II" → "Act 2".</summary>
+    internal static string Friendly(string name)
+    {
+        var parts = (name ?? "").Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries).Select(w =>
+        {
+            var roman = new Dictionary<string, string> { ["I"] = "1", ["II"] = "2", ["III"] = "3", ["IV"] = "4", ["V"] = "5", ["VI"] = "6" };
+            if (roman.TryGetValue(w.ToUpperInvariant(), out var r)) return r;
+            return w.Length > 1 && w.All(char.IsLetter) ? char.ToUpperInvariant(w[0]) + w[1..].ToLowerInvariant() : w;
+        });
+        return string.Join(' ', parts);
+    }
     static readonly DateTime AscendantAdded = new(2022, 6, 21);   // Episode 5: Ascendant was added and tiers renumbered
 
     public static Lobby Last { get; private set; }
@@ -142,6 +158,29 @@ public static class ValorantLobby
     }
 
     /// <summary>RR won or lost in the player's last competitive games (newest first), from Riot's competitive updates.</summary>
+    /// <summary>The rank after a player's last competitive match (for players who haven't played ranked this act).</summary>
+    internal static async Task<int> LastTier(ValorantMatches.Session s, string puuid)
+    {
+        try
+        {
+            using var doc = await ValorantMatches.Get(s, $"https://pd.{s.Shard}.a.pvp.net/mmr/v1/players/{puuid}/competitiveupdates?startIndex=0&endIndex=1&queue=competitive");
+            if (doc?.RootElement.Get("Matches") is { ValueKind: JsonValueKind.Array } m && m.GetArrayLength() > 0) return m[0].Int("TierAfterUpdate");
+        }
+        catch { }
+        return 0;
+    }
+
+    /// <summary>Your own account level (Riot only shares it for your account).</summary>
+    internal static async Task<int> MyLevel(ValorantMatches.Session s)
+    {
+        try
+        {
+            using var doc = await ValorantMatches.Get(s, $"https://pd.{s.Shard}.a.pvp.net/account-xp/v1/players/{s.Puuid}");
+            return doc?.RootElement.Int("Progress", "Level") ?? 0;
+        }
+        catch { return 0; }
+    }
+
     internal static async Task<List<int>> RecentGains(ValorantMatches.Session s, string puuid)
     {
         var list = new List<int>();
@@ -208,9 +247,23 @@ public static class ValorantLobby
             if (doc.RootElement.Get("Characters") is { ValueKind: JsonValueKind.Array } chars)
                 foreach (var c in chars.EnumerateArray()) _agents[c.Str("ID")] = c.Str("Name");
             if (doc.RootElement.Get("Seasons") is { ValueKind: JsonValueKind.Array } seasons)
+            {
+                var named = new List<(string Id, string Name, DateTime Start, bool Act)>();
                 foreach (var x in seasons.EnumerateArray())
-                    _seasons.Add((x.Str("ID"), DateTime.TryParse(x.Str("StartTime"), out var st) ? st : default,
-                        x.Str("Type").Equals("act", StringComparison.OrdinalIgnoreCase), x.Get("IsActive") is { ValueKind: JsonValueKind.True }));
+                {
+                    var start = DateTime.TryParse(x.Str("StartTime"), out var st) ? st : default;
+                    bool act = x.Str("Type").Equals("act", StringComparison.OrdinalIgnoreCase);
+                    _seasons.Add((x.Str("ID"), start, act, x.Get("IsActive") is { ValueKind: JsonValueKind.True }));
+                    named.Add((x.Str("ID"), x.Str("Name"), start, act));
+                }
+                // An act's episode is the newest episode that started on or before it.
+                foreach (var a in named.Where(n => n.Act))
+                {
+                    var ep = named.Where(n => !n.Act && n.Start <= a.Start && n.Name.Length > 0).OrderByDescending(n => n.Start).FirstOrDefault();
+                    var actName = Friendly(a.Name);
+                    _actNames[a.Id] = ep.Name is { Length: > 0 } && !actName.StartsWith(Friendly(ep.Name), StringComparison.OrdinalIgnoreCase) ? $"{Friendly(ep.Name)} · {actName}" : actName;
+                }
+            }
         }
         catch { }
     }
