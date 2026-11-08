@@ -670,8 +670,8 @@ public partial class MainWindow : Window
                 if (d is { UpdateAvailable: true } && d.Newest.Version != r.SkippedDriver)
                 {
                     ShowNotice(Loc.F("NVIDIA driver {0} is out", d.Newest.Version),
-                        Loc.F("You have {0}. New drivers often fix bugs and add support for new games.", d.Installed),
-                        Loc.T("See how to install it"), () => Navigate("report"),
+                        Loc.F("You have {0}. Update it in the NVIDIA app: Drivers → Download.", d.Installed),
+                        Loc.T(Core.Reports.DriverCheck.NvidiaApp() != null ? "Open the NVIDIA app" : "Get the NVIDIA app"), Core.Reports.DriverCheck.OpenNvidiaApp,
                         Loc.T("Skip this driver"), () => { r.SkippedDriver = d.Newest.Version; TweakEngine.Save(); });
                     return;
                 }

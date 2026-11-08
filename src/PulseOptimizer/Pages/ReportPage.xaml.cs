@@ -200,7 +200,11 @@ public partial class ReportPage : UserControl, IPage
                 : Loc.F("You have the newest Game Ready driver ({0}).", d.Installed);
             sp.Children.Add(new TextBlock { Text = msg, FontSize = 13, FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap, Foreground = Res(d.UpdateAvailable ? "WarnBrush" : "GoodBrush"), Margin = new Thickness(0, 10, 0, 0) });
             if (d.UpdateAvailable)
-                sp.Children.Add(Dim(Loc.T("New drivers often fix bugs and add support for new games. If your games run fine, there's no rush: some players wait a few days to see if others report problems."), 12, 6));
+            {
+                sp.Children.Add(Dim(Loc.T("Update it in the NVIDIA app: Drivers → Download, then Express installation. New drivers often fix bugs and add support for new games; if your games run fine, there's no rush."), 12, 6));
+                if (DriverCheck.NvidiaApp() == null)
+                    sp.Children.Add(Faint(Loc.T("The NVIDIA app isn't installed. It's NVIDIA's free app for drivers (it replaced GeForce Experience)."), 11.5, 4));
+            }
         }
         else if (d.Vendor == "NVIDIA")
             sp.Children.Add(Dim(DriverCheck.NvidiaCurrent(d.Card)
@@ -213,9 +217,18 @@ public partial class ReportPage : UserControl, IPage
                 ? Loc.F("Your driver is {0} months old. {1} usually releases new ones every month or so; check {2} for a newer one.", age / 30, d.Vendor, d.Vendor == "AMD" ? "AMD Software" : "Intel's support page")
                 : Loc.F("{0} doesn't offer a way to check for new drivers automatically. Yours is from {1}.", d.Vendor.Length > 0 ? d.Vendor : Loc.T("Your card's maker"), d.InstalledDate == default ? "?" : d.InstalledDate.ToString("d", CultureInfo.CurrentCulture)), 12.5, 10));
         }
-        var get = Btn(d.Vendor.Length > 0 ? Loc.F("{0} drivers", d.Vendor) + "  ↗" : "Driver page  ↗", d.UpdateAvailable);
-        get.Click += (_, _) => Open(DriverCheck.PageFor(d.Vendor));
-        buttons.Children.Add(get);
+        if (d.Vendor == "NVIDIA")
+        {
+            var app = Btn(DriverCheck.NvidiaApp() != null ? "Open the NVIDIA app" : "Get the NVIDIA app  ↗", d.UpdateAvailable);
+            app.Click += (_, _) => DriverCheck.OpenNvidiaApp();
+            buttons.Children.Add(app);
+        }
+        else
+        {
+            var get = Btn(d.Vendor.Length > 0 ? Loc.F("{0} drivers", d.Vendor) + "  ↗" : "Driver page  ↗", d.UpdateAvailable);
+            get.Click += (_, _) => Open(DriverCheck.PageFor(d.Vendor));
+            buttons.Children.Add(get);
+        }
         var guide = Btn("Clean install guide");
         guide.Click += (_, _) => MainWindow.Instance.Navigate("guide", "clean-driver");
         buttons.Children.Add(guide);

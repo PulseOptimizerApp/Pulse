@@ -77,5 +77,31 @@ public static class DriverCheck
         return new Status(gpu.Vendor, gpu.Name, installed, gpu.Date, newest);
     }
 
+    public const string NvidiaAppPage = "https://www.nvidia.com/en-us/software/nvidia-app/";
+
+    /// <summary>The NVIDIA app on this PC (it installs and updates GeForce drivers), or null when it isn't installed.</summary>
+    public static string NvidiaApp()
+    {
+        var pf = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+        foreach (var p in new[]
+        {
+            Path.Combine(pf, "NVIDIA Corporation", "NVIDIA app", "CEF", "NVIDIA app.exe"),
+            Path.Combine(pf, "NVIDIA Corporation", "NVIDIA App", "CEF", "NVIDIA App.exe"),
+        })
+            if (File.Exists(p)) return p;
+        return null;
+    }
+
+    /// <summary>Opens the NVIDIA app when it's installed, otherwise its download page.</summary>
+    public static void OpenNvidiaApp()
+    {
+        try
+        {
+            var exe = NvidiaApp();
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(exe ?? NvidiaAppPage) { UseShellExecute = true });
+        }
+        catch { }
+    }
+
     public static string PageFor(string vendor) => vendor switch { "NVIDIA" => NvidiaPage, "AMD" => AmdPage, "Intel" => IntelPage, _ => NvidiaPage };
 }

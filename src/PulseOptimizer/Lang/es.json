@@ -3901,5 +3901,11 @@
  "Rounds won": "Rondas ganadas",
  "Rounds lost": "Rondas perdidas",
  "{0} killed you": "{0} te mató",
- "You killed {0}": "Mataste a {0}"
+ "You killed {0}": "Mataste a {0}",
+ "Update it in the NVIDIA app: Drivers → Download, then Express installation. New drivers often fix bugs and add support for new games; if your games run fine, there's no rush.": "Actualízalo en la NVIDIA app: Controladores → Descargar y luego Instalación rápida. Los controladores nuevos suelen corregir errores y añadir soporte para juegos nuevos; si tus juegos van bien, no hay prisa.",
+ "The NVIDIA app isn't installed. It's NVIDIA's free app for drivers (it replaced GeForce Experience).": "La NVIDIA app no está instalada. Es la app gratuita de NVIDIA para los controladores (sustituyó a GeForce Experience).",
+ "Open the NVIDIA app": "Abrir la NVIDIA app",
+ "Get the NVIDIA app  ↗": "Descargar la NVIDIA app  ↗",
+ "Get the NVIDIA app": "Descargar la NVIDIA app",
+ "You have {0}. Update it in the NVIDIA app: Drivers → Download.": "Tienes el {0}. Actualízalo en la NVIDIA app: Controladores → Descargar."
 }
