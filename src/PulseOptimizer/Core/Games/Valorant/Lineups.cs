@@ -78,7 +78,8 @@ public static class Lineups
             var l = _all.FirstOrDefault(x => x.Id == id);
             if (l == null) return;
             _all.Remove(l);
-            if (l.Image.Length > 0) try { File.Delete(Path.Combine(ImageDir, l.Image)); } catch { }
+            // Only Pulse's own copy, by bare file name inside its own folder.
+            if (l.Image.Length > 0 && l.Image == Path.GetFileName(l.Image)) try { File.Delete(Path.Combine(ImageDir, l.Image)); } catch { }
             Write();
         }
     }
