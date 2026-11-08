@@ -116,8 +116,13 @@ public partial class ValorantPage
                 SetTrStatus();
             });
             ValorantSearch.Result r;
-            try { r = await Task.Run(() => ValorantSearch.Search(box.Text, progress)); }
-            catch { r = new ValorantSearch.Result(null, "Search failed. Try again in a minute."); }
+            var riotId = box.Text; // read on the UI thread; the search itself runs in the background
+            try { r = await Task.Run(() => ValorantSearch.Search(riotId, progress)); }
+            catch (Exception ex)
+            {
+                TweakEngine.AddLog("valorant", "Tracker search failed: " + ex.GetType().Name + ": " + ex.Message);
+                r = new ValorantSearch.Result(null, "Search failed. Try again in a minute.");
+            }
             _trBusy = false;
             if (r.Profile != null) { _trSearched = r.Profile; _trSel = r.Profile.Puuid; }
             _trStatus = r.Error != null ? Loc.T(r.Error) : null;
