@@ -12,6 +12,11 @@ namespace Pulse.Core.Games.Live;
 /// trackers do, using the login the Riot Client already has on this PC (its local lockfile). Only your own match is
 /// read; nothing is changed and nothing goes anywhere but Riot. VALORANT has no live kill feed for apps, so its big
 /// plays are listed on the recap but can't be clipped automatically.
+/// <para>
+/// To have the recap ready the moment a match ends, Pulse watches your own presence on the Riot Client's local API
+/// (the same "in game / in menus" state your friends list shows). When it goes from in game to anything else, Pulse
+/// asks for the match every few seconds until Riot has it, usually within half a minute.
+/// </para>
 /// </summary>
 public sealed class ValorantMatches : IDisposable
 {
@@ -27,6 +32,8 @@ public sealed class ValorantMatches : IDisposable
 
     CancellationTokenSource _cts;
     string _lastSeen;
+    /// <summary>How often the presence is read, and how long to keep asking for a match after one ends.</summary>
+    static readonly TimeSpan PresenceEvery = TimeSpan.FromSeconds(3), CatchUpFor = TimeSpan.FromMinutes(3);
     Dictionary<string, string> _agents, _maps;
 
     public static bool Running()
@@ -42,40 +49,97 @@ public sealed class ValorantMatches : IDisposable
         _ = Task.Run(async () =>
         {
             try { _lastSeen ??= await LatestMatchId(); } catch { }
+            string before = null;
+            var slow = DateTime.UtcNow.AddSeconds(90);
             while (!token.IsCancellationRequested)
             {
-                try { await Task.Delay(90_000, token); } catch { break; }
-                try { await Check(); } catch { }
+                try { await Task.Delay(PresenceEvery, token); } catch { break; }
+                string now = null;
+                try { now = await LoopState(); } catch { }
+                // Left the match (to the menus, the end screen or the lobby): get the result right away.
+                if (before == "INGAME" && now != null && now != "INGAME") await CatchUp(token);
+                if (now != null) before = now;
+                // A slow check too, in case the presence can't be read on this PC.
+                if (DateTime.UtcNow >= slow)
+                {
+                    slow = DateTime.UtcNow.AddSeconds(90);
+                    try { await Check(); } catch { }
+                }
             }
         });
     }
 
-    /// <summary>VALORANT closed: one last look for the match that just ended.</summary>
+    /// <summary>A match just ended: ask for it every few seconds until Riot has it (it takes a few seconds to a minute).</summary>
+    async Task CatchUp(CancellationToken token)
+    {
+        var until = DateTime.UtcNow + CatchUpFor;
+        var wait = TimeSpan.FromSeconds(2);
+        while (DateTime.UtcNow < until)
+        {
+            try { await Task.Delay(wait, token); } catch { return; }
+            try { if (await Check()) return; } catch { }
+            wait = TimeSpan.FromSeconds(Math.Min(10, wait.TotalSeconds + 2));
+        }
+    }
+
+    /// <summary>VALORANT closed: keep looking for the match that just ended for a few minutes.</summary>
     public void Stop()
     {
         var cts = _cts;
         _cts = null;
         cts?.Cancel();
-        _ = Task.Run(async () => { try { await Task.Delay(20_000); await Check(); } catch { } });
+        _ = Task.Run(() => CatchUp(CancellationToken.None));
     }
 
     public void Dispose() { _cts?.Cancel(); _cts = null; }
 
-    async Task Check()
+    readonly SemaphoreSlim _checking = new(1, 1);
+
+    /// <summary>Looks for a new match. True when one was found (or there's nothing left to wait for).</summary>
+    async Task<bool> Check()
     {
-        var id = await LatestMatchId();
-        if (id == null || id == _lastSeen) return;
-        _lastSeen = id;
-        if (MatchStore.All.Any(m => m.Id == "val-" + id)) return;
-        var rec = await Details(id);
-        if (rec != null) MatchEvents.RaiseFinished(rec);
+        if (!await _checking.WaitAsync(0)) return false;
+        try
+        {
+            var id = await LatestMatchId();
+            if (id == null || id == _lastSeen) return false;
+            if (MatchStore.All.Any(m => m.Id == "val-" + id)) { _lastSeen = id; return true; }
+            var rec = await Details(id);
+            if (rec == null) return false;   // listed but details not ready yet: try again shortly
+            _lastSeen = id;
+            MatchEvents.RaiseFinished(rec);
+            return true;
+        }
+        finally { _checking.Release(); }
     }
 
     // ───────── Riot Client login and region ─────────
 
-    record Session(string Puuid, string Access, string Entitlement, string Shard, string Version);
+    record Session(string Puuid, string Access, string Entitlement, string Shard, string Version, string Port, string Password);
+
+    // The login is kept for a few minutes, so checking every few seconds after a match doesn't re-read the game's log.
+    static Session _session;
+    static DateTime _sessionAt;
 
     static async Task<Session> Login()
+    {
+        if (_session != null && DateTime.UtcNow - _sessionAt < TimeSpan.FromMinutes(10)) return _session;
+        var s = await FreshLogin();
+        _session = s;
+        _sessionAt = DateTime.UtcNow;
+        return s;
+    }
+
+    static void Forget() => _session = null;
+
+    static HttpRequestMessage Local(Session s, string path)
+    {
+        var req = new HttpRequestMessage(HttpMethod.Get, $"https://127.0.0.1:{s.Port}{path}");
+        req.Headers.Authorization = new AuthenticationHeaderValue("Basic", Convert.ToBase64String(Encoding.ASCII.GetBytes("riot:" + s.Password)));
+        return req;
+    }
+
+    static async Task<Session> FreshLogin()
     {
         var lockfile = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Riot Games", "Riot Client", "Config", "lockfile");
         if (!File.Exists(lockfile)) return null;
@@ -84,8 +148,7 @@ public sealed class ValorantMatches : IDisposable
         using (var r = new StreamReader(fs)) text = await r.ReadToEndAsync();
         var parts = text.Split(':');
         if (parts.Length < 5) return null;
-        var req = new HttpRequestMessage(HttpMethod.Get, $"https://127.0.0.1:{parts[2]}/entitlements/v1/token");
-        req.Headers.Authorization = new AuthenticationHeaderValue("Basic", Convert.ToBase64String(Encoding.ASCII.GetBytes("riot:" + parts[3])));
+        using var req = Local(new Session(null, null, null, null, null, parts[2], parts[3]), "/entitlements/v1/token");
         using var res = await Http.SendAsync(req);
         if (!res.IsSuccessStatusCode) return null;
         using var doc = JsonDocument.Parse(await res.Content.ReadAsStringAsync());
@@ -99,7 +162,40 @@ public sealed class ValorantMatches : IDisposable
         var shard = Regex.Match(logText, @"https://glz-[a-z0-9]+-1\.([a-z0-9]+)\.a\.pvp\.net").Groups[1].Value;
         var version = Regex.Match(logText, @"CI server version: (\S+)").Groups[1].Value;
         if (shard.Length == 0) return null;
-        return new Session(root.Str("subject"), root.Str("accessToken"), root.Str("token"), shard, version);
+        return new Session(root.Str("subject"), root.Str("accessToken"), root.Str("token"), shard, version, parts[2], parts[3]);
+    }
+
+    /// <summary>
+    /// Your own VALORANT state from the Riot Client's presence: "INGAME", "PREGAME" (agent select) or "MENUS".
+    /// Null when it can't be read.
+    /// </summary>
+    static async Task<string> LoopState()
+    {
+        var s = await Login();
+        if (s == null) return null;
+        using var req = Local(s, "/chat/v4/presences");
+        using var res = await Http.SendAsync(req);
+        if (res.StatusCode is System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.Forbidden) { Forget(); return null; }
+        if (!res.IsSuccessStatusCode) return null;
+        using var doc = JsonDocument.Parse(await res.Content.ReadAsStringAsync());
+        if (doc.RootElement.Get("presences") is not { ValueKind: JsonValueKind.Array } list) return null;
+        foreach (var p in list.EnumerateArray())
+            if (p.Str("puuid") == s.Puuid && p.Str("product") == "valorant")
+                return StateFromPresence(p.Str("private"));
+        return null;
+    }
+
+    /// <summary>Reads sessionLoopState from a presence's base64 "private" part (old and new layouts).</summary>
+    internal static string StateFromPresence(string privateBase64)
+    {
+        if (string.IsNullOrEmpty(privateBase64)) return null;
+        try
+        {
+            var json = Encoding.UTF8.GetString(Convert.FromBase64String(privateBase64));
+            var m = Regex.Match(json, "\"sessionLoopState\"\\s*:\\s*\"([A-Z]+)\"");
+            return m.Success ? m.Groups[1].Value : null;
+        }
+        catch { return null; }
     }
 
     static async Task<JsonDocument> Get(Session s, string url)
@@ -110,6 +206,7 @@ public sealed class ValorantMatches : IDisposable
         req.Headers.Add("X-Riot-ClientPlatform", ClientPlatform);
         if (s.Version.Length > 0) req.Headers.Add("X-Riot-ClientVersion", s.Version);
         using var res = await Http.SendAsync(req);
+        if (res.StatusCode is System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.Forbidden) Forget();   // token expired: log in again next time
         if (!res.IsSuccessStatusCode) return null;
         return JsonDocument.Parse(await res.Content.ReadAsStringAsync());
     }
