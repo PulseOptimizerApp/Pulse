@@ -985,7 +985,14 @@ public partial class ClipsPage : UserControl, IPage, IReleasable
     void PlayerTick()
     {
         if (PlayerLayer.Visibility != Visibility.Visible) return;
-        if (_inputs != null && _inputMode != "off") InputView.Frame = _inputs.At(Timeline.Position);
+        // The overlay follows the picture itself (not the timeline, which updates a tick later), and shows anything
+        // pressed since the last update so short taps don't fall between two updates.
+        if (_inputs != null && _inputMode != "off")
+        {
+            double now = _pendingSeek >= 0 ? _pendingSeek : Player.Position.TotalSeconds;
+            InputView.Frame = _inputs.Held(now, _playing ? Math.Max(1 / 30.0, now - _inputShownAt) : 0);
+            _inputShownAt = now;
+        }
         SyncParts();
         // Scrubbing: seek at most once per tick, to where the pointer is now, so the picture keeps up smoothly.
         if (_pendingSeek >= 0)
@@ -1003,6 +1010,7 @@ public partial class ClipsPage : UserControl, IPage, IReleasable
     }
 
     bool _scrubbing;
+    double _inputShownAt;
 
     void Timeline_Seek(double t)
     {
@@ -1528,11 +1536,22 @@ public partial class ClipsPage : UserControl, IPage, IReleasable
         if (height <= 0) height = 1080;
         var part = _inputs.Slice(from, to);
         if (part.Frames.Count == 0) return null;
-        // Changes closer than 1/30 s apart are merged (the picture can't show them anyway).
+        // Changes closer than 1/30 s apart share one picture, which shows everything held in that time: a quick tap
+        // is still drawn for a frame instead of being replaced by its own release.
         var frames = new List<InputFrame>();
         foreach (var f in part.Frames)
         {
-            if (frames.Count > 0 && f.T - frames[^1].T < 1 / 30.0) { var c = f.Copy(); c.T = frames[^1].T; frames[^1] = c; }
+            if (frames.Count > 0 && f.T - frames[^1].T < 1 / 30.0)
+            {
+                var prev = frames[^1];
+                var c = f.Copy();
+                c.T = prev.T;
+                c.Mouse |= prev.Mouse; c.Pad |= prev.Pad;
+                c.Keys = prev.Keys.Union(f.Keys).OrderBy(k => k).ToArray();
+                frames[^1] = c;
+                // What's actually held afterwards gets its own picture right after, so released keys don't linger.
+                if (!f.SameAs(c)) { var after = f.Copy(); after.T = prev.T + 1 / 30.0; frames.Add(after); }
+            }
             else frames.Add(f);
         }
         double scale = height * InputOverlayView.Share / InputOverlayView.BaseSize(_inputMode).Height;

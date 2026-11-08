@@ -56,12 +56,16 @@ public sealed class InputCapture : IDisposable
         }
     }
 
+    /// <summary>When the input being handled actually happened (NowSeconds), not when Pulse got round to it.</summary>
+    double _eventTime = -1;
+
     void Record()
     {
         // Called with _gate held. Mouse wheel "clicks" show for one frame, then clear.
         var f = new InputFrame
         {
-            T = NowSeconds,
+            // Never before the last input (dating back must not reorder them).
+            T = Math.Max(_eventTime >= 0 ? _eventTime : NowSeconds, _frames.Count > 0 ? _frames[^1].T : 0),
             Keys = _keys.OrderBy(k => k).ToArray(),
             Mouse = _mouse,
             Pad = _pad | _hidPad,
@@ -84,11 +88,17 @@ public sealed class InputCapture : IDisposable
     {
         if (msg != WM_INPUT) return IntPtr.Zero;
         Pulse.Core.Input.PhysicalInput.FromOtherWindow(l);
-        try { Handle(l); } catch { }
+        // Windows notes when each input arrived. If Pulse was busy for a moment, date it back to then, so a burst
+        // of queued inputs keeps its real timing instead of all landing at once.
+        double now = NowSeconds;
+        long waitedMs = unchecked((uint)Environment.TickCount - (uint)GetMessageTime());
+        try { Handle(l, waitedMs is > 20 and < 2000 ? now - waitedMs / 1000.0 : now); } catch { }
         return IntPtr.Zero;
     }
 
-    unsafe void Handle(IntPtr raw)
+    [DllImport("user32.dll")] static extern int GetMessageTime();
+
+    unsafe void Handle(IntPtr raw, double when)
     {
         uint size = 0;
         int header = Marshal.SizeOf<RAWINPUTHEADER>();
@@ -99,6 +109,15 @@ public sealed class InputCapture : IDisposable
         var h = *(RAWINPUTHEADER*)buf;
         byte* data = buf + header;
         lock (_gate)
+        {
+            _eventTime = when; // read by Record below; cleared before the lock is let go
+            try { Handle(h, data); }
+            finally { _eventTime = -1; }
+        }
+    }
+
+    unsafe void Handle(RAWINPUTHEADER h, byte* data)
+    {
         {
             switch (h.Type)
             {

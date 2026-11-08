@@ -82,6 +82,29 @@ public sealed class InputTimeline
         return found < 0 ? null : Frames[found];
     }
 
+    /// <summary>
+    /// Everything held at any point in the <paramref name="window"/> seconds up to <paramref name="t"/>: what one
+    /// picture should show, so a tap shorter than a frame still appears instead of falling between two frames.
+    /// Sticks and triggers are where they are at <paramref name="t"/>.
+    /// </summary>
+    public InputFrame Held(double t, double window)
+    {
+        var now = At(t);
+        if (now == null) return null;
+        var start = At(t - window);
+        int mouse = now.Mouse, pad = now.Pad;
+        var keys = new HashSet<int>(now.Keys);
+        if (start != null) { mouse |= start.Mouse; pad |= start.Pad; keys.UnionWith(start.Keys); }
+        foreach (var f in Frames)
+        {
+            if (f.T <= t - window) continue;
+            if (f.T > t) break;
+            mouse |= f.Mouse; pad |= f.Pad; keys.UnionWith(f.Keys);
+        }
+        if (mouse == now.Mouse && pad == now.Pad && keys.Count == now.Keys.Length) return now;
+        return new InputFrame { T = t, Keys = keys.OrderBy(k => k).ToArray(), Mouse = mouse, Pad = pad, Sticks = now.Sticks, Triggers = now.Triggers };
+    }
+
     /// <summary>"kbm" or the controller kind, whichever was used more in this clip.</summary>
     public string MostUsed()
     {
