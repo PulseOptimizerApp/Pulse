@@ -85,6 +85,7 @@ public partial class HeadphonesPage : UserControl, IPage, IReleasable
         Root.Children.Clear();
         _level = null;
         Root.Children.Add(Flow());
+        Root.Children.Add(SetupGuide.Build(this, "headphones", SetupGuide.Headphones, S.Engine, startOpen: !(S.Enabled && (S.Engine == "apo" || GameAudio.Running))));
         bool apo = S.Engine == "apo";
         if (apo) { if (!EqApo.Installed || EqApo.OnDevice(EqApo.Resolve(S.OutputId, capture: false).Id) == false) Root.Children.Add(ApoSetup()); }
         else if (GameAudio.Problem == "NoCable" || (!S.Enabled && GameAudio.Sources().Count == 0)) Root.Children.Add(Setup());

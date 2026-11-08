@@ -165,6 +165,7 @@ public partial class MicPage : UserControl, IPage, IReleasable
         _inMeter = _outMeter = null;
         _eqGraph = null;
         Root.Children.Add(FlowCard());
+        Root.Children.Add(SetupGuide.Build(this, "mic", SetupGuide.Mic, S.Engine, startOpen: !(S.Enabled && MicStudio.Running && (MicStudio.ApoMode || MicStudio.OutputName != null))));
         if (MicStudio.ApoMode) { if (!EqApo.Installed || EqApo.OnDevice(EqApo.Resolve(S.CaptureId, capture: true).Id) == false) Root.Children.Add(ApoSetupCard()); }
         else if (S.Enabled && MicStudio.Running && MicStudio.OutputName == null) Root.Children.Add(SetupCard());
         else if (S.Enabled && MicStudio.Running) Root.Children.Add(AppsCard());
