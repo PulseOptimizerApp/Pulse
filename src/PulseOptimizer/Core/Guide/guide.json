@@ -1,6 +1,6 @@
 {
  "Schema": 1,
- "Updated": "2026-11-07",
+ "Updated": "2026-11-08",
  "Tips": [
   {
    "Title": "Run your monitor at its full refresh rate, from the graphics card",
@@ -87,6 +87,26 @@
   {
    "Title": "Old \"FPS boost\" registry packs",
    "Body": "Many 2017-era tweaks no longer do anything on Windows 11 24H2 and later."
+  },
+  {
+   "Title": "Forcing MSI mode on every device",
+   "Body": "Modern graphics and network drivers already use it. Forcing it on devices that don't support it can stop Windows from starting."
+  },
+  {
+   "Title": "Turning off fullscreen optimizations",
+   "Body": "On Windows 10 and 11 they give fullscreen speed with fast alt-tab. Only try it for one old game that misbehaves."
+  },
+  {
+   "Title": "RAM cleaners and 'game booster' apps",
+   "Body": "Emptying memory just makes Windows load it again. Free RAM isn't faster RAM."
+  },
+  {
+   "Title": "Changing DNS for lower ping",
+   "Body": "DNS only finds the server's address before you connect. In-game ping doesn't change."
+  },
+  {
+   "Title": "Timer resolution tools",
+   "Body": "Windows 11 already gives games the timer they ask for, and forcing it for everything raises power use."
   }
  ],
  "GpuSource": "Tom's Hardware GPU price tracker, November 2026",
@@ -170,7 +190,7 @@
    "Tier": "1440p / 4K"
   }
  ],
- "RamSource": "Capital and Compute RAM tracker, November 3, 2026",
+ "RamSource": "Capital and Compute RAM tracker, November 7, 2026",
  "RamSourceUrl": "https://capitalandcompute.net/memory-prices/",
  "Ram": [
   {
@@ -263,12 +283,27 @@
    "Average": 605
   },
   {
+   "Date": "2026-10-20",
+   "Cheapest": 420,
+   "Average": 608
+  },
+  {
    "Date": "2026-10-24",
    "Cheapest": 420,
    "Average": 607
   },
   {
+   "Date": "2026-10-28",
+   "Cheapest": 420,
+   "Average": 608
+  },
+  {
    "Date": "2026-10-31",
+   "Cheapest": 429,
+   "Average": 617
+  },
+  {
+   "Date": "2026-11-01",
    "Cheapest": 429,
    "Average": 617
   },
@@ -534,7 +569,8 @@
    "Title": "RAM costs four to seven times more than a year ago",
    "Body": "AI data centers are buying most of the world's memory. A 32 GB DDR5 kit went from about $59 in April 2025 to $429 on November 3, 2026.",
    "SourceName": "Capital and Compute",
-   "SourceUrl": "https://capitalandcompute.net/memory-prices/history/"
+   "SourceUrl": "https://capitalandcompute.net/memory-prices/history/",
+   "Date": "2026-11-07"
   },
   {
    "Tag": "RAM",
@@ -542,7 +578,8 @@
    "Title": "The worst may still be ahead",
    "Body": "Team Group's CEO said the tightest stretch is Q4 2026 to Q2 2027, with balance in late 2028 or later.",
    "SourceName": "Tech Insider",
-   "SourceUrl": "https://tech-insider.org/team-group-ddr5-chip-price-452-percent-shortage-2028-2026/"
+   "SourceUrl": "https://tech-insider.org/team-group-ddr5-chip-price-452-percent-shortage-2028-2026/",
+   "Date": "2026-11-07"
   },
   {
    "Tag": "Storage",
@@ -550,7 +587,8 @@
    "Title": "SSD prices are climbing too",
    "Body": "Some SSD contract prices are up 303% in a year, with another 15 to 20% expected this quarter.",
    "SourceName": "Notebookcheck",
-   "SourceUrl": "https://www.notebookcheck.net/SSD-prices-explode-by-303-in-a-year-as-AI-fuels-NAND-flash-shortage.1433261.0.html"
+   "SourceUrl": "https://www.notebookcheck.net/SSD-prices-explode-by-303-in-a-year-as-AI-fuels-NAND-flash-shortage.1433261.0.html",
+   "Date": "2026-11-07"
   },
   {
    "Tag": "GPU",
@@ -558,39 +596,28 @@
    "Title": "NVIDIA pulled the RTX 5090 and 5080 from its store",
    "Body": "Street prices passed twice launch price. AMD is reportedly planning its fourth Radeon price rise this year.",
    "SourceName": "Tom's Hardware",
-   "SourceUrl": "https://www.tomshardware.com/pc-components/gpus/news"
+   "SourceUrl": "https://www.tomshardware.com/pc-components/gpus/news",
+   "Date": "2026-11-07"
   },
   {
    "Tag": "GPU",
    "Hot": false,
-   "Title": "AMD outsold NVIDIA on Amazon US",
-   "Body": "A first, per sales tracker TechEpiphany on November 3, as GeForce prices climbed. That's one retailer, not the whole market.",
-   "SourceName": "ShiftDelete",
-   "SourceUrl": "https://shiftdelete.net/en/amd-outsells-nvidia"
-  },
-  {
-   "Tag": "Coming",
-   "Hot": false,
-   "Title": "Next graphics cards: likely 2028",
-   "Body": "Leakers say NVIDIA's RTX 60 and most of AMD's RDNA 5 won't arrive until 2028. Neither company has confirmed a date.",
-   "SourceName": "PC Guide",
-   "SourceUrl": "https://www.pcguide.com/news/rtx-60-series-faces-massive-delay-says-leak-and-amd-might-only-launch-one-rdna-5-gpu-next-year/"
-  },
-  {
-   "Tag": "Coming",
-   "Hot": false,
-   "Title": "Next CPUs: early 2027",
-   "Body": "AMD Zen 6 and Intel Nova Lake desktop chips are expected around CES 2027. Zen 6 keeps the AM5 socket.",
-   "SourceName": "Club386",
-   "SourceUrl": "https://www.club386.com/6-exciting-pc-hardware-launches-mark-your-calendars/"
-  },
-  {
-   "Tag": "Windows",
-   "Hot": false,
-   "Title": "Windows 11 26H2 is out",
-   "Body": "A small update released September 29 that resets support to 24 months on Home and Pro.",
+   "Title": "The Best GPU for Budget PCs: CPU/GPU Scaling Tested",
+   "Body": "A faster GPU isn't always a better upgrade for an older PC.",
    "SourceName": "TechSpot",
-   "SourceUrl": "https://www.techspot.com/news/114418-most-users-can-now-upgrade-windows-11-26h2.html"
+   "SourceUrl": "https://www.techspot.com/review/3193-gpu-for-budget-pc-scaling-test/",
+   "Date": "2026-11-06",
+   "Auto": true
+  },
+  {
+   "Tag": "CPU",
+   "Hot": false,
+   "Title": "Intel leaker claims Nova Lake desktop chips have 5.1 GHz clock limit beyond 90°C",
+   "Body": "A known Intel leaker claims that Intel's next-generation processors will top out at 5.1 GHz if the CPU core temperatures aren't kept below 90°C.",
+   "SourceName": "Tom's Hardware",
+   "SourceUrl": "https://www.tomshardware.com/pc-components/cpus/intel-leaker-claims-nova-lake-desktop-chips-have-5-1-ghz-clock-limit-beyond-90-c-high-clock-speeds-could-demand-significant-cooling-for-next-gen-chips",
+   "Date": "2026-11-05",
+   "Auto": true
   }
  ],
  "UpgradeTips": [
@@ -606,13 +633,9 @@
    "500 Hz OLED": "OLED de 500 Hz",
    "540 Hz OLED, the top pick of OLED specialists.": "OLED de 540 Hz, la favorita de los especialistas en OLED.",
    "A 144 Hz screen left at 60 Hz, or a cable in the motherboard instead of the graphics card, costs more than any tweak can win back.": "Una pantalla de 144 Hz a 60 Hz, o un cable en la placa base en vez de la tarjeta gráfica, cuesta más de lo que cualquier ajuste puede recuperar.",
-   "A first, per sales tracker TechEpiphany on November 3, as GeForce prices climbed. That's one retailer, not the whole market.": "Por primera vez, según el rastreador TechEpiphany el 3 de noviembre, mientras subían las GeForce. Es una sola tienda, no todo el mercado.",
    "A named power supply brand with an 80 Plus Gold rating.": "Una fuente de marca conocida con certificación 80 Plus Gold.",
    "A prebuilt PC can be the better deal right now: their prices have risen less than the parts.": "Un PC prearmado puede salir mejor ahora: su precio ha subido menos que el de las piezas.",
-   "A small update released September 29 that resets support to 24 months on Home and Pro.": "Una actualización pequeña del 29 de septiembre que reinicia el soporte a 24 meses en Home y Pro.",
    "AI data centers are buying most of the world's memory. A 32 GB DDR5 kit went from about $59 in April 2025 to $429 on November 3, 2026.": "Los centros de datos de IA compran casi toda la memoria del mundo. Un kit DDR5 de 32 GB pasó de unos $59 en abril de 2025 a $429 el 3 de noviembre de 2026.",
-   "AMD Zen 6 and Intel Nova Lake desktop chips are expected around CES 2027. Zen 6 keeps the AM5 socket.": "Se esperan Zen 6 de AMD y Nova Lake de Intel para escritorio hacia el CES 2027. Zen 6 mantiene el socket AM5.",
-   "AMD outsold NVIDIA on Amazon US": "AMD vendió más que NVIDIA en Amazon EE. UU.",
    "About 3% faster in games, with about 30% more power draw.": "Un 3% más rápido en juegos, con un 30% más de consumo.",
    "About 9% behind the RTX 5080 at 1440p, for less.": "Un 9% por detrás de la RTX 5080 en 1440p, por menos.",
    "At least a 1-year warranty with parts and labor.": "Al menos 1 año de garantía con piezas y mano de obra.",
@@ -635,7 +658,6 @@
    "Check my PC": "Revisar mi PC",
    "Check which parts are standard": "Revisa qué piezas son estándar",
    "Clean looks, easy upgrades": "Diseño limpio, fácil de mejorar",
-   "Coming": "Próximamente",
    "Costs more than mass-market brands": "Cuesta más que las marcas masivas",
    "Enable Resizable BAR": "Activa Resizable BAR",
    "Ergonomic": "Ergonómico",
@@ -656,7 +678,6 @@
    "High end": "Gama alta",
    "Huge": "enorme",
    "Keyboards": "Teclados",
-   "Leakers say NVIDIA's RTX 60 and most of AMD's RDNA 5 won't arrive until 2028. Neither company has confirmed a date.": "Según filtradores, la RTX 60 de NVIDIA y casi toda RDNA 5 de AMD no llegarán hasta 2028. Ninguna empresa ha confirmado fecha.",
    "Let shaders build, and stop wiping them": "Deja que se compilen los shaders y no los borres",
    "Lets the CPU reach all of the graphics card's memory at once. Usually a few percent, over 15% in some games. In the BIOS: CSM off, Above 4G Decoding on, Re-Size BAR on.": "Deja que la CPU acceda a toda la memoria de la tarjeta gráfica a la vez. Suele dar unos pocos por ciento, más del 15% en algunos juegos. En la BIOS: CSM desactivado, Above 4G Decoding activado, Re-Size BAR activado.",
    "Lightweight": "Ultraligero",
@@ -674,8 +695,6 @@
    "NVIDIA pulled the RTX 5090 and 5080 from its store": "NVIDIA retiró la RTX 5090 y la 5080 de su tienda",
    "New games compile shaders the first time an effect appears, causing hitches that fade. Let the pre-compile step finish, raise the driver's shader cache (10 GB or Unlimited), and skip cleaner apps that delete it.": "Los juegos nuevos compilan shaders la primera vez que aparece un efecto, con tirones que luego desaparecen. Deja terminar la precompilación, sube la caché de shaders del driver (10 GB o Ilimitada) y evita apps de limpieza que la borran.",
    "New games stutter badly on hard drives. Drops that start after 5 to 15 minutes usually mean heat: clean the dust, fix airflow, repaste or undervolt.": "Los juegos nuevos dan muchos tirones en discos duros. Caídas que empiezan a los 5 a 15 minutos suelen ser calor: limpia el polvo, mejora el flujo de aire, cambia la pasta o haz undervolt.",
-   "Next CPUs: early 2027": "Próximas CPU: principios de 2027",
-   "Next graphics cards: likely 2028": "Próximas tarjetas gráficas: probablemente 2028",
    "No measurable effect on modern Windows, and a real chance of breaking installed software.": "Ningún efecto medible en Windows moderno, y riesgo real de romper programas instalados.",
    "OMEN 35L / 45L with 9800X3D options": "OMEN 35L / 45L con opciones 9800X3D",
    "Old \"FPS boost\" registry packs": "Viejos paquetes de registro \"para más FPS\"",
@@ -722,25 +741,253 @@
    "Value": "Valor",
    "Value varies by config": "La calidad-precio varía según la configuración",
    "Variable refresh on, V-Sync on in the driver and off in the game. With Reflex on, the driver caps for you (about 138 FPS at 144 Hz); without it, cap a few FPS under your refresh rate.": "Frecuencia variable activada, V-Sync activado en el driver y desactivado en el juego. Con Reflex, el driver limita por ti (unos 138 FPS a 144 Hz); sin él, limita unos FPS por debajo de tu frecuencia.",
-   "Windows": "Windows",
-   "Windows 11 26H2 is out": "Ya salió Windows 11 26H2",
    "Windows turned it on for many PCs with the October 2026 update. On modern CPUs it costs under 2% in 2026 tests; older CPUs lose more. Turning it off removes real protection, so only do it if you measure a difference.": "Windows la activó en muchos PC con la actualización de octubre de 2026. En CPU modernas cuesta menos del 2% en pruebas de 2026; las antiguas pierden más. Desactivarla quita protección real, así que hazlo solo si mides una diferencia.",
    "Wireless": "Inalámbrico",
    "Wireless value": "Inalámbrico calidad-precio",
-   "Without it, RAM runs at its slow fallback speed (DDR4 3,200, DDR5 4,800). It's one switch and one of the biggest free gains in CPU-heavy games.": "Sin esto, la RAM funciona a su velocidad lenta de reserva (DDR4 3.200, DDR5 4.800). Es un solo interruptor y una de las mayores mejoras gratis en juegos que exigen CPU."
+   "Without it, RAM runs at its slow fallback speed (DDR4 3,200, DDR5 4,800). It's one switch and one of the biggest free gains in CPU-heavy games.": "Sin esto, la RAM funciona a su velocidad lenta de reserva (DDR4 3.200, DDR5 4.800). Es un solo interruptor y una de las mayores mejoras gratis en juegos que exigen CPU.",
+   "Afterburner is free and works with NVIDIA, AMD and Intel cards of any brand. It comes with RivaTuner Statistics Server (RTSS), which draws the in-game overlay and caps FPS.": "Afterburner es gratis y funciona con tarjetas NVIDIA, AMD e Intel de cualquier marca. Viene con RivaTuner Statistics Server (RTSS), que dibuja la superposición en el juego y limita los FPS.",
+   "Undervolting is the safe kind of tuning: you lower the voltage, you don't raise it.": "El undervolt es el ajuste seguro: bajas el voltaje, no lo subes.",
+   "The worst that happens is a game crash or a driver reset, and you fix it by going back one step. It doesn't damage the card or void the warranty, and a reset puts it back to stock.": "Lo peor que pasa es que un juego se cierre o el controlador se reinicie, y se arregla volviendo un paso atrás. No daña la tarjeta ni anula la garantía, y restablecer la deja de fábrica.",
+   "Use one tuning app at a time. Close or uninstall the others so they don't fight over the same settings.": "Usa una sola app de ajuste a la vez. Cierra o desinstala las demás para que no se peleen por los mismos ajustes.",
+   "For example NVIDIA App's automatic tuning, the tuning page in AMD Software, ASUS GPU Tweak, Gigabyte Control Center or EVGA Precision.": "Por ejemplo, el ajuste automático de NVIDIA App, la página de ajuste de AMD Software, ASUS GPU Tweak, Gigabyte Control Center o EVGA Precision.",
+   "On a laptop, voltage is usually locked. Afterburner still gives you the overlay and the frame cap; for laptop undervolting, use the maker's software if it has the option.": "En un portátil, el voltaje suele estar bloqueado. Afterburner te sigue dando la superposición y el límite de FPS; para el undervolt en portátil, usa el software del fabricante si tiene la opción.",
+   "Write down where you start: play a demanding game for 10 minutes and note the FPS, GPU temperature, clock speed and power draw. Every change gets compared to this.": "Anota cómo empiezas: juega 10 minutos a un juego exigente y apunta FPS, temperatura de la GPU, velocidad de reloj y consumo. Cada cambio se compara con esto.",
+   "Set up the overlay first (the chapter further down) so you can read all of this in game.": "Configura primero la superposición (el capítulo más abajo) para ver todo esto en el juego.",
+   "Before you start": "Antes de empezar",
+   "What Afterburner is, and what it can and can't do.": "Qué es Afterburner y qué puede y no puede hacer.",
+   "Download it only from MSI or Guru3D. Fake 'Afterburner' sites spread malware.": "Descárgalo solo de MSI o Guru3D. Las webs falsas de 'Afterburner' reparten malware.",
+   "Open MSI's download page": "Abrir la página de descarga de MSI",
+   "Use version 4.6.6 or newer. Older versions don't recognise RTX 50 or Radeon RX 9000 cards.": "Usa la versión 4.6.6 o posterior. Las versiones antiguas no reconocen las tarjetas RTX 50 ni Radeon RX 9000.",
+   "The 4.6.7 beta on Guru3D has an improved curve editor, if you're happy to use a beta.": "La beta 4.6.7 de Guru3D trae un editor de curva mejorado, si no te importa usar una beta.",
+   "Guru3D beta page": "Página de la beta en Guru3D",
+   "When the installer asks, install both MSI Afterburner and RivaTuner Statistics Server.": "Cuando el instalador pregunte, instala MSI Afterburner y también RivaTuner Statistics Server.",
+   "Open Afterburner → Settings (the gear) → General, and tick 'Unlock voltage monitoring'.": "Abre Afterburner → Ajustes (el engranaje) → General, y marca 'Unlock voltage monitoring'.",
+   "Leave 'Unlock voltage control' off. You don't need it to undervolt, and it's the part that can raise voltage.": "Deja 'Unlock voltage control' desactivado. No hace falta para el undervolt, y es lo que permite subir el voltaje.",
+   "Install it safely": "Instálalo de forma segura",
+   "Start a demanding game or a benchmark and leave it running in a window.": "Abre un juego exigente o un benchmark y déjalo funcionando en una ventana.",
+   "Drag Power Limit (%) down to 85 and press Apply (the check mark).": "Baja Power Limit (%) a 85 y pulsa Aplicar (la marca de verificación).",
+   "MSI suggests 80 to 85% as a start. How low you can go depends on the card.": "MSI sugiere empezar entre 80 y 85%. Cuánto puedes bajar depende de la tarjeta.",
+   "Watch the temperature and FPS for a few minutes and compare with your notes. Usually you lose a few FPS and a lot of heat.": "Observa la temperatura y los FPS unos minutos y compara con tus notas. Normalmente pierdes unos pocos FPS y mucho calor.",
+   "Happy with it? Save it as a profile. Want full speed with less heat? Put Power Limit back to 100 and use the curve method instead.": "¿Te convence? Guárdalo como perfil. ¿Quieres toda la velocidad con menos calor? Vuelve Power Limit a 100 y usa el método de la curva.",
+   "Quick win: lower the power limit": "Mejora rápida: baja el límite de potencia",
+   "A two-minute undervolt. It costs a little speed but cuts heat and noise a lot. MSI's own guide starts here.": "Un undervolt de dos minutos. Cuesta un poco de velocidad pero reduce mucho el calor y el ruido. La propia guía de MSI empieza aquí.",
+   "Press Reset (the circular arrow) so you start from stock, with Power Limit at 100.": "Pulsa Restablecer (la flecha circular) para empezar de fábrica, con Power Limit en 100.",
+   "Press Ctrl+F to open the Voltage/Frequency curve editor.": "Pulsa Ctrl+F para abrir el editor de curva Voltaje/Frecuencia.",
+   "Each point is a voltage (bottom, in mV) and the clock speed the card runs at that voltage (left, in MHz).": "Cada punto es un voltaje (abajo, en mV) y la velocidad de reloj a la que va la tarjeta con ese voltaje (izquierda, en MHz).",
+   "Pick your target voltage. Good starting points: RTX 50: 900 to 950 mV · RTX 40: 950 mV · RTX 30: 850 to 875 mV · RTX 20 and GTX 16: 900 mV.": "Elige tu voltaje objetivo. Buenos puntos de partida: RTX 50: 900 a 950 mV · RTX 40: 950 mV · RTX 30: 850 a 875 mV · RTX 20 y GTX 16: 900 mV.",
+   "Pulse shows the starting point for your own card at the top of this guide.": "Pulse muestra el punto de partida para tu tarjeta arriba en esta guía.",
+   "In the main window, set Core Clock to −250 and press Apply. The whole curve drops, so no point can spike up later.": "En la ventana principal, pon Core Clock en −250 y pulsa Aplicar. Toda la curva baja, así ningún punto se dispara después.",
+   "In the curve editor, click the point at your target voltage, hold Shift and drag it up to your stock clock speed from your notes (for example 2,750 MHz).": "En el editor, haz clic en el punto de tu voltaje objetivo, mantén Mayús y arrástralo hasta la velocidad de fábrica de tus notas (por ejemplo 2.750 MHz).",
+   "Press Apply in the main window. Everything right of your point becomes a flat line: the card now never goes above that voltage.": "Pulsa Aplicar en la ventana principal. Todo lo que hay a la derecha de tu punto se vuelve una línea plana: la tarjeta ya no pasa de ese voltaje.",
+   "If points on the right still stick up, drag a box around them with Shift, pull them below your line and Apply again. Or click your point and press L to lock it (a dotted line appears), which is MSI's own method.": "Si algún punto de la derecha sigue sobresaliendo, selecciónalos con Mayús arrastrando un recuadro, bájalos por debajo de tu línea y vuelve a Aplicar. O haz clic en tu punto y pulsa L para bloquearlo (aparece una línea punteada), que es el método de MSI.",
+   "Test it (see 'Test it properly'). Stable? Go 25 mV lower at the same clock, or 15 to 30 MHz higher at the same voltage. One step at a time.": "Pruébalo (ver 'Pruébalo bien'). ¿Estable? Baja 25 mV a la misma velocidad, o sube 15 a 30 MHz al mismo voltaje. Un paso cada vez.",
+   "Never drag points above about 1,100 mV, and don't touch the Core Voltage slider. Undervolting means lower, never higher.": "Nunca subas puntos por encima de unos 1.100 mV ni toques el control Core Voltage. Undervolt significa bajar, nunca subir.",
+   "The clock settles 15 to 30 MHz below your line once the card is hot. That's normal.": "La velocidad se queda 15 a 30 MHz por debajo de tu línea cuando la tarjeta está caliente. Es normal.",
+   "Undervolt with the curve (NVIDIA)": "Undervolt con la curva (NVIDIA)",
+   "The real undervolt: the same clock speed at a lower voltage. On RTX 30, 40 and 50 cards the Core Voltage slider does nothing; the curve editor is the way.": "El undervolt de verdad: la misma velocidad de reloj a menor voltaje. En las RTX 30, 40 y 50 el control Core Voltage no hace nada; el editor de curva es el camino.",
+   "Open AMD Software: Adrenalin Edition → Performance → Tuning → Custom. Turn on GPU Tuning and Advanced Control.": "Abre AMD Software: Adrenalin Edition → Rendimiento → Ajuste → Personalizado. Activa Ajuste de GPU y Control avanzado.",
+   "RX 9000 cards: set Voltage Offset to −50 mV and apply. Many cards hold more; try 10 to 20 mV more each time and test.": "Tarjetas RX 9000: pon Desplazamiento de voltaje en −50 mV y aplica. Muchas aguantan más; prueba 10 a 20 mV más cada vez y comprueba.",
+   "RX 7000 and 6000 cards: lower Max Voltage by about 50 mV (for example 1,150 → 1,100 mV) and apply.": "Tarjetas RX 7000 y 6000: baja Voltaje máximo unos 50 mV (por ejemplo 1.150 → 1.100 mV) y aplica.",
+   "Power Limit: −10% for less heat, or the maximum to let an undervolted card hold its clocks for more FPS.": "Límite de potencia: −10% para menos calor, o el máximo para que una tarjeta con undervolt mantenga su velocidad y dé más FPS.",
+   "If AMD Software says 'Default settings restored due to unexpected system failure', your last step went too far. Go back to the last stable value.": "Si AMD Software dice que restauró la configuración predeterminada por un fallo inesperado, tu último paso fue demasiado lejos. Vuelve al último valor estable.",
+   "Leave Afterburner's sliders alone on an AMD card, so the two apps don't fight.": "No toques los controles de Afterburner en una tarjeta AMD, para que las dos apps no se peleen.",
+   "Undervolt a Radeon card (AMD)": "Undervolt en una Radeon (AMD)",
+   "Afterburner's support for RX 9000 cards is unofficial, and AMD's own software does this better. Use AMD Software for the undervolt and Afterburner for the overlay and FPS cap.": "El soporte de Afterburner para las RX 9000 no es oficial, y el software de AMD lo hace mejor. Usa AMD Software para el undervolt y Afterburner para la superposición y el límite de FPS.",
+   "Run a GPU stress test for 15 to 20 minutes: Unigine Superposition (free), OCCT's 3D test (free) or a 3DMark stress test.": "Haz una prueba de estrés de GPU de 15 a 20 minutos: Unigine Superposition (gratis), la prueba 3D de OCCT (gratis) o una prueba de estrés de 3DMark.",
+   "Get Superposition": "Descargar Superposition",
+   "Then play your most demanding game for an hour. Ray tracing and shader-heavy games catch unstable settings that benchmarks miss.": "Después juega una hora a tu juego más exigente. Los juegos con trazado de rayos y muchos shaders detectan ajustes inestables que los benchmarks no ven.",
+   "Too far if: the game closes, the screen flashes black, Windows says the display driver stopped responding, or you see sparkles. Go back one step (+25 mV or −30 MHz).": "Te pasaste si: el juego se cierra, la pantalla se pone negra un momento, Windows dice que el controlador de pantalla dejó de responder o ves destellos. Vuelve un paso (+25 mV o −30 MHz).",
+   "Check it really helped: FPS within 1 to 2% of your notes, with lower temperature and power. Pulse's Measure page compares before and after.": "Comprueba que ayudó de verdad: FPS a 1 o 2% de tus notas, con menos temperatura y consumo. La página Medir de Pulse compara antes y después.",
+   "Open Measure": "Abrir Medir",
+   "Test it properly": "Pruébalo bien",
+   "A setting that passes one benchmark can still crash a game an hour later.": "Un ajuste que pasa un benchmark puede cerrar un juego una hora después.",
+   "Click the save icon, then a number from 1 to 5. Keep profile 1 as stock (press Reset first) and profile 2 as your undervolt.": "Haz clic en el icono de guardar y luego en un número del 1 al 5. Deja el perfil 1 de fábrica (pulsa Restablecer antes) y el 2 con tu undervolt.",
+   "Settings → Profiles: give each profile a hotkey, for example Ctrl+Alt+1 for stock and Ctrl+Alt+2 for your undervolt.": "Ajustes → Profiles: asigna un atajo a cada perfil, por ejemplo Ctrl+Alt+1 para fábrica y Ctrl+Alt+2 para tu undervolt.",
+   "Once it's tested, turn on 'Apply overclocking at system startup' (the Windows button at the bottom left), and in Settings → General tick 'Start with Windows' and 'Start minimized'.": "Cuando esté probado, activa 'Apply overclocking at system startup' (el botón de Windows abajo a la izquierda), y en Ajustes → General marca 'Start with Windows' y 'Start minimized'.",
+   "Only after testing. An unstable setting applied at startup can crash Windows as it starts. Holding Ctrl while Afterburner starts skips your settings.": "Solo después de probar. Un ajuste inestable aplicado al iniciar puede bloquear Windows al arrancar. Mantener Ctrl mientras Afterburner se abre salta tus ajustes.",
+   "After a graphics driver update, open Afterburner once and check your profile is still applied. Driver installs reset the card to stock.": "Tras actualizar el controlador gráfico, abre Afterburner una vez y comprueba que tu perfil sigue aplicado. Instalar un controlador deja la tarjeta de fábrica.",
+   "Save profiles and apply at startup": "Guarda perfiles y aplica al iniciar",
+   "Settings → Fan → tick 'Enable user defined software automatic fan control'.": "Ajustes → Fan → marca 'Enable user defined software automatic fan control'.",
+   "Make a gentle curve, for example 30% at 40 °C, 45% at 60 °C, 60% at 70 °C, 80% at 80 °C and 100% at 85 °C.": "Haz una curva suave, por ejemplo 30% a 40 °C, 45% a 60 °C, 60% a 70 °C, 80% a 80 °C y 100% a 85 °C.",
+   "Set 'Temperature hysteresis' to 3 to 5 °C so the fans don't keep speeding up and slowing down.": "Pon 'Temperature hysteresis' en 3 a 5 °C para que los ventiladores no suban y bajen sin parar.",
+   "Most cards stop their fans below 50 to 60 °C on their own. A custom curve turns that off, so keep the default if you want silence on the desktop.": "La mayoría de tarjetas paran los ventiladores por debajo de 50 a 60 °C. Una curva personalizada lo desactiva, así que deja la de fábrica si quieres silencio en el escritorio.",
+   "Fan curve: cool and quiet": "Curva de ventiladores: fresco y silencioso",
+   "Settings → Monitoring. Click each item you want and tick 'Show in On-Screen Display'.": "Ajustes → Monitoring. Haz clic en cada elemento que quieras y marca 'Show in On-Screen Display'.",
+   "A good set: GPU temperature, GPU usage, core clock, power, framerate, frametime, CPU temperature, CPU usage and RAM usage.": "Un buen conjunto: temperatura de GPU, uso de GPU, reloj del núcleo, consumo, FPS, tiempo de fotograma, temperatura de CPU, uso de CPU y uso de RAM.",
+   "For Frametime, pick 'graph' instead of 'text'. A flat line is smooth; spikes are the stutters you feel.": "Para Frametime, elige 'graph' en lugar de 'text'. Una línea plana es fluidez; los picos son los tirones que notas.",
+   "Settings → On-Screen Display: set a 'Toggle On-Screen Display' hotkey, for example F11.": "Ajustes → On-Screen Display: pon un atajo para 'Toggle On-Screen Display', por ejemplo F11.",
+   "RivaTuner Statistics Server must be running (its icon is in the tray). It's where you change the overlay's position, size and color.": "RivaTuner Statistics Server tiene que estar abierto (su icono está en la bandeja). Ahí cambias la posición, el tamaño y el color de la superposición.",
+   "Reading it: GPU usage under 95% while FPS is low means the CPU or the game is holding you back, not the graphics card.": "Cómo leerlo: un uso de GPU por debajo del 95% con FPS bajos significa que te frena la CPU o el juego, no la tarjeta gráfica.",
+   "A few games with strict anti-cheat block overlays. If one won't start, add it in RTSS with '+' and set Application detection level to None.": "Algunos juegos con anti-trampas estricto bloquean las superposiciones. Si uno no arranca, añádelo en RTSS con '+' y pon Application detection level en None.",
+   "In-game overlay: FPS, temperatures, frame times": "Superposición en el juego: FPS, temperaturas, tiempos de fotograma",
+   "First choice: the game's own frame limiter, or NVIDIA Reflex if the game has it.": "Primera opción: el limitador de FPS del propio juego, o NVIDIA Reflex si el juego lo tiene.",
+   "Use RTSS when the game has no limiter, or its FPS jumps around a lot.": "Usa RTSS cuando el juego no tenga limitador, o sus FPS salten mucho.",
+   "With G-SYNC or FreeSync: cap at least 3 FPS below your refresh rate (141 at 144 Hz, 237 at 240 Hz). Turn V-Sync on in the NVIDIA or AMD settings and off in the game.": "Con G-SYNC o FreeSync: limita al menos 3 FPS por debajo de tu frecuencia (141 a 144 Hz, 237 a 240 Hz). Activa V-Sync en los ajustes de NVIDIA o AMD y desactívalo en el juego.",
+   "In RTSS, select Global, type your cap in 'Framerate limit' and press Enter. For one game only, press '+' at the bottom left, pick its .exe and set the cap there.": "En RTSS, selecciona Global, escribe tu límite en 'Framerate limit' y pulsa Enter. Para un solo juego, pulsa '+' abajo a la izquierda, elige su .exe y pon el límite ahí.",
+   "In a game with Reflex, skip the RTSS cap: Reflex with G-SYNC and V-Sync caps for you (about 138 FPS at 144 Hz).": "En un juego con Reflex, no uses el límite de RTSS: Reflex con G-SYNC y V-Sync limita por ti (unos 138 FPS a 144 Hz).",
+   "Cap your frame rate the right way": "Limita los FPS como se debe",
+   "Blur Busters measured this with a latency tester: the game's own limiter and NVIDIA Reflex have ½ to 1 frame less input lag than outside limiters like RTSS. RTSS has the steadiest frame pacing.": "Blur Busters lo midió con un medidor de latencia: el limitador del propio juego y NVIDIA Reflex tienen de ½ a 1 fotograma menos de retraso que los limitadores externos como RTSS. RTSS da el ritmo de fotogramas más estable.",
+   "Settings won't apply or sliders are grey: close other tuning apps, run Afterburner as administrator and update to the newest version.": "Los ajustes no se aplican o los controles están grises: cierra otras apps de ajuste, ejecuta Afterburner como administrador y actualízalo a la última versión.",
+   "The card went back to stock after a crash or driver update: load your profile again and re-test.": "La tarjeta volvió a fábrica tras un cierre o actualización de controlador: vuelve a cargar tu perfil y prueba de nuevo.",
+   "The curve keeps creeping back up: you raised points on the right end. Reset, set Core Clock to −250 first, then raise only your one target point.": "La curva vuelve a subir: subiste puntos del extremo derecho. Restablece, pon primero Core Clock en −250 y sube solo tu punto objetivo.",
+   "RTX 50 shows a hot spot of 255 °C: those cards don't have that sensor, and older builds misread it. Update Afterburner and ignore that reading.": "Una RTX 50 marca un punto caliente de 255 °C: esas tarjetas no tienen ese sensor y las versiones antiguas lo leen mal. Actualiza Afterburner e ignora esa lectura.",
+   "A memory overclock seems stable but FPS goes down: GDDR6X and GDDR7 memory fix errors quietly, which costs speed. Judge memory clocks by FPS, not by crashes.": "Un overclock de memoria parece estable pero bajan los FPS: la memoria GDDR6X y GDDR7 corrige errores en silencio, lo que cuesta velocidad. Juzga la memoria por los FPS, no por los cierres.",
+   "When something goes wrong": "Cuando algo falla",
+   "MSI Afterburner: undervolt, fans, overlay and FPS cap": "MSI Afterburner: undervolt, ventiladores, superposición y límite de FPS",
+   "Run your graphics card cooler and quieter at the same speed, see FPS and temperatures in game, and cap your frame rate the right way. Works on any brand of card, not just MSI.": "Haz que tu tarjeta gráfica vaya más fresca y silenciosa a la misma velocidad, mira los FPS y temperaturas en el juego y limita los FPS como se debe. Funciona con cualquier marca de tarjeta, no solo MSI.",
+   "Plug the monitor into the graphics card, not the motherboard.": "Conecta el monitor a la tarjeta gráfica, no a la placa base.",
+   "NVIDIA Control Panel → Change resolution: pick your monitor's highest refresh rate (144 Hz, 165 Hz, 240 Hz...). Windows often leaves it at 60.": "Panel de control de NVIDIA → Cambiar resolución: elige la frecuencia más alta de tu monitor (144 Hz, 165 Hz, 240 Hz...). Windows a menudo la deja en 60.",
+   "On the same page, set Output dynamic range to Full. Over HDMI it's often Limited, which makes blacks look grey.": "En la misma página, pon Rango dinámico de salida en Completo. Por HDMI suele estar en Limitado, y los negros se ven grises.",
+   "Install drivers from the NVIDIA App or nvidia.com. Update when a game you play needs it or a fix you want is listed; you don't need every release.": "Instala los controladores desde NVIDIA App o nvidia.com. Actualiza cuando un juego tuyo lo necesite o haya un arreglo que te interese; no hace falta cada versión.",
+   "NVIDIA drivers": "Controladores de NVIDIA",
+   "Get the basics right": "Lo básico bien hecho",
+   "Set up G-SYNC: turn it on (for fullscreen, or fullscreen and windowed if you play borderless).": "Configurar G-SYNC: actívalo (para pantalla completa, o completa y en ventana si juegas sin bordes).",
+   "Manage 3D settings → Vertical sync: On. Then turn V-Sync off in every game.": "Administrar configuración 3D → Sincronización vertical: Activada. Después desactiva el V-Sync en cada juego.",
+   "Cap FPS at least 3 below your refresh rate: 141 at 144 Hz, 162 at 165 Hz, 237 at 240 Hz. Use the game's limiter first, otherwise 'Max Frame Rate' in the Control Panel.": "Limita los FPS al menos 3 por debajo de tu frecuencia: 141 a 144 Hz, 162 a 165 Hz, 237 a 240 Hz. Usa primero el limitador del juego, si no, 'Velocidad máxima de fotogramas' en el Panel de control.",
+   "Games with NVIDIA Reflex: turn Reflex on. With G-SYNC and V-Sync on, it caps for you (about 138 FPS at 144 Hz), so you can skip your own cap there.": "Juegos con NVIDIA Reflex: activa Reflex. Con G-SYNC y V-Sync activados, limita por ti (unos 138 FPS a 144 Hz), así que ahí puedes saltarte tu límite.",
+   "Games without Reflex: set Low Latency Mode to On. 'Ultra' also caps automatically with G-SYNC.": "Juegos sin Reflex: pon Modo de baja latencia en Activado. 'Ultra' además limita solo con G-SYNC.",
+   "The G-SYNC recipe": "La receta de G-SYNC",
+   "Blur Busters' tested settings for no tearing with the least input lag. They also work for 'G-SYNC Compatible' FreeSync monitors.": "Los ajustes probados por Blur Busters para no tener cortes con el menor retraso. También sirven para monitores FreeSync 'G-SYNC Compatible'.",
+   "Shader Cache Size: 10 GB or Unlimited, so games don't recompile shaders (and hitch) as often.": "Tamaño de caché de sombreadores: 10 GB o Ilimitado, para que los juegos no recompilen shaders (y den tirones) tan a menudo.",
+   "NVIDIA App → Graphics → DLSS Override: set the model preset to Latest, so older games use the newest DLSS.": "NVIDIA App → Gráficos → Anulación de DLSS: pon el preajuste de modelo en Último, para que juegos antiguos usen el DLSS más nuevo.",
+   "Power management mode: leave it on Normal. Use 'Prefer maximum performance' for one game only if its clocks drop and it stutters; it raises idle power.": "Modo de administración de energía: déjalo en Normal. Usa 'Preferir rendimiento máximo' solo para un juego si su velocidad baja y da tirones; sube el consumo en reposo.",
+   "Leave the rest at default. Texture filtering, anisotropic and the like make no measurable FPS difference on a modern card.": "Deja el resto por defecto. El filtrado de texturas, anisotrópico y similares no cambian los FPS de forma medible en una tarjeta moderna.",
+   "Other settings worth changing": "Otros ajustes que vale la pena cambiar",
+   "NVIDIA settings for smooth, low-latency games": "Ajustes de NVIDIA para juegos fluidos y con poca latencia",
+   "The NVIDIA App and Control Panel settings that actually matter, and the G-SYNC recipe Blur Busters measured as best.": "Los ajustes de NVIDIA App y del Panel de control que de verdad importan, y la receta de G-SYNC que Blur Busters midió como la mejor.",
+   "Plug the monitor into the graphics card, and set its highest refresh rate in Windows → Settings → Display → Advanced display.": "Conecta el monitor a la tarjeta gráfica y pon su frecuencia más alta en Windows → Configuración → Pantalla → Pantalla avanzada.",
+   "AMD Software → Settings → Display: turn on AMD FreeSync for your monitor.": "AMD Software → Ajustes → Pantalla: activa AMD FreeSync para tu monitor.",
+   "Turn Enhanced Sync off; it can cause stutter with FreeSync.": "Desactiva Enhanced Sync; puede causar tirones con FreeSync.",
+   "Display": "Pantalla",
+   "Use the Default graphics profile, not HYPR-RX: HYPR-RX switches on several features at once, including ones that lower resolution or add generated frames.": "Usa el perfil gráfico Predeterminado, no HYPR-RX: HYPR-RX activa varias funciones a la vez, incluidas algunas que bajan la resolución o añaden fotogramas generados.",
+   "AMD Anti-Lag: on. In games that support Anti-Lag 2, turn it on in the game's own settings.": "AMD Anti-Lag: activado. En juegos compatibles con Anti-Lag 2, actívalo en los ajustes del propio juego.",
+   "Wait for Vertical Refresh: 'Always on' if you want no tearing with FreeSync, then turn V-Sync off in the game.": "Esperar a la actualización vertical: 'Siempre activado' si no quieres cortes con FreeSync, y desactiva el V-Sync en el juego.",
+   "Cap FPS 3 below your refresh rate with the game's limiter, or with Radeon Chill set to the same minimum and maximum.": "Limita los FPS 3 por debajo de tu frecuencia con el limitador del juego, o con Radeon Chill con el mismo mínimo y máximo.",
+   "Radeon Boost: off for competitive games. It lowers the resolution while you move.": "Radeon Boost: desactivado en juegos competitivos. Baja la resolución mientras te mueves.",
+   "Gaming → Graphics": "Juegos → Gráficos",
+   "Get drivers from AMD Software or amd.com. If a game stutters after an update, try the shader cache reset in Graphics → Advanced once.": "Consigue los controladores desde AMD Software o amd.com. Si un juego da tirones tras una actualización, prueba una vez a restablecer la caché de sombreadores en Gráficos → Avanzado.",
+   "AMD drivers": "Controladores de AMD",
+   "For undervolting a Radeon card, see the AMD chapter of the MSI Afterburner guide.": "Para hacer undervolt a una Radeon, mira el capítulo de AMD de la guía de MSI Afterburner.",
+   "Drivers": "Controladores",
+   "AMD Software settings for smooth, low-latency games": "Ajustes de AMD Software para juegos fluidos y con poca latencia",
+   "FreeSync, Anti-Lag, frame caps and what to leave off in AMD Software: Adrenalin Edition.": "FreeSync, Anti-Lag, límites de FPS y qué dejar desactivado en AMD Software: Adrenalin Edition.",
+   "Restart and press Delete (or F2) repeatedly as the PC starts. Or in Windows: Settings → System → Recovery → Advanced startup → Restart now → Troubleshoot → Advanced options → UEFI Firmware Settings.": "Reinicia y pulsa Supr (o F2) varias veces al arrancar. O en Windows: Configuración → Sistema → Recuperación → Inicio avanzado → Reiniciar ahora → Solucionar problemas → Opciones avanzadas → Configuración de firmware UEFI.",
+   "Most boards open in an Easy mode. Press F7 to switch to Advanced mode if you can't find a setting.": "La mayoría de placas abren en modo Fácil. Pulsa F7 para pasar al modo Avanzado si no encuentras un ajuste.",
+   "Get into the BIOS": "Entrar en la BIOS",
+   "ASUS: Ai Tweaker → Ai Overclock Tuner → XMP I (or EXPO). MSI: the A-XMP or EXPO button on the main screen. Gigabyte: Tweaker → Extreme Memory Profile (X.M.P.). ASRock: OC Tweaker → DRAM Profile → XMP or EXPO.": "ASUS: Ai Tweaker → Ai Overclock Tuner → XMP I (o EXPO). MSI: el botón A-XMP o EXPO en la pantalla principal. Gigabyte: Tweaker → Extreme Memory Profile (X.M.P.). ASRock: OC Tweaker → DRAM Profile → XMP o EXPO.",
+   "Save and exit (usually F10). The first start can take a minute or two while the PC trains the memory, especially with DDR5. Don't turn it off.": "Guarda y sal (normalmente F10). El primer arranque puede tardar un minuto o dos mientras el PC ajusta la memoria, sobre todo con DDR5. No lo apagues.",
+   "Check it worked: Task Manager → Performance → Memory → Speed should show your kit's rated speed, for example 6000 MT/s.": "Comprueba que funcionó: Administrador de tareas → Rendimiento → Memoria → Velocidad debería mostrar la velocidad de tu kit, por ejemplo 6000 MT/s.",
+   "Pulse's Diagnose page checks this too.": "La página Diagnosticar de Pulse también lo comprueba.",
+   "Open Diagnose": "Abrir Diagnosticar",
+   "Won't start, or crashes? Clear the CMOS (the button on the back, or the jumper in the manual) and try the second XMP profile or one speed step lower.": "¿No arranca o se cuelga? Borra la CMOS (el botón de atrás, o el puente del manual) y prueba el segundo perfil XMP o un paso de velocidad menos.",
+   "Turn on XMP or EXPO": "Activa XMP o EXPO",
+   "Without it, RAM runs at its slow fallback speed (DDR4 2,133 to 3,200, DDR5 4,800). It's one of the biggest free gains in CPU-heavy games.": "Sin esto, la RAM va a su velocidad lenta de respaldo (DDR4 2.133 a 3.200, DDR5 4.800). Es una de las mejoras gratis más grandes en juegos que tiran de CPU.",
+   "Turn CSM (Compatibility Support Module) off. Windows 11 already boots without it.": "Desactiva CSM (Compatibility Support Module). Windows 11 ya arranca sin él.",
+   "Turn Above 4G Decoding on, then Re-Size BAR Support on (or Auto). It's usually under Advanced → PCI Subsystem Settings.": "Activa Above 4G Decoding y luego Re-Size BAR Support (o Auto). Suele estar en Advanced → PCI Subsystem Settings.",
+   "Check it: NVIDIA Control Panel → System Information → Resizable BAR: Yes. On AMD, AMD Software → Performance shows Smart Access Memory.": "Compruébalo: Panel de control de NVIDIA → Información del sistema → Resizable BAR: Sí. En AMD, AMD Software → Rendimiento muestra Smart Access Memory.",
+   "Turn on Resizable BAR": "Activa Resizable BAR",
+   "Lets the CPU reach all of the graphics card's memory at once. Usually a few percent, more in some games. AMD calls it Smart Access Memory.": "Permite que la CPU acceda a toda la memoria de la tarjeta gráfica a la vez. Suele ser un poco por ciento, más en algunos juegos. AMD lo llama Smart Access Memory.",
+   "Update the BIOS only to fix a problem or support a new CPU, and only from your motherboard maker's support page for your exact model.": "Actualiza la BIOS solo para arreglar un problema o admitir una CPU nueva, y solo desde la página de soporte del fabricante de tu placa para tu modelo exacto.",
+   "An update resets XMP/EXPO and Resizable BAR, so turn them back on afterwards.": "Una actualización restablece XMP/EXPO y Resizable BAR, así que vuelve a activarlos después.",
+   "Never turn the PC off during a BIOS update.": "Nunca apagues el PC durante una actualización de BIOS.",
+   "BIOS updates": "Actualizaciones de BIOS",
+   "BIOS: XMP/EXPO and Resizable BAR": "BIOS: XMP/EXPO y Resizable BAR",
+   "The two BIOS switches most gaming PCs are missing, with the menu names for ASUS, MSI, Gigabyte and ASRock boards.": "Los dos interruptores de la BIOS que le faltan a la mayoría de PCs para juegos, con los nombres de menú para placas ASUS, MSI, Gigabyte y ASRock.",
+   "Download the driver you want to install first (from NVIDIA, AMD or Intel) and keep it on the desktop.": "Descarga primero el controlador que quieres instalar (de NVIDIA, AMD o Intel) y déjalo en el escritorio.",
+   "Download Display Driver Uninstaller (DDU) from its official site, Wagnardsoft, and unzip it.": "Descarga Display Driver Uninstaller (DDU) de su web oficial, Wagnardsoft, y descomprímelo.",
+   "Open Wagnardsoft": "Abrir Wagnardsoft",
+   "In Pulse, turn on 'Stop Windows Update replacing your graphics driver' so Windows doesn't sneak its own driver in while you work.": "En Pulse, activa 'Evitar que Windows Update reemplace tu controlador gráfico' para que Windows no meta el suyo mientras trabajas.",
+   "Open Tweaks": "Abrir Ajustes",
+   "Unplug the network cable or turn Wi-Fi off.": "Desconecta el cable de red o apaga el Wi-Fi.",
+   "Prepare": "Prepárate",
+   "Restart into Safe Mode: hold Shift and click Restart → Troubleshoot → Advanced options → Startup Settings → Restart → press 4.": "Reinicia en Modo seguro: mantén Mayús y haz clic en Reiniciar → Solucionar problemas → Opciones avanzadas → Configuración de inicio → Reiniciar → pulsa 4.",
+   "Run DDU, pick GPU and your brand on the right, then 'Clean and restart'.": "Ejecuta DDU, elige GPU y tu marca a la derecha y luego 'Clean and restart'.",
+   "Back in Windows, run the driver you downloaded. On NVIDIA pick Custom → Clean installation if offered.": "De vuelta en Windows, ejecuta el controlador que descargaste. En NVIDIA elige Personalizada → Instalación limpia si aparece.",
+   "Reconnect to the internet, then set your refresh rate and driver settings again (the NVIDIA or AMD settings guide).": "Vuelve a conectarte a internet y pon de nuevo tu frecuencia y los ajustes del controlador (la guía de ajustes de NVIDIA o AMD).",
+   "Remove and reinstall": "Quitar y reinstalar",
+   "Clean graphics driver reinstall with DDU": "Reinstalación limpia del controlador gráfico con DDU",
+   "The fix for crashes, black screens and stutter that started after a driver update, or when switching between NVIDIA and AMD.": "La solución para cierres, pantallas negras y tirones que empezaron tras actualizar el controlador, o al cambiar entre NVIDIA y AMD.",
+   "Spikes the first time you see an effect or a new area, fewer the second time: shader compilation. See the next chapter.": "Picos la primera vez que ves un efecto o una zona nueva, menos la segunda vez: compilación de shaders. Mira el siguiente capítulo.",
+   "Regular spikes every few seconds, even standing still: something in the background. See 'Background apps'.": "Picos regulares cada pocos segundos, incluso quieto: algo en segundo plano. Mira 'Apps en segundo plano'.",
+   "FPS fine at first, then dropping after 10 to 20 minutes: heat. See the cooling guide.": "FPS bien al principio y luego bajando tras 10 a 20 minutos: calor. Mira la guía de refrigeración.",
+   "Hitching in big or detailed areas, with video memory near full in the overlay: VRAM. Lower texture quality one step.": "Tirones en zonas grandes o detalladas, con la memoria de vídeo casi llena en la superposición: VRAM. Baja un paso la calidad de texturas.",
+   "Pulse's Diagnose page checks the common causes for you: refresh rate, RAM speed, power plan, drivers and more.": "La página Diagnosticar de Pulse comprueba las causas habituales por ti: frecuencia, velocidad de RAM, plan de energía, controladores y más.",
+   "Find the kind of stutter": "Identifica el tipo de tirón",
+   "Turn on a frame-time graph (the overlay chapter of the Afterburner guide) and watch it while it happens.": "Activa un gráfico de tiempo de fotograma (el capítulo de superposición de la guía de Afterburner) y míralo mientras pasa.",
+   "Let the game's 'compiling shaders' step finish before you play, even if it takes minutes.": "Deja que el paso de 'compilando shaders' del juego termine antes de jugar, aunque tarde minutos.",
+   "Raise the driver's shader cache to 10 GB or Unlimited (NVIDIA) and don't let cleaner apps wipe it. Pulse's cleanup never deletes it.": "Sube la caché de shaders del controlador a 10 GB o Ilimitado (NVIDIA) y no dejes que las apps de limpieza la borren. La limpieza de Pulse nunca la borra.",
+   "After a driver update, expect the first session in each game to hitch again while shaders rebuild.": "Tras actualizar el controlador, espera que la primera partida en cada juego vuelva a dar tirones mientras se reconstruyen los shaders.",
+   "Shader compilation": "Compilación de shaders",
+   "Close what you don't need while playing: browser tabs with video, launchers you're not using, RGB and peripheral apps you don't need open.": "Cierra lo que no necesitas al jugar: pestañas del navegador con vídeo, lanzadores que no usas, apps de RGB y periféricos que no hacen falta abiertas.",
+   "Only one overlay and one recorder at a time (Discord, Steam, NVIDIA, Xbox Game Bar, Medal). Each one hooks into the game.": "Solo una superposición y una grabadora a la vez (Discord, Steam, NVIDIA, Xbox Game Bar, Medal). Cada una se engancha al juego.",
+   "Pause big downloads and Windows Update while you play, or use Pulse's tweak that limits update bandwidth.": "Pausa las descargas grandes y Windows Update mientras juegas, o usa el ajuste de Pulse que limita el ancho de banda de las actualizaciones.",
+   "Trim what starts with Windows on Pulse's Startup apps page.": "Recorta lo que arranca con Windows en la página Apps de inicio de Pulse.",
+   "Open Startup apps": "Abrir Apps de inicio",
+   "Background apps": "Apps en segundo plano",
+   "Games on an SSD, with at least 10 to 15% of the drive free.": "Juegos en un SSD, con al menos un 10 a 15% del disco libre.",
+   "RAM in two matching sticks (dual channel), with XMP or EXPO on. One stick halves memory bandwidth.": "RAM en dos módulos iguales (doble canal), con XMP o EXPO activado. Un solo módulo reduce a la mitad el ancho de banda.",
+   "Laptops: plugged in, on the maker's performance mode, with the game running on the dedicated graphics card.": "Portátiles: enchufado, en el modo rendimiento del fabricante, con el juego en la tarjeta gráfica dedicada.",
+   "Cap your FPS a little below what you can hold most of the time. Steady 120 feels smoother than 120 to 200 jumping around.": "Limita los FPS un poco por debajo de lo que mantienes casi siempre. 120 estables se sienten más fluidos que saltar entre 120 y 200.",
+   "Hardware basics": "Lo básico del hardware",
+   "Fix stutter and FPS drops": "Arregla tirones y caídas de FPS",
+   "Work out what kind of stutter you have, then fix the cause: shaders, video memory, background apps, storage, heat or frame pacing.": "Averigua qué tipo de tirón tienes y arregla la causa: shaders, memoria de vídeo, apps en segundo plano, almacenamiento, calor o ritmo de fotogramas.",
+   "Use an Ethernet cable if you can. It removes most lag spikes Wi-Fi causes. Powerline adapters are the next best thing.": "Usa un cable Ethernet si puedes. Quita la mayoría de picos que causa el Wi-Fi. Los adaptadores PLC son la siguiente mejor opción.",
+   "On Wi-Fi: connect on 5 GHz or 6 GHz, not 2.4 GHz, and keep the router in the open, not in a cupboard or behind the TV.": "Con Wi-Fi: conéctate a 5 GHz o 6 GHz, no a 2,4 GHz, y pon el router a la vista, no en un armario ni detrás de la tele.",
+   "Pick the game server or region closest to you. Distance is most of your ping, and no PC setting changes it.": "Elige el servidor o la región del juego más cercana. La distancia es la mayor parte de tu ping, y ningún ajuste del PC la cambia.",
+   "The connection": "La conexión",
+   "Run Waveform's bufferbloat test. A grade of C or worse means your ping jumps whenever the connection is busy.": "Haz la prueba de bufferbloat de Waveform. Una nota C o peor significa que tu ping salta cada vez que la conexión está ocupada.",
+   "Open the test": "Abrir la prueba",
+   "Fix it on the router: turn on Smart Queue, SQM or Adaptive QoS (names vary), set to about 90% of your measured speed.": "Arréglalo en el router: activa Smart Queue, SQM o QoS adaptable (el nombre cambia), puesto a un 90% de tu velocidad medida.",
+   "No such setting on your router? Pause Steam, console and Windows downloads while you play.": "¿Tu router no lo tiene? Pausa las descargas de Steam, consolas y Windows mientras juegas.",
+   "Bufferbloat: lag when someone else downloads": "Bufferbloat: lag cuando otro descarga",
+   "Changing DNS doesn't change in-game ping. DNS only looks up addresses before you connect.": "Cambiar el DNS no cambia el ping en el juego. El DNS solo busca direcciones antes de conectar.",
+   "'Ping booster' apps and registry network tweaks can't make packets travel faster. Most games don't even use the settings they change.": "Las apps que 'bajan el ping' y los ajustes de red en el registro no hacen que los paquetes viajen más rápido. La mayoría de juegos ni usan lo que cambian.",
+   "Turning off IPv6 doesn't help, and can break some connections.": "Desactivar IPv6 no ayuda y puede romper algunas conexiones.",
+   "Skip these": "Sáltate esto",
+   "Lower ping and stop lag spikes": "Baja el ping y acaba con los picos de lag",
+   "What actually lowers ping and stops spikes: the connection, Wi-Fi placement, bufferbloat and downloads. Plus the popular fixes that don't work.": "Lo que de verdad baja el ping y acaba con los picos: la conexión, la ubicación del Wi-Fi, el bufferbloat y las descargas. Y los arreglos populares que no funcionan.",
+   "Graphics card while gaming: 60 to 80 °C is normal. Its hot spot runs 10 to 20 °C higher.": "Tarjeta gráfica jugando: 60 a 80 °C es normal. Su punto caliente va 10 a 20 °C por encima.",
+   "CPU while gaming: up to the high 80s °C is fine on modern chips. Many are designed to boost until they reach about 90 to 95 °C.": "CPU jugando: hasta casi 90 °C está bien en chips modernos. Muchos están hechos para acelerar hasta unos 90 a 95 °C.",
+   "A problem looks like this: FPS drops after 10 to 20 minutes while temperatures sit at their limit and clocks fall.": "Un problema se ve así: los FPS bajan tras 10 a 20 minutos mientras las temperaturas están en su límite y la velocidad baja.",
+   "What's normal": "Qué es normal",
+   "Clean the dust: PC off and unplugged, short bursts of compressed air, hold fans still so they don't spin. Front filters first.": "Limpia el polvo: PC apagado y desenchufado, ráfagas cortas de aire comprimido y sujeta los ventiladores para que no giren. Primero los filtros delanteros.",
+   "Airflow: front fans pull air in, rear and top fans push it out. A little more in than out keeps dust down.": "Flujo de aire: los ventiladores delanteros meten aire, los traseros y superiores lo sacan. Un poco más de entrada que de salida reduce el polvo.",
+   "Undervolt the graphics card: often 10 °C cooler at the same FPS. See the MSI Afterburner guide.": "Haz undervolt a la tarjeta gráfica: a menudo 10 °C menos con los mismos FPS. Mira la guía de MSI Afterburner.",
+   "Still hot after three or more years? Fresh thermal paste on the CPU cooler usually helps. On a graphics card it can affect the warranty, so check first.": "¿Sigue caliente tras tres años o más? Pasta térmica nueva en el disipador de la CPU suele ayudar. En una tarjeta gráfica puede afectar la garantía, así que míralo antes.",
+   "Laptops: hard flat surface, back raised a little, vents clean, and the maker's performance mode while plugged in.": "Portátiles: superficie dura y plana, la parte trasera un poco elevada, rejillas limpias y el modo rendimiento del fabricante enchufado.",
+   "Fix the heat": "Arregla el calor",
+   "Set gentle fan curves in the BIOS (usually under Hardware Monitor or Smart Fan) and in Afterburner for the graphics card.": "Pon curvas de ventilador suaves en la BIOS (suele estar en Hardware Monitor o Smart Fan) y en Afterburner para la tarjeta gráfica.",
+   "Cap your FPS. A card rendering 300 FPS in a menu is working, and spinning its fans, for nothing.": "Limita los FPS. Una tarjeta que dibuja 300 FPS en un menú trabaja, y gira sus ventiladores, para nada.",
+   "Make it quieter": "Hazlo más silencioso",
+   "Temperatures, dust and fan noise": "Temperaturas, polvo y ruido de ventiladores",
+   "Which temperatures are fine, how to stop heat slowing your games down, and how to make a PC quieter.": "Qué temperaturas son normales, cómo evitar que el calor frene tus juegos y cómo hacer un PC más silencioso.",
+   "Graphics card": "Tarjeta gráfica",
+   "Settings": "Ajustes",
+   "BIOS": "BIOS",
+   "Fixes": "Soluciones",
+   "Network": "Red",
+   "Cooling": "Refrigeración",
+   "Easy": "Fácil",
+   "Advanced": "Avanzada",
+   "Forcing MSI mode on every device": "Forzar el modo MSI en todos los dispositivos",
+   "Modern graphics and network drivers already use it. Forcing it on devices that don't support it can stop Windows from starting.": "Los controladores modernos de gráficos y red ya lo usan. Forzarlo en dispositivos que no lo admiten puede impedir que Windows arranque.",
+   "Turning off fullscreen optimizations": "Desactivar las optimizaciones de pantalla completa",
+   "On Windows 10 and 11 they give fullscreen speed with fast alt-tab. Only try it for one old game that misbehaves.": "En Windows 10 y 11 dan velocidad de pantalla completa con alt-tab rápido. Pruébalo solo en un juego antiguo que dé problemas.",
+   "RAM cleaners and 'game booster' apps": "Limpiadores de RAM y apps 'potenciadoras de juegos'",
+   "Emptying memory just makes Windows load it again. Free RAM isn't faster RAM.": "Vaciar la memoria solo hace que Windows la vuelva a cargar. RAM libre no es RAM más rápida.",
+   "Changing DNS for lower ping": "Cambiar el DNS para bajar el ping",
+   "DNS only finds the server's address before you connect. In-game ping doesn't change.": "El DNS solo encuentra la dirección del servidor antes de conectar. El ping en el juego no cambia.",
+   "Timer resolution tools": "Herramientas de resolución del temporizador",
+   "Windows 11 already gives games the timer they ask for, and forcing it for everything raises power use.": "Windows 11 ya da a los juegos el temporizador que piden, y forzarlo para todo sube el consumo."
   },
   "pt-BR": {
    "36 g for $99.99.": "36 g por US$ 99,99.",
    "500 Hz OLED": "OLED de 500 Hz",
    "540 Hz OLED, the top pick of OLED specialists.": "OLED de 540 Hz, a favorita dos especialistas em OLED.",
    "A 144 Hz screen left at 60 Hz, or a cable in the motherboard instead of the graphics card, costs more than any tweak can win back.": "Uma tela de 144 Hz em 60 Hz, ou um cabo na placa-mãe em vez da placa de vídeo, custa mais do que qualquer ajuste recupera.",
-   "A first, per sales tracker TechEpiphany on November 3, as GeForce prices climbed. That's one retailer, not the whole market.": "Pela primeira vez, segundo o rastreador TechEpiphany em 3 de novembro, com as GeForce subindo. É uma só loja, não o mercado todo.",
    "A named power supply brand with an 80 Plus Gold rating.": "Uma fonte de marca conhecida com certificação 80 Plus Gold.",
    "A prebuilt PC can be the better deal right now: their prices have risen less than the parts.": "Um PC montado pode compensar mais agora: o preço subiu menos que o das peças.",
-   "A small update released September 29 that resets support to 24 months on Home and Pro.": "Uma atualização pequena de 29 de setembro que reinicia o suporte para 24 meses no Home e Pro.",
    "AI data centers are buying most of the world's memory. A 32 GB DDR5 kit went from about $59 in April 2025 to $429 on November 3, 2026.": "Data centers de IA compram quase toda a memória do mundo. Um kit DDR5 de 32 GB foi de cerca de US$ 59 em abril de 2025 para US$ 429 em 3 de novembro de 2026.",
-   "AMD Zen 6 and Intel Nova Lake desktop chips are expected around CES 2027. Zen 6 keeps the AM5 socket.": "Espera-se Zen 6 da AMD e Nova Lake da Intel para desktop por volta da CES 2027. O Zen 6 mantém o soquete AM5.",
-   "AMD outsold NVIDIA on Amazon US": "A AMD vendeu mais que a NVIDIA na Amazon dos EUA",
    "About 3% faster in games, with about 30% more power draw.": "Cerca de 3% mais rápido em jogos, com cerca de 30% mais consumo.",
    "About 9% behind the RTX 5080 at 1440p, for less.": "Cerca de 9% atrás da RTX 5080 em 1440p, por menos.",
    "At least a 1-year warranty with parts and labor.": "Pelo menos 1 ano de garantia com peças e mão de obra.",
@@ -763,7 +1010,6 @@
    "Check my PC": "Verificar meu PC",
    "Check which parts are standard": "Confira quais peças são padrão",
    "Clean looks, easy upgrades": "Visual limpo, fácil de fazer upgrade",
-   "Coming": "Em breve",
    "Costs more than mass-market brands": "Custa mais que marcas de massa",
    "Enable Resizable BAR": "Ative o Resizable BAR",
    "Ergonomic": "Ergonômico",
@@ -784,7 +1030,6 @@
    "High end": "Topo de linha",
    "Huge": "enorme",
    "Keyboards": "Teclados",
-   "Leakers say NVIDIA's RTX 60 and most of AMD's RDNA 5 won't arrive until 2028. Neither company has confirmed a date.": "Segundo vazadores, a RTX 60 da NVIDIA e quase toda a RDNA 5 da AMD só chegam em 2028. Nenhuma das duas confirmou data.",
    "Let shaders build, and stop wiping them": "Deixe os shaders compilarem e pare de apagá-los",
    "Lets the CPU reach all of the graphics card's memory at once. Usually a few percent, over 15% in some games. In the BIOS: CSM off, Above 4G Decoding on, Re-Size BAR on.": "Deixa a CPU acessar toda a memória da placa de vídeo de uma vez. Normalmente alguns por cento, mais de 15% em alguns jogos. Na BIOS: CSM desligado, Above 4G Decoding ligado, Re-Size BAR ligado.",
    "Lightweight": "Ultraleve",
@@ -802,8 +1047,6 @@
    "NVIDIA pulled the RTX 5090 and 5080 from its store": "A NVIDIA tirou a RTX 5090 e a 5080 da loja",
    "New games compile shaders the first time an effect appears, causing hitches that fade. Let the pre-compile step finish, raise the driver's shader cache (10 GB or Unlimited), and skip cleaner apps that delete it.": "Jogos novos compilam shaders na primeira vez que um efeito aparece, causando travadas que somem depois. Deixe a pré-compilação terminar, aumente o cache de shaders do driver (10 GB ou Ilimitado) e evite apps de limpeza que o apagam.",
    "New games stutter badly on hard drives. Drops that start after 5 to 15 minutes usually mean heat: clean the dust, fix airflow, repaste or undervolt.": "Jogos novos travam muito em HD. Quedas que começam após 5 a 15 minutos geralmente são calor: limpe a poeira, melhore a ventilação, troque a pasta ou faça undervolt.",
-   "Next CPUs: early 2027": "Próximas CPUs: início de 2027",
-   "Next graphics cards: likely 2028": "Próximas placas de vídeo: provavelmente 2028",
    "No measurable effect on modern Windows, and a real chance of breaking installed software.": "Nenhum efeito medível no Windows moderno, e risco real de quebrar programas instalados.",
    "OMEN 35L / 45L with 9800X3D options": "OMEN 35L / 45L com opções 9800X3D",
    "Old \"FPS boost\" registry packs": "Pacotes antigos de registro \"para mais FPS\"",
@@ -850,12 +1093,1039 @@
    "Value": "Valor",
    "Value varies by config": "O custo-benefício varia com a configuração",
    "Variable refresh on, V-Sync on in the driver and off in the game. With Reflex on, the driver caps for you (about 138 FPS at 144 Hz); without it, cap a few FPS under your refresh rate.": "Taxa variável ligada, V-Sync ligado no driver e desligado no jogo. Com Reflex, o driver limita por você (cerca de 138 FPS em 144 Hz); sem ele, limite alguns FPS abaixo da sua taxa.",
-   "Windows": "Windows",
-   "Windows 11 26H2 is out": "O Windows 11 26H2 saiu",
    "Windows turned it on for many PCs with the October 2026 update. On modern CPUs it costs under 2% in 2026 tests; older CPUs lose more. Turning it off removes real protection, so only do it if you measure a difference.": "O Windows a ativou em muitos PCs na atualização de outubro de 2026. Em CPUs modernas custa menos de 2% em testes de 2026; CPUs antigas perdem mais. Desligar remove uma proteção real, então só faça se medir diferença.",
    "Wireless": "Sem fio",
    "Wireless value": "Sem fio custo-benefício",
-   "Without it, RAM runs at its slow fallback speed (DDR4 3,200, DDR5 4,800). It's one switch and one of the biggest free gains in CPU-heavy games.": "Sem isso, a RAM roda na velocidade lenta padrão (DDR4 3.200, DDR5 4.800). É uma só opção e um dos maiores ganhos grátis em jogos pesados de CPU."
+   "Without it, RAM runs at its slow fallback speed (DDR4 3,200, DDR5 4,800). It's one switch and one of the biggest free gains in CPU-heavy games.": "Sem isso, a RAM roda na velocidade lenta padrão (DDR4 3.200, DDR5 4.800). É uma só opção e um dos maiores ganhos grátis em jogos pesados de CPU.",
+   "Afterburner is free and works with NVIDIA, AMD and Intel cards of any brand. It comes with RivaTuner Statistics Server (RTSS), which draws the in-game overlay and caps FPS.": "O Afterburner é grátis e funciona com placas NVIDIA, AMD e Intel de qualquer marca. Ele vem com o RivaTuner Statistics Server (RTSS), que desenha a sobreposição no jogo e limita o FPS.",
+   "Undervolting is the safe kind of tuning: you lower the voltage, you don't raise it.": "O undervolt é o ajuste seguro: você abaixa a tensão, não aumenta.",
+   "The worst that happens is a game crash or a driver reset, and you fix it by going back one step. It doesn't damage the card or void the warranty, and a reset puts it back to stock.": "O pior que acontece é o jogo fechar ou o driver reiniciar, e você resolve voltando um passo. Não estraga a placa nem anula a garantia, e redefinir deixa tudo de fábrica.",
+   "Use one tuning app at a time. Close or uninstall the others so they don't fight over the same settings.": "Use um app de ajuste por vez. Feche ou desinstale os outros para não brigarem pelas mesmas configurações.",
+   "For example NVIDIA App's automatic tuning, the tuning page in AMD Software, ASUS GPU Tweak, Gigabyte Control Center or EVGA Precision.": "Por exemplo, o ajuste automático do NVIDIA App, a página de ajuste do AMD Software, ASUS GPU Tweak, Gigabyte Control Center ou EVGA Precision.",
+   "On a laptop, voltage is usually locked. Afterburner still gives you the overlay and the frame cap; for laptop undervolting, use the maker's software if it has the option.": "Em notebook a tensão costuma ser travada. O Afterburner ainda dá a sobreposição e o limite de FPS; para undervolt em notebook, use o software do fabricante se ele tiver a opção.",
+   "Write down where you start: play a demanding game for 10 minutes and note the FPS, GPU temperature, clock speed and power draw. Every change gets compared to this.": "Anote como você começa: jogue 10 minutos de um jogo pesado e anote FPS, temperatura da GPU, velocidade de clock e consumo. Toda mudança é comparada com isso.",
+   "Set up the overlay first (the chapter further down) so you can read all of this in game.": "Configure a sobreposição primeiro (o capítulo mais abaixo) para ver tudo isso no jogo.",
+   "Before you start": "Antes de começar",
+   "What Afterburner is, and what it can and can't do.": "O que é o Afterburner e o que ele pode e não pode fazer.",
+   "Download it only from MSI or Guru3D. Fake 'Afterburner' sites spread malware.": "Baixe só pelo site da MSI ou do Guru3D. Sites falsos de 'Afterburner' espalham malware.",
+   "Open MSI's download page": "Abrir a página de download da MSI",
+   "Use version 4.6.6 or newer. Older versions don't recognise RTX 50 or Radeon RX 9000 cards.": "Use a versão 4.6.6 ou mais nova. As versões antigas não reconhecem placas RTX 50 nem Radeon RX 9000.",
+   "The 4.6.7 beta on Guru3D has an improved curve editor, if you're happy to use a beta.": "A beta 4.6.7 no Guru3D tem um editor de curva melhor, se você topa usar beta.",
+   "Guru3D beta page": "Página da beta no Guru3D",
+   "When the installer asks, install both MSI Afterburner and RivaTuner Statistics Server.": "Quando o instalador perguntar, instale o MSI Afterburner e também o RivaTuner Statistics Server.",
+   "Open Afterburner → Settings (the gear) → General, and tick 'Unlock voltage monitoring'.": "Abra o Afterburner → Configurações (a engrenagem) → General e marque 'Unlock voltage monitoring'.",
+   "Leave 'Unlock voltage control' off. You don't need it to undervolt, and it's the part that can raise voltage.": "Deixe 'Unlock voltage control' desligado. Não precisa dele para undervolt, e é ele que deixa aumentar a tensão.",
+   "Install it safely": "Instale com segurança",
+   "Start a demanding game or a benchmark and leave it running in a window.": "Abra um jogo pesado ou um benchmark e deixe rodando em uma janela.",
+   "Drag Power Limit (%) down to 85 and press Apply (the check mark).": "Abaixe o Power Limit (%) para 85 e clique em Aplicar (o sinal de visto).",
+   "MSI suggests 80 to 85% as a start. How low you can go depends on the card.": "A MSI sugere começar entre 80 e 85%. Quanto dá para descer depende da placa.",
+   "Watch the temperature and FPS for a few minutes and compare with your notes. Usually you lose a few FPS and a lot of heat.": "Observe a temperatura e o FPS por alguns minutos e compare com suas anotações. Normalmente você perde poucos FPS e muito calor.",
+   "Happy with it? Save it as a profile. Want full speed with less heat? Put Power Limit back to 100 and use the curve method instead.": "Gostou? Salve como perfil. Quer a velocidade toda com menos calor? Volte o Power Limit para 100 e use o método da curva.",
+   "Quick win: lower the power limit": "Ganho rápido: abaixe o limite de energia",
+   "A two-minute undervolt. It costs a little speed but cuts heat and noise a lot. MSI's own guide starts here.": "Um undervolt de dois minutos. Custa um pouco de velocidade, mas corta muito calor e barulho. O próprio guia da MSI começa por aqui.",
+   "Press Reset (the circular arrow) so you start from stock, with Power Limit at 100.": "Clique em Redefinir (a seta circular) para começar do padrão, com Power Limit em 100.",
+   "Press Ctrl+F to open the Voltage/Frequency curve editor.": "Aperte Ctrl+F para abrir o editor de curva Tensão/Frequência.",
+   "Each point is a voltage (bottom, in mV) and the clock speed the card runs at that voltage (left, in MHz).": "Cada ponto é uma tensão (embaixo, em mV) e o clock que a placa usa nessa tensão (à esquerda, em MHz).",
+   "Pick your target voltage. Good starting points: RTX 50: 900 to 950 mV · RTX 40: 950 mV · RTX 30: 850 to 875 mV · RTX 20 and GTX 16: 900 mV.": "Escolha a tensão alvo. Bons pontos de partida: RTX 50: 900 a 950 mV · RTX 40: 950 mV · RTX 30: 850 a 875 mV · RTX 20 e GTX 16: 900 mV.",
+   "Pulse shows the starting point for your own card at the top of this guide.": "O Pulse mostra o ponto de partida da sua placa no topo deste guia.",
+   "In the main window, set Core Clock to −250 and press Apply. The whole curve drops, so no point can spike up later.": "Na janela principal, coloque Core Clock em −250 e clique em Aplicar. A curva inteira desce, assim nenhum ponto dispara depois.",
+   "In the curve editor, click the point at your target voltage, hold Shift and drag it up to your stock clock speed from your notes (for example 2,750 MHz).": "No editor, clique no ponto da tensão alvo, segure Shift e arraste até o clock de fábrica das suas anotações (por exemplo 2.750 MHz).",
+   "Press Apply in the main window. Everything right of your point becomes a flat line: the card now never goes above that voltage.": "Clique em Aplicar na janela principal. Tudo à direita do seu ponto vira uma linha reta: a placa não passa mais dessa tensão.",
+   "If points on the right still stick up, drag a box around them with Shift, pull them below your line and Apply again. Or click your point and press L to lock it (a dotted line appears), which is MSI's own method.": "Se algum ponto à direita ainda ficar acima, selecione com Shift arrastando uma caixa, puxe abaixo da sua linha e aplique de novo. Ou clique no seu ponto e aperte L para travar (aparece uma linha pontilhada), que é o método da própria MSI.",
+   "Test it (see 'Test it properly'). Stable? Go 25 mV lower at the same clock, or 15 to 30 MHz higher at the same voltage. One step at a time.": "Teste (veja 'Teste direito'). Estável? Desça 25 mV no mesmo clock, ou suba 15 a 30 MHz na mesma tensão. Um passo por vez.",
+   "Never drag points above about 1,100 mV, and don't touch the Core Voltage slider. Undervolting means lower, never higher.": "Nunca suba pontos acima de uns 1.100 mV nem mexa no controle Core Voltage. Undervolt é abaixar, nunca subir.",
+   "The clock settles 15 to 30 MHz below your line once the card is hot. That's normal.": "O clock fica 15 a 30 MHz abaixo da sua linha quando a placa esquenta. É normal.",
+   "Undervolt with the curve (NVIDIA)": "Undervolt pela curva (NVIDIA)",
+   "The real undervolt: the same clock speed at a lower voltage. On RTX 30, 40 and 50 cards the Core Voltage slider does nothing; the curve editor is the way.": "O undervolt de verdade: o mesmo clock com tensão menor. Nas RTX 30, 40 e 50 o controle Core Voltage não faz nada; o editor de curva é o caminho.",
+   "Open AMD Software: Adrenalin Edition → Performance → Tuning → Custom. Turn on GPU Tuning and Advanced Control.": "Abra o AMD Software: Adrenalin Edition → Desempenho → Ajuste → Personalizado. Ative Ajuste da GPU e Controle avançado.",
+   "RX 9000 cards: set Voltage Offset to −50 mV and apply. Many cards hold more; try 10 to 20 mV more each time and test.": "Placas RX 9000: coloque Deslocamento de tensão em −50 mV e aplique. Muitas aguentam mais; tente 10 a 20 mV a mais por vez e teste.",
+   "RX 7000 and 6000 cards: lower Max Voltage by about 50 mV (for example 1,150 → 1,100 mV) and apply.": "Placas RX 7000 e 6000: abaixe a Tensão máxima em uns 50 mV (por exemplo 1.150 → 1.100 mV) e aplique.",
+   "Power Limit: −10% for less heat, or the maximum to let an undervolted card hold its clocks for more FPS.": "Limite de energia: −10% para menos calor, ou o máximo para a placa com undervolt manter o clock e dar mais FPS.",
+   "If AMD Software says 'Default settings restored due to unexpected system failure', your last step went too far. Go back to the last stable value.": "Se o AMD Software disser que restaurou o padrão por uma falha inesperada, seu último passo foi longe demais. Volte ao último valor estável.",
+   "Leave Afterburner's sliders alone on an AMD card, so the two apps don't fight.": "Não mexa nos controles do Afterburner em placa AMD, para os dois apps não brigarem.",
+   "Undervolt a Radeon card (AMD)": "Undervolt em uma Radeon (AMD)",
+   "Afterburner's support for RX 9000 cards is unofficial, and AMD's own software does this better. Use AMD Software for the undervolt and Afterburner for the overlay and FPS cap.": "O suporte do Afterburner para as RX 9000 não é oficial, e o software da AMD faz isso melhor. Use o AMD Software para o undervolt e o Afterburner para a sobreposição e o limite de FPS.",
+   "Run a GPU stress test for 15 to 20 minutes: Unigine Superposition (free), OCCT's 3D test (free) or a 3DMark stress test.": "Rode um teste de estresse de GPU por 15 a 20 minutos: Unigine Superposition (grátis), o teste 3D do OCCT (grátis) ou um teste de estresse do 3DMark.",
+   "Get Superposition": "Baixar Superposition",
+   "Then play your most demanding game for an hour. Ray tracing and shader-heavy games catch unstable settings that benchmarks miss.": "Depois jogue uma hora do seu jogo mais pesado. Jogos com ray tracing e muitos shaders pegam ajustes instáveis que os benchmarks não pegam.",
+   "Too far if: the game closes, the screen flashes black, Windows says the display driver stopped responding, or you see sparkles. Go back one step (+25 mV or −30 MHz).": "Passou do ponto se: o jogo fecha, a tela pisca preta, o Windows diz que o driver de vídeo parou de responder ou aparecem pontinhos brilhando. Volte um passo (+25 mV ou −30 MHz).",
+   "Check it really helped: FPS within 1 to 2% of your notes, with lower temperature and power. Pulse's Measure page compares before and after.": "Confira se ajudou mesmo: FPS a 1 ou 2% das suas anotações, com temperatura e consumo menores. A página Medir do Pulse compara antes e depois.",
+   "Open Measure": "Abrir Medir",
+   "Test it properly": "Teste direito",
+   "A setting that passes one benchmark can still crash a game an hour later.": "Um ajuste que passa em um benchmark ainda pode fechar um jogo uma hora depois.",
+   "Click the save icon, then a number from 1 to 5. Keep profile 1 as stock (press Reset first) and profile 2 as your undervolt.": "Clique no ícone de salvar e depois em um número de 1 a 5. Deixe o perfil 1 de fábrica (clique em Redefinir antes) e o 2 com seu undervolt.",
+   "Settings → Profiles: give each profile a hotkey, for example Ctrl+Alt+1 for stock and Ctrl+Alt+2 for your undervolt.": "Configurações → Profiles: dê um atalho a cada perfil, por exemplo Ctrl+Alt+1 para o de fábrica e Ctrl+Alt+2 para o undervolt.",
+   "Once it's tested, turn on 'Apply overclocking at system startup' (the Windows button at the bottom left), and in Settings → General tick 'Start with Windows' and 'Start minimized'.": "Depois de testado, ative 'Apply overclocking at system startup' (o botão do Windows embaixo à esquerda), e em Configurações → General marque 'Start with Windows' e 'Start minimized'.",
+   "Only after testing. An unstable setting applied at startup can crash Windows as it starts. Holding Ctrl while Afterburner starts skips your settings.": "Só depois de testar. Um ajuste instável aplicado ao iniciar pode travar o Windows na inicialização. Segurar Ctrl enquanto o Afterburner abre pula seus ajustes.",
+   "After a graphics driver update, open Afterburner once and check your profile is still applied. Driver installs reset the card to stock.": "Depois de atualizar o driver de vídeo, abra o Afterburner uma vez e confira se o perfil continua aplicado. Instalar driver volta a placa ao padrão.",
+   "Save profiles and apply at startup": "Salve perfis e aplique ao iniciar",
+   "Settings → Fan → tick 'Enable user defined software automatic fan control'.": "Configurações → Fan → marque 'Enable user defined software automatic fan control'.",
+   "Make a gentle curve, for example 30% at 40 °C, 45% at 60 °C, 60% at 70 °C, 80% at 80 °C and 100% at 85 °C.": "Faça uma curva suave, por exemplo 30% a 40 °C, 45% a 60 °C, 60% a 70 °C, 80% a 80 °C e 100% a 85 °C.",
+   "Set 'Temperature hysteresis' to 3 to 5 °C so the fans don't keep speeding up and slowing down.": "Coloque 'Temperature hysteresis' em 3 a 5 °C para as ventoinhas não ficarem acelerando e desacelerando.",
+   "Most cards stop their fans below 50 to 60 °C on their own. A custom curve turns that off, so keep the default if you want silence on the desktop.": "A maioria das placas para as ventoinhas abaixo de 50 a 60 °C sozinha. Uma curva personalizada desliga isso, então mantenha o padrão se quiser silêncio na área de trabalho.",
+   "Fan curve: cool and quiet": "Curva das ventoinhas: frio e silencioso",
+   "Settings → Monitoring. Click each item you want and tick 'Show in On-Screen Display'.": "Configurações → Monitoring. Clique em cada item que quiser e marque 'Show in On-Screen Display'.",
+   "A good set: GPU temperature, GPU usage, core clock, power, framerate, frametime, CPU temperature, CPU usage and RAM usage.": "Um bom conjunto: temperatura da GPU, uso da GPU, clock do núcleo, consumo, FPS, tempo de quadro, temperatura da CPU, uso da CPU e uso de RAM.",
+   "For Frametime, pick 'graph' instead of 'text'. A flat line is smooth; spikes are the stutters you feel.": "Para Frametime, escolha 'graph' em vez de 'text'. Linha reta é fluidez; os picos são as travadas que você sente.",
+   "Settings → On-Screen Display: set a 'Toggle On-Screen Display' hotkey, for example F11.": "Configurações → On-Screen Display: defina um atalho para 'Toggle On-Screen Display', por exemplo F11.",
+   "RivaTuner Statistics Server must be running (its icon is in the tray). It's where you change the overlay's position, size and color.": "O RivaTuner Statistics Server precisa estar aberto (o ícone fica na bandeja). É nele que você muda posição, tamanho e cor da sobreposição.",
+   "Reading it: GPU usage under 95% while FPS is low means the CPU or the game is holding you back, not the graphics card.": "Como ler: uso da GPU abaixo de 95% com FPS baixo quer dizer que a CPU ou o jogo está segurando você, não a placa de vídeo.",
+   "A few games with strict anti-cheat block overlays. If one won't start, add it in RTSS with '+' and set Application detection level to None.": "Alguns jogos com anti-cheat rígido bloqueiam sobreposições. Se algum não abrir, adicione no RTSS com '+' e coloque Application detection level em None.",
+   "In-game overlay: FPS, temperatures, frame times": "Sobreposição no jogo: FPS, temperaturas, tempo de quadro",
+   "First choice: the game's own frame limiter, or NVIDIA Reflex if the game has it.": "Primeira opção: o limitador de FPS do próprio jogo, ou o NVIDIA Reflex se o jogo tiver.",
+   "Use RTSS when the game has no limiter, or its FPS jumps around a lot.": "Use o RTSS quando o jogo não tiver limitador, ou o FPS dele variar muito.",
+   "With G-SYNC or FreeSync: cap at least 3 FPS below your refresh rate (141 at 144 Hz, 237 at 240 Hz). Turn V-Sync on in the NVIDIA or AMD settings and off in the game.": "Com G-SYNC ou FreeSync: limite pelo menos 3 FPS abaixo da taxa do monitor (141 em 144 Hz, 237 em 240 Hz). Ligue o V-Sync nas configurações da NVIDIA ou AMD e desligue no jogo.",
+   "In RTSS, select Global, type your cap in 'Framerate limit' and press Enter. For one game only, press '+' at the bottom left, pick its .exe and set the cap there.": "No RTSS, selecione Global, digite o limite em 'Framerate limit' e aperte Enter. Para um jogo só, clique em '+' embaixo à esquerda, escolha o .exe dele e coloque o limite ali.",
+   "In a game with Reflex, skip the RTSS cap: Reflex with G-SYNC and V-Sync caps for you (about 138 FPS at 144 Hz).": "Em jogo com Reflex, não use o limite do RTSS: o Reflex com G-SYNC e V-Sync limita para você (uns 138 FPS em 144 Hz).",
+   "Cap your frame rate the right way": "Limite o FPS do jeito certo",
+   "Blur Busters measured this with a latency tester: the game's own limiter and NVIDIA Reflex have ½ to 1 frame less input lag than outside limiters like RTSS. RTSS has the steadiest frame pacing.": "A Blur Busters mediu isso com um medidor de latência: o limitador do próprio jogo e o NVIDIA Reflex têm de ½ a 1 quadro a menos de atraso que limitadores externos como o RTSS. O RTSS tem o ritmo de quadros mais estável.",
+   "Settings won't apply or sliders are grey: close other tuning apps, run Afterburner as administrator and update to the newest version.": "Os ajustes não aplicam ou os controles estão cinza: feche outros apps de ajuste, rode o Afterburner como administrador e atualize para a versão mais nova.",
+   "The card went back to stock after a crash or driver update: load your profile again and re-test.": "A placa voltou ao padrão depois de uma falha ou atualização de driver: carregue o perfil de novo e teste outra vez.",
+   "The curve keeps creeping back up: you raised points on the right end. Reset, set Core Clock to −250 first, then raise only your one target point.": "A curva volta a subir: você subiu pontos da ponta direita. Redefina, coloque primeiro Core Clock em −250 e suba só o seu ponto alvo.",
+   "RTX 50 shows a hot spot of 255 °C: those cards don't have that sensor, and older builds misread it. Update Afterburner and ignore that reading.": "Uma RTX 50 mostra hot spot de 255 °C: essas placas não têm esse sensor e versões antigas leem errado. Atualize o Afterburner e ignore essa leitura.",
+   "A memory overclock seems stable but FPS goes down: GDDR6X and GDDR7 memory fix errors quietly, which costs speed. Judge memory clocks by FPS, not by crashes.": "Um overclock de memória parece estável mas o FPS cai: memórias GDDR6X e GDDR7 corrigem erros em silêncio, o que custa velocidade. Avalie a memória pelo FPS, não pelas falhas.",
+   "When something goes wrong": "Quando algo dá errado",
+   "MSI Afterburner: undervolt, fans, overlay and FPS cap": "MSI Afterburner: undervolt, ventoinhas, sobreposição e limite de FPS",
+   "Run your graphics card cooler and quieter at the same speed, see FPS and temperatures in game, and cap your frame rate the right way. Works on any brand of card, not just MSI.": "Deixe sua placa de vídeo mais fria e silenciosa na mesma velocidade, veja FPS e temperaturas no jogo e limite o FPS do jeito certo. Funciona com placa de qualquer marca, não só MSI.",
+   "Plug the monitor into the graphics card, not the motherboard.": "Ligue o monitor na placa de vídeo, não na placa-mãe.",
+   "NVIDIA Control Panel → Change resolution: pick your monitor's highest refresh rate (144 Hz, 165 Hz, 240 Hz...). Windows often leaves it at 60.": "Painel de controle da NVIDIA → Alterar resolução: escolha a maior taxa do seu monitor (144 Hz, 165 Hz, 240 Hz...). O Windows muitas vezes deixa em 60.",
+   "On the same page, set Output dynamic range to Full. Over HDMI it's often Limited, which makes blacks look grey.": "Na mesma página, coloque Faixa dinâmica de saída em Completa. Pelo HDMI costuma vir Limitada, e o preto fica cinza.",
+   "Install drivers from the NVIDIA App or nvidia.com. Update when a game you play needs it or a fix you want is listed; you don't need every release.": "Instale os drivers pelo NVIDIA App ou nvidia.com. Atualize quando um jogo seu precisar ou houver uma correção que interesse; não precisa de toda versão.",
+   "NVIDIA drivers": "Drivers da NVIDIA",
+   "Get the basics right": "O básico bem feito",
+   "Set up G-SYNC: turn it on (for fullscreen, or fullscreen and windowed if you play borderless).": "Configurar G-SYNC: ative (para tela cheia, ou tela cheia e janela se você joga sem bordas).",
+   "Manage 3D settings → Vertical sync: On. Then turn V-Sync off in every game.": "Gerenciar configurações 3D → Sincronização vertical: Ativada. Depois desligue o V-Sync em todo jogo.",
+   "Cap FPS at least 3 below your refresh rate: 141 at 144 Hz, 162 at 165 Hz, 237 at 240 Hz. Use the game's limiter first, otherwise 'Max Frame Rate' in the Control Panel.": "Limite o FPS pelo menos 3 abaixo da taxa: 141 em 144 Hz, 162 em 165 Hz, 237 em 240 Hz. Use primeiro o limitador do jogo; se não tiver, 'Taxa de quadros máxima' no Painel de controle.",
+   "Games with NVIDIA Reflex: turn Reflex on. With G-SYNC and V-Sync on, it caps for you (about 138 FPS at 144 Hz), so you can skip your own cap there.": "Jogos com NVIDIA Reflex: ligue o Reflex. Com G-SYNC e V-Sync ligados, ele limita para você (uns 138 FPS em 144 Hz), então ali você pode pular o seu limite.",
+   "Games without Reflex: set Low Latency Mode to On. 'Ultra' also caps automatically with G-SYNC.": "Jogos sem Reflex: coloque Modo de baixa latência em Ativado. O 'Ultra' também limita sozinho com G-SYNC.",
+   "The G-SYNC recipe": "A receita do G-SYNC",
+   "Blur Busters' tested settings for no tearing with the least input lag. They also work for 'G-SYNC Compatible' FreeSync monitors.": "Os ajustes testados pela Blur Busters para não ter cortes com o menor atraso. Também servem para monitores FreeSync 'G-SYNC Compatible'.",
+   "Shader Cache Size: 10 GB or Unlimited, so games don't recompile shaders (and hitch) as often.": "Tamanho do cache de shader: 10 GB ou Ilimitado, para os jogos não recompilarem shaders (e travarem) com tanta frequência.",
+   "NVIDIA App → Graphics → DLSS Override: set the model preset to Latest, so older games use the newest DLSS.": "NVIDIA App → Gráficos → Substituição do DLSS: coloque a predefinição de modelo em Mais recente, para jogos antigos usarem o DLSS mais novo.",
+   "Power management mode: leave it on Normal. Use 'Prefer maximum performance' for one game only if its clocks drop and it stutters; it raises idle power.": "Modo de gerenciamento de energia: deixe em Normal. Use 'Preferir desempenho máximo' só para um jogo se o clock cair e travar; aumenta o consumo parado.",
+   "Leave the rest at default. Texture filtering, anisotropic and the like make no measurable FPS difference on a modern card.": "Deixe o resto no padrão. Filtragem de textura, anisotrópica e parecidos não mudam o FPS de forma mensurável em placa moderna.",
+   "Other settings worth changing": "Outras configurações que valem a pena",
+   "NVIDIA settings for smooth, low-latency games": "Configurações da NVIDIA para jogos fluidos e com pouca latência",
+   "The NVIDIA App and Control Panel settings that actually matter, and the G-SYNC recipe Blur Busters measured as best.": "As configurações do NVIDIA App e do Painel de controle que realmente importam, e a receita de G-SYNC que a Blur Busters mediu como a melhor.",
+   "Plug the monitor into the graphics card, and set its highest refresh rate in Windows → Settings → Display → Advanced display.": "Ligue o monitor na placa de vídeo e coloque a maior taxa em Windows → Configurações → Tela → Tela avançada.",
+   "AMD Software → Settings → Display: turn on AMD FreeSync for your monitor.": "AMD Software → Configurações → Tela: ative o AMD FreeSync para o seu monitor.",
+   "Turn Enhanced Sync off; it can cause stutter with FreeSync.": "Desligue o Enhanced Sync; ele pode causar travadas com FreeSync.",
+   "Display": "Tela",
+   "Use the Default graphics profile, not HYPR-RX: HYPR-RX switches on several features at once, including ones that lower resolution or add generated frames.": "Use o perfil gráfico Padrão, não o HYPR-RX: o HYPR-RX liga vários recursos de uma vez, inclusive alguns que baixam a resolução ou adicionam quadros gerados.",
+   "AMD Anti-Lag: on. In games that support Anti-Lag 2, turn it on in the game's own settings.": "AMD Anti-Lag: ligado. Em jogos com Anti-Lag 2, ligue nas configurações do próprio jogo.",
+   "Wait for Vertical Refresh: 'Always on' if you want no tearing with FreeSync, then turn V-Sync off in the game.": "Aguardar atualização vertical: 'Sempre ativado' se não quiser cortes com FreeSync, e desligue o V-Sync no jogo.",
+   "Cap FPS 3 below your refresh rate with the game's limiter, or with Radeon Chill set to the same minimum and maximum.": "Limite o FPS 3 abaixo da taxa com o limitador do jogo, ou com o Radeon Chill com mínimo e máximo iguais.",
+   "Radeon Boost: off for competitive games. It lowers the resolution while you move.": "Radeon Boost: desligado em jogos competitivos. Ele baixa a resolução enquanto você se mexe.",
+   "Gaming → Graphics": "Jogos → Gráficos",
+   "Get drivers from AMD Software or amd.com. If a game stutters after an update, try the shader cache reset in Graphics → Advanced once.": "Pegue os drivers pelo AMD Software ou amd.com. Se um jogo travar depois de uma atualização, tente uma vez redefinir o cache de shader em Gráficos → Avançado.",
+   "AMD drivers": "Drivers da AMD",
+   "For undervolting a Radeon card, see the AMD chapter of the MSI Afterburner guide.": "Para undervolt em uma Radeon, veja o capítulo da AMD no guia do MSI Afterburner.",
+   "Drivers": "Drivers",
+   "AMD Software settings for smooth, low-latency games": "Configurações do AMD Software para jogos fluidos e com pouca latência",
+   "FreeSync, Anti-Lag, frame caps and what to leave off in AMD Software: Adrenalin Edition.": "FreeSync, Anti-Lag, limite de FPS e o que deixar desligado no AMD Software: Adrenalin Edition.",
+   "Restart and press Delete (or F2) repeatedly as the PC starts. Or in Windows: Settings → System → Recovery → Advanced startup → Restart now → Troubleshoot → Advanced options → UEFI Firmware Settings.": "Reinicie e aperte Delete (ou F2) várias vezes ao ligar. Ou no Windows: Configurações → Sistema → Recuperação → Inicialização avançada → Reiniciar agora → Solução de problemas → Opções avançadas → Configurações de firmware UEFI.",
+   "Most boards open in an Easy mode. Press F7 to switch to Advanced mode if you can't find a setting.": "A maioria das placas abre no modo Fácil. Aperte F7 para ir ao modo Avançado se não achar uma opção.",
+   "Get into the BIOS": "Entrar na BIOS",
+   "ASUS: Ai Tweaker → Ai Overclock Tuner → XMP I (or EXPO). MSI: the A-XMP or EXPO button on the main screen. Gigabyte: Tweaker → Extreme Memory Profile (X.M.P.). ASRock: OC Tweaker → DRAM Profile → XMP or EXPO.": "ASUS: Ai Tweaker → Ai Overclock Tuner → XMP I (ou EXPO). MSI: o botão A-XMP ou EXPO na tela principal. Gigabyte: Tweaker → Extreme Memory Profile (X.M.P.). ASRock: OC Tweaker → DRAM Profile → XMP ou EXPO.",
+   "Save and exit (usually F10). The first start can take a minute or two while the PC trains the memory, especially with DDR5. Don't turn it off.": "Salve e saia (normalmente F10). A primeira inicialização pode levar um ou dois minutos enquanto o PC ajusta a memória, ainda mais com DDR5. Não desligue.",
+   "Check it worked: Task Manager → Performance → Memory → Speed should show your kit's rated speed, for example 6000 MT/s.": "Confira se funcionou: Gerenciador de Tarefas → Desempenho → Memória → Velocidade deve mostrar a velocidade do seu kit, por exemplo 6000 MT/s.",
+   "Pulse's Diagnose page checks this too.": "A página Diagnosticar do Pulse também verifica isso.",
+   "Open Diagnose": "Abrir Diagnosticar",
+   "Won't start, or crashes? Clear the CMOS (the button on the back, or the jumper in the manual) and try the second XMP profile or one speed step lower.": "Não liga ou trava? Limpe a CMOS (o botão atrás, ou o jumper do manual) e tente o segundo perfil XMP ou uma velocidade abaixo.",
+   "Turn on XMP or EXPO": "Ative o XMP ou EXPO",
+   "Without it, RAM runs at its slow fallback speed (DDR4 2,133 to 3,200, DDR5 4,800). It's one of the biggest free gains in CPU-heavy games.": "Sem isso, a RAM roda na velocidade lenta de reserva (DDR4 2.133 a 3.200, DDR5 4.800). É um dos maiores ganhos de graça em jogos que puxam CPU.",
+   "Turn CSM (Compatibility Support Module) off. Windows 11 already boots without it.": "Desligue o CSM (Compatibility Support Module). O Windows 11 já inicia sem ele.",
+   "Turn Above 4G Decoding on, then Re-Size BAR Support on (or Auto). It's usually under Advanced → PCI Subsystem Settings.": "Ative Above 4G Decoding e depois Re-Size BAR Support (ou Auto). Costuma ficar em Advanced → PCI Subsystem Settings.",
+   "Check it: NVIDIA Control Panel → System Information → Resizable BAR: Yes. On AMD, AMD Software → Performance shows Smart Access Memory.": "Confira: Painel de controle da NVIDIA → Informações do sistema → Resizable BAR: Sim. Na AMD, AMD Software → Desempenho mostra Smart Access Memory.",
+   "Turn on Resizable BAR": "Ative o Resizable BAR",
+   "Lets the CPU reach all of the graphics card's memory at once. Usually a few percent, more in some games. AMD calls it Smart Access Memory.": "Deixa a CPU acessar toda a memória da placa de vídeo de uma vez. Normalmente alguns por cento, mais em alguns jogos. A AMD chama de Smart Access Memory.",
+   "Update the BIOS only to fix a problem or support a new CPU, and only from your motherboard maker's support page for your exact model.": "Atualize a BIOS só para corrigir um problema ou suportar uma CPU nova, e só pela página de suporte do fabricante da sua placa para o modelo exato.",
+   "An update resets XMP/EXPO and Resizable BAR, so turn them back on afterwards.": "Uma atualização redefine XMP/EXPO e Resizable BAR, então ative de novo depois.",
+   "Never turn the PC off during a BIOS update.": "Nunca desligue o PC durante uma atualização de BIOS.",
+   "BIOS updates": "Atualizações de BIOS",
+   "BIOS: XMP/EXPO and Resizable BAR": "BIOS: XMP/EXPO e Resizable BAR",
+   "The two BIOS switches most gaming PCs are missing, with the menu names for ASUS, MSI, Gigabyte and ASRock boards.": "Os dois interruptores da BIOS que faltam na maioria dos PCs gamer, com os nomes dos menus para placas ASUS, MSI, Gigabyte e ASRock.",
+   "Download the driver you want to install first (from NVIDIA, AMD or Intel) and keep it on the desktop.": "Baixe primeiro o driver que você quer instalar (da NVIDIA, AMD ou Intel) e deixe na área de trabalho.",
+   "Download Display Driver Uninstaller (DDU) from its official site, Wagnardsoft, and unzip it.": "Baixe o Display Driver Uninstaller (DDU) do site oficial, Wagnardsoft, e descompacte.",
+   "Open Wagnardsoft": "Abrir Wagnardsoft",
+   "In Pulse, turn on 'Stop Windows Update replacing your graphics driver' so Windows doesn't sneak its own driver in while you work.": "No Pulse, ative 'Impedir que o Windows Update troque seu driver de vídeo' para o Windows não colocar o dele enquanto você trabalha.",
+   "Open Tweaks": "Abrir Ajustes",
+   "Unplug the network cable or turn Wi-Fi off.": "Desconecte o cabo de rede ou desligue o Wi-Fi.",
+   "Prepare": "Prepare",
+   "Restart into Safe Mode: hold Shift and click Restart → Troubleshoot → Advanced options → Startup Settings → Restart → press 4.": "Reinicie no Modo de segurança: segure Shift e clique em Reiniciar → Solução de problemas → Opções avançadas → Configurações de inicialização → Reiniciar → aperte 4.",
+   "Run DDU, pick GPU and your brand on the right, then 'Clean and restart'.": "Abra o DDU, escolha GPU e sua marca à direita e depois 'Clean and restart'.",
+   "Back in Windows, run the driver you downloaded. On NVIDIA pick Custom → Clean installation if offered.": "De volta ao Windows, rode o driver que você baixou. Na NVIDIA escolha Personalizada → Instalação limpa se aparecer.",
+   "Reconnect to the internet, then set your refresh rate and driver settings again (the NVIDIA or AMD settings guide).": "Conecte de novo na internet e ajuste outra vez a taxa e as configurações do driver (o guia de configurações da NVIDIA ou AMD).",
+   "Remove and reinstall": "Remover e reinstalar",
+   "Clean graphics driver reinstall with DDU": "Reinstalação limpa do driver de vídeo com DDU",
+   "The fix for crashes, black screens and stutter that started after a driver update, or when switching between NVIDIA and AMD.": "A solução para falhas, tela preta e travadas que começaram depois de atualizar o driver, ou ao trocar entre NVIDIA e AMD.",
+   "Spikes the first time you see an effect or a new area, fewer the second time: shader compilation. See the next chapter.": "Picos na primeira vez que aparece um efeito ou área nova, menos na segunda: compilação de shaders. Veja o próximo capítulo.",
+   "Regular spikes every few seconds, even standing still: something in the background. See 'Background apps'.": "Picos regulares a cada poucos segundos, mesmo parado: algo em segundo plano. Veja 'Apps em segundo plano'.",
+   "FPS fine at first, then dropping after 10 to 20 minutes: heat. See the cooling guide.": "FPS bom no começo e caindo depois de 10 a 20 minutos: calor. Veja o guia de refrigeração.",
+   "Hitching in big or detailed areas, with video memory near full in the overlay: VRAM. Lower texture quality one step.": "Travadas em áreas grandes ou detalhadas, com a memória de vídeo quase cheia na sobreposição: VRAM. Baixe um nível a qualidade de textura.",
+   "Pulse's Diagnose page checks the common causes for you: refresh rate, RAM speed, power plan, drivers and more.": "A página Diagnosticar do Pulse verifica as causas comuns para você: taxa de atualização, velocidade da RAM, plano de energia, drivers e mais.",
+   "Find the kind of stutter": "Descubra o tipo de travada",
+   "Turn on a frame-time graph (the overlay chapter of the Afterburner guide) and watch it while it happens.": "Ligue um gráfico de tempo de quadro (o capítulo da sobreposição no guia do Afterburner) e olhe enquanto acontece.",
+   "Let the game's 'compiling shaders' step finish before you play, even if it takes minutes.": "Deixe a etapa de 'compilando shaders' do jogo terminar antes de jogar, mesmo que demore minutos.",
+   "Raise the driver's shader cache to 10 GB or Unlimited (NVIDIA) and don't let cleaner apps wipe it. Pulse's cleanup never deletes it.": "Aumente o cache de shader do driver para 10 GB ou Ilimitado (NVIDIA) e não deixe apps de limpeza apagarem. A limpeza do Pulse nunca apaga.",
+   "After a driver update, expect the first session in each game to hitch again while shaders rebuild.": "Depois de atualizar o driver, espere a primeira partida de cada jogo travar de novo enquanto os shaders são refeitos.",
+   "Shader compilation": "Compilação de shaders",
+   "Close what you don't need while playing: browser tabs with video, launchers you're not using, RGB and peripheral apps you don't need open.": "Feche o que não precisa enquanto joga: abas do navegador com vídeo, launchers que não está usando, apps de RGB e periféricos que não precisam ficar abertos.",
+   "Only one overlay and one recorder at a time (Discord, Steam, NVIDIA, Xbox Game Bar, Medal). Each one hooks into the game.": "Só uma sobreposição e um gravador por vez (Discord, Steam, NVIDIA, Xbox Game Bar, Medal). Cada um se prende ao jogo.",
+   "Pause big downloads and Windows Update while you play, or use Pulse's tweak that limits update bandwidth.": "Pause downloads grandes e o Windows Update enquanto joga, ou use o ajuste do Pulse que limita a banda das atualizações.",
+   "Trim what starts with Windows on Pulse's Startup apps page.": "Corte o que inicia com o Windows na página Apps de inicialização do Pulse.",
+   "Open Startup apps": "Abrir Apps de inicialização",
+   "Background apps": "Apps em segundo plano",
+   "Games on an SSD, with at least 10 to 15% of the drive free.": "Jogos em um SSD, com pelo menos 10 a 15% do disco livre.",
+   "RAM in two matching sticks (dual channel), with XMP or EXPO on. One stick halves memory bandwidth.": "RAM em dois pentes iguais (dual channel), com XMP ou EXPO ligado. Um pente só corta pela metade a banda da memória.",
+   "Laptops: plugged in, on the maker's performance mode, with the game running on the dedicated graphics card.": "Notebooks: na tomada, no modo desempenho do fabricante, com o jogo rodando na placa de vídeo dedicada.",
+   "Cap your FPS a little below what you can hold most of the time. Steady 120 feels smoother than 120 to 200 jumping around.": "Limite o FPS um pouco abaixo do que você mantém quase sempre. 120 estáveis parecem mais fluidos que pular entre 120 e 200.",
+   "Hardware basics": "O básico do hardware",
+   "Fix stutter and FPS drops": "Corrija travadas e quedas de FPS",
+   "Work out what kind of stutter you have, then fix the cause: shaders, video memory, background apps, storage, heat or frame pacing.": "Descubra que tipo de travada você tem e corrija a causa: shaders, memória de vídeo, apps em segundo plano, armazenamento, calor ou ritmo de quadros.",
+   "Use an Ethernet cable if you can. It removes most lag spikes Wi-Fi causes. Powerline adapters are the next best thing.": "Use cabo Ethernet se puder. Ele tira a maioria dos picos que o Wi-Fi causa. Adaptadores powerline são a próxima melhor opção.",
+   "On Wi-Fi: connect on 5 GHz or 6 GHz, not 2.4 GHz, and keep the router in the open, not in a cupboard or behind the TV.": "No Wi-Fi: conecte em 5 GHz ou 6 GHz, não em 2,4 GHz, e deixe o roteador à vista, não dentro de armário nem atrás da TV.",
+   "Pick the game server or region closest to you. Distance is most of your ping, and no PC setting changes it.": "Escolha o servidor ou região do jogo mais próxima. A distância é a maior parte do seu ping, e nenhum ajuste do PC muda isso.",
+   "The connection": "A conexão",
+   "Run Waveform's bufferbloat test. A grade of C or worse means your ping jumps whenever the connection is busy.": "Faça o teste de bufferbloat da Waveform. Nota C ou pior quer dizer que seu ping pula sempre que a conexão está ocupada.",
+   "Open the test": "Abrir o teste",
+   "Fix it on the router: turn on Smart Queue, SQM or Adaptive QoS (names vary), set to about 90% of your measured speed.": "Corrija no roteador: ative Smart Queue, SQM ou QoS adaptativo (o nome varia), em uns 90% da velocidade medida.",
+   "No such setting on your router? Pause Steam, console and Windows downloads while you play.": "Seu roteador não tem isso? Pause downloads do Steam, consoles e Windows enquanto joga.",
+   "Bufferbloat: lag when someone else downloads": "Bufferbloat: lag quando alguém baixa algo",
+   "Changing DNS doesn't change in-game ping. DNS only looks up addresses before you connect.": "Trocar o DNS não muda o ping no jogo. O DNS só procura endereços antes de conectar.",
+   "'Ping booster' apps and registry network tweaks can't make packets travel faster. Most games don't even use the settings they change.": "Apps que 'baixam o ping' e ajustes de rede no registro não fazem os pacotes viajarem mais rápido. A maioria dos jogos nem usa o que eles mudam.",
+   "Turning off IPv6 doesn't help, and can break some connections.": "Desligar o IPv6 não ajuda e pode quebrar algumas conexões.",
+   "Skip these": "Pule isto",
+   "Lower ping and stop lag spikes": "Baixe o ping e acabe com os picos de lag",
+   "What actually lowers ping and stops spikes: the connection, Wi-Fi placement, bufferbloat and downloads. Plus the popular fixes that don't work.": "O que realmente baixa o ping e acaba com os picos: a conexão, a posição do Wi-Fi, o bufferbloat e os downloads. E as soluções populares que não funcionam.",
+   "Graphics card while gaming: 60 to 80 °C is normal. Its hot spot runs 10 to 20 °C higher.": "Placa de vídeo jogando: 60 a 80 °C é normal. O hot spot fica 10 a 20 °C acima.",
+   "CPU while gaming: up to the high 80s °C is fine on modern chips. Many are designed to boost until they reach about 90 to 95 °C.": "CPU jogando: até perto de 90 °C está ok em chips modernos. Muitos são feitos para acelerar até uns 90 a 95 °C.",
+   "A problem looks like this: FPS drops after 10 to 20 minutes while temperatures sit at their limit and clocks fall.": "Um problema é assim: o FPS cai depois de 10 a 20 minutos enquanto a temperatura fica no limite e o clock cai.",
+   "What's normal": "O que é normal",
+   "Clean the dust: PC off and unplugged, short bursts of compressed air, hold fans still so they don't spin. Front filters first.": "Tire a poeira: PC desligado e fora da tomada, jatos curtos de ar comprimido e segure as ventoinhas para não girarem. Primeiro os filtros da frente.",
+   "Airflow: front fans pull air in, rear and top fans push it out. A little more in than out keeps dust down.": "Fluxo de ar: as ventoinhas da frente puxam ar, as de trás e de cima jogam para fora. Um pouco mais entrando que saindo reduz a poeira.",
+   "Undervolt the graphics card: often 10 °C cooler at the same FPS. See the MSI Afterburner guide.": "Faça undervolt na placa de vídeo: muitas vezes 10 °C a menos com o mesmo FPS. Veja o guia do MSI Afterburner.",
+   "Still hot after three or more years? Fresh thermal paste on the CPU cooler usually helps. On a graphics card it can affect the warranty, so check first.": "Continua quente depois de três anos ou mais? Pasta térmica nova no cooler da CPU costuma ajudar. Na placa de vídeo pode afetar a garantia, então confira antes.",
+   "Laptops: hard flat surface, back raised a little, vents clean, and the maker's performance mode while plugged in.": "Notebooks: superfície dura e plana, traseira um pouco elevada, saídas de ar limpas e o modo desempenho do fabricante na tomada.",
+   "Fix the heat": "Resolva o calor",
+   "Set gentle fan curves in the BIOS (usually under Hardware Monitor or Smart Fan) and in Afterburner for the graphics card.": "Configure curvas suaves de ventoinha na BIOS (normalmente em Hardware Monitor ou Smart Fan) e no Afterburner para a placa de vídeo.",
+   "Cap your FPS. A card rendering 300 FPS in a menu is working, and spinning its fans, for nothing.": "Limite o FPS. Uma placa fazendo 300 FPS em um menu está trabalhando, e girando as ventoinhas, à toa.",
+   "Make it quieter": "Deixe mais silencioso",
+   "Temperatures, dust and fan noise": "Temperaturas, poeira e barulho das ventoinhas",
+   "Which temperatures are fine, how to stop heat slowing your games down, and how to make a PC quieter.": "Quais temperaturas são normais, como impedir que o calor deixe os jogos lentos e como deixar o PC mais silencioso.",
+   "Graphics card": "Placa de vídeo",
+   "Settings": "Configurações",
+   "BIOS": "BIOS",
+   "Fixes": "Soluções",
+   "Network": "Rede",
+   "Cooling": "Refrigeração",
+   "Easy": "Fácil",
+   "Advanced": "Avançada",
+   "Forcing MSI mode on every device": "Forçar o modo MSI em todos os dispositivos",
+   "Modern graphics and network drivers already use it. Forcing it on devices that don't support it can stop Windows from starting.": "Drivers modernos de vídeo e rede já usam. Forçar em dispositivos que não suportam pode impedir o Windows de iniciar.",
+   "Turning off fullscreen optimizations": "Desligar as otimizações de tela cheia",
+   "On Windows 10 and 11 they give fullscreen speed with fast alt-tab. Only try it for one old game that misbehaves.": "No Windows 10 e 11 elas dão velocidade de tela cheia com alt-tab rápido. Só teste em um jogo antigo que dê problema.",
+   "RAM cleaners and 'game booster' apps": "Limpadores de RAM e apps 'turbo para jogos'",
+   "Emptying memory just makes Windows load it again. Free RAM isn't faster RAM.": "Esvaziar a memória só faz o Windows carregar tudo de novo. RAM livre não é RAM mais rápida.",
+   "Changing DNS for lower ping": "Trocar o DNS para baixar o ping",
+   "DNS only finds the server's address before you connect. In-game ping doesn't change.": "O DNS só acha o endereço do servidor antes de conectar. O ping no jogo não muda.",
+   "Timer resolution tools": "Ferramentas de resolução do timer",
+   "Windows 11 already gives games the timer they ask for, and forcing it for everything raises power use.": "O Windows 11 já dá aos jogos o timer que eles pedem, e forçar para tudo aumenta o consumo."
   }
- }
+ },
+ "Guides": [
+  {
+   "Id": "afterburner",
+   "Title": "MSI Afterburner: undervolt, fans, overlay and FPS cap",
+   "Summary": "Run your graphics card cooler and quieter at the same speed, see FPS and temperatures in game, and cap your frame rate the right way. Works on any brand of card, not just MSI.",
+   "Category": "Graphics card",
+   "Minutes": 45,
+   "Level": "Medium",
+   "Tool": "afterburner",
+   "Featured": true,
+   "Chapters": [
+    {
+     "Title": "Before you start",
+     "Intro": "What Afterburner is, and what it can and can't do.",
+     "Steps": [
+      {
+       "Text": "Afterburner is free and works with NVIDIA, AMD and Intel cards of any brand. It comes with RivaTuner Statistics Server (RTSS), which draws the in-game overlay and caps FPS."
+      },
+      {
+       "Text": "Undervolting is the safe kind of tuning: you lower the voltage, you don't raise it.",
+       "Detail": "The worst that happens is a game crash or a driver reset, and you fix it by going back one step. It doesn't damage the card or void the warranty, and a reset puts it back to stock."
+      },
+      {
+       "Text": "Use one tuning app at a time. Close or uninstall the others so they don't fight over the same settings.",
+       "Detail": "For example NVIDIA App's automatic tuning, the tuning page in AMD Software, ASUS GPU Tweak, Gigabyte Control Center or EVGA Precision."
+      },
+      {
+       "Text": "On a laptop, voltage is usually locked. Afterburner still gives you the overlay and the frame cap; for laptop undervolting, use the maker's software if it has the option."
+      },
+      {
+       "Text": "Write down where you start: play a demanding game for 10 minutes and note the FPS, GPU temperature, clock speed and power draw. Every change gets compared to this.",
+       "Tip": "Set up the overlay first (the chapter further down) so you can read all of this in game."
+      }
+     ]
+    },
+    {
+     "Title": "Install it safely",
+     "Intro": null,
+     "Steps": [
+      {
+       "Text": "Download it only from MSI or Guru3D. Fake 'Afterburner' sites spread malware.",
+       "Button": "Open MSI's download page",
+       "Url": "https://www.msi.com/Landing/afterburner/graphics-cards"
+      },
+      {
+       "Text": "Use version 4.6.6 or newer. Older versions don't recognise RTX 50 or Radeon RX 9000 cards.",
+       "Tip": "The 4.6.7 beta on Guru3D has an improved curve editor, if you're happy to use a beta.",
+       "Button": "Guru3D beta page",
+       "Url": "https://www.guru3d.com/download/msi-afterburner-beta-download/"
+      },
+      {
+       "Text": "When the installer asks, install both MSI Afterburner and RivaTuner Statistics Server."
+      },
+      {
+       "Text": "Open Afterburner → Settings (the gear) → General, and tick 'Unlock voltage monitoring'.",
+       "Detail": "Leave 'Unlock voltage control' off. You don't need it to undervolt, and it's the part that can raise voltage."
+      }
+     ]
+    },
+    {
+     "Title": "Quick win: lower the power limit",
+     "Intro": "A two-minute undervolt. It costs a little speed but cuts heat and noise a lot. MSI's own guide starts here.",
+     "Steps": [
+      {
+       "Text": "Start a demanding game or a benchmark and leave it running in a window."
+      },
+      {
+       "Text": "Drag Power Limit (%) down to 85 and press Apply (the check mark).",
+       "Detail": "MSI suggests 80 to 85% as a start. How low you can go depends on the card."
+      },
+      {
+       "Text": "Watch the temperature and FPS for a few minutes and compare with your notes. Usually you lose a few FPS and a lot of heat."
+      },
+      {
+       "Text": "Happy with it? Save it as a profile. Want full speed with less heat? Put Power Limit back to 100 and use the curve method instead."
+      }
+     ]
+    },
+    {
+     "Title": "Undervolt with the curve (NVIDIA)",
+     "Intro": "The real undervolt: the same clock speed at a lower voltage. On RTX 30, 40 and 50 cards the Core Voltage slider does nothing; the curve editor is the way.",
+     "Steps": [
+      {
+       "Text": "Press Reset (the circular arrow) so you start from stock, with Power Limit at 100."
+      },
+      {
+       "Text": "Press Ctrl+F to open the Voltage/Frequency curve editor.",
+       "Detail": "Each point is a voltage (bottom, in mV) and the clock speed the card runs at that voltage (left, in MHz)."
+      },
+      {
+       "Text": "Pick your target voltage. Good starting points: RTX 50: 900 to 950 mV · RTX 40: 950 mV · RTX 30: 850 to 875 mV · RTX 20 and GTX 16: 900 mV.",
+       "Tip": "Pulse shows the starting point for your own card at the top of this guide."
+      },
+      {
+       "Text": "In the main window, set Core Clock to −250 and press Apply. The whole curve drops, so no point can spike up later."
+      },
+      {
+       "Text": "In the curve editor, click the point at your target voltage, hold Shift and drag it up to your stock clock speed from your notes (for example 2,750 MHz)."
+      },
+      {
+       "Text": "Press Apply in the main window. Everything right of your point becomes a flat line: the card now never goes above that voltage.",
+       "Detail": "If points on the right still stick up, drag a box around them with Shift, pull them below your line and Apply again. Or click your point and press L to lock it (a dotted line appears), which is MSI's own method."
+      },
+      {
+       "Text": "Test it (see 'Test it properly'). Stable? Go 25 mV lower at the same clock, or 15 to 30 MHz higher at the same voltage. One step at a time.",
+       "Warn": "Never drag points above about 1,100 mV, and don't touch the Core Voltage slider. Undervolting means lower, never higher.",
+       "Tip": "The clock settles 15 to 30 MHz below your line once the card is hot. That's normal."
+      }
+     ],
+     "Only": "nvidia"
+    },
+    {
+     "Title": "Undervolt a Radeon card (AMD)",
+     "Intro": "Afterburner's support for RX 9000 cards is unofficial, and AMD's own software does this better. Use AMD Software for the undervolt and Afterburner for the overlay and FPS cap.",
+     "Steps": [
+      {
+       "Text": "Open AMD Software: Adrenalin Edition → Performance → Tuning → Custom. Turn on GPU Tuning and Advanced Control."
+      },
+      {
+       "Text": "RX 9000 cards: set Voltage Offset to −50 mV and apply. Many cards hold more; try 10 to 20 mV more each time and test."
+      },
+      {
+       "Text": "RX 7000 and 6000 cards: lower Max Voltage by about 50 mV (for example 1,150 → 1,100 mV) and apply."
+      },
+      {
+       "Text": "Power Limit: −10% for less heat, or the maximum to let an undervolted card hold its clocks for more FPS."
+      },
+      {
+       "Text": "If AMD Software says 'Default settings restored due to unexpected system failure', your last step went too far. Go back to the last stable value."
+      },
+      {
+       "Text": "Leave Afterburner's sliders alone on an AMD card, so the two apps don't fight."
+      }
+     ],
+     "Only": "amd"
+    },
+    {
+     "Title": "Test it properly",
+     "Intro": "A setting that passes one benchmark can still crash a game an hour later.",
+     "Steps": [
+      {
+       "Text": "Run a GPU stress test for 15 to 20 minutes: Unigine Superposition (free), OCCT's 3D test (free) or a 3DMark stress test.",
+       "Button": "Get Superposition",
+       "Url": "https://benchmark.unigine.com/superposition"
+      },
+      {
+       "Text": "Then play your most demanding game for an hour. Ray tracing and shader-heavy games catch unstable settings that benchmarks miss."
+      },
+      {
+       "Text": "Too far if: the game closes, the screen flashes black, Windows says the display driver stopped responding, or you see sparkles. Go back one step (+25 mV or −30 MHz)."
+      },
+      {
+       "Text": "Check it really helped: FPS within 1 to 2% of your notes, with lower temperature and power. Pulse's Measure page compares before and after.",
+       "Button": "Open Measure",
+       "Page": "measure"
+      }
+     ]
+    },
+    {
+     "Title": "Save profiles and apply at startup",
+     "Intro": null,
+     "Steps": [
+      {
+       "Text": "Click the save icon, then a number from 1 to 5. Keep profile 1 as stock (press Reset first) and profile 2 as your undervolt."
+      },
+      {
+       "Text": "Settings → Profiles: give each profile a hotkey, for example Ctrl+Alt+1 for stock and Ctrl+Alt+2 for your undervolt."
+      },
+      {
+       "Text": "Once it's tested, turn on 'Apply overclocking at system startup' (the Windows button at the bottom left), and in Settings → General tick 'Start with Windows' and 'Start minimized'.",
+       "Warn": "Only after testing. An unstable setting applied at startup can crash Windows as it starts. Holding Ctrl while Afterburner starts skips your settings."
+      },
+      {
+       "Text": "After a graphics driver update, open Afterburner once and check your profile is still applied. Driver installs reset the card to stock."
+      }
+     ]
+    },
+    {
+     "Title": "Fan curve: cool and quiet",
+     "Intro": null,
+     "Steps": [
+      {
+       "Text": "Settings → Fan → tick 'Enable user defined software automatic fan control'."
+      },
+      {
+       "Text": "Make a gentle curve, for example 30% at 40 °C, 45% at 60 °C, 60% at 70 °C, 80% at 80 °C and 100% at 85 °C."
+      },
+      {
+       "Text": "Set 'Temperature hysteresis' to 3 to 5 °C so the fans don't keep speeding up and slowing down."
+      },
+      {
+       "Text": "Most cards stop their fans below 50 to 60 °C on their own. A custom curve turns that off, so keep the default if you want silence on the desktop."
+      }
+     ]
+    },
+    {
+     "Title": "In-game overlay: FPS, temperatures, frame times",
+     "Intro": null,
+     "Steps": [
+      {
+       "Text": "Settings → Monitoring. Click each item you want and tick 'Show in On-Screen Display'.",
+       "Detail": "A good set: GPU temperature, GPU usage, core clock, power, framerate, frametime, CPU temperature, CPU usage and RAM usage."
+      },
+      {
+       "Text": "For Frametime, pick 'graph' instead of 'text'. A flat line is smooth; spikes are the stutters you feel."
+      },
+      {
+       "Text": "Settings → On-Screen Display: set a 'Toggle On-Screen Display' hotkey, for example F11."
+      },
+      {
+       "Text": "RivaTuner Statistics Server must be running (its icon is in the tray). It's where you change the overlay's position, size and color."
+      },
+      {
+       "Text": "Reading it: GPU usage under 95% while FPS is low means the CPU or the game is holding you back, not the graphics card.",
+       "Warn": "A few games with strict anti-cheat block overlays. If one won't start, add it in RTSS with '+' and set Application detection level to None."
+      }
+     ]
+    },
+    {
+     "Title": "Cap your frame rate the right way",
+     "Intro": "Blur Busters measured this with a latency tester: the game's own limiter and NVIDIA Reflex have ½ to 1 frame less input lag than outside limiters like RTSS. RTSS has the steadiest frame pacing.",
+     "Steps": [
+      {
+       "Text": "First choice: the game's own frame limiter, or NVIDIA Reflex if the game has it."
+      },
+      {
+       "Text": "Use RTSS when the game has no limiter, or its FPS jumps around a lot."
+      },
+      {
+       "Text": "With G-SYNC or FreeSync: cap at least 3 FPS below your refresh rate (141 at 144 Hz, 237 at 240 Hz). Turn V-Sync on in the NVIDIA or AMD settings and off in the game."
+      },
+      {
+       "Text": "In RTSS, select Global, type your cap in 'Framerate limit' and press Enter. For one game only, press '+' at the bottom left, pick its .exe and set the cap there."
+      },
+      {
+       "Text": "In a game with Reflex, skip the RTSS cap: Reflex with G-SYNC and V-Sync caps for you (about 138 FPS at 144 Hz)."
+      }
+     ]
+    },
+    {
+     "Title": "When something goes wrong",
+     "Intro": null,
+     "Steps": [
+      {
+       "Text": "Settings won't apply or sliders are grey: close other tuning apps, run Afterburner as administrator and update to the newest version."
+      },
+      {
+       "Text": "The card went back to stock after a crash or driver update: load your profile again and re-test."
+      },
+      {
+       "Text": "The curve keeps creeping back up: you raised points on the right end. Reset, set Core Clock to −250 first, then raise only your one target point."
+      },
+      {
+       "Text": "RTX 50 shows a hot spot of 255 °C: those cards don't have that sensor, and older builds misread it. Update Afterburner and ignore that reading."
+      },
+      {
+       "Text": "A memory overclock seems stable but FPS goes down: GDDR6X and GDDR7 memory fix errors quietly, which costs speed. Judge memory clocks by FPS, not by crashes."
+      }
+     ]
+    }
+   ],
+   "Sources": [
+    {
+     "Name": "MSI: RTX 50 overclocking and undervolting guide, part 1",
+     "Url": "https://www.msi.com/blog/rtx-5070-5060ti-overclocking-undervolting-guide-with-msi-afterburner-part-1"
+    },
+    {
+     "Name": "MSI: RTX 50 overclocking and undervolting guide, part 2",
+     "Url": "https://us.msi.com/blog/rtx-5070-5060ti-overclocking-undervolting-guide-with-msi-afterburner-part-2"
+    },
+    {
+     "Name": "TweakTown: Afterburner 4.6.6, first stable release in two years",
+     "Url": "https://www.tweaktown.com/news/108004/msi-afterburner-4-6-is-available-now-the-first-stable-release-in-couple-of-years/index.html"
+    },
+    {
+     "Name": "Blur Busters: engine-level vs. external FPS limiters",
+     "Url": "https://forums.blurbusters.com/viewtopic.php?p=97250"
+    },
+    {
+     "Name": "Blur Busters G-SYNC 101: optimal settings",
+     "Url": "https://www.blurbusters.com/gsync/gsync101-input-lag-tests-and-settings/14/"
+    }
+   ]
+  },
+  {
+   "Id": "nvidia-settings",
+   "Title": "NVIDIA settings for smooth, low-latency games",
+   "Summary": "The NVIDIA App and Control Panel settings that actually matter, and the G-SYNC recipe Blur Busters measured as best.",
+   "Category": "Settings",
+   "Minutes": 15,
+   "Level": "Easy",
+   "Tool": null,
+   "Featured": false,
+   "Chapters": [
+    {
+     "Title": "Get the basics right",
+     "Intro": null,
+     "Steps": [
+      {
+       "Text": "Plug the monitor into the graphics card, not the motherboard."
+      },
+      {
+       "Text": "NVIDIA Control Panel → Change resolution: pick your monitor's highest refresh rate (144 Hz, 165 Hz, 240 Hz...). Windows often leaves it at 60."
+      },
+      {
+       "Text": "On the same page, set Output dynamic range to Full. Over HDMI it's often Limited, which makes blacks look grey."
+      },
+      {
+       "Text": "Install drivers from the NVIDIA App or nvidia.com. Update when a game you play needs it or a fix you want is listed; you don't need every release.",
+       "Button": "NVIDIA drivers",
+       "Url": "https://www.nvidia.com/en-us/drivers/"
+      }
+     ]
+    },
+    {
+     "Title": "The G-SYNC recipe",
+     "Intro": "Blur Busters' tested settings for no tearing with the least input lag. They also work for 'G-SYNC Compatible' FreeSync monitors.",
+     "Steps": [
+      {
+       "Text": "Set up G-SYNC: turn it on (for fullscreen, or fullscreen and windowed if you play borderless)."
+      },
+      {
+       "Text": "Manage 3D settings → Vertical sync: On. Then turn V-Sync off in every game."
+      },
+      {
+       "Text": "Cap FPS at least 3 below your refresh rate: 141 at 144 Hz, 162 at 165 Hz, 237 at 240 Hz. Use the game's limiter first, otherwise 'Max Frame Rate' in the Control Panel."
+      },
+      {
+       "Text": "Games with NVIDIA Reflex: turn Reflex on. With G-SYNC and V-Sync on, it caps for you (about 138 FPS at 144 Hz), so you can skip your own cap there."
+      },
+      {
+       "Text": "Games without Reflex: set Low Latency Mode to On. 'Ultra' also caps automatically with G-SYNC."
+      }
+     ]
+    },
+    {
+     "Title": "Other settings worth changing",
+     "Intro": null,
+     "Steps": [
+      {
+       "Text": "Shader Cache Size: 10 GB or Unlimited, so games don't recompile shaders (and hitch) as often."
+      },
+      {
+       "Text": "NVIDIA App → Graphics → DLSS Override: set the model preset to Latest, so older games use the newest DLSS."
+      },
+      {
+       "Text": "Power management mode: leave it on Normal. Use 'Prefer maximum performance' for one game only if its clocks drop and it stutters; it raises idle power."
+      },
+      {
+       "Text": "Leave the rest at default. Texture filtering, anisotropic and the like make no measurable FPS difference on a modern card."
+      }
+     ]
+    }
+   ],
+   "Sources": [
+    {
+     "Name": "Blur Busters G-SYNC 101: optimal settings",
+     "Url": "https://www.blurbusters.com/gsync/gsync101-input-lag-tests-and-settings/14/"
+    },
+    {
+     "Name": "NVIDIA Reflex",
+     "Url": "https://www.nvidia.com/en-us/geforce/technologies/reflex/"
+    },
+    {
+     "Name": "NVIDIA App",
+     "Url": "https://www.nvidia.com/en-us/software/nvidia-app/"
+    }
+   ]
+  },
+  {
+   "Id": "amd-settings",
+   "Title": "AMD Software settings for smooth, low-latency games",
+   "Summary": "FreeSync, Anti-Lag, frame caps and what to leave off in AMD Software: Adrenalin Edition.",
+   "Category": "Settings",
+   "Minutes": 15,
+   "Level": "Easy",
+   "Tool": null,
+   "Featured": false,
+   "Chapters": [
+    {
+     "Title": "Display",
+     "Intro": null,
+     "Steps": [
+      {
+       "Text": "Plug the monitor into the graphics card, and set its highest refresh rate in Windows → Settings → Display → Advanced display."
+      },
+      {
+       "Text": "AMD Software → Settings → Display: turn on AMD FreeSync for your monitor."
+      },
+      {
+       "Text": "Turn Enhanced Sync off; it can cause stutter with FreeSync."
+      }
+     ]
+    },
+    {
+     "Title": "Gaming → Graphics",
+     "Intro": null,
+     "Steps": [
+      {
+       "Text": "Use the Default graphics profile, not HYPR-RX: HYPR-RX switches on several features at once, including ones that lower resolution or add generated frames."
+      },
+      {
+       "Text": "AMD Anti-Lag: on. In games that support Anti-Lag 2, turn it on in the game's own settings."
+      },
+      {
+       "Text": "Wait for Vertical Refresh: 'Always on' if you want no tearing with FreeSync, then turn V-Sync off in the game."
+      },
+      {
+       "Text": "Cap FPS 3 below your refresh rate with the game's limiter, or with Radeon Chill set to the same minimum and maximum."
+      },
+      {
+       "Text": "Radeon Boost: off for competitive games. It lowers the resolution while you move."
+      }
+     ]
+    },
+    {
+     "Title": "Drivers",
+     "Intro": null,
+     "Steps": [
+      {
+       "Text": "Get drivers from AMD Software or amd.com. If a game stutters after an update, try the shader cache reset in Graphics → Advanced once.",
+       "Button": "AMD drivers",
+       "Url": "https://www.amd.com/en/support/download/drivers.html"
+      },
+      {
+       "Text": "For undervolting a Radeon card, see the AMD chapter of the MSI Afterburner guide."
+      }
+     ]
+    }
+   ],
+   "Sources": [
+    {
+     "Name": "AMD Software: Adrenalin Edition",
+     "Url": "https://www.amd.com/en/support/download/drivers.html"
+    }
+   ]
+  },
+  {
+   "Id": "bios",
+   "Title": "BIOS: XMP/EXPO and Resizable BAR",
+   "Summary": "The two BIOS switches most gaming PCs are missing, with the menu names for ASUS, MSI, Gigabyte and ASRock boards.",
+   "Category": "BIOS",
+   "Minutes": 15,
+   "Level": "Medium",
+   "Tool": null,
+   "Featured": false,
+   "Chapters": [
+    {
+     "Title": "Get into the BIOS",
+     "Intro": null,
+     "Steps": [
+      {
+       "Text": "Restart and press Delete (or F2) repeatedly as the PC starts. Or in Windows: Settings → System → Recovery → Advanced startup → Restart now → Troubleshoot → Advanced options → UEFI Firmware Settings."
+      },
+      {
+       "Text": "Most boards open in an Easy mode. Press F7 to switch to Advanced mode if you can't find a setting."
+      }
+     ]
+    },
+    {
+     "Title": "Turn on XMP or EXPO",
+     "Intro": "Without it, RAM runs at its slow fallback speed (DDR4 2,133 to 3,200, DDR5 4,800). It's one of the biggest free gains in CPU-heavy games.",
+     "Steps": [
+      {
+       "Text": "ASUS: Ai Tweaker → Ai Overclock Tuner → XMP I (or EXPO). MSI: the A-XMP or EXPO button on the main screen. Gigabyte: Tweaker → Extreme Memory Profile (X.M.P.). ASRock: OC Tweaker → DRAM Profile → XMP or EXPO."
+      },
+      {
+       "Text": "Save and exit (usually F10). The first start can take a minute or two while the PC trains the memory, especially with DDR5. Don't turn it off."
+      },
+      {
+       "Text": "Check it worked: Task Manager → Performance → Memory → Speed should show your kit's rated speed, for example 6000 MT/s.",
+       "Tip": "Pulse's Diagnose page checks this too.",
+       "Button": "Open Diagnose",
+       "Page": "diagnose"
+      },
+      {
+       "Text": "Won't start, or crashes? Clear the CMOS (the button on the back, or the jumper in the manual) and try the second XMP profile or one speed step lower."
+      }
+     ]
+    },
+    {
+     "Title": "Turn on Resizable BAR",
+     "Intro": "Lets the CPU reach all of the graphics card's memory at once. Usually a few percent, more in some games. AMD calls it Smart Access Memory.",
+     "Steps": [
+      {
+       "Text": "Turn CSM (Compatibility Support Module) off. Windows 11 already boots without it."
+      },
+      {
+       "Text": "Turn Above 4G Decoding on, then Re-Size BAR Support on (or Auto). It's usually under Advanced → PCI Subsystem Settings."
+      },
+      {
+       "Text": "Check it: NVIDIA Control Panel → System Information → Resizable BAR: Yes. On AMD, AMD Software → Performance shows Smart Access Memory."
+      }
+     ]
+    },
+    {
+     "Title": "BIOS updates",
+     "Intro": null,
+     "Steps": [
+      {
+       "Text": "Update the BIOS only to fix a problem or support a new CPU, and only from your motherboard maker's support page for your exact model."
+      },
+      {
+       "Text": "An update resets XMP/EXPO and Resizable BAR, so turn them back on afterwards.",
+       "Warn": "Never turn the PC off during a BIOS update."
+      }
+     ]
+    }
+   ],
+   "Sources": [
+    {
+     "Name": "Club386: Resizable BAR on or off?",
+     "Url": "https://www.club386.com/resizable-bar-on-or-off/"
+    }
+   ]
+  },
+  {
+   "Id": "clean-driver",
+   "Title": "Clean graphics driver reinstall with DDU",
+   "Summary": "The fix for crashes, black screens and stutter that started after a driver update, or when switching between NVIDIA and AMD.",
+   "Category": "Fixes",
+   "Minutes": 20,
+   "Level": "Medium",
+   "Tool": null,
+   "Featured": false,
+   "Chapters": [
+    {
+     "Title": "Prepare",
+     "Intro": null,
+     "Steps": [
+      {
+       "Text": "Download the driver you want to install first (from NVIDIA, AMD or Intel) and keep it on the desktop."
+      },
+      {
+       "Text": "Download Display Driver Uninstaller (DDU) from its official site, Wagnardsoft, and unzip it.",
+       "Button": "Open Wagnardsoft",
+       "Url": "https://www.wagnardsoft.com/"
+      },
+      {
+       "Text": "In Pulse, turn on 'Stop Windows Update replacing your graphics driver' so Windows doesn't sneak its own driver in while you work.",
+       "Button": "Open Tweaks",
+       "Page": "tweaks"
+      },
+      {
+       "Text": "Unplug the network cable or turn Wi-Fi off."
+      }
+     ]
+    },
+    {
+     "Title": "Remove and reinstall",
+     "Intro": null,
+     "Steps": [
+      {
+       "Text": "Restart into Safe Mode: hold Shift and click Restart → Troubleshoot → Advanced options → Startup Settings → Restart → press 4."
+      },
+      {
+       "Text": "Run DDU, pick GPU and your brand on the right, then 'Clean and restart'."
+      },
+      {
+       "Text": "Back in Windows, run the driver you downloaded. On NVIDIA pick Custom → Clean installation if offered."
+      },
+      {
+       "Text": "Reconnect to the internet, then set your refresh rate and driver settings again (the NVIDIA or AMD settings guide)."
+      }
+     ]
+    }
+   ],
+   "Sources": [
+    {
+     "Name": "Wagnardsoft: Display Driver Uninstaller",
+     "Url": "https://www.wagnardsoft.com/"
+    }
+   ]
+  },
+  {
+   "Id": "stutter",
+   "Title": "Fix stutter and FPS drops",
+   "Summary": "Work out what kind of stutter you have, then fix the cause: shaders, video memory, background apps, storage, heat or frame pacing.",
+   "Category": "Fixes",
+   "Minutes": 20,
+   "Level": "Easy",
+   "Tool": null,
+   "Featured": false,
+   "Chapters": [
+    {
+     "Title": "Find the kind of stutter",
+     "Intro": "Turn on a frame-time graph (the overlay chapter of the Afterburner guide) and watch it while it happens.",
+     "Steps": [
+      {
+       "Text": "Spikes the first time you see an effect or a new area, fewer the second time: shader compilation. See the next chapter."
+      },
+      {
+       "Text": "Regular spikes every few seconds, even standing still: something in the background. See 'Background apps'."
+      },
+      {
+       "Text": "FPS fine at first, then dropping after 10 to 20 minutes: heat. See the cooling guide."
+      },
+      {
+       "Text": "Hitching in big or detailed areas, with video memory near full in the overlay: VRAM. Lower texture quality one step."
+      },
+      {
+       "Text": "Pulse's Diagnose page checks the common causes for you: refresh rate, RAM speed, power plan, drivers and more.",
+       "Button": "Check my PC",
+       "Page": "diagnose"
+      }
+     ]
+    },
+    {
+     "Title": "Shader compilation",
+     "Intro": null,
+     "Steps": [
+      {
+       "Text": "Let the game's 'compiling shaders' step finish before you play, even if it takes minutes."
+      },
+      {
+       "Text": "Raise the driver's shader cache to 10 GB or Unlimited (NVIDIA) and don't let cleaner apps wipe it. Pulse's cleanup never deletes it."
+      },
+      {
+       "Text": "After a driver update, expect the first session in each game to hitch again while shaders rebuild."
+      }
+     ]
+    },
+    {
+     "Title": "Background apps",
+     "Intro": null,
+     "Steps": [
+      {
+       "Text": "Close what you don't need while playing: browser tabs with video, launchers you're not using, RGB and peripheral apps you don't need open."
+      },
+      {
+       "Text": "Only one overlay and one recorder at a time (Discord, Steam, NVIDIA, Xbox Game Bar, Medal). Each one hooks into the game."
+      },
+      {
+       "Text": "Pause big downloads and Windows Update while you play, or use Pulse's tweak that limits update bandwidth."
+      },
+      {
+       "Text": "Trim what starts with Windows on Pulse's Startup apps page.",
+       "Button": "Open Startup apps",
+       "Page": "startup"
+      }
+     ]
+    },
+    {
+     "Title": "Hardware basics",
+     "Intro": null,
+     "Steps": [
+      {
+       "Text": "Games on an SSD, with at least 10 to 15% of the drive free."
+      },
+      {
+       "Text": "RAM in two matching sticks (dual channel), with XMP or EXPO on. One stick halves memory bandwidth."
+      },
+      {
+       "Text": "Laptops: plugged in, on the maker's performance mode, with the game running on the dedicated graphics card."
+      },
+      {
+       "Text": "Cap your FPS a little below what you can hold most of the time. Steady 120 feels smoother than 120 to 200 jumping around."
+      }
+     ]
+    }
+   ],
+   "Sources": [
+    {
+     "Name": "PCGameCheck: why is my game stuttering",
+     "Url": "https://pcgamecheck.com/blog/why-is-my-game-stuttering-fix"
+    }
+   ]
+  },
+  {
+   "Id": "ping",
+   "Title": "Lower ping and stop lag spikes",
+   "Summary": "What actually lowers ping and stops spikes: the connection, Wi-Fi placement, bufferbloat and downloads. Plus the popular fixes that don't work.",
+   "Category": "Network",
+   "Minutes": 15,
+   "Level": "Easy",
+   "Tool": null,
+   "Featured": false,
+   "Chapters": [
+    {
+     "Title": "The connection",
+     "Intro": null,
+     "Steps": [
+      {
+       "Text": "Use an Ethernet cable if you can. It removes most lag spikes Wi-Fi causes. Powerline adapters are the next best thing."
+      },
+      {
+       "Text": "On Wi-Fi: connect on 5 GHz or 6 GHz, not 2.4 GHz, and keep the router in the open, not in a cupboard or behind the TV."
+      },
+      {
+       "Text": "Pick the game server or region closest to you. Distance is most of your ping, and no PC setting changes it."
+      }
+     ]
+    },
+    {
+     "Title": "Bufferbloat: lag when someone else downloads",
+     "Intro": null,
+     "Steps": [
+      {
+       "Text": "Run Waveform's bufferbloat test. A grade of C or worse means your ping jumps whenever the connection is busy.",
+       "Button": "Open the test",
+       "Url": "https://www.waveform.com/tools/bufferbloat"
+      },
+      {
+       "Text": "Fix it on the router: turn on Smart Queue, SQM or Adaptive QoS (names vary), set to about 90% of your measured speed."
+      },
+      {
+       "Text": "No such setting on your router? Pause Steam, console and Windows downloads while you play."
+      }
+     ]
+    },
+    {
+     "Title": "Skip these",
+     "Intro": null,
+     "Steps": [
+      {
+       "Text": "Changing DNS doesn't change in-game ping. DNS only looks up addresses before you connect."
+      },
+      {
+       "Text": "'Ping booster' apps and registry network tweaks can't make packets travel faster. Most games don't even use the settings they change."
+      },
+      {
+       "Text": "Turning off IPv6 doesn't help, and can break some connections."
+      }
+     ]
+    }
+   ],
+   "Sources": [
+    {
+     "Name": "Waveform: bufferbloat test",
+     "Url": "https://www.waveform.com/tools/bufferbloat"
+    }
+   ]
+  },
+  {
+   "Id": "cooling",
+   "Title": "Temperatures, dust and fan noise",
+   "Summary": "Which temperatures are fine, how to stop heat slowing your games down, and how to make a PC quieter.",
+   "Category": "Cooling",
+   "Minutes": 15,
+   "Level": "Easy",
+   "Tool": null,
+   "Featured": false,
+   "Chapters": [
+    {
+     "Title": "What's normal",
+     "Intro": null,
+     "Steps": [
+      {
+       "Text": "Graphics card while gaming: 60 to 80 °C is normal. Its hot spot runs 10 to 20 °C higher."
+      },
+      {
+       "Text": "CPU while gaming: up to the high 80s °C is fine on modern chips. Many are designed to boost until they reach about 90 to 95 °C."
+      },
+      {
+       "Text": "A problem looks like this: FPS drops after 10 to 20 minutes while temperatures sit at their limit and clocks fall."
+      }
+     ]
+    },
+    {
+     "Title": "Fix the heat",
+     "Intro": null,
+     "Steps": [
+      {
+       "Text": "Clean the dust: PC off and unplugged, short bursts of compressed air, hold fans still so they don't spin. Front filters first."
+      },
+      {
+       "Text": "Airflow: front fans pull air in, rear and top fans push it out. A little more in than out keeps dust down."
+      },
+      {
+       "Text": "Undervolt the graphics card: often 10 °C cooler at the same FPS. See the MSI Afterburner guide."
+      },
+      {
+       "Text": "Still hot after three or more years? Fresh thermal paste on the CPU cooler usually helps. On a graphics card it can affect the warranty, so check first."
+      },
+      {
+       "Text": "Laptops: hard flat surface, back raised a little, vents clean, and the maker's performance mode while plugged in."
+      }
+     ]
+    },
+    {
+     "Title": "Make it quieter",
+     "Intro": null,
+     "Steps": [
+      {
+       "Text": "Set gentle fan curves in the BIOS (usually under Hardware Monitor or Smart Fan) and in Afterburner for the graphics card."
+      },
+      {
+       "Text": "Cap your FPS. A card rendering 300 FPS in a menu is working, and spinning its fans, for nothing."
+      }
+     ]
+    }
+   ],
+   "Sources": []
+  }
+ ]
 }

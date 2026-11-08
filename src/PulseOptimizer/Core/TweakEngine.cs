@@ -75,6 +75,8 @@ public class AppState
     public Pulse.Core.Games.GameSessionSettings GameSession { get; set; } = new();
     /// <summary>The Crosshair page: the overlay crosshair and saved crosshairs.</summary>
     public Pulse.Core.Crosshair.CrosshairSettings Crosshair { get; set; } = new();
+    /// <summary>Steps ticked off in the PC guide's step-by-step guides, by guide id.</summary>
+    public Dictionary<string, List<string>> GuideDone { get; set; } = new();
     /// <summary>The Devices page: backups of key remaps and key repeat.</summary>
     public Pulse.Core.Devices.DeviceSettings Devices { get; set; } = new();
 }

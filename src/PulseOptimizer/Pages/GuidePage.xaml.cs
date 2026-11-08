@@ -13,13 +13,13 @@ using Loc = Pulse.Ui.Loc;
 namespace Pulse.Pages;
 
 /// <summary>
-/// The PC guide, one tab at a time: what makes games smoother, what hardware costs (with charts), the gear reviewers
+/// The PC guide, one tab at a time: step-by-step guides, what makes games smoother, what hardware costs (with charts), the gear reviewers
 /// rate best, prebuilt PC makers, and hardware news. Content comes from <see cref="GuideLive"/> (Pulse's website),
 /// so prices and news stay current between Pulse releases.
 /// </summary>
 public partial class GuidePage : UserControl
 {
-    static string _tab = "smooth";
+    static string _tab = "guides";
     static readonly Dictionary<string, string> SubTab = new();
     readonly Dictionary<string, (TextBlock Label, Border Line)> _tabs = new();
 
@@ -36,7 +36,7 @@ public partial class GuidePage : UserControl
     public GuidePage()
     {
         InitializeComponent();
-        foreach (var (key, title) in new[] { ("smooth", "Make it smoother"), ("prices", "Prices"), ("gear", "Best gear"), ("prebuilt", "Prebuilt PCs"), ("news", "News") })
+        foreach (var (key, title) in new[] { ("guides", "Guides"), ("smooth", "Make it smoother"), ("prices", "Prices"), ("gear", "Best gear"), ("prebuilt", "Prebuilt PCs"), ("news", "News") })
             Tabs.Children.Add(TabButton(key, title));
         ShowTab(_tab, animate: false);
         UpdateFresh();
@@ -92,6 +92,7 @@ public partial class GuidePage : UserControl
             "gear" => BuildGear(),
             "prebuilt" => BuildPrebuilt(),
             "news" => BuildNews(),
+            "guides" => BuildGuides(),
             _ => BuildTips(),
         });
         Scroller.ScrollToTop();

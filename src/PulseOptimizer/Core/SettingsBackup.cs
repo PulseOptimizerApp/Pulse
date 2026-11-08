@@ -19,7 +19,7 @@ public static class SettingsBackup
     internal static readonly string[] Portable =
     {
         "Settings", "GameChecklist", "CustomGames", "Roblox", "Clips", "Reaction", "Macros", "MacroList", "MacroOptions",
-        "GameSession", "Crosshair",
+        "GameSession", "Crosshair", "GuideDone",
     };
 
     public static void Export(string path)
