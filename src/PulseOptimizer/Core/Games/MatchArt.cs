@@ -21,6 +21,10 @@ public static class MatchArt
     /// <summary>The map for VALORANT; for other games, the game's cover, faded behind the card.</summary>
     public static ImageSource Map(MatchRecord m) => m.Game == "VALORANT" ? Load($"map-{Key(m.Map)}.jpg", 640) ?? GameArt.Bundled(m.Game) : GameArt.Bundled(m.Game);
     public static ImageSource Rank(MatchRecord m) => m.Game == "VALORANT" && m.RankTier >= 3 ? Load($"rank-{m.RankTier}.png", 64) : null;
+    /// <summary>A VALORANT rank badge by tier number (3 = Iron 1 … 27 = Radiant); null when unranked.</summary>
+    public static ImageSource RankIcon(int tier) => tier >= 3 ? Load($"rank-{tier}.png", 64) : null;
+    /// <summary>A VALORANT agent's portrait by name.</summary>
+    public static ImageSource AgentIcon(string agent) => string.IsNullOrEmpty(agent) ? null : Load($"agent-{Key(agent)}.png", 256);
 
     /// <summary>The agent's own color (from the game's art), for the tint behind the portrait; null if unknown.</summary>
     public static Color? AgentColor(MatchRecord m)

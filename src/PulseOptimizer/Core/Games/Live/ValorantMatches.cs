@@ -32,6 +32,9 @@ public sealed class ValorantMatches : IDisposable
 
     CancellationTokenSource _cts;
     string _lastSeen;
+
+    /// <summary>Raised (on a worker thread) when you load into a match.</summary>
+    public static event Action InGame;
     /// <summary>How often the presence is read, and how long to keep asking for a match after one ends.</summary>
     static readonly TimeSpan PresenceEvery = TimeSpan.FromSeconds(3), CatchUpFor = TimeSpan.FromMinutes(3);
     Dictionary<string, string> _agents, _maps;
@@ -58,6 +61,8 @@ public sealed class ValorantMatches : IDisposable
                 try { now = await LoopState(); } catch { }
                 // Left the match (to the menus, the end screen or the lobby): get the result right away.
                 if (before == "INGAME" && now != null && now != "INGAME") await CatchUp(token);
+                // Just loaded into a match: the live lobby (if it's on) can show both teams.
+                if (now == "INGAME" && before != null && before != "INGAME") try { InGame?.Invoke(); } catch { }
                 if (now != null) before = now;
                 // A slow check too, in case the presence can't be read on this PC.
                 if (DateTime.UtcNow >= slow)
@@ -115,13 +120,13 @@ public sealed class ValorantMatches : IDisposable
 
     // ───────── Riot Client login and region ─────────
 
-    record Session(string Puuid, string Access, string Entitlement, string Shard, string Version, string Port, string Password);
+    internal record Session(string Puuid, string Access, string Entitlement, string Shard, string Version, string Port, string Password, string Region = "");
 
     // The login is kept for a few minutes, so checking every few seconds after a match doesn't re-read the game's log.
     static Session _session;
     static DateTime _sessionAt;
 
-    static async Task<Session> Login()
+    internal static async Task<Session> Login()
     {
         if (_session != null && DateTime.UtcNow - _sessionAt < TimeSpan.FromMinutes(10)) return _session;
         var s = await FreshLogin();
@@ -159,10 +164,11 @@ public sealed class ValorantMatches : IDisposable
         string logText;
         using (var fs = new FileStream(log, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
         using (var r = new StreamReader(fs)) logText = await r.ReadToEndAsync();
-        var shard = Regex.Match(logText, @"https://glz-[a-z0-9]+-1\.([a-z0-9]+)\.a\.pvp\.net").Groups[1].Value;
+        var glz = Regex.Match(logText, @"https://glz-([a-z0-9]+)-1\.([a-z0-9]+)\.a\.pvp\.net");
+        var shard = glz.Groups[2].Value;
         var version = Regex.Match(logText, @"CI server version: (\S+)").Groups[1].Value;
         if (shard.Length == 0) return null;
-        return new Session(root.Str("subject"), root.Str("accessToken"), root.Str("token"), shard, version, parts[2], parts[3]);
+        return new Session(root.Str("subject"), root.Str("accessToken"), root.Str("token"), shard, version, parts[2], parts[3], glz.Groups[1].Value);
     }
 
     /// <summary>
@@ -198,7 +204,7 @@ public sealed class ValorantMatches : IDisposable
         catch { return null; }
     }
 
-    static async Task<JsonDocument> Get(Session s, string url)
+    internal static async Task<JsonDocument> Get(Session s, string url)
     {
         var req = new HttpRequestMessage(HttpMethod.Get, url);
         req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", s.Access);

@@ -31,9 +31,10 @@ public class SafetyTests
             "Pulse never sends anything, and only downloads from its own GitHub releases: the opt-in Clips download of " +
             "FFmpeg (Ffmpeg.cs) and the update check and install (Updater.cs). The lag checks only send pings (NetworkCheck.cs). " +
             "Match recaps read the games' own data: League's Live Client API on 127.0.0.1 (LeagueLive.cs) and, for VALORANT, " +
-            "your own last match from Riot with the Riot Client's local login (ValorantMatches.cs). The PC guide downloads " +
+            "your own last match from Riot with the Riot Client's local login (ValorantMatches.cs), plus the opt-in live lobby " +
+            "(the players in your current match and their ranks, from Riot the same way: ValorantLobby.cs). The PC guide downloads " +
             "its latest prices and news from Pulse's own website (GuideLive.cs)",
-            "Ffmpeg.cs", "Updater.cs", "LeagueLive.cs", "ValorantMatches.cs", "GuideLive.cs");
+            "Ffmpeg.cs", "Updater.cs", "LeagueLive.cs", "ValorantMatches.cs", "ValorantLobby.cs", "GuideLive.cs");
 
     [Fact]
     public void The_guide_only_downloads_from_Pulses_own_website()
@@ -62,7 +63,7 @@ public class SafetyTests
     [Fact]
     public void Match_recaps_only_talk_to_this_PC_and_Riot()
     {
-        foreach (var name in new[] { "LeagueLive.cs", "ValorantMatches.cs", "GsiServer.cs" })
+        foreach (var name in new[] { "LeagueLive.cs", "ValorantMatches.cs", "ValorantLobby.cs", "GsiServer.cs" })
         {
             var src = File.ReadAllText(Repo.SourceFiles().Single(f => Path.GetFileName(f) == name));
             var urls = Regex.Matches(src, @"https?://[^\s""]+").Select(m => m.Value).Distinct().ToList();

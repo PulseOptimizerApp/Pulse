@@ -319,6 +319,13 @@
                                        Text="After each match: map, agent or champion, win or loss, K/D/A, headshots and rank, with that match's clips (VALORANT, Counter-Strike 2, League of Legends and Dota 2). Other games, like Marvel Rivals, Overwatch 2, Fortnite and Apex, get a card for each session with how long you played and its clips."/>
                             <CheckBox x:Name="RecapSwitch" Grid.Column="2" Style="{StaticResource Switch}" Click="Setting_Click"/>
                         </Grid>
+                        <Grid Style="{StaticResource Row}">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="200"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <TextBlock Style="{StaticResource RowLabel}" Text="VALORANT live lobby"/>
+                            <TextBlock Grid.Column="1" Style="{StaticResource Body}" FontSize="12" Foreground="{StaticResource TextDimBrush}" VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="460" HorizontalAlignment="Left"
+                                       Text="When you load into a match, a popup offers to show both teams: agents, names, levels, current rank, peak rank and win rate, like tracker apps. Players who hid their name stay hidden. Read the risk before turning it on."/>
+                            <CheckBox x:Name="LobbySwitch" Grid.Column="2" Style="{StaticResource Switch}" Click="LobbySwitch_Click"/>
+                        </Grid>
 
                         <!-- More settings -->
                         <StackPanel x:Name="MorePanel" Visibility="Collapsed">

@@ -137,6 +137,9 @@ public class ClipSettings
     public bool AutoClip { get; set; } = true;
     /// <summary>After each match, a recap like Medal's: map, agent or champion, result, K/D/A, headshots, rank.</summary>
     public bool MatchRecaps { get; set; } = true;
+    /// <summary>VALORANT live lobby: when you load into a match, offer to show both teams' ranks (opt-in, see its risk).</summary>
+    public bool LiveLobby { get; set; }
+    public bool LiveLobbyRisksAccepted { get; set; }
     /// <summary>A random password the games' state integrations send, so only they can talk to Pulse's listener.</summary>
     public string GsiToken { get; set; } = "";
 

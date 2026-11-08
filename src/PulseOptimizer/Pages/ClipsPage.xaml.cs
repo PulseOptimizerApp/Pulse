@@ -408,6 +408,7 @@ public partial class ClipsPage : UserControl, IPage, IReleasable
         PopupSwitch.IsChecked = S.ShowSavedPopup;
         AutoClipSwitch.IsChecked = S.AutoClip;
         RecapSwitch.IsChecked = S.MatchRecaps;
+        LobbySwitch.IsChecked = S.LiveLobby && S.LiveLobbyRisksAccepted;
         OpenAfterSwitch.IsChecked = S.OpenClipsAfterClip;
         FolderText.Text = S.ClipsFolder;
         HotkeyBtn.Content = ClipsService.HotkeyText(S.HotkeyModifiers, S.HotkeyKey);
@@ -930,6 +931,22 @@ public partial class ClipsPage : UserControl, IPage, IReleasable
         _trackNames = await ClipLibrary.AudioTrackNames(vm.Clip.Path);
         BuildTrackToggles();
         _ = LoadParts(vm.Clip.Path);
+    }
+
+    /// <summary>The live lobby is opt-in: the risk is explained once before it turns on.</summary>
+    async void LobbySwitch_Click(object sender, RoutedEventArgs e)
+    {
+        if (LobbySwitch.IsChecked == true && !S.LiveLobbyRisksAccepted)
+        {
+            bool ok = await MainWindow.Instance.Confirm(Loc.T("Turn on the live lobby?"),
+                Loc.T("Riot treats ranks shown during a match as hidden information. Tracker apps that do this are widely used, but Riot has warned that apps showing hidden information can lead to bans, and some users of such apps have reported suspensions. Pulse lowers the risk by never revealing players who hid their name and by only reading data through the Riot Client's own login on your PC, but it can't promise Riot won't act on your account.\n\nTurn it on anyway?"),
+                Loc.T("Turn on"), Loc.T("Cancel"));
+            if (!ok) { LobbySwitch.IsChecked = false; return; }
+            S.LiveLobbyRisksAccepted = true;
+            TweakEngine.AddLog("clips", "VALORANT live lobby turned on (risk accepted)");
+        }
+        S.LiveLobby = LobbySwitch.IsChecked == true;
+        TweakEngine.Save();
     }
 
     async void Player_Opened(object sender, RoutedEventArgs e)

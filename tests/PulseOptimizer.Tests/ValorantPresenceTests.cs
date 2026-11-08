@@ -78,3 +78,31 @@ public class ValorantTimingTests
         Assert.Null(ValorantMatches.Align(kills, marks, T0));
     }
 }
+
+public class ValorantLobbyTests
+{
+    [Fact]
+    public void Reads_current_rank_peak_and_win_rate()
+    {
+        var json = """
+        {"QueueSkills":{"competitive":{"SeasonalInfoBySeasonID":{
+          "old":{"CompetitiveTier":21,"RankedRating":10,"NumberOfGames":40,"NumberOfWins":22,"WinsByTier":{"20":3,"21":5}},
+          "now":{"CompetitiveTier":16,"RankedRating":42,"NumberOfGames":20,"NumberOfWins":11,"WinsByTier":{"15":4,"16":7}}
+        }}}}
+        """;
+        var seasons = new List<(string, DateTime, bool, bool)>
+        {
+            ("old", new DateTime(2021, 6, 1), true, false),   // before Ascendant: tier 21 was Immortal 1 (now 24)
+            ("now", new DateTime(2026, 10, 1), true, true),
+        };
+        using var doc = System.Text.Json.JsonDocument.Parse(json);
+        var (tier, rr, peak, peakAct, win, games) = ValorantLobby.ReadMmr(doc.RootElement, seasons);
+        Assert.Equal(16, tier);
+        Assert.Equal(42, rr);
+        Assert.Equal(24, peak);
+        Assert.Equal("old", peakAct);
+        Assert.Equal(55, win);
+        Assert.Equal(20, games);
+        Assert.Equal("Immortal 1", ValorantMatches.RankName(peak));
+    }
+}

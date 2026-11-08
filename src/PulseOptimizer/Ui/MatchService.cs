@@ -37,6 +37,7 @@ public static class MatchService
         MatchEvents.Highlight += OnHighlight;
         MatchEvents.Finished += OnFinished;
         MatchEvents.Moments += list => MomentLog.Add(list);
+        ValorantMatches.InGame += () => { if (LobbyOn) LobbyOverlay.MatchFound(); };
         _watch = new System.Threading.Timer(_ => Watch(), null, 3000, 5000);
     }
 
@@ -49,6 +50,7 @@ public static class MatchService
     }
 
     static bool Wanted => S is { Enabled: true } && (S.AutoClip || S.MatchRecaps);
+    static bool LobbyOn => S is { LiveLobby: true, LiveLobbyRisksAccepted: true };
 
     /// <summary>Every 5 seconds: start or stop the game integrations.</summary>
     static void Watch()
@@ -58,7 +60,14 @@ public static class MatchService
             if (!Wanted)
             {
                 if (_leagueOn) { League.Stop(); _leagueOn = false; }
-                if (_valorantOn) { Valorant.Dispose(); _valorantOn = false; }
+                // The live lobby only needs VALORANT's match watcher.
+                if (LobbyOn)
+                {
+                    bool v = ValorantMatches.Running();
+                    if (v && !_valorantOn) { Valorant.Start(); _valorantOn = true; }
+                    else if (!v && _valorantOn) { Valorant.Stop(); _valorantOn = false; }
+                }
+                else if (_valorantOn) { Valorant.Dispose(); _valorantOn = false; }
                 return;
             }
             if (_gsi == null)
@@ -73,7 +82,7 @@ public static class MatchService
             if (league && !_leagueOn) { League.Start(); _leagueOn = true; }
             else if (!league && _leagueOn) { League.Stop(); _leagueOn = false; }
             if (S.MatchRecaps) TrackSession(ClipsService.Game);
-            if (S.MatchRecaps)
+            if (S.MatchRecaps || LobbyOn)
             {
                 bool val = ValorantMatches.Running();
                 if (val && !_valorantOn) { Valorant.Start(); _valorantOn = true; }
