@@ -48,6 +48,8 @@ def main():
     try:
         for a in get(f"{API}/agents?isPlayableCharacter=true")["data"]:
             k = key(a.get("displayName"))
+            if a.get("uuid") and a.get("displayName"):
+                meta.setdefault("agentIds", {})[a["uuid"].lower()] = a["displayName"]  # new agents get a name even before Pulse knows them
             icon = a.get("displayIcon") or a.get("displayIconSmall")
             if not k or not icon:
                 continue

@@ -95,6 +95,26 @@ public static class Tracker
     /// </summary>
     static readonly (string Id, double W)[] ScoreParts = { ("acs", 0.30), ("kast", 0.20), ("dd", 0.20), ("adr", 0.15), ("open", 0.10), ("trades", 0.05) };
 
+    /// <summary>
+    /// Typical spreads for one player in one match across all ranks, used until Pulse has seen enough players of its
+    /// own (about 200 per number). Pulse's own players replace these as soon as there are enough of them.
+    /// </summary>
+    static readonly Dictionary<string, (double Mean, double Sd)> Typical = new()
+    {
+        ["acs"] = (200, 65), ["kast"] = (70, 12), ["dd"] = (0, 45), ["adr"] = (135, 40), ["open"] = (0, 12), ["trades"] = (12, 7),
+    };
+
+    /// <summary>How spread out the combined value is when the ingredients are typical (they move together, so less than 1).</summary>
+    const double TypicalCompositeSd = 0.83;
+
+    static double NormalCdf(double z)
+    {
+        // Abramowitz–Stegun 7.1.26, accurate to about 1e-7.
+        double t = 1 / (1 + 0.3275911 * Math.Abs(z) / Math.Sqrt(2));
+        double erf = 1 - t * (0.254829592 + t * (-0.284496736 + t * (1.421413741 + t * (-1.453152027 + t * 1.061405429)))) * Math.Exp(-z * z / 2);
+        return z >= 0 ? (1 + erf) / 2 : (1 - erf) / 2;
+    }
+
     static double Combine(Dictionary<string, double> v, Dictionary<string, (double Mean, double Sd)> spread)
     {
         double sum = 0, w = 0;
@@ -114,9 +134,10 @@ public static class Tracker
     public static double PulseScore(Dictionary<string, double> values)
     {
         var s = Build(VStore.All);
-        if (s.Composite.Count < 100) return double.NaN;
         var c = Combine(values, s.Spread);
         if (double.IsNaN(c)) return double.NaN;
+        // Few players seen so far: place the value on the typical curve instead of Pulse's own list.
+        if (s.Composite.Count < 300) return Math.Clamp(Math.Round(1000 * NormalCdf(c / TypicalCompositeSd)), 1, 999);
         int lo = 0, hi = s.Composite.Count;
         while (lo < hi) { int mid = (lo + hi) / 2; if (s.Composite[mid] < c) lo = mid + 1; else hi = mid; }
         return Math.Clamp(Math.Round(1000.0 * lo / s.Composite.Count), 1, 999);
@@ -186,7 +207,8 @@ public static class Tracker
         foreach (var l in s.All.Values) l.Sort();
         foreach (var d in s.ByTier.Values) foreach (var l in d.Values) l.Sort();
         foreach (var (id, _) in ScoreParts)
-            if (s.All.TryGetValue(id, out var l) && l.Count >= 20)
+            if (!s.All.TryGetValue(id, out var l) || l.Count < 200) s.Spread[id] = Typical[id];
+            else
             {
                 double mean = l.Average();
                 s.Spread[id] = (mean, Math.Sqrt(l.Sum(x => (x - mean) * (x - mean)) / l.Count));

@@ -15,6 +15,8 @@ public sealed class VPlayer
     public string Id { get; set; } = "";
     public string Team { get; set; } = "";
     public string Agent { get; set; } = "";
+    /// <summary>Riot's id for the agent, so a name can be found later for agents newer than Pulse.</summary>
+    public string AgentId { get; set; } = "";
     public int Kills { get; set; }
     public int Deaths { get; set; }
     public int Assists { get; set; }
@@ -163,7 +165,7 @@ public sealed class VMatch
                     casts = Slots.Select(k => ac.Int(k)).ToArray();
                 m.Players.Add(new VPlayer
                 {
-                    Id = p.Str("subject"), Team = p.Str("teamId"),
+                    Id = p.Str("subject"), Team = p.Str("teamId"), AgentId = charId,
                     Agent = agents != null && agents.TryGetValue(charId, out var a) && !string.IsNullOrEmpty(a) ? a : ValorantMatches.AgentName(charId),
                     Kills = p.Int("stats", "kills"), Deaths = p.Int("stats", "deaths"), Assists = p.Int("stats", "assists"),
                     Score = p.Int("stats", "score"), Rounds = p.Int("stats", "roundsPlayed"), Tier = p.Int("competitiveTier"), Casts = casts,
@@ -272,6 +274,9 @@ public static class VStore
 
     public static bool Has(string id) => File.Exists(Path.Combine(Dir, id + ".json.gz"));
 
+    /// <summary>Saved, but by an older Pulse that couldn't name every agent (worth downloading again).</summary>
+    public static bool Incomplete(string id) => All.FirstOrDefault(m => m.Id == id) is { } m && m.Players.Any(p => p.Agent.Length == 0);
+
     public static void Save(VMatch m)
     {
         if (m == null || string.IsNullOrEmpty(m.Id)) return;
@@ -310,7 +315,12 @@ public static class VStore
                                 {
                                     using var fs = File.OpenRead(f);
                                     using var gz = new GZipStream(fs, CompressionMode.Decompress);
-                                    if (JsonSerializer.Deserialize<VMatch>(gz) is { } m) _cache.Add(m);
+                                    if (JsonSerializer.Deserialize<VMatch>(gz) is { } m)
+                                    {
+                                        // Agents newer than the Pulse that saved the match: name them now.
+                                        foreach (var p in m.Players.Where(p => p.Agent.Length == 0 && p.AgentId.Length > 0)) p.Agent = ValorantMatches.AgentName(p.AgentId);
+                                        _cache.Add(m);
+                                    }
                                 }
                                 catch { }
                     }

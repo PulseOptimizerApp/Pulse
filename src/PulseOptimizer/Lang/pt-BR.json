@@ -4301,5 +4301,8 @@
  "Your last {0} games had only {1} Competitive, Unrated, Premier or Swiftplay matches, and Pulse has all of them. Deathmatch and Team Deathmatch don't count: play a few 5v5 matches and they'll show up here.": "Seus últimos {0} jogos tinham só {1} partidas competitivas, sem classificação, premier ou swiftplay, e o Pulse já tem todas. Mata-mata e Mata-mata em equipe não contam: jogue algumas partidas 5v5 e elas vão aparecer aqui.",
  "Shows the ranks of your enemies and teammates once you have a match saved where most players are ranked.": "Mostra os elos dos seus inimigos e aliados quando você tiver uma partida salva em que a maioria dos jogadores tem elo.",
  "Needs about 8 games per agent across your saved matches. You have {0} matches so far.": "Precisa de cerca de 8 jogos por agente nas suas partidas salvas. Por enquanto você tem {0}.",
- "Pulse has {0} of your matches.": "O Pulse tem {0} das suas partidas."
+ "Pulse has {0} of your matches.": "O Pulse tem {0} das suas partidas.",
+ "E elimination · D spike defused · X spike detonated · T time ran out": "E eliminação · D spike desarmada · X spike detonada · T o tempo acabou",
+ "Unknown agent": "Agente desconhecido",
+ "Players show as their agent. Turn on player search to see their Riot IDs.": "Os jogadores aparecem como o agente. Ative a pesquisa de jogadores para ver os Riot IDs."
 }

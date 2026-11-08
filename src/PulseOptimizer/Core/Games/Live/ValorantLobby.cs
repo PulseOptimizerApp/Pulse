@@ -271,6 +271,9 @@ public static class ValorantLobby
     }
 
     /// <summary>Agent names and the list of acts (with start dates) from Riot's content service.</summary>
+    /// <summary>An agent's name from the Riot Client's content list, when it has been read this session.</summary>
+    internal static string ContentAgent(string id) => _agents != null && _agents.TryGetValue(id, out var a) && !string.IsNullOrEmpty(a) ? a : null;
+
     internal static async Task LoadContent(ValorantMatches.Session s)
     {
         if (_agents != null && _seasons != null) return;

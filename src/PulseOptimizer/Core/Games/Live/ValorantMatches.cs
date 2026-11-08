@@ -298,7 +298,7 @@ public sealed class ValorantMatches : IDisposable
                 {
                     seen++;
                     var id = x.Str("MatchID");
-                    if (id.Length > 0 && !Pulse.Core.Games.Valorant.VStore.Has(id) && !ids.Contains(id)) ids.Add(id);
+                    if (id.Length > 0 && (!Pulse.Core.Games.Valorant.VStore.Has(id) || Pulse.Core.Games.Valorant.VStore.Incomplete(id)) && !ids.Contains(id)) ids.Add(id);
                 }
             }
             if (got < 20) break; // that was the last page
@@ -639,5 +639,12 @@ public sealed class ValorantMatches : IDisposable
         ["df1cb487-4902-002e-5c17-d28e83e78588"] = "Waylay",
     };
 
-    public static string AgentName(string id) => Agents.TryGetValue(id ?? "", out var n) ? n : "";
+    /// <summary>An agent's name by id: Pulse's own list, then the game content embedded at build time, then the Riot Client's.</summary>
+    public static string AgentName(string id)
+    {
+        if (string.IsNullOrEmpty(id)) return "";
+        if (Agents.TryGetValue(id, out var n)) return n;
+        try { if (Pulse.Core.Games.Valorant.MapGeo.AgentById(id) is { Length: > 0 } m) return m; } catch { }
+        return ValorantLobby.ContentAgent(id) ?? "";
+    }
 }
