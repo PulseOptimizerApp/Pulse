@@ -77,6 +77,8 @@ public class AppState
     public Pulse.Core.Crosshair.CrosshairSettings Crosshair { get; set; } = new();
     /// <summary>Steps ticked off in the PC guide's step-by-step guides, by guide id.</summary>
     public Dictionary<string, List<string>> GuideDone { get; set; } = new();
+    /// <summary>The GPU tuning page's settings (NVIDIA cards).</summary>
+    public Pulse.Core.Gpu.GpuTuneSettings GpuTune { get; set; } = new();
     /// <summary>The Devices page: backups of key remaps and key repeat.</summary>
     public Pulse.Core.Devices.DeviceSettings Devices { get; set; } = new();
 }

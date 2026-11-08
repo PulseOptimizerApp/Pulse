@@ -99,6 +99,11 @@ public static class GameSessionService
                 if (S.OverlayGpuTemp || S.OverlayVram) _gpuSensors ??= new GpuSensors();
                 if (S.OverlayGpuTemp) reading.GpuTempC = _gpuSensors.TemperatureC();
                 if (S.OverlayVram) reading.VramBytes = _gpuSensors.VramBytes();
+                if ((S.OverlayGpuClock || S.OverlayGpuPower) && Core.Gpu.Nvml.Available && Core.Gpu.GpuTuning.Read() is { } nv)
+                {
+                    if (S.OverlayGpuClock) reading.GpuClockMhz = nv.CoreMhz;
+                    if (S.OverlayGpuPower) reading.GpuPowerW = nv.PowerW;
+                }
                 if (S.OverlayRam) { var m = Native.Memory(); reading.RamUsed = m.ullTotalPhys - m.ullAvailPhys; reading.RamTotal = m.ullTotalPhys; }
             });
         }
@@ -153,7 +158,7 @@ sealed class OverlayReading
 {
     public double Fps, Low1, FrameMs;
     public double[] Graph;
-    public double? Cpu, Gpu, GpuTempC, VramBytes;
+    public double? Cpu, Gpu, GpuTempC, VramBytes, GpuClockMhz, GpuPowerW;
     public double RamUsed, RamTotal;
     public DateTime Clock;
 }
@@ -239,7 +244,7 @@ public sealed class OverlayView : FrameworkElement
         var rnd = new Random(3);
         Set(new OverlayReading
         {
-            Fps = 238, Low1 = 171, FrameMs = 4.2, Cpu = 0.41, Gpu = 0.93, GpuTempC = 67, VramBytes = 6.1e9, RamUsed = 11.4e9, RamTotal = 32e9, Clock = DateTime.Now,
+            Fps = 238, Low1 = 171, FrameMs = 4.2, Cpu = 0.41, Gpu = 0.93, GpuTempC = 67, GpuClockMhz = 2745, GpuPowerW = 186, VramBytes = 6.1e9, RamUsed = 11.4e9, RamTotal = 32e9, Clock = DateTime.Now,
             Graph = Enumerable.Range(0, 300).Select(i => 4.2 + rnd.NextDouble() * 0.6 + (i % 97 == 0 ? 6 : 0)).ToArray(),
         });
     }
@@ -254,6 +259,8 @@ public sealed class OverlayView : FrameworkElement
         if (s.OverlayCpu && _r.Cpu is double c) rows.Add(("CPU", Math.Round(c * 100) + "%", c > 0.9 ? Warm : Text));
         if (s.OverlayGpu && _r.Gpu is double g) rows.Add(("GPU", Math.Round(g * 100) + "%", Text));
         if (s.OverlayGpuTemp && _r.GpuTempC is double t) rows.Add(("GPU", Math.Round(t) + "°C", t >= 85 ? Hot : t >= 78 ? Warm : Text));
+        if (s.OverlayGpuClock && _r.GpuClockMhz is double mhz) rows.Add(("GPU", Math.Round(mhz) + " MHz", Text));
+        if (s.OverlayGpuPower && _r.GpuPowerW is double w) rows.Add(("GPU", Math.Round(w) + " W", Text));
         if (s.OverlayVram && _r.VramBytes is double v) rows.Add(("VRAM", (v / 1073741824).ToString("0.0", ci) + " GB", Text));
         if (s.OverlayRam && _r.RamTotal > 0) rows.Add(("RAM", (_r.RamUsed / 1073741824).ToString("0.0", ci) + " GB", _r.RamUsed / _r.RamTotal > 0.9 ? Warm : Text));
         if (s.OverlayClock) rows.Add(("", _r.Clock.ToString("t", ci), Dim));

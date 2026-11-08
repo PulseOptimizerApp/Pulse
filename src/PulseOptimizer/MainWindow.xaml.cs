@@ -176,6 +176,7 @@ public partial class MainWindow : Window
                 "reaction" => new ReactionPage(),
                 "macros" => new MacrosPage(),
                 "guide" => new GuidePage(),
+                "gpu" => new GpuPage(),
                 "crosshair" => new CrosshairPage(),
                 "games" => new GamesPage(),
                 "cleanup" => new DeclutterPage(),

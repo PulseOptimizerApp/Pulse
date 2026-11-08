@@ -91,6 +91,8 @@ public partial class App : Application
             Ui.MatchService.Init();
             Ui.GameSessionService.Init();
             Ui.CrosshairService.Init();
+            _ = Task.Run(Core.Gpu.GpuTuning.Startup);
+            Core.Gpu.GpuTuning.SafetyReset += why => Current?.Dispatcher.BeginInvoke(() => MainWindow.Instance?.Toast(Ui.Loc.T(why), ToastKind.Warning));
             try { Core.Audio.OldAudioCleanup.Run(); } catch { } // the Mic studio and Headphones were removed: undo their Equalizer APO settings
         }
 

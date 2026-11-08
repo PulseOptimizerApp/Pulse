@@ -590,6 +590,11 @@ public partial class GamesPage : UserControl, IPage
         Item("CPU load", () => Session.OverlayCpu, v => Session.OverlayCpu = v);
         Item("GPU load", () => Session.OverlayGpu, v => Session.OverlayGpu = v);
         Item("GPU temperature", () => Session.OverlayGpuTemp, v => Session.OverlayGpuTemp = v);
+        if (Core.Gpu.Nvml.Available)
+        {
+            Item("GPU clock", () => Session.OverlayGpuClock, v => Session.OverlayGpuClock = v);
+            Item("GPU power", () => Session.OverlayGpuPower, v => Session.OverlayGpuPower = v);
+        }
         Item("Video memory", () => Session.OverlayVram, v => Session.OverlayVram = v);
         Item("System memory", () => Session.OverlayRam, v => Session.OverlayRam = v);
         Item("Clock", () => Session.OverlayClock, v => Session.OverlayClock = v);

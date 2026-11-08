@@ -22,6 +22,9 @@ public class GameSessionSettings
     public bool OverlayVram { get; set; }
     public bool OverlayRam { get; set; }
     public bool OverlayClock { get; set; }
+    /// <summary>GPU core clock and power draw (NVIDIA cards, from the GPU tuning page's readings).</summary>
+    public bool OverlayGpuClock { get; set; }
+    public bool OverlayGpuPower { get; set; }
     /// <summary>"row" (one line across) or "stack" (one line per reading).</summary>
     public string OverlayLayout { get; set; } = "stack";
     /// <summary>0.8–1.6.</summary>
