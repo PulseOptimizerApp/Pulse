@@ -74,7 +74,9 @@ public static class Updater
         var exe = Environment.ProcessPath;
         if (exe == null) return "Couldn't find Pulse's own file.";
         var dir = Path.GetDirectoryName(exe)!;
-        var staged = Path.Combine(dir, "Pulse.update.exe");
+        // A Pulse started from a leftover download (a swap that couldn't replace Pulse.exe) updates Pulse.exe, not itself.
+        var target = InstallTarget(exe);
+        string staged = null;
         try
         {
             using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(10) };
@@ -92,7 +94,8 @@ public static class Updater
                 resp.EnsureSuccessStatusCode();
                 long total = resp.Content.Headers.ContentLength ?? 0, got = 0;
                 await using var src = await resp.Content.ReadAsStreamAsync(ct);
-                await using var dst = File.Create(staged);
+                // The usual name can be held by a leftover Pulse or a virus scan: take the next free one instead of failing.
+                await using var dst = CreateStaged(dir, exe, out staged);
                 var buf = new byte[1 << 16];
                 int n;
                 while ((n = await src.ReadAsync(buf, ct)) > 0)
@@ -111,8 +114,8 @@ public static class Updater
             // Pulse was still closing, the old version simply started again.
             // Remember the verified download: if the swap still doesn't happen (something held the file), the next start
             // finishes it instead of asking the user to download again.
-            File.WriteAllText(MarkerFor(dir), $"{version}\n{expected}\n0");
-            StartSwap(staged, exe);
+            File.WriteAllText(MarkerFor(dir), $"{version}\n{expected}\n0\n{Path.GetFileName(staged)}");
+            StartSwap(staged, target);
             TweakEngine.AddLog("update", $"Updating Pulse to {version}");
             return null;
         }
@@ -126,6 +129,36 @@ public static class Updater
 
     /// <summary>The waiting download: Pulse.update.exe, or PulseOptimizer.update.exe from versions before the rename.</summary>
     static string StagedIn(string dir) => new[] { "Pulse.update.exe", "PulseOptimizer.update.exe" }.Select(n => Path.Combine(dir, n)).FirstOrDefault(File.Exists) ?? Path.Combine(dir, "Pulse.update.exe");
+
+    /// <summary>Names a download can have: Pulse.update.exe, then Pulse.update-2.exe ... -6 when one is held.</summary>
+    internal static IEnumerable<string> StagedNames() =>
+        new[] { "Pulse.update.exe" }.Concat(Enumerable.Range(2, 5).Select(i => $"Pulse.update-{i}.exe"));
+
+    /// <summary>True for a file name the updater downloads to (this one or an older version's).</summary>
+    internal static bool IsStagedName(string fileName) =>
+        System.Text.RegularExpressions.Regex.IsMatch(fileName ?? "", @"^(Pulse|PulseOptimizer)\.update(-\d+)?\.exe$", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+    /// <summary>The file an update replaces: this exe, or Pulse.exe beside it when this run is a leftover download.</summary>
+    internal static string InstallTarget(string exe)
+    {
+        if (!IsStagedName(Path.GetFileName(exe))) return exe;
+        var dir = Path.GetDirectoryName(exe)!;
+        return new[] { "Pulse.exe", "PulseOptimizer.exe" }.Select(n => Path.Combine(dir, n)).FirstOrDefault(File.Exists) ?? Path.Combine(dir, "Pulse.exe");
+    }
+
+    /// <summary>Opens the first download name that isn't this exe and isn't held by anything.</summary>
+    static FileStream CreateStaged(string dir, string exe, out string path)
+    {
+        IOException last = null;
+        foreach (var name in StagedNames())
+        {
+            var p = Path.Combine(dir, name);
+            if (string.Equals(p, exe, StringComparison.OrdinalIgnoreCase)) continue;
+            try { path = p; return new FileStream(p, FileMode.Create, FileAccess.ReadWrite, FileShare.Read); }
+            catch (IOException ex) { last = ex; }
+        }
+        throw new IOException("Every download name next to Pulse is in use. Restart your PC and try again.", last);
+    }
 
     /// <summary>Set at start-up when this run is the version an update just installed.</summary>
     public static string JustUpdatedTo { get; private set; }
@@ -152,14 +185,14 @@ public static class Updater
                 File.WriteAllText(marker, ""); // done
                 return false;
             }
-            var staged = StagedIn(dir);
+            var staged = parts.Length > 3 && IsStagedName(parts[3]) ? Path.Combine(dir, parts[3]) : StagedIn(dir);
             int tries = int.TryParse(parts[2], out var t) ? t : 0;
             if (tries >= 2 || !File.Exists(staged)) { File.WriteAllText(marker, ""); return false; }
             string actual;
             using (var f = File.OpenRead(staged)) actual = Convert.ToHexString(SHA256.HashData(f)).ToLowerInvariant();
             if (actual != parts[1]) { File.WriteAllText(marker, ""); return false; }
-            File.WriteAllText(marker, $"{parts[0]}\n{parts[1]}\n{tries + 1}");
-            StartSwap(staged, exe);
+            File.WriteAllText(marker, $"{parts[0]}\n{parts[1]}\n{tries + 1}\n{Path.GetFileName(staged)}");
+            StartSwap(staged, InstallTarget(exe));
             TweakEngine.AddLog("update", $"Finishing the update to {parts[0]}");
             return true;
         }
@@ -217,11 +250,15 @@ public static class Updater
         {
             var exe = Environment.ProcessPath;
             if (exe == null) return;
-            var staged = StagedIn(Path.GetDirectoryName(exe)!);
-            if (string.Equals(staged, exe, StringComparison.OrdinalIgnoreCase) || !File.Exists(staged)) return;
-            var marker = MarkerFor(Path.GetDirectoryName(exe)!);
+            var dir = Path.GetDirectoryName(exe)!;
+            var marker = MarkerFor(dir);
             if (File.Exists(marker) && File.ReadAllText(marker).Trim().Length > 0) return; // still waiting to be swapped in
-            File.Move(staged, Path.Combine(Path.GetTempPath(), $"PulseOptimizer.update-{Guid.NewGuid():N}.exe"), true);
+            foreach (var staged in Directory.EnumerateFiles(dir, "*.update*.exe").Where(f => IsStagedName(Path.GetFileName(f))).ToList())
+            {
+                if (string.Equals(staged, exe, StringComparison.OrdinalIgnoreCase)) continue;
+                try { File.Move(staged, Path.Combine(Path.GetTempPath(), $"PulseOptimizer.update-{Guid.NewGuid():N}.exe"), true); }
+                catch { } // still held by something: try again next start
+            }
         }
         catch { }
     }

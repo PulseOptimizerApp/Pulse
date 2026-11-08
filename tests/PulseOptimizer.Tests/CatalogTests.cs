@@ -96,6 +96,31 @@ public class SnippingToolSafetyTests
 
 public class UpdateResumeTests
 {
+    [Theory]
+    [InlineData("Pulse.update.exe", true)]
+    [InlineData("Pulse.update-3.exe", true)]
+    [InlineData("PulseOptimizer.update.exe", true)]
+    [InlineData("Pulse.exe", false)]
+    [InlineData("PulseOptimizer.exe", false)]
+    public void Download_names_are_recognised(string name, bool staged) => Assert.Equal(staged, Pulse.Core.Updater.IsStagedName(name));
+
+    [Fact]
+    public void A_held_download_name_has_spares() =>
+        Assert.True(Pulse.Core.Updater.StagedNames().Distinct().Count() >= 4);
+
+    [Fact]
+    public void A_run_from_a_leftover_download_updates_Pulse_exe()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "pulse-upd-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        try
+        {
+            Assert.Equal(Path.Combine(dir, "Pulse.exe"), Pulse.Core.Updater.InstallTarget(Path.Combine(dir, "Pulse.update.exe")));
+            Assert.Equal(Path.Combine(dir, "Pulse.exe"), Pulse.Core.Updater.InstallTarget(Path.Combine(dir, "Pulse.exe")));
+        }
+        finally { Directory.Delete(dir, true); }
+    }
+
     [Fact]
     public void Nothing_waiting_means_a_normal_start() => Assert.False(Pulse.Core.Updater.ResumeSwap());
 }
