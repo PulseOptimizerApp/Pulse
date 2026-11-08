@@ -323,7 +323,9 @@ public static class ClipLibrary
     {
         if (s.StorageLimitGb <= 0) return 0;
         long limit = s.StorageLimitGb * 1024L * 1024 * 1024;
-        var clips = List(s);
+        // Clips brought in from other apps don't count and are never removed for space (most take none: hard links).
+        var imported = new HashSet<string>(s.ImportedNames ?? new(), StringComparer.OrdinalIgnoreCase);
+        var clips = List(s).Where(c => !imported.Contains(System.IO.Path.GetFileName(c.Path))).ToList();
         long total = clips.Sum(c => c.Size);
         int removed = 0;
         foreach (var c in clips.Where(c => !c.Favorite).OrderBy(c => c.Created))

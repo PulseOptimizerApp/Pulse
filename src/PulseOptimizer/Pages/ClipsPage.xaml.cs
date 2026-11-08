@@ -1346,6 +1346,61 @@ public partial class ClipsPage : UserControl, IPage, IReleasable
         }
     }
 
+    /// <summary>Bring clips in from Medal or another clipping app (or any folder).</summary>
+    async void Import_Click(object sender, RoutedEventArgs e)
+    {
+        ImportBtn.IsEnabled = false;
+        List<ImportSource> sources;
+        try { sources = await Task.Run(() => ClipImport.FindSources(S)); }
+        finally { ImportBtn.IsEnabled = true; }
+        var menu = new ContextMenu { PlacementTarget = ImportBtn, Placement = System.Windows.Controls.Primitives.PlacementMode.Top };
+        foreach (var src in sources)
+        {
+            var mi = new MenuItem { Header = Loc.F("{0}: {1} clips", src.App, src.Count), ToolTip = src.Folder };
+            mi.Click += async (_, _) => await ImportFrom(src.Folder, src.App);
+            menu.Items.Add(mi);
+        }
+        if (sources.Count == 0) menu.Items.Add(new MenuItem { Header = Loc.T("No Medal, NVIDIA or Game Bar clips found"), IsEnabled = false });
+        menu.Items.Add(new Separator());
+        var pick = new MenuItem { Header = Loc.T("Choose a folder…") };
+        pick.Click += async (_, _) =>
+        {
+            var dlg = new Microsoft.Win32.OpenFolderDialog { Title = Loc.T("Choose a folder with clips") };
+            if (dlg.ShowDialog() == true) await ImportFrom(dlg.FolderName, Path.GetFileName(dlg.FolderName.TrimEnd('\\')));
+        };
+        menu.Items.Add(pick);
+        menu.IsOpen = true;
+    }
+
+    async Task ImportFrom(string folder, string app)
+    {
+        var clips = await Task.Run(() => ClipImport.Scan(folder, app, S));
+        if (clips.Count == 0) { MainWindow.Instance.Toast(Loc.T("Every clip there is already in Pulse."), ToastKind.Info); return; }
+        var size = Format.Bytes(clips.Sum(c => c.Size));
+        if (!await MainWindow.Instance.Confirm(Loc.F("Import {0} clips from {1}?", clips.Count, app),
+                Loc.F("{0} clips ({1}) from {2}. On the same drive they're added without using extra space; the originals stay where they are, untouched.", clips.Count, size, folder),
+                Loc.T("Import"), Loc.T("Cancel"))) return;
+        var steps = new List<ProgressStep> { new("Bringing in your clips") };
+        MainWindow.Instance.ShowSteps("Importing clips", "", steps, "");
+        steps[0].Start();
+        try
+        {
+            var progress = new Progress<double>(f => steps[0].Fraction = f);
+            var (added, linked, copied) = await Task.Run(() => ClipImport.Import(clips, S, progress));
+            TweakEngine.Save();
+            steps[0].Finish(Loc.F("{0} clips", added));
+            await MainWindow.Instance.FinishSteps("Clips imported", linked == added
+                ? Loc.F("{0} clips from {1} are in your library, using no extra space.", added, app)
+                : Loc.F("{0} clips from {1} are in your library ({2} copied from another drive).", added, app, Format.Bytes(copied)));
+            LoadLibrary();
+        }
+        catch (Exception ex)
+        {
+            steps[0].Skip(Loc.T("Didn't finish"));
+            await MainWindow.Instance.FinishSteps("The import didn't finish", ex.Message, ok: false);
+        }
+    }
+
     /// <summary>Medal-style extras: a vertical copy for TikTok / Shorts, slow motion, a GIF, or the current frame as a picture.</summary>
     void ExportMore_Click(object sender, RoutedEventArgs e)
     {

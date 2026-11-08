@@ -129,6 +129,10 @@ public class ClipSettings
     public List<string> Favorites { get; set; } = new();
     /// <summary>Clip file name → its title ("3K", "Penta kill"), for clips Pulse saved on its own.</summary>
     public Dictionary<string, string> Titles { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    /// <summary>Clips already brought in from other apps ("path|size"), so they aren't added twice.</summary>
+    public List<string> ImportedSources { get; set; } = new();
+    /// <summary>File names in the library that came from other apps: the storage limit leaves them alone.</summary>
+    public List<string> ImportedNames { get; set; } = new();
     /// <summary>Clip big plays on their own: CS2 3K/4K/ACE, League triples to pentas and aces, Dota 2 triples and up.</summary>
     public bool AutoClip { get; set; } = true;
     /// <summary>After each match, a recap like Medal's: map, agent or champion, result, K/D/A, headshots, rank.</summary>

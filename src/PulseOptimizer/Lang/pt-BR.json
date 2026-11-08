@@ -3263,5 +3263,20 @@
  "Saved {0} from Pulse {1}: {2} crosshairs, {3} sounds, {4} macros. They replace the settings here; this PC's tweaks and undo history stay as they are. Pulse restarts to finish.": "Salvo em {0} pelo Pulse {1}: {2} miras, {3} sons, {4} macros. Elas substituem as configurações daqui; os ajustes e o histórico de desfazer deste PC continuam como estão. O Pulse reinicia para terminar.",
  "Restore and restart": "Restaurar e reiniciar",
  "Restored. Close and reopen Pulse to finish.": "Restaurado. Feche e abra o Pulse de novo para terminar.",
- "Settings restored from a backup": "Configurações restauradas de um backup"
+ "Settings restored from a backup": "Configurações restauradas de um backup",
+ "Import from Medal": "Importar do Medal",
+ "Bring in clips from Medal, NVIDIA, Xbox Game Bar, Outplayed or any folder": "Traga clipes do Medal, NVIDIA, Xbox Game Bar, Outplayed ou qualquer pasta",
+ "{0}: {1} clips": "{0}: {1} clipes",
+ "No Medal, NVIDIA or Game Bar clips found": "Nenhum clipe do Medal, NVIDIA ou Game Bar encontrado",
+ "Choose a folder…": "Escolher uma pasta…",
+ "Choose a folder with clips": "Escolha uma pasta com clipes",
+ "Every clip there is already in Pulse.": "Todos os clipes de lá já estão no Pulse.",
+ "Import {0} clips from {1}?": "Importar {0} clipes do {1}?",
+ "{0} clips ({1}) from {2}. On the same drive they're added without using extra space; the originals stay where they are, untouched.": "{0} clipes ({1}) de {2}. No mesmo disco eles entram sem usar espaço extra; os originais ficam onde estão, intactos.",
+ "Bringing in your clips": "Trazendo seus clipes",
+ "Importing clips": "Importando clipes",
+ "Clips imported": "Clipes importados",
+ "{0} clips from {1} are in your library, using no extra space.": "{0} clipes do {1} estão na sua biblioteca, sem usar espaço extra.",
+ "{0} clips from {1} are in your library ({2} copied from another drive).": "{0} clipes do {1} estão na sua biblioteca ({2} copiados de outro disco).",
+ "The import didn't finish": "A importação não terminou"
 }

@@ -3263,5 +3263,20 @@
  "Saved {0} from Pulse {1}: {2} crosshairs, {3} sounds, {4} macros. They replace the settings here; this PC's tweaks and undo history stay as they are. Pulse restarts to finish.": "Guardado el {0} desde Pulse {1}: {2} miras, {3} sonidos, {4} macros. Reemplazan los ajustes de aquí; los ajustes del sistema y el historial para deshacer de este PC se quedan igual. Pulse se reinicia para terminar.",
  "Restore and restart": "Restaurar y reiniciar",
  "Restored. Close and reopen Pulse to finish.": "Restaurado. Cierra y vuelve a abrir Pulse para terminar.",
- "Settings restored from a backup": "Ajustes restaurados desde una copia"
+ "Settings restored from a backup": "Ajustes restaurados desde una copia",
+ "Import from Medal": "Importar de Medal",
+ "Bring in clips from Medal, NVIDIA, Xbox Game Bar, Outplayed or any folder": "Trae clips de Medal, NVIDIA, Xbox Game Bar, Outplayed o cualquier carpeta",
+ "{0}: {1} clips": "{0}: {1} clips",
+ "No Medal, NVIDIA or Game Bar clips found": "No se encontraron clips de Medal, NVIDIA ni Game Bar",
+ "Choose a folder…": "Elegir una carpeta…",
+ "Choose a folder with clips": "Elige una carpeta con clips",
+ "Every clip there is already in Pulse.": "Todos los clips de ahí ya están en Pulse.",
+ "Import {0} clips from {1}?": "¿Importar {0} clips de {1}?",
+ "{0} clips ({1}) from {2}. On the same drive they're added without using extra space; the originals stay where they are, untouched.": "{0} clips ({1}) de {2}. En la misma unidad se añaden sin usar espacio extra; los originales se quedan donde están, sin tocar.",
+ "Bringing in your clips": "Trayendo tus clips",
+ "Importing clips": "Importando clips",
+ "Clips imported": "Clips importados",
+ "{0} clips from {1} are in your library, using no extra space.": "{0} clips de {1} están en tu biblioteca, sin usar espacio extra.",
+ "{0} clips from {1} are in your library ({2} copied from another drive).": "{0} clips de {1} están en tu biblioteca ({2} copiados de otra unidad).",
+ "The import didn't finish": "La importación no terminó"
 }

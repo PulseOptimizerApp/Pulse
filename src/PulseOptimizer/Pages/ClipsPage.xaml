@@ -63,6 +63,13 @@
                 BorderThickness="1" CornerRadius="12" Padding="10,14,10,12">
             <DockPanel>
                 <StackPanel DockPanel.Dock="Bottom" Margin="8,10,8,0">
+                    <Button x:Name="ImportBtn" Style="{StaticResource GhostButton}" HorizontalAlignment="Stretch" Margin="-4,0,-4,12" Click="Import_Click"
+                            ToolTip="Bring in clips from Medal, NVIDIA, Xbox Game Bar, Outplayed or any folder">
+                        <StackPanel Orientation="Horizontal">
+                            <ui:LineIcon Kind="folder" Width="15" Height="15"/>
+                            <TextBlock Text="Import from Medal" Margin="8,0,0,0"/>
+                        </StackPanel>
+                    </Button>
                     <Border Height="1" Background="{StaticResource BorderBrush}" Margin="-8,0,-8,12"/>
                     <Grid>
                         <TextBlock Text="STORAGE" FontSize="10.5" FontWeight="Bold" Foreground="{StaticResource TextFaintBrush}"/>
