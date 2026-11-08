@@ -7,6 +7,7 @@ using Pulse.Core;
 using Pulse.Core.Games.Live;
 using Pulse.Core.Games.Valorant;
 using Pulse.Ui;
+using Finding = Pulse.Core.Games.Valorant.Finding;
 
 namespace Pulse.Pages;
 
