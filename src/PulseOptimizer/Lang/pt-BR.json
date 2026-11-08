@@ -3519,5 +3519,11 @@
  "Your graphics driver reset while the GPU tune was on, so the last change went too far. Pulse put the card back to stock and won't apply that tune at startup. Back off one step and test again.": "Seu driver de vídeo reiniciou com o ajuste da GPU ligado, então a última mudança passou do ponto. O Pulse voltou a placa ao padrão e não vai aplicar esse ajuste ao iniciar. Volte um passo e teste de novo.",
  "Windows didn't shut down normally while your GPU tune was on, so Pulse didn't apply it this time. If the PC crashed, that tune is probably too far.": "O Windows não desligou normalmente com seu ajuste da GPU ligado, então o Pulse não aplicou desta vez. Se o PC travou, esse ajuste provavelmente passou do ponto.",
  "Your graphics card changed, so Pulse didn't apply the tune made for the old one.": "Sua placa de vídeo mudou, então o Pulse não aplicou o ajuste feito para a antiga.",
- "Total clips": "Total de clipes"
+ "Total clips": "Total de clipes",
+ "Match recap": "Resumo da partida",
+ "Headshots": "Tiros na cabeça",
+ "Best clip": "Melhor clipe",
+ "1 clip": "1 clipe",
+ "No clips this match": "Nenhum clipe nesta partida",
+ "Competitive": "Competitivo"
 }
