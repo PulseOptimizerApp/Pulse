@@ -174,6 +174,10 @@ public static class ValorantLobby
         var s = await ValorantMatches.Login();
         if (s == null || vm == null) return null;
         await LoadContent(s);
+        // Riot IDs: from the match record when it had them, else from Riot's name service (the match is over).
+        var names = vm.Names != null ? new Dictionary<string, string>(vm.Names) : new Dictionary<string, string>();
+        if (vm.Players.Any(p => !names.ContainsKey(p.Id)))
+            try { foreach (var kv in await Names(s, vm.Players.Select(p => p.Id).ToList())) if (!string.IsNullOrEmpty(kv.Value)) names.TryAdd(kv.Key, kv.Value); } catch { }
         var list = new List<LobbyPlayer>();
         foreach (var p in vm.Players)
         {
@@ -182,8 +186,9 @@ public static class ValorantLobby
             bool me = p.Id == vm.Me;
             var t = Pulse.Core.Games.Valorant.Analysis.Totals(vm, p.Id);
             int matchTier = p.Tier >= 3 ? p.Tier : tier;
-            string name = vm.Names != null && vm.Names.TryGetValue(p.Id, out var n) ? n : null;
-            list.Add(new LobbyPlayer(p.Id, p.Team == vm.MyTeam, me, p.Agent, name, false, 0, tier >= 3 ? tier : p.Tier, rr, Math.Max(peak, tier), ActName(peakAct),
+            string name = names.TryGetValue(p.Id, out var n) ? n : null;
+            string agent = p.Agent.Length > 0 ? p.Agent : ValorantMatches.AgentName(p.AgentId);
+            list.Add(new LobbyPlayer(p.Id, p.Team == vm.MyTeam, me, agent, name, false, 0, tier >= 3 ? tier : p.Tier, rr, Math.Max(peak, tier), ActName(peakAct),
                 win, games, me ? Smurf.None : SmurfSigns(0, tier, peak, win, games, gains))
             {
                 Extra = $"{t.Kills}/{t.Deaths}/{p.Assists} · {t.Acs:0} ACS",

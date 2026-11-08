@@ -310,7 +310,7 @@ public static class LobbyOverlay
 
         var who = new StackPanel { Margin = new Thickness(6, 0, 6, 0), VerticalAlignment = VerticalAlignment.Center };
         var nameRow = new StackPanel { Orientation = Orientation.Horizontal };
-        nameRow.Children.Add(p.Hidden ? T(Loc.T("Hidden player"), 12, Dim).Also(t => t.FontStyle = FontStyles.Italic) : T(p.Name ?? p.Agent, 12, White));
+        nameRow.Children.Add(p.Hidden ? T(Loc.T("Hidden player"), 12, Dim).Also(t => t.FontStyle = FontStyles.Italic) : T(p.Name ?? (string.IsNullOrEmpty(p.Agent) ? Loc.T("Unknown agent") : p.Agent), 12, White));
         if (p.Smurf?.Label is { } label)
         {
             // Smurf signs: amber for "possible", orange for "likely"; hover for the reasons.
