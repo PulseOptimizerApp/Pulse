@@ -4414,5 +4414,14 @@
  "That's every match Riot keeps for this player.": "Esas son todas las partidas que Riot guarda de este jugador.",
  "Combat score {0:0}% above their lobbies": "Puntuación de combate un {0:0}% por encima de sus lobbies",
  "Top 2 of the scoreboard in {0:0}% of matches": "Top 2 del marcador en el {0:0}% de las partidas",
- "#{0}": "#{0}"
+ "#{0}": "#{0}",
+ "Repeated anomalies": "Anomalías repetidas",
+ "Statistical outlier": "Valor atípico",
+ "● No anomalies": "● Sin anomalías",
+ "Insufficient evidence": "Pruebas insuficientes",
+ "Unusual performance": "Rendimiento inusual",
+ "No anomalies": "Sin anomalías",
+ "Unusual, inconclusive": "Inusual, no concluyente",
+ "Consistent with rank": "Acorde a su rango",
+ "Positive": "Positivo"
 }

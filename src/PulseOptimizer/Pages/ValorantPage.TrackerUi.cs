@@ -162,7 +162,7 @@ public partial class ValorantPage
             BorderBrush = B(A(c, 0x80)), BorderThickness = new Thickness(1), Background = B(A(c, 0x14)),
             Child = new TextBlock { Text = Loc.T(t).ToUpper(CultureInfo.CurrentCulture), FontSize = 10.5, FontWeight = FontWeights.ExtraBold, Foreground = B(c) },
         };
-        if (p.CheatChecks >= 2) nameRow.Children.Add(p.Cheat.Score >= 60 ? Tag("High risk", Red) : p.Cheat.Score >= 30 ? Tag("Worth a look", Yellow) : Tag("● Legit", Green));
+        if (p.CheatChecks >= 2) nameRow.Children.Add(p.Cheat.Score >= 60 ? Tag("Repeated anomalies", Red) : p.Cheat.Score >= 30 ? Tag("Statistical outlier", Yellow) : Tag("● No anomalies", Green));
         if (p.Smurf.Score >= 60) nameRow.Children.Add(Tag("Likely smurf", Yellow));
         if (mmr?.Side == Tracker.MmrSide.Above) nameRow.Children.Add(Tag("MMR above rank", Purple));
         else if (mmr?.Side == Tracker.MmrSide.Below) nameRow.Children.Add(Tag("MMR below rank", Orange));
@@ -424,12 +424,12 @@ public partial class ValorantPage
         var gauges = new UniformGrid { Columns = 4, Margin = new Thickness(0, 0, -10, 0) };
         var cheatC = p.Cheat.Score >= 60 ? Red : p.Cheat.Score >= 30 ? Yellow : Green;
         gauges.Children.Add(GaugeA("Cheating signals", IconShield, p.CheatChecks == 0 ? double.NaN : p.Cheat.Score / 100.0, p.CheatChecks == 0 ? "–" : $"{p.Cheat.Score}", p.CheatChecks == 0 ? "" : "%", cheatC,
-            p.CheatChecks == 0 ? "Not enough data" : p.Cheat.Score >= 60 ? "High risk" : p.Cheat.Score >= 30 ? "Elevated" : "Low risk",
+            p.CheatChecks < 2 ? "Insufficient evidence" : p.Cheat.Score >= 60 ? "Repeated anomalies" : p.Cheat.Score >= 30 ? "Statistical outlier" : p.Cheat.Score > 0 ? "Unusual performance" : "No anomalies",
             Loc.F("{0} of {1} signals", p.Cheat.Signs.Count, Math.Max(p.CheatChecks, 4)),
             p.Cheat.Signs.Count > 0 ? string.Join(" · ", p.Cheat.Signs) : p.CheatChecks == 0 ? Loc.T("Needs about 5 matches to check.") : Loc.F("Nothing unusual for {0}.", p.CompareTier >= 3 ? ValorantMatches.RankName(p.CompareTier) : Loc.T("their rank"))));
         var smC = p.Smurf.Score >= 60 ? Red : p.Smurf.Score >= 35 ? Yellow : Green;
         gauges.Children.Add(GaugeA("Smurf chance", IconMask, p.Smurf.Score / 100.0, $"{p.Smurf.Score}", "%", smC,
-            p.Smurf.Score >= 60 ? "Likely smurf" : p.Smurf.Score >= 35 ? "Possible smurf" : "Low chance",
+            p.Smurf.Score >= 60 ? "Likely smurf" : p.Smurf.Score >= 35 ? "Possible smurf" : p.Smurf.Score >= 15 ? "Unusual, inconclusive" : "Consistent with rank",
             Loc.F("{0} signs", p.Smurf.Signs.Count),
             p.Smurf.Signs.Count > 0 ? string.Join(" · ", p.Smurf.Signs) : Loc.T("Nothing unusual about this account")));
         var maps = p.Matches.GroupBy(m => m.Map).Where(g => g.Count() >= 2).Select(g => (Map: g.Key, Win: 100.0 * g.Count(m => WonFor(m, p.Puuid)) / g.Count())).OrderByDescending(x => x.Win).ToList();
@@ -437,10 +437,10 @@ public partial class ValorantPage
         gauges.Children.Add(GaugeA("Win rate", IconTrophy, t.WinPct / 100, $"{t.WinPct:0}", "%", winC,
             t.WinPct >= 55 ? "Climbing" : t.WinPct <= 45 ? "Struggling" : "Even", Loc.F("{0} won of {1}", t.Wins, t.Matches),
             maps.Count >= 2 ? Loc.F("Best map {0} {1:0}% · weakest {2} {3:0}%", maps[0].Map, maps[0].Win, maps[^1].Map, maps[^1].Win) : Loc.T("Best and worst maps show after two games on each.")));
-        var kdC = t.KdRatio >= 1.4 ? Gold : t.KdRatio >= 1.2 ? Blue : t.KdRatio >= 0.9 ? Yellow : Red;
+        var kdC = t.KdRatio >= 1.4 ? Gold : t.KdRatio >= 1.2 ? Blue : t.KdRatio >= 1.0 ? Green : t.KdRatio >= 0.8 ? Grey : Red;
         var acsTop = p.Stats.FirstOrDefault(x => x.Skill.Id == "acs");
         gauges.Children.Add(GaugeA("K/D", IconCross, t.KdRatio / 2, t.KdRatio.ToString("0.00", CultureInfo.CurrentCulture), "", kdC,
-            t.KdRatio >= 1.4 ? "Elite" : t.KdRatio >= 1.2 ? "Strong" : t.KdRatio >= 0.9 ? "Average" : "Below average", Loc.F("{0} kills · {1} deaths", t.Kills, t.Deaths),
+            t.KdRatio >= 1.4 ? "Elite" : t.KdRatio >= 1.2 ? "Strong" : t.KdRatio >= 1.0 ? "Positive" : t.KdRatio >= 0.8 ? "Average" : "Below average", Loc.F("{0} kills · {1} deaths", t.Kills, t.Deaths),
             (acsTop != null && !double.IsNaN(acsTop.TopPercent) ? Loc.F("Top {0:0}% in your matches", acsTop.TopPercent) + " · " : "") + Loc.F("{0:0} ACS", t.Acs)));
         yield return gauges;
 

@@ -30,8 +30,8 @@ public partial class ValorantPage
     static bool _trMoreBusy;
     Func<string, Task> _trSearchFor;   // searches a Riot ID (set by the search box)
 
-    /// <summary>K/D colors: 1.4 and up gold (rare), 1.2 and up blue, under 0.9 red.</summary>
-    static Color KdColor(double kd) => double.IsNaN(kd) ? TpMuted : kd >= 1.4 ? TpGold : kd >= 1.2 ? TpBlue : kd < 0.9 ? TpDown : TpBody;
+    /// <summary>K/D bands (presentation only, not a skill standard): under 0.80 red, 0.80–0.99 neutral, 1.00–1.19 green, 1.20–1.39 blue, 1.40+ gold.</summary>
+    internal static Color KdColor(double kd) => double.IsNaN(kd) ? TpMuted : kd >= 1.4 ? TpGold : kd >= 1.2 ? TpBlue : kd >= 1.0 ? TpUp : kd >= 0.8 ? TpBody : TpDown;
 
     /// <summary>A flat panel with a small caps title and a divider under it.</summary>
     Border Flat(string title, UIElement body, string note = null, double bodyPad = 0)
