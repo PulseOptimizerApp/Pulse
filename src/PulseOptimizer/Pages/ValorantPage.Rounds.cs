@@ -22,7 +22,10 @@ public partial class ValorantPage
     DispatcherTimer _rmTimer;
     ContentControl _rmStage;
 
-    static readonly Color MateColor = Color.FromRgb(0x4D, 0xA3, 0xFF), EnemyColor = Color.FromRgb(0xFF, 0x5A, 0x4E);
+    // You green, your teammates yellow, enemies red: the same everywhere in the round view.
+    static readonly Color YouColor = Color.FromRgb(0x3D, 0xDC, 0x84), MateColor = Color.FromRgb(0xFA, 0xD6, 0x63), EnemyColor = Color.FromRgb(0xFF, 0x5A, 0x4E);
+
+    static Color ColorFor(VMatch m, string id) => id == m.Me ? YouColor : m.TeamOf(id) == m.MyTeam ? MateColor : EnemyColor;
 
     /// <summary>Your team's buy in a round: "pistol", "eco", "half" or "full", from the average loadout.</summary>
     internal static string BuyType(VMatch m, int round)
@@ -135,7 +138,7 @@ public partial class ValorantPage
             s.Children.Add(new TextBlock { Text = Loc.T(label), FontSize = 11, Foreground = Res("TextFaintBrush") });
             buys.Children.Add(s);
         }
-        Tag("Your team's buy", TeamBuy(m, r, m.MyTeam), MateColor);
+        Tag("Your team's buy", TeamBuy(m, r, m.MyTeam), YouColor);
         Tag("Their buy", TeamBuy(m, r, enemy), EnemyColor);
         if (r.Planter != null && r.Site != null)
         {
@@ -149,7 +152,7 @@ public partial class ValorantPage
             var fb = kills[0];
             bool ours = m.TeamOf(fb.Killer) == m.MyTeam;
             sp.Children.Add(Dim(Loc.F("First blood: {0} killed {1}", Agent(m, fb.Killer), Agent(m, fb.Victim)) + " · " + Loc.T(ours ? "your team" : "their team"), 12, 4)
-                .Also(t => t.Foreground = new SolidColorBrush(ours ? MateColor : EnemyColor)));
+                .Also(t => t.Foreground = new SolidColorBrush(ColorFor(m, fb.Killer))));
         }
         return sp;
     }
@@ -202,7 +205,7 @@ public partial class ValorantPage
             var row = new Border
             {
                 Padding = new Thickness(10, 5, 10, 5), Margin = new Thickness(0, 0, 0, 4), CornerRadius = new CornerRadius(7), Child = g, Cursor = System.Windows.Input.Cursors.Hand,
-                BorderThickness = new Thickness(3, 0, 0, 0), BorderBrush = new SolidColorBrush(ours ? MateColor : EnemyColor),
+                BorderThickness = new Thickness(3, 0, 0, 0), BorderBrush = new SolidColorBrush(ColorFor(m, k.Killer)),
             };
             int idx = i;
             row.MouseLeftButtonUp += (_, _) => { StopRoundPlay(); _rmKill = idx; RefreshRound(m, kills); };
@@ -247,7 +250,7 @@ public partial class ValorantPage
         sp.Children.Add(new TextBlock
         {
             Text = me ? Loc.T("You") : name, FontSize = 12.5, FontWeight = me ? FontWeights.Bold : FontWeights.SemiBold,
-            Foreground = new SolidColorBrush(mate ? MateColor : EnemyColor), VerticalAlignment = VerticalAlignment.Center,
+            Foreground = new SolidColorBrush(ColorFor(m, id)), VerticalAlignment = VerticalAlignment.Center,
         });
         return sp;
     }
@@ -276,7 +279,15 @@ public partial class ValorantPage
 
         // Earlier deaths this round.
         foreach (var d in kills.Take(_rmKill))
-            if (At(d.VX, d.VY) is Point p) Cross(canvas, p, m.TeamOf(d.Victim) == m.MyTeam ? MateColor : EnemyColor, 0.45, Agent(m, d.Victim));
+            if (At(d.VX, d.VY) is Point p) Cross(canvas, p, ColorFor(m, d.Victim), 0.45, Agent(m, d.Victim));
+
+        // Heat: everywhere each side has been at the kills so far this round, newest brightest.
+        for (int j = 0; j <= _rmKill; j++)
+        {
+            double age = _rmKill == 0 ? 1 : 0.35 + 0.65 * j / _rmKill;
+            foreach (var p in kills[j].Pos)
+                if (At(p.X, p.Y) is Point hp) Glow(canvas, hp, ColorFor(m, p.Id), age, p.Id == m.Me ? 34 : 28);
+        }
 
         // Killer → victim.
         var from = k.At(k.Killer) is Pt kp ? At(kp.X, kp.Y) : null;
@@ -285,19 +296,29 @@ public partial class ValorantPage
             canvas.Children.Add(new Line
             {
                 X1 = a.X, Y1 = a.Y, X2 = b.X, Y2 = b.Y, StrokeThickness = 2.5, StrokeDashArray = new DoubleCollection { 3, 2 },
-                Stroke = new SolidColorBrush(m.TeamOf(k.Killer) == m.MyTeam ? MateColor : EnemyColor),
+                Stroke = new SolidColorBrush(ColorFor(m, k.Killer)),
             });
 
         // Everyone alive at that moment.
         foreach (var p in k.Pos)
         {
             if (p.Id == k.Victim || At(p.X, p.Y) is not Point pt) continue;
-            bool mate = m.TeamOf(p.Id) == m.MyTeam;
-            Marker(canvas, pt, Agent(m, p.Id), mate ? MateColor : EnemyColor, p.Id == m.Me, p.Id == k.Killer);
+            Marker(canvas, pt, Agent(m, p.Id), ColorFor(m, p.Id), p.Id == m.Me, p.Id == k.Killer);
         }
-        if (to is Point v) Cross(canvas, v, m.TeamOf(k.Victim) == m.MyTeam ? MateColor : EnemyColor, 1, Agent(m, k.Victim));
+        if (to is Point v) Cross(canvas, v, ColorFor(m, k.Victim), 1, Agent(m, k.Victim));
 
         head.Children.Add(grid);
+        var legend = new WrapPanel { Margin = new Thickness(0, 8, 0, 0) };
+        void Key(Color c, string t)
+        {
+            legend.Children.Add(new Ellipse { Width = 10, Height = 10, Fill = new SolidColorBrush(c), Margin = new Thickness(0, 0, 5, 0), VerticalAlignment = VerticalAlignment.Center });
+            legend.Children.Add(new TextBlock { Text = Loc.T(t), FontSize = 11.5, Foreground = Res("TextDimBrush"), Margin = new Thickness(0, 0, 14, 0) });
+        }
+        Key(YouColor, "You");
+        Key(MateColor, "Teammates");
+        Key(EnemyColor, "Enemies");
+        legend.Children.Add(new TextBlock { Text = Loc.T("Glow: where each side has been so far this round"), FontSize = 11.5, Foreground = Res("TextFaintBrush") });
+        head.Children.Add(legend);
         bool ours = m.TeamOf(k.Killer) == m.MyTeam;
         var w = Analysis.WeaponName(k);
         head.Children.Add(new TextBlock
@@ -305,7 +326,7 @@ public partial class ValorantPage
             Text = $"{Clock(Analysis.RoundClockMs(m, k))}  ·  " + (k.Victim == m.Me ? Loc.F("{0} killed you", Agent(m, k.Killer)) : k.Killer == m.Me ? Loc.F("You killed {0}", Agent(m, k.Victim)) : Loc.F("{0} killed {1}", Agent(m, k.Killer), Agent(m, k.Victim)))
                    + (w.Length > 0 ? " · " + Loc.T(w) : "") + $"  ·  {_rmKill + 1}/{kills.Count}",
             FontSize = 13, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 10, 0, 0),
-            Foreground = new SolidColorBrush(ours ? MateColor : EnemyColor),
+            Foreground = new SolidColorBrush(ColorFor(m, k.Killer)),
         });
         var callA = k.At(k.Killer) is Pt kc ? MapGeo.CalloutAt(m.Map, kc.X, kc.Y) : "";
         var callB = MapGeo.CalloutAt(m.Map, k.VX, k.VY);
@@ -317,18 +338,28 @@ public partial class ValorantPage
         _rmStage.Content = head;
     }
 
-    /// <summary>A player on the map: their agent's face in a team-colored ring (white for you).</summary>
+    /// <summary>A player on the map: their agent's face in a ring: green for you, yellow for teammates, red for enemies.</summary>
     static void Marker(Canvas c, Point p, string agent, Color team, bool me, bool killer)
     {
         double r = me ? 14 : 12;
         Brush fill = MatchArt.AgentIcon(agent) is { } art ? new ImageBrush(art) { Stretch = Stretch.UniformToFill } : new SolidColorBrush(team);
         var dot = new Ellipse
         {
-            Width = r * 2, Height = r * 2, Fill = fill, StrokeThickness = me || killer ? 3 : 2,
-            Stroke = me ? Brushes.White : new SolidColorBrush(team), ToolTip = agent,
+            Width = r * 2, Height = r * 2, Fill = fill, StrokeThickness = me ? 3.5 : killer ? 3 : 2,
+            Stroke = new SolidColorBrush(team), ToolTip = agent,
         };
         Canvas.SetLeft(dot, p.X - r); Canvas.SetTop(dot, p.Y - r);
         c.Children.Add(dot);
+    }
+
+    /// <summary>A soft colored glow; overlapping glows add up, so where a side spent time shows brighter.</summary>
+    static void Glow(Canvas c, Point p, Color col, double strength, double radius)
+    {
+        var brush = new RadialGradientBrush(Color.FromArgb((byte)(110 * strength), col.R, col.G, col.B), Color.FromArgb(0, col.R, col.G, col.B));
+        brush.Freeze();
+        var e = new Ellipse { Width = radius * 2, Height = radius * 2, Fill = brush, IsHitTestVisible = false };
+        Canvas.SetLeft(e, p.X - radius); Canvas.SetTop(e, p.Y - radius);
+        c.Children.Add(e);
     }
 
     static void Cross(Canvas c, Point p, Color team, double opacity, string tip)
