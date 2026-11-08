@@ -38,6 +38,12 @@ public static class MatchService
         MatchEvents.Finished += OnFinished;
         MatchEvents.Moments += list => MomentLog.Add(list);
         ValorantMatches.InGame += () => { if (LobbyOn) LobbyOverlay.MatchFound(); };
+        // After-match lobby: a few seconds after the recap, offer both teams (no risk: the match is over).
+        ValorantMatches.MatchSaved += vm =>
+        {
+            if (S?.AfterMatchLobby != true) return;
+            _ = Task.Delay(6000).ContinueWith(_ => LobbyOverlay.AfterMatch(vm));
+        };
         _watch = new System.Threading.Timer(_ => Watch(), null, 3000, 5000);
     }
 
@@ -51,6 +57,8 @@ public static class MatchService
 
     static bool Wanted => S is { Enabled: true } && (S.AutoClip || S.MatchRecaps);
     static bool LobbyOn => S is { LiveLobby: true, LiveLobbyRisksAccepted: true };
+    /// <summary>VALORANT's match watcher is needed for the live warnings and the after-match lobby.</summary>
+    static bool ValorantWatch => LobbyOn || S is { AfterMatchLobby: true };
 
     /// <summary>Every 5 seconds: start or stop the game integrations.</summary>
     static void Watch()
@@ -60,8 +68,8 @@ public static class MatchService
             if (!Wanted)
             {
                 if (_leagueOn) { League.Stop(); _leagueOn = false; }
-                // The live lobby only needs VALORANT's match watcher.
-                if (LobbyOn)
+                // The lobby features only need VALORANT's match watcher.
+                if (ValorantWatch)
                 {
                     bool v = ValorantMatches.Running();
                     if (v && !_valorantOn) { Valorant.Start(); _valorantOn = true; }
@@ -82,7 +90,7 @@ public static class MatchService
             if (league && !_leagueOn) { League.Start(); _leagueOn = true; }
             else if (!league && _leagueOn) { League.Stop(); _leagueOn = false; }
             if (S.MatchRecaps) TrackSession(ClipsService.Game);
-            if (S.MatchRecaps || LobbyOn)
+            if (S.MatchRecaps || ValorantWatch)
             {
                 bool val = ValorantMatches.Running();
                 if (val && !_valorantOn) { Valorant.Start(); _valorantOn = true; }

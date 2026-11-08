@@ -7,7 +7,13 @@ namespace Pulse.Core.Games.Live;
 
 /// <summary>One player in the live lobby.</summary>
 public sealed record LobbyPlayer(string Puuid, bool Ally, bool Me, string Agent, string Name, bool Hidden, int Level,
-    int Tier, int Rr, int PeakTier, string PeakAct, int WinPercent, int Games, Smurf Smurf);
+    int Tier, int Rr, int PeakTier, string PeakAct, int WinPercent, int Games, Smurf Smurf)
+{
+    /// <summary>After a match: their line from it ("21/8/4 · 312 ACS").</summary>
+    public string Extra { get; init; }
+    /// <summary>After a match: stats almost nobody at their rank reaches, in that match (a hint, never proof).</summary>
+    public Smurf Unusual { get; init; }
+}
 
 /// <summary>How much a player looks like a smurf (0–100) and the signs behind it, in words.</summary>
 public sealed record Smurf(int Score, List<string> Signs)
@@ -158,6 +164,36 @@ public static class ValorantLobby
     }
 
     /// <summary>RR won or lost in the player's last competitive games (newest first), from Riot's competitive updates.</summary>
+    /// <summary>
+    /// The lobby of a match that just ended, from Riot's own match record (the same names and stats its match
+    /// history shows everyone who played), plus each player's rank, peak and smurf signs read after the match.
+    /// Nothing here happens while the match is being played.
+    /// </summary>
+    public static async Task<Lobby> AfterMatch(Pulse.Core.Games.Valorant.VMatch vm)
+    {
+        var s = await ValorantMatches.Login();
+        if (s == null || vm == null) return null;
+        await LoadContent(s);
+        var list = new List<LobbyPlayer>();
+        foreach (var p in vm.Players)
+        {
+            var (tier, rr, peak, peakAct, win, games) = await Mmr(s, p.Id);
+            var gains = await RecentGains(s, p.Id);
+            bool me = p.Id == vm.Me;
+            var t = Pulse.Core.Games.Valorant.Analysis.Totals(vm, p.Id);
+            int matchTier = p.Tier >= 3 ? p.Tier : tier;
+            string name = vm.Names != null && vm.Names.TryGetValue(p.Id, out var n) ? n : null;
+            list.Add(new LobbyPlayer(p.Id, p.Team == vm.MyTeam, me, p.Agent, name, false, 0, tier >= 3 ? tier : p.Tier, rr, Math.Max(peak, tier), ActName(peakAct),
+                win, games, me ? Smurf.None : SmurfSigns(0, tier, peak, win, games, gains))
+            {
+                Extra = $"{t.Kills}/{t.Deaths}/{p.Assists} · {t.Acs:0} ACS",
+                Unusual = me ? Smurf.None : Pulse.Core.Games.Valorant.Tracker.UnusualInMatch(vm, p.Id, matchTier),
+            });
+            await Task.Delay(120); // gentle on Riot's servers
+        }
+        return new Lobby(vm.Id, vm.Map, vm.Queue, list);
+    }
+
     /// <summary>The rank after a player's last competitive match (for players who haven't played ranked this act).</summary>
     internal static async Task<int> LastTier(ValorantMatches.Session s, string puuid)
     {

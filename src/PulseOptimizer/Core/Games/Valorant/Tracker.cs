@@ -532,6 +532,28 @@ public static class Tracker
         return new MmrEstimate(ranked.Count, lobby, myAvg, avgWin, avgLoss, side, est);
     }
 
+    /// <summary>
+    /// Stats from one match that almost nobody at that rank reaches (their top 1%), for the after-match lobby. One
+    /// match is a small sample, so the bar is higher than the profile's cheating signals, and it's worded as unusual
+    /// stats, never as cheating.
+    /// </summary>
+    public static Smurf UnusualInMatch(VMatch m, string who, int tier)
+    {
+        var scale = Build(VStore.All);
+        var t = Analysis.Totals(m, who);
+        var signs = new List<string>();
+        double Top(string id) => tier >= 3 && scale.ByTier[id].TryGetValue(tier, out var l) && l.Count >= 15 ? Quantile(l, 0.99) : Quantile(scale.All[id], 0.995);
+        string rank = tier >= 3 ? ValorantMatches.RankName(tier) : Pulse.Ui.Loc.T("their rank");
+        if (t.Head + t.Body + t.Legs >= 40 && Top("hs") is var hs && !double.IsNaN(hs) && t.HeadshotPct >= Math.Max(hs, 45))
+            signs.Add(Pulse.Ui.Loc.F("{0:0}% headshots this match (very rare at {1})", t.HeadshotPct, rank));
+        if (t.Rounds >= 15 && Top("adr") is var adr && !double.IsNaN(adr) && t.Adr >= Math.Max(adr, 220))
+            signs.Add(Pulse.Ui.Loc.F("{0:0} damage per round this match (very rare at {1})", t.Adr, rank));
+        if (t.Rounds >= 15 && t.Deaths > 0 && t.KdRatio >= 4)
+            signs.Add(Pulse.Ui.Loc.F("K/D of {0:0.0} this match", t.KdRatio));
+        int score = signs.Count == 0 ? 0 : signs.Count == 1 ? 30 : 60;
+        return new Smurf(score, signs);
+    }
+
     /// <summary>For tests.</summary>
     internal static void Reset() { _scale = null; _scaleCount = -1; }
 }

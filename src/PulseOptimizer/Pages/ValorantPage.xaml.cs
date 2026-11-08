@@ -6,6 +6,7 @@ using Pulse.Core;
 using Pulse.Core.Games;
 using Pulse.Core.Games.Live;
 using Pulse.Ui;
+using Pulse.Core.Games.Valorant;
 
 namespace Pulse.Pages;
 
@@ -23,7 +24,7 @@ public partial class ValorantPage : UserControl, IPage
     public ValorantPage()
     {
         InitializeComponent();
-        foreach (var (key, title) in new[] { ("coach", "Coach"), ("tracker", "Tracker"), ("maps", "Heatmaps"), ("review", "Death review"), ("store", "Store"), ("overview", "Live lobby & matches") })
+        foreach (var (key, title) in new[] { ("coach", "Coach"), ("tracker", "Tracker"), ("maps", "Heatmaps"), ("review", "Death review"), ("store", "Store"), ("overview", "Lobby & matches") })
             Tabs.Children.Add(TabButton(key, title));
         Unloaded += (_, _) => { StopReview(); StopRoundPlay(); };
     }
@@ -103,47 +104,99 @@ public partial class ValorantPage : UserControl, IPage
     FrameworkElement LobbyCard()
     {
         var sp = new StackPanel();
+
+        // After-match lobby: on for everyone, no risk.
         var top = new Grid();
         top.ColumnDefinitions.Add(new ColumnDefinition());
         top.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         var left = new StackPanel();
-        left.Children.Add(Heading("Live lobby"));
-        left.Children.Add(Dim(Loc.T("When you load into a match, a popup offers to show both teams: agent, name, level, current rank and RR, peak rank, win rate this act, and smurf signs, like tracker apps. Players who hid their name stay hidden."), 12.5, 4));
+        var title = new StackPanel { Orientation = Orientation.Horizontal };
+        title.Children.Add(Heading("After-match lobby"));
+        title.Children.Add(Pill2(Loc.T("No risk"), Color.FromRgb(0x3D, 0xDC, 0x84), 10).Also(b => { b.Margin = new Thickness(10, 0, 0, 0); b.VerticalAlignment = VerticalAlignment.Center; }));
+        left.Children.Add(title);
+        left.Children.Add(Dim(Loc.T("When a match ends, a popup offers both teams: names, current and peak rank, each player's K/D/A and ACS from the match, smurf signs and unusual stats. It only reads data after the match is over, the way Riot's own match history shows it, so it carries no ban risk."), 12.5, 4));
         top.Children.Add(left);
+        var after = new CheckBox { Style = (Style)FindResource("Switch"), IsChecked = S.AfterMatchLobby, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(16, 2, 0, 0) };
+        after.Click += (_, _) => { S.AfterMatchLobby = after.IsChecked == true; TweakEngine.Save(); };
+        Grid.SetColumn(after, 1);
+        top.Children.Add(after);
+        sp.Children.Add(top);
+        var last = VStore.All.FirstOrDefault();
+        var showLast = Btn("Show the last match's lobby");
+        showLast.IsEnabled = last != null;
+        showLast.Margin = new Thickness(0, 12, 0, 0);
+        showLast.HorizontalAlignment = HorizontalAlignment.Left;
+        showLast.Click += (_, _) => _ = LobbyOverlay.ShowAfter(Application.Current, last);
+        sp.Children.Add(showLast);
+
+        sp.Children.Add(new Border { Height = 1, Background = Res("BorderBrush"), Margin = new Thickness(0, 20, 0, 18) });
+
+        // Live smurf warnings: opt-in, with both sides explained.
+        var top2 = new Grid();
+        top2.ColumnDefinitions.Add(new ColumnDefinition());
+        top2.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        var left2 = new StackPanel();
+        var title2 = new StackPanel { Orientation = Orientation.Horizontal };
+        title2.Children.Add(Heading("Live smurf warnings"));
+        title2.Children.Add(Pill2(Loc.T("Ban risk"), Color.FromRgb(0xFF, 0x5A, 0x4E), 10).Also(b => { b.Margin = new Thickness(10, 0, 0, 0); b.VerticalAlignment = VerticalAlignment.Center; }));
+        left2.Children.Add(title2);
+        left2.Children.Add(Dim(Loc.T("While you load into a match, Pulse checks both teams and, only if someone shows smurf signs, puts up a small warning: which agent, which team, and why. You can open both teams' ranks from it. Off unless you turn it on."), 12.5, 4));
+        top2.Children.Add(left2);
         bool on = S.LiveLobby && S.LiveLobbyRisksAccepted;
         var sw = new CheckBox { Style = (Style)FindResource("Switch"), IsChecked = on, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(16, 2, 0, 0) };
         Grid.SetColumn(sw, 1);
-        top.Children.Add(sw);
-        sp.Children.Add(top);
+        top2.Children.Add(sw);
+        sp.Children.Add(top2);
 
-        // The risk, always visible on this card.
-        var risk = new StackPanel();
-        risk.Children.Add(new TextBlock { Text = Loc.T("The risk").ToUpper(CultureInfo.CurrentCulture), FontSize = 10, FontWeight = FontWeights.Bold, Foreground = Res("WarnBrush") });
-        risk.Children.Add(Dim(Loc.T("Riot treats ranks shown during a match as hidden information and has warned that apps showing hidden information can lead to bans; some users of tracker apps have reported suspensions. Pulse never reveals players who hid their name and only reads data through the Riot Client's own login on your PC, but it can't promise Riot won't act on your account."), 12, 3));
-        sp.Children.Add(new Border
+        FrameworkElement Side(string head, Color c, string[] points)
         {
-            BorderBrush = Res("WarnBrush"), BorderThickness = new Thickness(2, 0, 0, 0), Background = Res("Surface2Brush"),
-            CornerRadius = new CornerRadius(0, 6, 6, 0), Padding = new Thickness(12, 9, 12, 10), Margin = new Thickness(0, 14, 0, 0), Child = risk,
-        });
+            var b = new StackPanel();
+            b.Children.Add(new TextBlock { Text = Loc.T(head).ToUpper(CultureInfo.CurrentCulture), FontSize = 10.5, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(c), Margin = new Thickness(0, 0, 0, 4) });
+            foreach (var pt in points)
+            {
+                var row = new Grid { Margin = new Thickness(0, 3, 0, 0) };
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(14) });
+                row.ColumnDefinitions.Add(new ColumnDefinition());
+                row.Children.Add(new System.Windows.Shapes.Ellipse { Width = 5, Height = 5, Fill = new SolidColorBrush(c), VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(1, 7, 0, 0) });
+                var t = new TextBlock { Text = Loc.T(pt), FontSize = 12, Foreground = Res("TextDimBrush"), TextWrapping = TextWrapping.Wrap, LineHeight = 17 };
+                Grid.SetColumn(t, 1);
+                row.Children.Add(t);
+                b.Children.Add(row);
+            }
+            return new Border { BorderBrush = new SolidColorBrush(c), BorderThickness = new Thickness(2, 0, 0, 0), Background = Res("Surface2Brush"), CornerRadius = new CornerRadius(0, 6, 6, 0), Padding = new Thickness(12, 9, 12, 10), Margin = new Thickness(0, 12, 0, 0), Child = b };
+        }
+        sp.Children.Add(Side("Why you'd turn it on", Color.FromRgb(0x3D, 0xDC, 0x84), new[]
+        {
+            "You know early when a smurf is in your match, and on which team, instead of finding out after a lopsided loss.",
+            "You can adjust: play safer against a likely smurf, avoid taking their duels alone, or tell your team.",
+            "It only speaks up when someone shows signs. Most matches you won't see anything.",
+        }));
+        sp.Children.Add(Side("Why you might leave it off", Color.FromRgb(0xFF, 0x5A, 0x4E), new[]
+        {
+            "Riot's rules don't allow apps to scout other players during a match. To do this, Pulse has to ask Riot's servers about the other nine players while the match is starting, using your own login, so Riot can see your account doing it.",
+            "Riot has warned that apps showing hidden information can lead to bans, and some users of rank-checker apps have reported suspensions. Most users have had no problem, but Pulse can't promise yours won't be one of them.",
+            "It's a guess, not proof. Smurf signs come from RR per win, win rate this act and peak rank; a good player on a hot streak can look the same.",
+            "Cheating signals need the match's own stats, so they can't show during the match. You get them in the after-match lobby, for free and with no risk.",
+        }));
 
-        var row = new WrapPanel { Margin = new Thickness(0, 14, 0, 0) };
-        var show = new Button { Style = (Style)FindResource("GhostButton"), Content = Loc.T("Show the current lobby"), Padding = new Thickness(14, 6, 14, 6), IsEnabled = on };
-        show.ToolTip = Loc.T("Opens the lobby panel for the match you're in now.");
+        var row2 = new WrapPanel { Margin = new Thickness(0, 14, 0, 0) };
+        var show = Btn("Show the current lobby");
+        show.ToolTip = Loc.T("Opens both teams' ranks for the match you're in now.");
+        show.IsEnabled = on;
         show.Click += (_, _) => _ = LobbyOverlay.ShowPanel(Application.Current);
-        row.Children.Add(show);
-        sp.Children.Add(row);
-        sp.Children.Add(Dim(Loc.T("Smurf signs come from RR per win (Riot gives more when a player's hidden skill is above their rank), win rate this act, account level and peak rank. They're signs, not proof, and Pulse always shows why. Pulse doesn't guess who's cheating: nothing it can see tells a cheater from a very good player."), 11.5, 10));
+        row2.Children.Add(show);
+        sp.Children.Add(row2);
 
         sw.Click += async (_, _) =>
         {
             if (sw.IsChecked == true && !S.LiveLobbyRisksAccepted)
             {
-                bool ok = await MainWindow.Instance.Confirm(Loc.T("Turn on the live lobby?"),
-                    Loc.T("Riot treats ranks shown during a match as hidden information. Tracker apps that do this are widely used, but Riot has warned that apps showing hidden information can lead to bans, and some users of such apps have reported suspensions. Pulse lowers the risk by never revealing players who hid their name and by only reading data through the Riot Client's own login on your PC, but it can't promise Riot won't act on your account.\n\nTurn it on anyway?"),
-                    Loc.T("Turn on"), Loc.T("Cancel"));
+                bool ok = await MainWindow.Instance.Confirm(Loc.T("Turn on live smurf warnings?"),
+                    Loc.T("Riot's rules don't allow apps to scout other players during a match. To warn you, Pulse asks Riot's servers about the other nine players as the match starts, using your login, so Riot can see your account doing it. Riot has warned that this can lead to bans, and some users of similar apps have been suspended. Most haven't, but Pulse can't promise your account is safe.\n\nThe after-match lobby shows the same and more with no risk. Turn live warnings on anyway?"),
+                    Loc.T("Turn on"), Loc.T("Keep it off"));
                 if (!ok) { sw.IsChecked = false; return; }
                 S.LiveLobbyRisksAccepted = true;
-                TweakEngine.AddLog("valorant", "VALORANT live lobby turned on (risk accepted)");
+                TweakEngine.AddLog("valorant", "VALORANT live smurf warnings turned on (risk accepted)");
             }
             S.LiveLobby = sw.IsChecked == true;
             TweakEngine.Save();

@@ -109,6 +109,8 @@ public sealed class VMatch
     /// <summary>The team that attacked in the first round ("Red" or "Blue").</summary>
     public string FirstAttack { get; set; } = "Red";
     public int Version { get; set; } = 1;
+    /// <summary>Riot IDs from the match record, kept in memory only (never saved): for the after-match lobby.</summary>
+    [System.Text.Json.Serialization.JsonIgnore] public Dictionary<string, string> Names { get; set; }
 
     public VPlayer MeP => Players.FirstOrDefault(p => p.Id == Me);
     public string MyTeam => MeP?.Team ?? "";
@@ -168,6 +170,12 @@ public sealed class VMatch
                 });
             }
         if (m.Players.All(p => p.Id != me)) return null;
+        if (root.Get("players") is { ValueKind: JsonValueKind.Array } named)
+        {
+            m.Names = new();
+            foreach (var p in named.EnumerateArray())
+                if (p.Str("gameName") is { Length: > 0 } gn) m.Names[p.Str("subject")] = gn + "#" + p.Str("tagLine");
+        }
 
         bool anyAbilityData = false;
         if (root.Get("roundResults") is { ValueKind: JsonValueKind.Array } rounds)

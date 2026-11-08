@@ -239,6 +239,9 @@ public sealed class ValorantMatches : IDisposable
         return Parse(doc.RootElement, s.Puuid, _agents, _maps, "val-" + id);
     }
 
+    /// <summary>A match you just finished was saved (with everyone's names in memory): for the after-match lobby.</summary>
+    public static event Action<Pulse.Core.Games.Valorant.VMatch> MatchSaved;
+
     /// <summary>Keeps the full match (every kill with where everyone stood) for the coach, heatmaps and death review.</summary>
     void SaveForCoach(JsonElement root, string puuid, RoundMarks marks)
     {
@@ -248,6 +251,7 @@ public sealed class ValorantMatches : IDisposable
             if (vm == null) return;
             vm.ZeroUtc = ZeroUtc(root, marks);
             Pulse.Core.Games.Valorant.VStore.Save(vm);
+            try { MatchSaved?.Invoke(vm); } catch { }
         }
         catch { }
     }

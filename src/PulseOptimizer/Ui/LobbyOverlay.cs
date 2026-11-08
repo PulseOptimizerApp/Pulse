@@ -40,7 +40,10 @@ public static class LobbyOverlay
     [DllImport("user32.dll")] static extern int GetWindowLong(IntPtr h, int i);
     [DllImport("user32.dll")] static extern int SetWindowLong(IntPtr h, int i, int v);
 
-    /// <summary>You just loaded into a match: start loading the lobby and ask whether to show it.</summary>
+    /// <summary>
+    /// Live smurf warnings (opt-in, see its risk): when you load into a match, read the lobby in the background and,
+    /// only if someone on either team shows smurf signs, show a small warning. Nothing shows when nobody does.
+    /// </summary>
     public static void MatchFound()
     {
         var app = Application.Current;
@@ -56,7 +59,41 @@ public static class LobbyOverlay
             }
             return null;
         });
-        ShowPrompt(app);
+        var loading = _loading;
+        _ = loading.ContinueWith(t => app.Dispatcher.BeginInvoke(() =>
+        {
+            if (t.Status != TaskStatus.RanToCompletion || t.Result is not { } lobby) return;
+            var flagged = lobby.Players.Where(p => !p.Me && !p.Hidden && p.Smurf?.Score >= 35).OrderByDescending(p => p.Smurf.Score).ToList();
+            if (flagged.Count > 0) ShowWarning(app, flagged);
+        }));
+    }
+
+    /// <summary>A match you played just ended: offer both teams (no risk, it's over).</summary>
+    public static void AfterMatch(Pulse.Core.Games.Valorant.VMatch vm)
+    {
+        var app = Application.Current;
+        if (app == null || vm == null) return;
+        if (!app.Dispatcher.CheckAccess()) { app.Dispatcher.BeginInvoke(() => AfterMatch(vm)); return; }
+        _after = vm;
+        _afterLoading = Task.Run(() => ValorantLobby.AfterMatch(vm));
+        var body = new StackPanel { Margin = new Thickness(14, 12, 14, 14) };
+        body.Children.Add(Brand(Loc.T("After the match")));
+        body.Children.Add(T(Loc.T("Match over"), 15, White).Also(t => t.Margin = new Thickness(0, 10, 0, 0)));
+        body.Children.Add(T(Loc.T("See both teams: ranks, peaks, smurf signs and unusual stats?"), 12, Dim, bold: false).Also(t => { t.Margin = new Thickness(0, 2, 0, 0); t.TextWrapping = TextWrapping.Wrap; }));
+        Prompt(app, body, () => _ = ShowAfter(app));
+    }
+
+    static Pulse.Core.Games.Valorant.VMatch _after;
+    static Task<Lobby> _afterLoading;
+
+    /// <summary>The last match's lobby (from the VALORANT page), loading it again if needed.</summary>
+    public static Task ShowAfter(Application app, Pulse.Core.Games.Valorant.VMatch vm = null)
+    {
+        if (vm != null && vm.Id != _after?.Id) { _after = vm; _afterLoading = null; }
+        if (_after == null) return Task.CompletedTask;
+        _afterLoading ??= Task.Run(() => ValorantLobby.AfterMatch(_after));
+        var map = _after.Map;
+        return ShowPanel(app, _afterLoading, Loc.T("After the match") + (string.IsNullOrEmpty(map) ? "" : " · " + map), after: true);
     }
 
     static Window NewWindow(Application app, UIElement content) => new Window
@@ -102,20 +139,26 @@ public static class LobbyOverlay
 
     static void ShowPrompt(Application app)
     {
-        _prompt?.Close();
         var body = new StackPanel { Margin = new Thickness(14, 12, 14, 14) };
         body.Children.Add(Brand(Loc.T("Live lobby")));
         body.Children.Add(T(Loc.T("Match found"), 15, White).Also(t => t.Margin = new Thickness(0, 10, 0, 0)));
         body.Children.Add(T(Loc.T("See both teams' ranks and peaks?"), 12, Dim, bold: false).Also(t => t.Margin = new Thickness(0, 2, 0, 0)));
+        Prompt(app, body, () => _ = ShowPanel(app));
+    }
+
+    /// <summary>A small corner popup with Show / Not now, gone by itself after 25 seconds.</summary>
+    static void Prompt(Application app, StackPanel body, Action show, string showText = null)
+    {
+        _prompt?.Close();
         var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 12, 0, 0) };
-        var show = Btn(app, Loc.T("Show"), true);
+        var yes = Btn(app, showText ?? Loc.T("Show"), true);
         var no = Btn(app, Loc.T("Not now"), false);
-        show.Click += (_, _) => { ClosePrompt(); _ = ShowPanel(app); };
+        yes.Click += (_, _) => { ClosePrompt(); show(); };
         no.Click += (_, _) => ClosePrompt();
-        row.Children.Add(show); row.Children.Add(no);
+        row.Children.Add(yes); row.Children.Add(no);
         body.Children.Add(row);
 
-        var w = NewWindow(app, Card(body, 280));
+        var w = NewWindow(app, Card(body, 300));
         var area = SystemParameters.WorkArea;
         w.Loaded += (_, _) =>
         {
@@ -131,6 +174,29 @@ public static class LobbyOverlay
         _promptTimer.Start();
     }
 
+    /// <summary>Live smurf warning: who on which team, and the main sign.</summary>
+    static void ShowWarning(Application app, List<LobbyPlayer> flagged)
+    {
+        var body = new StackPanel { Margin = new Thickness(14, 12, 14, 14) };
+        body.Children.Add(Brand(Loc.T("Smurf warning")));
+        bool any = flagged.Any(p => p.Smurf.Score >= 60);
+        body.Children.Add(T(Loc.T(any ? "Likely smurf in this match" : "Possible smurf in this match"), 15, White).Also(t => t.Margin = new Thickness(0, 10, 0, 6)));
+        foreach (var p in flagged.Take(3))
+        {
+            var c = p.Smurf.Score >= 60 ? Color.FromRgb(0xE0, 0x77, 0x3F) : Color.FromRgb(0xE5, 0xB8, 0x4F);
+            var row = new StackPanel { Margin = new Thickness(0, 4, 0, 0) };
+            var line = new StackPanel { Orientation = Orientation.Horizontal };
+            if (MatchArt.AgentIcon(p.Agent) is { } art) line.Children.Add(new Image { Source = art, Width = 22, Height = 22, Margin = new Thickness(0, 0, 6, 0) }.Also(i => RenderOptions.SetBitmapScalingMode(i, BitmapScalingMode.HighQuality)));
+            line.Children.Add(T(p.Agent + " · " + Loc.T(p.Ally ? "your team" : "enemy team"), 12.5, p.Ally ? Ally : Enemy).Also(t => t.VerticalAlignment = VerticalAlignment.Center));
+            line.Children.Add(T("  " + Loc.T(p.Smurf.Label).ToUpper(CultureInfo.CurrentCulture), 10, new SolidColorBrush(c)).Also(t => t.VerticalAlignment = VerticalAlignment.Center));
+            row.Children.Add(line);
+            if (p.Smurf.Signs.Count > 0) row.Children.Add(T(p.Smurf.Signs[0], 11, Dim, bold: false).Also(t => { t.TextWrapping = TextWrapping.Wrap; t.Margin = new Thickness(28, 1, 0, 0); }));
+            body.Children.Add(row);
+        }
+        body.Children.Add(T(Loc.T("Signs, not proof. Cheating signals need the match's stats, so they show when it ends."), 10.5, Dim, bold: false).Also(t => { t.TextWrapping = TextWrapping.Wrap; t.Margin = new Thickness(0, 8, 0, 0); }));
+        Prompt(app, body, () => _ = ShowPanel(app), Loc.T("Show both teams"));
+    }
+
     static void ClosePrompt()
     {
         _promptTimer?.Stop();
@@ -144,7 +210,9 @@ public static class LobbyOverlay
 
     // ───────── the lobby panel ─────────
 
-    public static async Task ShowPanel(Application app)
+    public static Task ShowPanel(Application app) => ShowPanel(app, null, Loc.T("Live lobby"), after: false);
+
+    static async Task ShowPanel(Application app, Task<Lobby> source, string title, bool after)
     {
         _panel?.Close();
         var content = new Grid();
@@ -163,11 +231,15 @@ public static class LobbyOverlay
         w.Show();
 
         Lobby lobby = null;
-        try { lobby = _loading != null ? await _loading : await ValorantLobby.Load(); } catch { }
-        lobby ??= ValorantLobby.Last;
+        if (after) { try { lobby = await source; } catch { } }
+        else
+        {
+            try { lobby = _loading != null ? await _loading : await ValorantLobby.Load(); } catch { }
+            lobby ??= ValorantLobby.Last;
+        }
         if (_panel != w) return;
         content.Children.Clear();
-        content.Children.Add(lobby == null ? Failed(app) : Panel(app, lobby));
+        content.Children.Add(lobby == null ? Failed(app, after) : Panel(app, lobby, title, after));
     }
 
     static FrameworkElement Header(Application app, string title)
@@ -182,7 +254,7 @@ public static class LobbyOverlay
 
     static FrameworkElement Loading() => new StackPanel { Margin = new Thickness(16, 14, 16, 18), Children = { Brand(Loc.T("Live lobby")), T(Loc.T("Loading both teams…"), 13, Dim, bold: false).Also(t => t.Margin = new Thickness(0, 12, 0, 0)) } };
 
-    static FrameworkElement Failed(Application app)
+    static FrameworkElement Failed(Application app, bool after = false)
     {
         var sp = new StackPanel { Margin = new Thickness(16, 12, 16, 16) };
         sp.Children.Add(Header(app, Loc.T("Live lobby")));
@@ -190,15 +262,15 @@ public static class LobbyOverlay
         var again = Btn(app, Loc.T("Try again"), true);
         again.Margin = new Thickness(0, 12, 0, 0);
         again.HorizontalAlignment = HorizontalAlignment.Left;
-        again.Click += (_, _) => { _loading = null; _ = ShowPanel(app); };
+        again.Click += (_, _) => { if (after) { _afterLoading = null; _ = ShowAfter(app); } else { _loading = null; _ = ShowPanel(app); } };
         sp.Children.Add(again);
         return sp;
     }
 
-    static FrameworkElement Panel(Application app, Lobby l)
+    static FrameworkElement Panel(Application app, Lobby l, string title, bool after)
     {
         var sp = new StackPanel { Margin = new Thickness(16, 12, 16, 16) };
-        sp.Children.Add(Header(app, string.IsNullOrEmpty(l.Map) ? Loc.T("Live lobby") : Loc.T("Live lobby") + " · " + l.Map));
+        sp.Children.Add(Header(app, after ? title : string.IsNullOrEmpty(l.Map) ? Loc.T("Live lobby") : Loc.T("Live lobby") + " · " + l.Map));
         var cols = new Grid { Margin = new Thickness(0, 12, 0, 0) };
         cols.ColumnDefinitions.Add(new ColumnDefinition());
         cols.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(12) });
@@ -208,7 +280,9 @@ public static class LobbyOverlay
         Grid.SetColumn(theirs, 2);
         cols.Children.Add(mine); cols.Children.Add(theirs);
         sp.Children.Add(cols);
-        sp.Children.Add(T(Loc.T("Peak = highest rank won at in any act. Smurf tags are signs, not proof: hover one to see why. Players who hid their name stay hidden."), 10.5, Dim, bold: false).Also(t => { t.Margin = new Thickness(0, 10, 0, 0); t.TextWrapping = TextWrapping.Wrap; }));
+        sp.Children.Add(T(after
+            ? Loc.T("Peak = highest rank won at in any act. Smurf tags and unusual stats are signs, not proof: hover one to see why. Read after the match ended, the way Riot's own match history shows it.")
+            : Loc.T("Peak = highest rank won at in any act. Smurf tags are signs, not proof: hover one to see why. Players who hid their name stay hidden."), 10.5, Dim, bold: false).Also(t => { t.Margin = new Thickness(0, 10, 0, 0); t.TextWrapping = TextWrapping.Wrap; }));
         return sp;
     }
 
@@ -249,8 +323,17 @@ public static class LobbyOverlay
                 ToolTip = Loc.T("Signs, not proof:") + "\n• " + string.Join("\n• ", p.Smurf.Signs),
             });
         }
+        if (p.Unusual is { Score: > 0 } u)
+            nameRow.Children.Add(new Border
+            {
+                CornerRadius = new CornerRadius(999), Padding = new Thickness(6, 0, 6, 1), Margin = new Thickness(6, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center,
+                Background = new SolidColorBrush(Color.FromArgb(0x30, 0xF0, 0x5A, 0x5A)),
+                Child = T(Loc.T("Unusual stats").ToUpper(CultureInfo.CurrentCulture), 9, Enemy),
+                ToolTip = Loc.T("Signs, not proof:") + "\n• " + string.Join("\n• ", u.Signs),
+            });
         who.Children.Add(nameRow);
         var sub = new List<string>();
+        if (!string.IsNullOrEmpty(p.Extra)) sub.Add(p.Extra);
         if (p.Level > 0) sub.Add(Loc.F("Lvl {0}", p.Level));
         if (p.WinPercent >= 0) sub.Add(Loc.F("{0}% WR · {1} games", p.WinPercent, p.Games));
         who.Children.Add(T(sub.Count > 0 ? string.Join("  ·  ", sub) : p.Agent, 10.5, Dim, bold: false));

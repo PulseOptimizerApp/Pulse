@@ -140,6 +140,8 @@ public class ClipSettings
     /// <summary>VALORANT live lobby: when you load into a match, offer to show both teams' ranks (opt-in, see its risk).</summary>
     public bool LiveLobby { get; set; }
     public bool LiveLobbyRisksAccepted { get; set; }
+    /// <summary>VALORANT after-match lobby: when a match ends, offer both teams' ranks, peaks and smurf signs (no risk: after the match).</summary>
+    public bool AfterMatchLobby { get; set; } = true;
     /// <summary>VALORANT tracker: searching any Riot ID (off until the user accepts the risk).</summary>
     public bool PlayerSearch { get; set; }
     /// <summary>A random password the games' state integrations send, so only they can talk to Pulse's listener.</summary>
