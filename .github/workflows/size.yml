@@ -43,13 +43,19 @@ jobs:
             $starts = @(); $ws = @(); $priv = @()
             for ($run = 0; $run -lt 3; $run++) {
               $sw = [Diagnostics.Stopwatch]::StartNew()
-              $p = Start-Process $exe -PassThru
-              while ($p.MainWindowHandle -eq 0 -and $sw.Elapsed.TotalSeconds -lt 30) { Start-Sleep -Milliseconds 50; $p.Refresh() }
+              Start-Process $exe | Out-Null
+              # Pulse may hand over to a fresh copy of itself, so follow whichever Pulse has the window.
+              $p = $null
+              while ($sw.Elapsed.TotalSeconds -lt 40) {
+                $p = Get-Process Pulse -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowHandle -ne 0 } | Select-Object -First 1
+                if ($p) { break }
+                Start-Sleep -Milliseconds 50
+              }
               $starts += $sw.Elapsed.TotalSeconds
               Start-Sleep -Seconds 12
-              $p.Refresh()
-              $ws += $p.WorkingSet64 / 1MB; $priv += $p.PrivateMemorySize64 / 1MB
-              Stop-Process -Id $p.Id -Force
+              $p = Get-Process Pulse -ErrorAction SilentlyContinue | Sort-Object WorkingSet64 -Descending | Select-Object -First 1
+              if ($p) { $ws += $p.WorkingSet64 / 1MB; $priv += $p.PrivateMemorySize64 / 1MB }
+              Get-Process Pulse -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
               Start-Sleep -Seconds 2
             }
             $rows += [pscustomobject]@{
