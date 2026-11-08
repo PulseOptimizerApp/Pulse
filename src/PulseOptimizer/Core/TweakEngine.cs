@@ -87,6 +87,7 @@ public class AppState
     public Pulse.Core.Games.Valorant.CoachState Coach { get; set; } = new();
     /// <summary>Play sessions for the weekly report, and the driver Pulse last told you about.</summary>
     public Pulse.Core.Reports.ReportState Report { get; set; } = new();
+    public SpeedState Speed { get; set; } = new();
     /// <summary>The Devices page: backups of key remaps and key repeat.</summary>
     public Pulse.Core.Devices.DeviceSettings Devices { get; set; } = new();
 }

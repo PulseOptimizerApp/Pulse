@@ -35,8 +35,9 @@ public class SafetyTests
             "(the players in your current match and their ranks, from Riot the same way: ValorantLobby.cs). The PC guide downloads " +
             "its latest prices and news from Pulse's own website (GuideLive.cs). The VALORANT store reads your own store from Riot " +
             "the same way, with skin names and pictures from valorant-api.com (ValorantStore.cs). The driver check asks " +
-            "NVIDIA's public driver lookup for the newest Game Ready version (DriverCheck.cs)",
-            "Ffmpeg.cs", "Updater.cs", "LeagueLive.cs", "ValorantMatches.cs", "ValorantLobby.cs", "GuideLive.cs", "ValorantStore.cs", "DriverCheck.cs", "ValorantSearch.cs");
+            "NVIDIA's public driver lookup for the newest Game Ready version (DriverCheck.cs). The speed test downloads and uploads " +
+            "random filler to Cloudflare's public speed-test servers (SpeedTest.cs)",
+            "Ffmpeg.cs", "Updater.cs", "LeagueLive.cs", "ValorantMatches.cs", "ValorantLobby.cs", "GuideLive.cs", "ValorantStore.cs", "DriverCheck.cs", "ValorantSearch.cs", "SpeedTest.cs");
 
     [Fact]
     public void Player_search_only_reads_from_the_Riot_Client_and_Riot()
@@ -61,6 +62,17 @@ public class SafetyTests
         Assert.DoesNotContain("/order", src);
         Assert.DoesNotContain("PostAsync", src);
         Assert.DoesNotContain("PutAsync", src);
+    }
+
+    [Fact]
+    public void The_speed_test_only_talks_to_Cloudflares_speed_test()
+    {
+        var src = File.ReadAllText(Repo.SourceFiles().Single(f => Path.GetFileName(f) == "SpeedTest.cs"));
+        var urls = Regex.Matches(src, @"https?://[A-Za-z0-9./_-]+").Select(m => m.Value).Distinct().ToList();
+        Assert.Equal(new[] { "https://speed.cloudflare.com" }, urls);
+        var paths = Regex.Matches(src, @"\{Base\}(/[A-Za-z_]+)").Select(m => m.Groups[1].Value).Distinct().ToList();
+        Assert.NotEmpty(paths);
+        Assert.All(paths, p => Assert.Matches("^/__(down|up)$", p));
     }
 
     [Fact]

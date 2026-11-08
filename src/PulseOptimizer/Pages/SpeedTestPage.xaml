@@ -1,0 +1,14 @@
+<UserControl x:Class="Pulse.Pages.SpeedTestPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid Margin="0,6,0,0">
+        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+        <StackPanel>
+            <TextBlock Style="{StaticResource H1}" Text="Speed test"/>
+            <TextBlock Style="{StaticResource Sub}" Margin="0,4,0,0" Text="Download, upload and ping, plus what matters for games: jitter, packet loss and lag when your connection is busy."/>
+        </StackPanel>
+        <ScrollViewer x:Name="Scroller" Grid.Row="1" Margin="0,16,0,0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <StackPanel x:Name="Root" Margin="0,0,8,32"/>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

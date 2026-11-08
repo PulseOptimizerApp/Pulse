@@ -376,3 +376,41 @@ public class TrackerTests
     public void Act_names_read_naturally(string riot, string shown) =>
         Assert.Equal(shown, Pulse.Core.Games.Live.ValorantLobby.Friendly(riot));
 }
+
+public class SpeedTestTests
+{
+    [Fact]
+    public void Median_and_jitter()
+    {
+        Assert.Equal(20, Pulse.Core.SpeedTest.Median(new() { 30, 10, 20 }));
+        Assert.Equal(15, Pulse.Core.SpeedTest.Median(new() { 10, 20, 30, 5 }));
+        Assert.Equal(0, Pulse.Core.SpeedTest.Jitter(new() { 12 }));
+        Assert.Equal(5, Pulse.Core.SpeedTest.Jitter(new() { 10, 15, 10, 15 }), 3);
+    }
+
+    [Fact]
+    public void Bufferbloat_grade_uses_the_worse_direction()
+    {
+        var r = new Pulse.Core.SpeedResult { IdleMs = 20, LoadedDownMs = 24, LoadedUpMs = 25 };
+        Assert.Equal("A", r.BloatGrade);
+        r.LoadedUpMs = 21; r.LoadedDownMs = 22;
+        Assert.Equal("A+", r.BloatGrade);
+        r.LoadedUpMs = 300;
+        Assert.Equal("C", r.BloatGrade);
+        r.LoadedDownMs = 600;
+        Assert.Equal("F", r.BloatGrade);
+    }
+
+    [Fact]
+    public void Bad_results_come_with_fixes_and_wifi_gets_the_cable_tip_first()
+    {
+        var r = new Pulse.Core.SpeedResult { DownMbps = 8, UpMbps = 1, IdleMs = 80, JitterMs = 25, LossPercent = 4, LoadedDownMs = 500, LoadedUpMs = 300, Wifi = true };
+        var d = Pulse.Core.SpeedTest.Diagnose(r);
+        Assert.All(d, f => Assert.Equal(Pulse.Core.SpeedTest.Level.Bad, f.Level));
+        Assert.All(d, f => Assert.NotEmpty(f.Fixes));
+        Assert.StartsWith("Plug your PC", d.Single(f => f.Area == "Ping").Fixes[0]);
+        Assert.Equal(Pulse.Core.SpeedTest.Level.Bad, Pulse.Core.SpeedTest.Verdict(r).Level);
+        var good = new Pulse.Core.SpeedResult { DownMbps = 500, UpMbps = 50, IdleMs = 10, JitterMs = 1, LossPercent = 0, LoadedDownMs = 12, LoadedUpMs = 13 };
+        Assert.Equal(Pulse.Core.SpeedTest.Level.Great, Pulse.Core.SpeedTest.Verdict(good).Level);
+    }
+}

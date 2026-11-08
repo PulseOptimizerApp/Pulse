@@ -179,6 +179,7 @@ public partial class MainWindow : Window
                 "gpu" => new GpuPage(),
                 "valorant" => new ValorantPage(),
                 "report" => new ReportPage(),
+                "speed" => new SpeedTestPage(),
                 "settings" => new SettingsPage(),
                 "crosshair" => new CrosshairPage(),
                 "games" => new GamesPage(),

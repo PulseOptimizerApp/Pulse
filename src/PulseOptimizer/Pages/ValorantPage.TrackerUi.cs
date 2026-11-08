@@ -42,7 +42,7 @@ public partial class ValorantPage
     };
 
     /// <summary>A card with a soft glow of its color and a thin accent line along the top.</summary>
-    Border Card2(UIElement child, Color accent, double pad = 20, bool glow = false)
+    Border Card2(UIElement child, Color accent, double pad = 16, bool glow = false)
     {
         var g = new Grid();
         if (glow)
@@ -62,7 +62,7 @@ public partial class ValorantPage
         {
             CornerRadius = new CornerRadius(14), BorderBrush = B(Color.FromRgb(0x24, 0x26, 0x2C)), BorderThickness = new Thickness(1),
             Background = new LinearGradientBrush(Color.FromRgb(0x17, 0x18, 0x1C), Color.FromRgb(0x12, 0x13, 0x16), 90),
-            Margin = new Thickness(0, 0, 0, 14), Child = g, ClipToBounds = true,
+            Margin = new Thickness(0, 0, 0, 10), Child = g, ClipToBounds = true,
         };
     }
 
@@ -109,32 +109,32 @@ public partial class ValorantPage
 
     FrameworkElement GaugeA(string title, string icon, double frac, string value, string unit, Color c, string word, string sub, string why)
     {
-        const double size = 172, stroke = 14;
+        const double size = 116, stroke = 10;
         var sp = new StackPanel();
         var head = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center };
-        head.Children.Add(new Border { Width = 24, Height = 24, CornerRadius = new CornerRadius(7), Background = B(A(c, 0x24)), Margin = new Thickness(0, 0, 8, 0), Child = Icon(icon, c, 14) });
-        head.Children.Add(new TextBlock { Text = Loc.T(title).ToUpper(CultureInfo.CurrentCulture), FontSize = 11, FontWeight = FontWeights.ExtraBold, Foreground = B(Color.FromRgb(0xB0, 0xB3, 0xBB)), VerticalAlignment = VerticalAlignment.Center });
+        head.Children.Add(new Border { Width = 20, Height = 20, CornerRadius = new CornerRadius(6), Background = B(A(c, 0x24)), Margin = new Thickness(0, 0, 7, 0), Child = Icon(icon, c, 12) });
+        head.Children.Add(new TextBlock { Text = Loc.T(title).ToUpper(CultureInfo.CurrentCulture), FontSize = 10.5, FontWeight = FontWeights.ExtraBold, Foreground = B(Color.FromRgb(0xB0, 0xB3, 0xBB)), VerticalAlignment = VerticalAlignment.Center });
         sp.Children.Add(head);
 
-        var ring = new Grid { Width = size, Height = size, Margin = new Thickness(0, 10, 0, 0), HorizontalAlignment = HorizontalAlignment.Center };
+        var ring = new Grid { Width = size, Height = size, Margin = new Thickness(0, 6, 0, 0), HorizontalAlignment = HorizontalAlignment.Center };
         ring.Children.Add(Ring(size, stroke, 1, B(A(c, 0x1F))));
         if (!double.IsNaN(frac) && frac > 0)
         {
             var grad = new LinearGradientBrush(A(c, 0x8C), c, new Point(0, 1), new Point(1, 0));
             var arc = Ring(size, stroke, frac, grad);
-            arc.Effect = Glow(c, 20, 0.7);
+            arc.Effect = Glow(c, 14, 0.7);
             ring.Children.Add(arc);
         }
         var num = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
-        num.Children.Add(new TextBlock { Text = value, FontSize = 44, FontWeight = FontWeights.ExtraBold, Foreground = B(c), FontFamily = (FontFamily)FindResource("DisplayFont"), Effect = Glow(c, 24, 0.5) });
-        if (unit.Length > 0) num.Children.Add(new TextBlock { Text = unit, FontSize = 17, FontWeight = FontWeights.Bold, Foreground = B(A(c, 0xD9)), VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(2, 0, 0, 8) });
+        num.Children.Add(new TextBlock { Text = value, FontSize = 30, FontWeight = FontWeights.ExtraBold, Foreground = B(c), FontFamily = (FontFamily)FindResource("DisplayFont"), Effect = Glow(c, 18, 0.5) });
+        if (unit.Length > 0) num.Children.Add(new TextBlock { Text = unit, FontSize = 13, FontWeight = FontWeights.Bold, Foreground = B(A(c, 0xD9)), VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(2, 0, 0, 5) });
         ring.Children.Add(num);
         sp.Children.Add(ring);
-        sp.Children.Add(new TextBlock { Text = Loc.T(word).ToUpper(CultureInfo.CurrentCulture), FontSize = 12.5, FontWeight = FontWeights.ExtraBold, Foreground = B(c), HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, -14, 0, 0) });
-        sp.Children.Add(new TextBlock { Text = sub.ToUpper(CultureInfo.CurrentCulture), FontSize = 11, FontWeight = FontWeights.Bold, Foreground = B(Color.FromRgb(0x7C, 0x80, 0x8A)), HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 8, 0, 0) });
-        sp.Children.Add(new TextBlock { Text = why, FontSize = 12, Foreground = B(Color.FromRgb(0x8E, 0x92, 0x9B)), TextWrapping = TextWrapping.Wrap, TextAlignment = TextAlignment.Center, Margin = new Thickness(6, 6, 6, 0), LineHeight = 17 });
-        var card = Card2(sp, c, 18, glow: true);
-        card.Margin = new Thickness(0, 0, 12, 14);
+        sp.Children.Add(new TextBlock { Text = Loc.T(word).ToUpper(CultureInfo.CurrentCulture), FontSize = 11.5, FontWeight = FontWeights.ExtraBold, Foreground = B(c), HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, -10, 0, 0) });
+        sp.Children.Add(new TextBlock { Text = sub.ToUpper(CultureInfo.CurrentCulture), FontSize = 10, FontWeight = FontWeights.Bold, Foreground = B(Color.FromRgb(0x7C, 0x80, 0x8A)), HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 4, 0, 0) });
+        sp.Children.Add(new TextBlock { Text = why, FontSize = 11, Foreground = B(Color.FromRgb(0x8E, 0x92, 0x9B)), TextWrapping = TextWrapping.Wrap, TextAlignment = TextAlignment.Center, Margin = new Thickness(4, 3, 4, 0), LineHeight = 15, MaxHeight = 30, TextTrimming = TextTrimming.CharacterEllipsis, ToolTip = why });
+        var card = Card2(sp, c, 12, glow: true);
+        card.Margin = new Thickness(0, 0, 10, 10);
         return card;
     }
 
@@ -147,7 +147,7 @@ public partial class ValorantPage
         g.ColumnDefinitions.Add(new ColumnDefinition());
         g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
-        var face = new Border { Width = 96, Height = 96, CornerRadius = new CornerRadius(16), Margin = new Thickness(0, 0, 20, 0), BorderBrush = B(Color.FromRgb(0x2C, 0x2E, 0x36)), BorderThickness = new Thickness(2) };
+        var face = new Border { Width = 68, Height = 68, CornerRadius = new CornerRadius(13), Margin = new Thickness(0, 0, 16, 0), BorderBrush = B(Color.FromRgb(0x2C, 0x2E, 0x36)), BorderThickness = new Thickness(2) };
         face.Background = MatchArt.AgentIcon(mainAgent) is { } art ? new ImageBrush(art) { Stretch = Stretch.UniformToFill } : B(Color.FromRgb(0x22, 0x22, 0x26));
         face.Effect = new DropShadowEffect { BlurRadius = 24, ShadowDepth = 6, Opacity = 0.5, Color = Colors.Black };
         g.Children.Add(face);
@@ -155,7 +155,7 @@ public partial class ValorantPage
         var mid = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
         Grid.SetColumn(mid, 1);
         var nameRow = new WrapPanel();
-        nameRow.Children.Add(new TextBlock { Text = p.Name.Length > 0 ? p.Name : mainAgent ?? "?", FontSize = 28, FontWeight = FontWeights.Bold, Foreground = Res("TextBrush"), FontFamily = (FontFamily)FindResource("DisplayFont"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 12, 0) });
+        nameRow.Children.Add(new TextBlock { Text = p.Name.Length > 0 ? p.Name : mainAgent ?? "?", FontSize = 22, FontWeight = FontWeights.Bold, Foreground = Res("TextBrush"), FontFamily = (FontFamily)FindResource("DisplayFont"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 12, 0) });
         Border Tag(string t, Color c) => new()
         {
             CornerRadius = new CornerRadius(5), Padding = new Thickness(8, 3, 8, 3), Margin = new Thickness(0, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center,
@@ -175,14 +175,14 @@ public partial class ValorantPage
             if (p.With > 0) sub.Add(Loc.F("{0}–{1} together", p.WithWins, p.With - p.WithWins));
             if (p.Against > 0) sub.Add(Loc.F("you went {0}–{1} against them", p.AgainstWins, p.Against - p.AgainstWins));
         }
-        mid.Children.Add(new TextBlock { Text = string.Join(" · ", sub), FontSize = 13, Foreground = Res("TextDimBrush"), Margin = new Thickness(0, 4, 0, 0) });
-        var chips = new WrapPanel { Margin = new Thickness(0, 10, 0, 0) };
+        mid.Children.Add(new TextBlock { Text = string.Join(" · ", sub), FontSize = 12, Foreground = Res("TextDimBrush"), Margin = new Thickness(0, 2, 0, 0) });
+        var chips = new WrapPanel { Margin = new Thickness(0, 6, 0, 0) };
         void Chip2(string label, string value)
         {
             var sp = new StackPanel { Orientation = Orientation.Horizontal };
             sp.Children.Add(new TextBlock { Text = Loc.T(label), FontSize = 12, Foreground = Res("TextFaintBrush"), Margin = new Thickness(0, 0, 6, 0) });
             sp.Children.Add(new TextBlock { Text = value, FontSize = 12, FontWeight = FontWeights.Bold, Foreground = Res("TextBrush") });
-            chips.Children.Add(new Border { Background = B(Color.FromRgb(0x1D, 0x1F, 0x25)), BorderBrush = B(Color.FromRgb(0x2A, 0x2D, 0x35)), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(7), Padding = new Thickness(10, 5, 10, 6), Margin = new Thickness(0, 0, 8, 0), Child = sp });
+            chips.Children.Add(new Border { Background = B(Color.FromRgb(0x1D, 0x1F, 0x25)), BorderBrush = B(Color.FromRgb(0x2A, 0x2D, 0x35)), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(6), Padding = new Thickness(8, 3, 8, 4), Margin = new Thickness(0, 0, 6, 0), Child = sp });
         }
         Chip2("Matches", p.Matches.Count.ToString(CultureInfo.CurrentCulture));
         Chip2("Rounds", p.Totals.Rounds.ToString("N0", CultureInfo.CurrentCulture));
@@ -203,7 +203,7 @@ public partial class ValorantPage
         if (p.Peak >= 3) ranks.Children.Add(RankBox("Peak", p.Peak, p.PeakAct));
         g.Children.Add(ranks);
 
-        var card = Card2(g, Purple, 22);
+        var card = Card2(g, Purple, 14);
         // A purple wash from the top left, like light on the portrait.
         if (card.Child is Grid cg)
             cg.Children.Insert(0, new Border { IsHitTestVisible = false, CornerRadius = new CornerRadius(14), Background = new RadialGradientBrush(A(Color.FromRgb(0x78, 0x5A, 0xFF), 0x33), A(Color.FromRgb(0x78, 0x5A, 0xFF), 0)) { Center = new Point(0, 0), GradientOrigin = new Point(0, 0), RadiusX = 0.55, RadiusY = 1.2 } });
@@ -215,16 +215,16 @@ public partial class ValorantPage
         var row = new StackPanel { Orientation = Orientation.Horizontal };
         var c = RankColor(tier);
         if (MatchArt.RankIcon(tier) is { } icon)
-            row.Children.Add(new Image { Source = icon, Width = 46, Height = 46, Margin = new Thickness(0, 0, 12, 0), Effect = Glow(c, 14, 0.45) }.Also(i => RenderOptions.SetBitmapScalingMode(i, BitmapScalingMode.HighQuality)));
+            row.Children.Add(new Image { Source = icon, Width = 36, Height = 36, Margin = new Thickness(0, 0, 10, 0), Effect = Glow(c, 14, 0.45) }.Also(i => RenderOptions.SetBitmapScalingMode(i, BitmapScalingMode.HighQuality)));
         var t = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
         t.Children.Add(Caps(label, 10, B(Color.FromRgb(0x7C, 0x80, 0x8A))));
-        t.Children.Add(new TextBlock { Text = tier >= 3 ? ValorantMatches.RankName(tier) : Loc.T("Unrated"), FontSize = 16, FontWeight = FontWeights.Bold, Foreground = Res("TextBrush"), Margin = new Thickness(0, 1, 0, 0) });
-        if (!string.IsNullOrEmpty(sub)) t.Children.Add(new TextBlock { Text = sub, FontSize = 12, Foreground = Res("TextDimBrush") });
+        t.Children.Add(new TextBlock { Text = tier >= 3 ? ValorantMatches.RankName(tier) : Loc.T("Unrated"), FontSize = 14.5, FontWeight = FontWeights.Bold, Foreground = Res("TextBrush"), Margin = new Thickness(0, 1, 0, 0) });
+        if (!string.IsNullOrEmpty(sub)) t.Children.Add(new TextBlock { Text = sub, FontSize = 11, Foreground = Res("TextDimBrush") });
         row.Children.Add(t);
         return new Border
         {
             CornerRadius = new CornerRadius(12), Background = B(Color.FromRgb(0x1A, 0x1B, 0x20)), BorderBrush = B(A(c, 0x40)), BorderThickness = new Thickness(1),
-            Padding = new Thickness(14, 10, 18, 10), Margin = new Thickness(12, 0, 0, 0), MinWidth = 200, Child = row,
+            Padding = new Thickness(12, 7, 14, 7), Margin = new Thickness(10, 0, 0, 0), MinWidth = 180, Child = row,
         };
     }
 
@@ -254,16 +254,16 @@ public partial class ValorantPage
                 Child = new TextBlock { Text = Loc.F("TOP {0:0}%", s.TopPercent), FontSize = 10.5, FontWeight = FontWeights.ExtraBold, Foreground = B(c) },
             });
         sp.Children.Add(head);
-        var val = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 6, 0, 10) };
-        val.Children.Add(new TextBlock { Text = Fmt(s), FontSize = 30, FontWeight = FontWeights.ExtraBold, Foreground = Res("TextBrush"), FontFamily = (FontFamily)FindResource("DisplayFont") });
-        if (known) val.Children.Add(new TextBlock { Text = UnitOf(s), FontSize = 14, FontWeight = FontWeights.SemiBold, Foreground = B(Color.FromRgb(0x8E, 0x92, 0x9B)), VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(3, 0, 0, 6) });
+        var val = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 6) };
+        val.Children.Add(new TextBlock { Text = Fmt(s), FontSize = 22, FontWeight = FontWeights.ExtraBold, Foreground = Res("TextBrush"), FontFamily = (FontFamily)FindResource("DisplayFont") });
+        if (known) val.Children.Add(new TextBlock { Text = UnitOf(s), FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = B(Color.FromRgb(0x8E, 0x92, 0x9B)), VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(3, 0, 0, 4) });
         sp.Children.Add(val);
 
         // The bar, with a mark where players at the compared rank usually are.
         double max = Tracker.BarMax(s.Skill.Id, s.Value);
-        var bar = new Grid { Height = 22 };
-        bar.Children.Add(new Border { Height = 8, VerticalAlignment = VerticalAlignment.Top, CornerRadius = new CornerRadius(4), Background = B(Color.FromRgb(0x24, 0x26, 0x2D)) });
-        var fill = new Border { Height = 8, VerticalAlignment = VerticalAlignment.Top, HorizontalAlignment = HorizontalAlignment.Left, CornerRadius = new CornerRadius(4), Width = 0,
+        var bar = new Grid { Height = 18 };
+        bar.Children.Add(new Border { Height = 6, VerticalAlignment = VerticalAlignment.Top, CornerRadius = new CornerRadius(4), Background = B(Color.FromRgb(0x24, 0x26, 0x2D)) });
+        var fill = new Border { Height = 6, VerticalAlignment = VerticalAlignment.Top, HorizontalAlignment = HorizontalAlignment.Left, CornerRadius = new CornerRadius(4), Width = 0,
             Background = new LinearGradientBrush(A(c, 0x59), c, 0), Effect = Glow(c, 12, 0.5) };
         bar.Children.Add(fill);
         var mark = new Border { Width = 2, Height = 16, VerticalAlignment = VerticalAlignment.Top, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, -4, 0, 0), Background = B(Color.FromRgb(0xEC, 0xED, 0xEF)), CornerRadius = new CornerRadius(1), Visibility = Visibility.Collapsed };
@@ -287,28 +287,28 @@ public partial class ValorantPage
         // Plays like.
         var like = new StackPanel { Orientation = Orientation.Horizontal };
         if (known && s.PlaysLikeTier > 0 && MatchArt.RankIcon(s.PlaysLikeTier) is { } ri)
-            like.Children.Add(new Image { Source = ri, Width = 30, Height = 30, Margin = new Thickness(0, 0, 10, 0), Effect = Glow(c, 10, 0.6) }.Also(i => RenderOptions.SetBitmapScalingMode(i, BitmapScalingMode.HighQuality)));
+            like.Children.Add(new Image { Source = ri, Width = 22, Height = 22, Margin = new Thickness(0, 0, 8, 0), Effect = Glow(c, 10, 0.6) }.Also(i => RenderOptions.SetBitmapScalingMode(i, BitmapScalingMode.HighQuality)));
         var lt = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
         lt.Children.Add(new TextBlock { Text = Loc.T(likeWord).ToUpper(CultureInfo.CurrentCulture), FontSize = 9.5, FontWeight = FontWeights.ExtraBold, Foreground = B(Color.FromRgb(0x8E, 0x92, 0x9B)) });
         lt.Children.Add(new TextBlock
         {
             Text = !known ? Loc.T("Not enough data yet") : s.PlaysLikeTier > 0 ? ValorantMatches.RankName(s.PlaysLikeTier) : Loc.T("Needs more ranked players"),
-            FontSize = known && s.PlaysLikeTier > 0 ? 14 : 12, FontWeight = FontWeights.ExtraBold, Foreground = known && s.PlaysLikeTier > 0 ? B(c) : Res("TextFaintBrush"),
+            FontSize = known && s.PlaysLikeTier > 0 ? 12.5 : 11, FontWeight = FontWeights.ExtraBold, Foreground = known && s.PlaysLikeTier > 0 ? B(c) : Res("TextFaintBrush"),
         });
         like.Children.Add(lt);
         sp.Children.Add(new Border
         {
-            CornerRadius = new CornerRadius(9), Padding = new Thickness(10, 6, 10, 6), Margin = new Thickness(0, 8, 0, 0), BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(8), Padding = new Thickness(8, 4, 8, 4), Margin = new Thickness(0, 4, 0, 0), BorderThickness = new Thickness(1),
             BorderBrush = B(A(c, 0x47)), Background = new LinearGradientBrush(A(c, 0x29), A(c, 0x08), 0), Child = like,
         });
 
         var tile = new Grid();
         tile.Children.Add(new Border { Width = 3, HorizontalAlignment = HorizontalAlignment.Left, Background = B(c), Effect = Glow(c, 14, 0.7) });
-        tile.Children.Add(new Border { Padding = new Thickness(16, 14, 16, 14), Child = sp });
+        tile.Children.Add(new Border { Padding = new Thickness(14, 10, 14, 10), Child = sp });
         return new Border
         {
             CornerRadius = new CornerRadius(12), Background = B(Color.FromRgb(0x17, 0x18, 0x1D)), BorderBrush = B(Color.FromRgb(0x24, 0x26, 0x2D)), BorderThickness = new Thickness(1),
-            Margin = new Thickness(0, 0, 12, 12), ClipToBounds = true, Child = tile,
+            Margin = new Thickness(0, 0, 10, 10), ClipToBounds = true, Child = tile,
         };
     }
 
@@ -318,17 +318,17 @@ public partial class ValorantPage
         sp.Children.Add(Caps("Pulse rating", 10.5, B(Purple)));
         sp.Children.Add(new TextBlock
         {
-            Text = r == null ? "–" : r.Overall.ToString("0.00", CultureInfo.CurrentCulture), FontSize = 58, FontWeight = FontWeights.ExtraBold, Foreground = Brushes.White,
-            FontFamily = (FontFamily)FindResource("DisplayFont"), Effect = Glow(Purple, 30, 0.55), Margin = new Thickness(0, 2, 0, 2),
+            Text = r == null ? "–" : r.Overall.ToString("0.00", CultureInfo.CurrentCulture), FontSize = 42, FontWeight = FontWeights.ExtraBold, Foreground = Brushes.White,
+            FontFamily = (FontFamily)FindResource("DisplayFont"), Effect = Glow(Purple, 22, 0.55), Margin = new Thickness(0, 0, 0, 0),
         });
         sp.Children.Add(new TextBlock
         {
             Text = (r != null && !double.IsNaN(r.TopPercent) ? Loc.F("Top {0:0}%", r.TopPercent) + " · " : "") + Loc.T("1.00 is the average player in your games"),
-            FontSize = 12, Foreground = Res("TextDimBrush"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 14),
+            FontSize = 11.5, Foreground = Res("TextDimBrush"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 8),
         });
         void Side(string label, double v)
         {
-            var g = new Grid { Margin = new Thickness(0, 8, 0, 0) };
+            var g = new Grid { Margin = new Thickness(0, 5, 0, 0) };
             g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(64) });
             g.ColumnDefinitions.Add(new ColumnDefinition());
             g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(42) });
@@ -347,8 +347,8 @@ public partial class ValorantPage
         Side("Defense", r?.Defense ?? double.NaN);
         var g2 = new Grid();
         g2.Children.Add(new Border { CornerRadius = new CornerRadius(12), Background = new RadialGradientBrush(A(Purple, 0x38), A(Purple, 0)) { Center = new Point(0.3, 0), GradientOrigin = new Point(0.3, 0), RadiusX = 0.8, RadiusY = 0.9 } });
-        g2.Children.Add(new Border { Padding = new Thickness(18), Child = sp });
-        return new Border { CornerRadius = new CornerRadius(12), Background = B(Color.FromRgb(0x17, 0x18, 0x1D)), BorderBrush = B(Color.FromRgb(0x2E, 0x2A, 0x3D)), BorderThickness = new Thickness(1), Margin = new Thickness(0, 0, 14, 12), Child = g2, ClipToBounds = true };
+        g2.Children.Add(new Border { Padding = new Thickness(14), Child = sp });
+        return new Border { CornerRadius = new CornerRadius(12), Background = B(Color.FromRgb(0x17, 0x18, 0x1D)), BorderBrush = B(Color.FromRgb(0x2E, 0x2A, 0x3D)), BorderThickness = new Thickness(1), Margin = new Thickness(0, 0, 10, 10), Child = g2, ClipToBounds = true };
     }
 
     // ───────── stat tiles ─────────
@@ -359,7 +359,7 @@ public partial class ValorantPage
         var sp = new StackPanel();
         sp.Children.Add(Caps(s.Skill.Name, 10.5, B(Color.FromRgb(0x9A, 0x9D, 0xA6))));
         var val = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 6, 0, 10) };
-        val.Children.Add(new TextBlock { Text = Fmt(s), FontSize = 26, FontWeight = FontWeights.ExtraBold, Foreground = known ? B(c) : Res("TextFaintBrush"), FontFamily = (FontFamily)FindResource("DisplayFont") });
+        val.Children.Add(new TextBlock { Text = Fmt(s), FontSize = 21, FontWeight = FontWeights.ExtraBold, Foreground = known ? B(c) : Res("TextFaintBrush"), FontFamily = (FontFamily)FindResource("DisplayFont") });
         if (known && s.Skill.Unit.Length > 0) val.Children.Add(new TextBlock { Text = s.Skill.Unit, FontSize = 12.5, FontWeight = FontWeights.SemiBold, Foreground = B(A(c, 0xBF)), VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(3, 0, 0, 5) });
         sp.Children.Add(val);
         var segs = new UniformGrid { Columns = 10, Height = 5 };
@@ -367,7 +367,7 @@ public partial class ValorantPage
         for (int i = 0; i < 10; i++)
             segs.Children.Add(new Border { Margin = new Thickness(0, 0, 3, 0), CornerRadius = new CornerRadius(2), Background = i < lit ? B(c) : B(Color.FromRgb(0x26, 0x28, 0x2F)) });
         sp.Children.Add(segs);
-        var tags = new WrapPanel { Margin = new Thickness(0, 10, 0, 0) };
+        var tags = new WrapPanel { Margin = new Thickness(0, 7, 0, 0) };
         Border Tag(string t, Color col) => new()
         {
             CornerRadius = new CornerRadius(4), Padding = new Thickness(7, 2, 7, 2), Margin = new Thickness(0, 0, 6, 0), BorderThickness = new Thickness(1), BorderBrush = B(A(col, 0x80)),
@@ -383,15 +383,15 @@ public partial class ValorantPage
         sp.Children.Add(tags);
         var g = new Grid();
         g.Children.Add(new Border { Height = 2, VerticalAlignment = VerticalAlignment.Top, Background = new LinearGradientBrush(c, A(c, 0), 0) });
-        g.Children.Add(new Border { Padding = new Thickness(16, 14, 16, 14), Child = sp });
-        return new Border { CornerRadius = new CornerRadius(12), Background = B(Color.FromRgb(0x17, 0x18, 0x1D)), BorderBrush = B(Color.FromRgb(0x24, 0x26, 0x2D)), BorderThickness = new Thickness(1), Margin = new Thickness(0, 0, 12, 12), ClipToBounds = true, Child = g, ToolTip = Loc.T(s.Skill.Explains) };
+        g.Children.Add(new Border { Padding = new Thickness(13, 10, 13, 10), Child = sp });
+        return new Border { CornerRadius = new CornerRadius(12), Background = B(Color.FromRgb(0x17, 0x18, 0x1D)), BorderBrush = B(Color.FromRgb(0x24, 0x26, 0x2D)), BorderThickness = new Thickness(1), Margin = new Thickness(0, 0, 10, 10), ClipToBounds = true, Child = g, ToolTip = Loc.T(s.Skill.Explains) };
     }
 
     /// <summary>A section title in the cards: a heading on the left, a faint note on the right.</summary>
     FrameworkElement SectionHead(string title, string note, Color? accentWord = null, string accent = null)
     {
-        var g = new Grid { Margin = new Thickness(0, 0, 0, 14) };
-        var t = new TextBlock { FontSize = 17, FontWeight = FontWeights.Bold, Foreground = Res("TextBrush"), FontFamily = (FontFamily)FindResource("DisplayFont") };
+        var g = new Grid { Margin = new Thickness(0, 0, 0, 10) };
+        var t = new TextBlock { FontSize = 15.5, FontWeight = FontWeights.Bold, Foreground = Res("TextBrush"), FontFamily = (FontFamily)FindResource("DisplayFont") };
         t.Inlines.Add(new System.Windows.Documents.Run(Loc.T(title)));
         if (accent != null) t.Inlines.Add(new System.Windows.Documents.Run(" " + Loc.T(accent)) { Foreground = B(accentWord ?? Blue) });
         g.Children.Add(t);
@@ -417,7 +417,7 @@ public partial class ValorantPage
 
         // Gauges.
         var t = p.Totals;
-        var gauges = new UniformGrid { Columns = 4, Margin = new Thickness(0, 0, -12, 0) };
+        var gauges = new UniformGrid { Columns = 4, Margin = new Thickness(0, 0, -10, 0) };
         var cheatC = p.Cheat.Score >= 60 ? Red : p.Cheat.Score >= 30 ? Yellow : Green;
         gauges.Children.Add(GaugeA("Cheating signals", IconShield, p.CheatChecks == 0 ? double.NaN : p.Cheat.Score / 100.0, p.CheatChecks == 0 ? "–" : $"{p.Cheat.Score}", p.CheatChecks == 0 ? "" : "%", cheatC,
             p.CheatChecks == 0 ? "Not enough data" : p.Cheat.Score >= 60 ? "High risk" : p.Cheat.Score >= 30 ? "Elevated" : "Low risk",
@@ -445,10 +445,10 @@ public partial class ValorantPage
         int scaleN = VStore.All.Sum(m => m.Players.Count);
         sk.Children.Add(SectionHead("Skills", Loc.F("{0} matches · compared with {1:N0} players in your games", p.Matches.Count, scaleN)));
         var row = new Grid();
-        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(270) });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(220) });
         row.ColumnDefinitions.Add(new ColumnDefinition());
         row.Children.Add(RatingPanel(p.Rating));
-        var grid = new UniformGrid { Columns = 3, Margin = new Thickness(0, 0, -12, 0) };
+        var grid = new UniformGrid { Columns = 3, Margin = new Thickness(0, 0, -10, 0) };
         var words = new Dictionary<string, string> { ["aim"] = "Aims like", ["positioning"] = "Positions like", ["utility"] = "Utility like", ["opening"] = "Duels like", ["clutch"] = "Clutches like", ["trading"] = "Trades like" };
         foreach (var id in new[] { "aim", "positioning", "utility", "opening", "clutch", "trading" })
             if (p.Skills.FirstOrDefault(x => x.Skill.Id == id) is { } s) grid.Children.Add(SkillTile2(s, p.CompareTier, words[id]));
@@ -462,7 +462,7 @@ public partial class ValorantPage
         st.Children.Add(SectionHead("PULSE", Loc.F("last {0} matches · {1:N0} rounds", p.Matches.Count, t.Rounds), Blue, "STATS"));
         var colors = new Dictionary<string, Color> { ["hs"] = Yellow, ["adr"] = Purple, ["kast"] = Blue, ["fk"] = Green, ["untraded"] = Red, ["trades"] = Orange, ["abil"] = Cyan, ["acs"] = Yellow };
         var worst = p.IsYou ? p.Stats.Where(x => !double.IsNaN(x.TopPercent)).OrderByDescending(x => x.TopPercent).FirstOrDefault() : null;
-        var tiles = new UniformGrid { Columns = 4, Margin = new Thickness(0, 0, -12, 0) };
+        var tiles = new UniformGrid { Columns = 4, Margin = new Thickness(0, 0, -10, 0) };
         foreach (var s in p.Stats) tiles.Children.Add(StatTile(s, colors.GetValueOrDefault(s.Skill.Id, Blue), p.CompareTier, worst != null && s == worst && s.TopPercent >= 55));
         st.Children.Add(tiles);
         if (!p.IsYou) st.Children.Add(Faint(Loc.T("Cheating signals and smurf chance add up warning signs; they're hints, not proof. Some players are just good, or improving fast."), 11.5, 4));
