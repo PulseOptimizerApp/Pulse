@@ -49,7 +49,7 @@ public static class SettingsBackup
     }
 
     /// <summary>What a backup holds, for the confirm message. Null when it isn't a Pulse backup.</summary>
-    public static (string Version, DateTime Created, int Crosshairs, int Sounds, int Macros)? Peek(string path)
+    public static (string Version, DateTime Created, int Crosshairs, int Macros)? Peek(string path)
     {
         try
         {
