@@ -56,9 +56,10 @@ jobs:
           $version = if ($env:GITHUB_REF_TYPE -eq 'tag') { $env:GITHUB_REF_NAME.TrimStart('v') } else { '0.0.0' }
           # Not compressed on purpose: a compressed single-file app unpacks every assembly into private memory at
           # startup (tens of MB in Task Manager). Uncompressed, Windows maps them straight from the exe instead.
-          # ReadyToRun: Pulse's own code ships already compiled, so it opens without waiting for the JIT.
+          # No ReadyToRun: measured (size.yml), it made the exe 23 MB bigger and used 11 MB more memory, and Pulse opened
+          # no faster (.NET's own libraries already ship precompiled; only Pulse's code is compiled on first use).
           dotnet publish src/PulseOptimizer/PulseOptimizer.csproj -c Release -r win-x64 --self-contained true `
-            -p:PublishSingleFile=true -p:PublishReadyToRun=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=false -p:Version=$version -o out
+            -p:PublishSingleFile=true -p:PublishReadyToRun=false -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=false -p:Version=$version -o out
 
       # Code signing (optional, recommended): see "Signing" in README.md.
 
