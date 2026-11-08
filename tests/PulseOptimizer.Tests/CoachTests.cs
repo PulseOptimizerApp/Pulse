@@ -268,3 +268,51 @@ public class ReportTests
         Assert.Equal("NVIDIA 581.57", ch[0].From);
     }
 }
+
+public class TrackerTests
+{
+    [Theory]
+    [InlineData("TenZ#0505", "TenZ", "0505")]
+    [InlineData("  Some Name #NA1 ", "Some Name", "NA1")]
+    [InlineData("ab#NA1", null, null)]
+    [InlineData("NoTag", null, null)]
+    [InlineData("Name#", null, null)]
+    public void Riot_ids_are_read(string text, string name, string tag)
+    {
+        var r = Pulse.Core.Games.Live.ValorantSearch.ParseRiotId(text);
+        if (name == null) Assert.Null(r);
+        else { Assert.Equal(name, r!.Value.Name); Assert.Equal(tag, r.Value.Tag); }
+    }
+
+    [Fact]
+    public void A_lookup_answer_must_be_the_player_asked_for()
+    {
+        Assert.Equal("p1", Pulse.Core.Games.Live.ValorantSearch.FirstPuuid("""[{"puuid":"p1","game_name":"TenZ","tag_line":"0505"}]""", "tenz", "0505"));
+        Assert.Null(Pulse.Core.Games.Live.ValorantSearch.FirstPuuid("""[{"puuid":"p2","game_name":"Other","tag_line":"0505"}]""", "TenZ", "0505"));
+        Assert.Equal("p3", Pulse.Core.Games.Live.ValorantSearch.FirstPuuid("""{"puuid":"p3"}""", "TenZ", "0505"));
+        Assert.Null(Pulse.Core.Games.Live.ValorantSearch.FirstPuuid("not json", "TenZ", "0505"));
+    }
+
+    [Fact]
+    public void Top_percent_counts_players_who_did_better()
+    {
+        var sorted = Enumerable.Range(1, 100).Select(i => (double)i).ToList();
+        Assert.Equal(1, Tracker.TopPercent(sorted, 1000), 3);
+        Assert.Equal(50, Tracker.TopPercent(sorted, 51), 3);
+        Assert.Equal(100, Tracker.TopPercent(sorted, 0), 3);
+        Assert.True(double.IsNaN(Tracker.TopPercent(sorted.Take(5).ToList(), 3)));
+    }
+
+    [Fact]
+    public void Plays_like_follows_how_each_rank_actually_scores()
+    {
+        // Ranks 12 (Gold 1) to 21 (Ascendant 1), median rising 2 points per rank, with one noisy rank out of order.
+        var byTier = new Dictionary<int, List<double>>();
+        for (int t = 12; t <= 21; t++) byTier[t] = Enumerable.Repeat(10.0 + 2 * (t - 12), 10).ToList();
+        byTier[16] = Enumerable.Repeat(12.0, 10).ToList(); // noisy
+        Assert.Equal(12, Tracker.PlaysLike(byTier, 5));
+        Assert.Equal(21, Tracker.PlaysLike(byTier, 99));
+        Assert.Equal(20, Tracker.PlaysLike(byTier, 26));
+        Assert.Equal(0, Tracker.PlaysLike(new Dictionary<int, List<double>> { [12] = new() { 1, 2 } }, 5));
+    }
+}

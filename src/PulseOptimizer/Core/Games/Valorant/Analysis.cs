@@ -43,6 +43,8 @@ public sealed class PlayerTotals
     /// <summary>Ability uses (C, Q, E, X) and the rounds they were counted over.</summary>
     public int[] Casts = new int[4];
     public int CastRounds;
+    /// <summary>Rounds where you were the last one alive against at least one enemy, and how many of those you won.</summary>
+    public int ClutchChances, ClutchWins;
 
     public void Add(PlayerTotals o)
     {
@@ -51,6 +53,7 @@ public sealed class PlayerTotals
         FirstKills += o.FirstKills; FirstDeaths += o.FirstDeaths; TradeKills += o.TradeKills;
         DeathsWithMates += o.DeathsWithMates; Untraded += o.Untraded; DeathsPlaced += o.DeathsPlaced; Alone += o.Alone; Outnumbered += o.Outnumbered;
         DeathsAbilityKnown += o.DeathsAbilityKnown; NoAbility += o.NoAbility;
+        ClutchChances += o.ClutchChances; ClutchWins += o.ClutchWins;
         for (int i = 0; i < 4; i++) Casts[i] += o.Casts[i];
         CastRounds += o.CastRounds;
     }
@@ -71,6 +74,8 @@ public sealed class PlayerTotals
     public double WinPct => Div(100.0 * Wins, Matches);
     public double CastsPerRound(int slot) => Div(Casts[slot], CastRounds);
     public double AllCastsPerRound => Div(Casts.Sum(), CastRounds);
+    public double ClutchWinPct => Div(100.0 * ClutchWins, ClutchChances);
+    public double KdRatio => Deaths > 0 ? (double)Kills / Deaths : Kills;
 }
 
 /// <summary>
@@ -208,6 +213,22 @@ public static class Analysis
             foreach (var x in rk.Where(x => x.Killer == who && m.TeamOf(x.Victim) != team))
                 if (rk.Any(y => y.Killer == x.Victim && y.Victim != who && m.TeamOf(y.Victim) == team && x.GameMs > y.GameMs && x.GameMs - y.GameMs <= TradeWindowMs))
                     t.TradeKills++;
+            // Clutches: you became the last one alive with at least one enemy still up.
+            {
+                var alive = new HashSet<string>(m.Players.Select(p => p.Id));
+                foreach (var x in rk)
+                {
+                    alive.Remove(x.Victim);
+                    if (!alive.Contains(who)) break;
+                    int mates = alive.Count(id => id != who && m.TeamOf(id) == team), enemies = alive.Count(id => m.TeamOf(id) is { Length: > 0 } tt && tt != team);
+                    if (mates == 0 && enemies > 0)
+                    {
+                        t.ClutchChances++;
+                        if (r.Winner == team) t.ClutchWins++;
+                        break;
+                    }
+                }
+            }
             foreach (var d in r.Damage.Where(d => d.From == who && m.TeamOf(d.To) != team))
             {
                 t.Damage += d.Amount; t.Head += d.Head; t.Body += d.Body; t.Legs += d.Legs;
@@ -241,6 +262,14 @@ public static class Analysis
             for (int i = 0; i < 4; i++) t.Casts[i] = c[i];
             t.CastRounds = me.Rounds;
         }
+        return t;
+    }
+
+    /// <summary>One player's totals over the matches they're in.</summary>
+    public static PlayerTotals For(IEnumerable<VMatch> matches, string who)
+    {
+        var t = new PlayerTotals();
+        foreach (var m in matches.Where(m => m.Players.Any(p => p.Id == who))) t.Add(Totals(m, who));
         return t;
     }
 

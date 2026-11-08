@@ -36,7 +36,19 @@ public class SafetyTests
             "its latest prices and news from Pulse's own website (GuideLive.cs). The VALORANT store reads your own store from Riot " +
             "the same way, with skin names and pictures from valorant-api.com (ValorantStore.cs). The driver check asks " +
             "NVIDIA's public driver lookup for the newest Game Ready version (DriverCheck.cs)",
-            "Ffmpeg.cs", "Updater.cs", "LeagueLive.cs", "ValorantMatches.cs", "ValorantLobby.cs", "GuideLive.cs", "ValorantStore.cs", "DriverCheck.cs");
+            "Ffmpeg.cs", "Updater.cs", "LeagueLive.cs", "ValorantMatches.cs", "ValorantLobby.cs", "GuideLive.cs", "ValorantStore.cs", "DriverCheck.cs", "ValorantSearch.cs");
+
+    [Fact]
+    public void Player_search_only_reads_from_the_Riot_Client_and_Riot()
+    {
+        var src = File.ReadAllText(Repo.SourceFiles().Single(f => Path.GetFileName(f) == "ValorantSearch.cs"));
+        var urls = Regex.Matches(src, @"https?://[^\s""]+").Select(m => m.Value).Distinct().ToList();
+        Assert.All(urls, u => Assert.Matches(@"^https://(pd\.\{s\.Shard\}\.a\.pvp\.net/(match-history|match-details)/|api\.account\.riotgames\.com/aliases/)", u));
+        Assert.DoesNotContain("HttpMethod.Post", src);
+        Assert.DoesNotContain("HttpMethod.Put", src);
+        Assert.DoesNotContain("PostAsync", src);
+        Assert.DoesNotContain("PutAsync", src);
+    }
 
     [Fact]
     public void The_store_only_reads_your_store_and_skin_pictures()

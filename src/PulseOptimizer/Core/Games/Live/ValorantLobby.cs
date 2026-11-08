@@ -74,7 +74,7 @@ public static class ValorantLobby
         return Last;
     }
 
-    static async Task<Dictionary<string, string>> Names(ValorantMatches.Session s, List<string> puuids)
+    internal static async Task<Dictionary<string, string>> Names(ValorantMatches.Session s, List<string> puuids)
     {
         var map = new Dictionary<string, string>();
         if (puuids.Count == 0) return map;
@@ -100,7 +100,7 @@ public static class ValorantLobby
     }
 
     /// <summary>Current rank and RR this act, peak rank ever (with its act), and win rate this act.</summary>
-    static async Task<(int Tier, int Rr, int Peak, string PeakAct, int Win, int Games)> Mmr(ValorantMatches.Session s, string puuid)
+    internal static async Task<(int Tier, int Rr, int Peak, string PeakAct, int Win, int Games)> Mmr(ValorantMatches.Session s, string puuid)
     {
         try
         {
@@ -142,7 +142,7 @@ public static class ValorantLobby
     }
 
     /// <summary>RR won or lost in the player's last competitive games (newest first), from Riot's competitive updates.</summary>
-    static async Task<List<int>> RecentGains(ValorantMatches.Session s, string puuid)
+    internal static async Task<List<int>> RecentGains(ValorantMatches.Session s, string puuid)
     {
         var list = new List<int>();
         try
@@ -196,7 +196,7 @@ public static class ValorantLobby
     }
 
     /// <summary>Agent names and the list of acts (with start dates) from Riot's content service.</summary>
-    static async Task LoadContent(ValorantMatches.Session s)
+    internal static async Task LoadContent(ValorantMatches.Session s)
     {
         if (_agents != null && _seasons != null) return;
         _agents = new(StringComparer.OrdinalIgnoreCase);

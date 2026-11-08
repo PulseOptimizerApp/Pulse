@@ -137,7 +137,7 @@ public sealed class ValorantMatches : IDisposable
 
     static void Forget() => _session = null;
 
-    static HttpRequestMessage Local(Session s, string path)
+    internal static HttpRequestMessage Local(Session s, string path)
     {
         var req = new HttpRequestMessage(HttpMethod.Get, $"https://127.0.0.1:{s.Port}{path}");
         req.Headers.Authorization = new AuthenticationHeaderValue("Basic", Convert.ToBase64String(Encoding.ASCII.GetBytes("riot:" + s.Password)));
