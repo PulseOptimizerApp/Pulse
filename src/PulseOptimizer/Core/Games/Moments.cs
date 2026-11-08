@@ -35,8 +35,9 @@ public static class MomentLog
         {
             var l = List;
             foreach (var m in moments)
-                // VALORANT's after-match data can repeat what was already logged: skip the same moment twice.
-                if (!l.Any(x => x.Kind == m.Kind && x.Game == m.Game && Math.Abs((x.When - m.When).TotalSeconds) < 0.5)) l.Add(m);
+                // VALORANT's after-match data can be read twice: skip a moment that's exactly the same as one already
+                // logged. Two real kills a split second apart (a quick double) are different moments and both stay.
+                if (!(m.Game == "VALORANT" && l.Any(x => x.Kind == m.Kind && x.Game == m.Game && x.When == m.When))) l.Add(m);
             var cutoff = DateTime.Now.AddDays(-7);
             l.RemoveAll(x => x.When < cutoff);
             if (l.Count > 20000) l.RemoveRange(0, l.Count - 20000);

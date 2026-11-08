@@ -3518,5 +3518,6 @@
  "This card or driver doesn't allow it.": "Esta tarjeta o controlador no lo permite.",
  "Your graphics driver reset while the GPU tune was on, so the last change went too far. Pulse put the card back to stock and won't apply that tune at startup. Back off one step and test again.": "Tu controlador gráfico se reinició con el ajuste de GPU activo, así que el último cambio se pasó. Pulse dejó la tarjeta de fábrica y no aplicará ese ajuste al iniciar. Retrocede un paso y vuelve a probar.",
  "Windows didn't shut down normally while your GPU tune was on, so Pulse didn't apply it this time. If the PC crashed, that tune is probably too far.": "Windows no se apagó con normalidad con tu ajuste de GPU activo, así que Pulse no lo aplicó esta vez. Si el PC se colgó, ese ajuste probablemente se pasa.",
- "Your graphics card changed, so Pulse didn't apply the tune made for the old one.": "Tu tarjeta gráfica cambió, así que Pulse no aplicó el ajuste hecho para la anterior."
+ "Your graphics card changed, so Pulse didn't apply the tune made for the old one.": "Tu tarjeta gráfica cambió, así que Pulse no aplicó el ajuste hecho para la anterior.",
+ "Total clips": "Clips totales"
 }

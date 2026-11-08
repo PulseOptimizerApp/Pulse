@@ -139,10 +139,25 @@ public class ClipTimeline : FrameworkElement
         {
             var mark = new Pen(Brushes.White, 1.6); mark.Freeze();
             var tick = new Pen(new SolidColorBrush(Color.FromArgb(0x55, 0xFF, 0xFF, 0xFF)), 1); tick.Freeze();
-            foreach (var (t, kind) in _moments.Where(x => x.T >= 0 && x.T <= Duration))
+            // Kills or deaths closer than a marker's width are drawn as one marker with a count (a quick double, an ace).
+            var groups = new List<(double X, string Kind, int Count)>();
+            foreach (var (t, kind) in _moments.Where(x => x.T >= 0 && x.T <= Duration).OrderBy(x => x.T))
             {
-                double xm = X(t), cy = LaneTop + LaneH / 2;
+                double x0 = X(t);
+                if (groups.Count > 0 && groups[^1].Kind == kind && x0 - groups[^1].X < 14) groups[^1] = (groups[^1].X, kind, groups[^1].Count + 1);
+                else groups.Add((x0, kind, 1));
+            }
+            var countFace = new Typeface(new FontFamily("Segoe UI"), FontStyles.Normal, FontWeights.Bold, FontStretches.Normal);
+            double dpi = VisualTreeHelper.GetDpi(this).PixelsPerDip;
+            foreach (var (xg, kind, count) in groups)
+            {
+                double xm = xg, cy = LaneTop + LaneH / 2;
                 bool kill = kind == "kill";
+                if (count > 1)
+                {
+                    var ft = new FormattedText("×" + count, System.Globalization.CultureInfo.InvariantCulture, FlowDirection.LeftToRight, countFace, 10, Brushes.White, dpi);
+                    dc.DrawText(ft, new Point(xm + 10, cy - ft.Height / 2));
+                }
                 dc.DrawLine(tick, new Point(xm, StripTop + StripH - 6), new Point(xm, LaneTop + 1));
                 dc.DrawEllipse(kill ? KillFill : DeathFill, null, new Point(xm, cy), 8, 8);
                 if (kill)

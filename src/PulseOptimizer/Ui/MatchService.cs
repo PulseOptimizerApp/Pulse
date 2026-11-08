@@ -144,7 +144,16 @@ public static class MatchService
         System.Windows.Application.Current?.Dispatcher.BeginInvoke(() =>
         {
             int clips = 0;
-            try { clips = Core.Clips.ClipLibrary.List(S).Count(c => c.Created >= m.Start.AddMinutes(-1) && c.Created <= m.End.AddMinutes(2)); } catch { }
+            string best = null;
+            try
+            {
+                var inMatch = Core.Clips.ClipLibrary.List(S).Where(c => c.Created >= m.Start.AddMinutes(-1) && c.Created <= m.End.AddMinutes(2)).ToList();
+                clips = inMatch.Count;
+                // The best clip: a big play (auto clips have titles like "3K"), otherwise the latest one.
+                best = (inMatch.Where(c => !string.IsNullOrEmpty(c.Title)).OrderByDescending(c => c.Created).FirstOrDefault()
+                        ?? inMatch.OrderByDescending(c => c.Created).FirstOrDefault())?.Path;
+            }
+            catch { }
             if (m.Session)
             {
                 // Quiet for sessions: only worth a popup when there's something to watch.
@@ -152,13 +161,9 @@ public static class MatchService
                 MatchAdded?.Invoke(m);
                 return;
             }
-            var title = string.Join(" · ", new[] { Loc.T(m.Result), m.Map, m.Score }.Where(x => !string.IsNullOrEmpty(x)));
-            var parts = new List<string>();
-            if (!string.IsNullOrEmpty(m.Character)) parts.Add(m.Character);
-            parts.Add(m.Kda);
-            if (m.HeadshotPercent >= 0) parts.Add(Loc.F("{0}% HS", m.HeadshotPercent));
-            if (clips > 0) parts.Add(Loc.F("{0} clips", clips));
-            ClipToast.Show(title.Length > 0 ? title : m.Game, string.Join(" · ", parts), m.Result != "Loss");
+            // The recap card, laid out like Medal's: agent, result, rank, score, K/D/A, headshots, big plays, best clip.
+            ClipToast.Corner = S.PopupCorner;
+            ClipToast.Recap(m, clips, best);
             MatchAdded?.Invoke(m);
         });
     }

@@ -31,7 +31,7 @@ public static class ClipToast
     static string _shownAt;      // the corner the popup on screen is in
     static bool _hiding;
 
-    const double Width = 320, Edge = 20, Travel = 36;
+    const double Width = 300, Edge = 20, Travel = 36;
     const int GWL_EXSTYLE = -20;
     const int WS_EX_TRANSPARENT = 0x20, WS_EX_TOOLWINDOW = 0x80, WS_EX_NOACTIVATE = 0x08000000, WS_EX_TOPMOST = 0x8;
     [DllImport("user32.dll")] static extern int GetWindowLong(IntPtr h, int i);
@@ -56,6 +56,21 @@ public static class ClipToast
         var card = Card(app, title, detail, kind, clip);
         // "Clipping…" waits for the save (with a safety limit); results stay a moment so you can read them.
         var stay = kind == Kind.Saving ? TimeSpan.FromSeconds(15) : TimeSpan.FromSeconds(kind == Kind.Ok ? 3.2 : 4.5);
+        Present(app, card, stay, kind);
+    }
+
+    /// <summary>The match recap card after a match (like Medal's): agent, result, rank, score, K/D/A, headshots, big plays and the best clip.</summary>
+    public static void Recap(Core.Games.MatchRecord m, int clips, string bestClip)
+    {
+        var app = Application.Current;
+        if (app == null) return;
+        if (!app.Dispatcher.CheckAccess()) { app.Dispatcher.BeginInvoke(() => Recap(m, clips, bestClip)); return; }
+        _clip = null;
+        Present(app, RecapCard.Build(app, m, clips, bestClip), TimeSpan.FromSeconds(10), Kind.Ok);
+    }
+
+    static void Present(Application app, FrameworkElement card, TimeSpan stay, Kind kind)
+    {
 
         if (_w != null && _w.IsVisible && _slot != null && _shownAt == _corner)
         {
@@ -70,7 +85,7 @@ public static class ClipToast
 
         _w?.Close();
         _shownAt = _corner;
-        _slot = new Grid { Width = Width };
+        _slot = new Grid();
         _slot.Children.Add(card);
         _slide = new TranslateTransform(Left ? -Travel : Travel, 0);
         var root = new Grid { Margin = new Thickness(18), RenderTransform = _slide, Children = { _slot } };
@@ -170,6 +185,7 @@ public static class ClipToast
         NameScope.SetNameScope(scope, new NameScope());
 
         // Picture of the clip (added when ready), across the top of the card.
+        // Picture of the clip (added when ready), across the top, with a dark fade so the text under it reads well.
         var picture = new Border { CornerRadius = new CornerRadius(11, 11, 0, 0), ClipToBounds = true, Height = 0, Opacity = 0 };
 
         // The badge: a soft square with the icon; it pops in.
@@ -195,7 +211,7 @@ public static class ClipToast
         }
         var badge = new Border
         {
-            Width = 36, Height = 36, CornerRadius = new CornerRadius(9),
+            Width = 34, Height = 34, CornerRadius = new CornerRadius(17),
             Background = new SolidColorBrush(Color.FromArgb(0x26, accentColor.R, accentColor.G, accentColor.B)),
             RenderTransformOrigin = new Point(0.5, 0.5), RenderTransform = pop, VerticalAlignment = VerticalAlignment.Center,
             Child = new Grid { Children = { icon }, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center },
@@ -205,9 +221,13 @@ public static class ClipToast
         pop.BeginAnimation(ScaleTransform.ScaleYProperty, new DoubleAnimation(1, TimeSpan.FromMilliseconds(300)) { EasingFunction = back });
 
         var text = new StackPanel { Margin = new Thickness(12, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
-        text.Children.Add(new TextBlock { Text = title, FontWeight = FontWeights.SemiBold, FontSize = 14, Foreground = (Brush)app.FindResource("TextBrush"), TextTrimming = TextTrimming.CharacterEllipsis });
+        text.Children.Add(new TextBlock
+        {
+            Text = title.ToUpper(System.Globalization.CultureInfo.CurrentCulture), FontWeight = FontWeights.Bold, FontSize = 14,
+            FontFamily = (FontFamily)app.FindResource("DisplayFont"), Foreground = Brushes.White, TextTrimming = TextTrimming.CharacterEllipsis,
+        });
         if (!string.IsNullOrEmpty(detail))
-            text.Children.Add(new TextBlock { Text = detail, FontSize = 12, Foreground = (Brush)app.FindResource("TextDimBrush"), Margin = new Thickness(0, 2, 0, 0), TextWrapping = TextWrapping.Wrap });
+            text.Children.Add(new TextBlock { Text = detail, FontSize = 12, Foreground = new SolidColorBrush(Color.FromRgb(0xA9, 0xA6, 0xA0)), Margin = new Thickness(0, 2, 0, 0), TextWrapping = TextWrapping.Wrap });
 
         var row = new Grid { Margin = new Thickness(14, 12, 16, 13) };
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -226,9 +246,9 @@ public static class ClipToast
         var body = new StackPanel { Children = { picture, row } };
         var card = new Border
         {
-            CornerRadius = new CornerRadius(12), ClipToBounds = true,
-            Background = new SolidColorBrush(Color.FromArgb(0xF5, 0x11, 0x11, 0x14)),
-            BorderBrush = new SolidColorBrush(Color.FromArgb(0xFF, 0x2A, 0x2A, 0x31)), BorderThickness = new Thickness(1),
+            Width = Width, CornerRadius = new CornerRadius(12), ClipToBounds = true,
+            Background = new SolidColorBrush(Color.FromArgb(0xF2, 0x12, 0x12, 0x16)),
+            BorderBrush = new SolidColorBrush(Color.FromArgb(0x26, 0xFF, 0xFF, 0xFF)), BorderThickness = new Thickness(1),
             Child = new Grid { Children = { body, drain } },
             Effect = new DropShadowEffect { BlurRadius = 22, ShadowDepth = 4, Direction = 270, Opacity = 0.45, Color = Colors.Black },
         };
@@ -247,7 +267,12 @@ public static class ClipToast
                 bmp.DecodePixelWidth = 640;
                 bmp.UriSource = new Uri(thumb);
                 bmp.EndInit();
-                picture.Child = new Image { Source = bmp, Stretch = Stretch.UniformToFill };
+                var fade = new Border
+                {
+                    VerticalAlignment = VerticalAlignment.Bottom, Height = 46,
+                    Background = new LinearGradientBrush(Color.FromArgb(0, 0x12, 0x12, 0x16), Color.FromArgb(0xF2, 0x12, 0x12, 0x16), 90),
+                };
+                picture.Child = new Grid { Children = { new Image { Source = bmp, Stretch = Stretch.UniformToFill }, fade } };
                 var h = Width * 9 / 16;
                 picture.BeginAnimation(FrameworkElement.HeightProperty, new DoubleAnimation(0, h, TimeSpan.FromMilliseconds(260)) { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } });
                 picture.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(1, TimeSpan.FromMilliseconds(260)));
