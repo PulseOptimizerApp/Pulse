@@ -14,6 +14,22 @@ public class GameSessionSettings
     public bool Overlay { get; set; }
     /// <summary>"tl", "tr", "bl", "br".</summary>
     public string OverlayCorner { get; set; } = "tl";
+    /// <summary>What the overlay shows besides FPS.</summary>
+    public bool OverlayGraph { get; set; } = true;
+    public bool OverlayCpu { get; set; } = true;
+    public bool OverlayGpu { get; set; } = true;
+    public bool OverlayGpuTemp { get; set; } = true;
+    public bool OverlayVram { get; set; }
+    public bool OverlayRam { get; set; }
+    public bool OverlayClock { get; set; }
+    /// <summary>"row" (one line across) or "stack" (one line per reading).</summary>
+    public string OverlayLayout { get; set; } = "stack";
+    /// <summary>0.8–1.6.</summary>
+    public double OverlayScale { get; set; } = 1;
+    /// <summary>Background opacity, 0–1.</summary>
+    public double OverlayBackground { get; set; } = 0.7;
+    /// <summary>Ctrl+Shift+O shows or hides it while you play.</summary>
+    public bool OverlayHotkey { get; set; } = true;
 }
 
 /// <summary>Switches Windows to High performance while a game runs and back afterwards. Survives a Pulse restart.</summary>
@@ -118,6 +134,16 @@ public sealed class LiveFrames : IDisposable
         {
             _frames.Enqueue((at, ms));
             while (_frames.Count > 0 && at - _frames.Peek().At > 10) _frames.Dequeue();
+        }
+    }
+
+    /// <summary>Frame times (ms) of the last <paramref name="seconds"/> seconds, oldest first, for the frame time graph.</summary>
+    public double[] Recent(double seconds)
+    {
+        lock (_gate)
+        {
+            double now = _clock.Elapsed.TotalSeconds;
+            return _frames.Where(f => now - f.At <= seconds).Select(f => f.Ms).ToArray();
         }
     }
 

@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
 using Pulse.Core;
 using Pulse.Core.Games;
 using Pulse.Core.Measurement;
@@ -552,7 +553,85 @@ public partial class GamesPage : UserControl, IPage
             rb.Checked += (s, _) => { if (_loadingSession) return; Session.OverlayCorner = (string)((FrameworkElement)s).Tag; TweakEngine.Save(); GameSessionService.Refresh(); };
             CornerChips.Children.Add(rb);
         }
+        BuildOverlayOptions();
         _loadingSession = false;
+    }
+
+    /// <summary>A small switch with its label, for option lists.</summary>
+    FrameworkElement Toggle(string label, Func<bool> get, Action<bool> set)
+    {
+        var sp = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 18, 8) };
+        var cb = new CheckBox { Style = (Style)FindResource("Switch"), IsChecked = get(), RenderTransform = new ScaleTransform(0.8, 0.8), RenderTransformOrigin = new Point(0, 0.5), Margin = new Thickness(0, 0, -6, 0) };
+        cb.Click += (_, _) => set(cb.IsChecked == true);
+        sp.Children.Add(cb);
+        sp.Children.Add(new TextBlock { Text = Loc.T(label), FontSize = 12.5, Foreground = (Brush)FindResource("TextBrush"), VerticalAlignment = VerticalAlignment.Center });
+        return sp;
+    }
+
+    /// <summary>What the overlay shows and how it looks, with a live preview.</summary>
+    void BuildOverlayOptions()
+    {
+        OverlayOptions.Visibility = Session.Overlay ? Visibility.Visible : Visibility.Collapsed;
+        var preview = new Pulse.Ui.OverlayView { Settings = Session, HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Top };
+        preview.ShowSample();
+        void Changed() { TweakEngine.Save(); preview.ShowSample(); GameSessionService.Refresh(); }
+
+        var grid = new Grid();
+        grid.ColumnDefinitions.Add(new ColumnDefinition());
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        var left = new StackPanel { Margin = new Thickness(0, 0, 20, 0) };
+        left.Children.Add(new TextBlock { Text = Loc.T("Show"), FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = (Brush)FindResource("TextDimBrush"), Margin = new Thickness(0, 0, 0, 6) });
+        var items = new WrapPanel();
+        void Item(string label, Func<bool> get, Action<bool> set)
+        {
+            items.Children.Add(Toggle(label, get, v => { set(v); Changed(); }));
+        }
+        Item("Frame time graph", () => Session.OverlayGraph, v => Session.OverlayGraph = v);
+        Item("CPU load", () => Session.OverlayCpu, v => Session.OverlayCpu = v);
+        Item("GPU load", () => Session.OverlayGpu, v => Session.OverlayGpu = v);
+        Item("GPU temperature", () => Session.OverlayGpuTemp, v => Session.OverlayGpuTemp = v);
+        Item("Video memory", () => Session.OverlayVram, v => Session.OverlayVram = v);
+        Item("System memory", () => Session.OverlayRam, v => Session.OverlayRam = v);
+        Item("Clock", () => Session.OverlayClock, v => Session.OverlayClock = v);
+        left.Children.Add(items);
+
+        left.Children.Add(new TextBlock { Text = Loc.T("Layout"), FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = (Brush)FindResource("TextDimBrush"), Margin = new Thickness(0, 8, 0, 6) });
+        var layout = new WrapPanel();
+        foreach (var (label, value) in new[] { ("Stacked", "stack"), ("One row", "row") })
+        {
+            var rb = new RadioButton { Style = (Style)FindResource("Chip"), Content = Loc.T(label), GroupName = "overlay-layout", IsChecked = Session.OverlayLayout == value, Margin = new Thickness(0, 0, 6, 6) };
+            rb.Checked += (_, _) => { if (_loadingSession) return; Session.OverlayLayout = value; Changed(); };
+            layout.Children.Add(rb);
+        }
+        left.Children.Add(layout);
+        AddSlider("Size", 0.8, 1.6, 0.1, () => Session.OverlayScale, v => Session.OverlayScale = v, v => Math.Round(v * 100) + "%");
+        AddSlider("Background", 0, 1, 0.05, () => Session.OverlayBackground, v => Session.OverlayBackground = v, v => Math.Round(v * 100) + "%");
+        void AddSlider(string label, double min, double max, double step, Func<double> get, Action<double> set, Func<double, string> fmt)
+        {
+            var row = new Grid { Margin = new Thickness(0, 6, 0, 0) };
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(90) });
+            row.ColumnDefinitions.Add(new ColumnDefinition());
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(48) });
+            row.Children.Add(new TextBlock { Text = Loc.T(label), FontSize = 12.5, Foreground = (Brush)FindResource("TextBrush"), VerticalAlignment = VerticalAlignment.Center });
+            var val = new TextBlock { Text = fmt(get()), FontSize = 12, Foreground = (Brush)FindResource("TextDimBrush"), HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center };
+            var sl = new Slider { Style = (Style)FindResource("Seek"), Minimum = min, Maximum = max, TickFrequency = step, IsSnapToTickEnabled = true, Value = get(), VerticalAlignment = VerticalAlignment.Center };
+            sl.ValueChanged += (_, e) => { if (_loadingSession) return; set(e.NewValue); val.Text = fmt(e.NewValue); TweakEngine.Save(); preview.ShowSample(); };
+            sl.PreviewMouseLeftButtonUp += (_, _) => GameSessionService.Refresh();
+            Grid.SetColumn(sl, 1); Grid.SetColumn(val, 2);
+            row.Children.Add(sl); row.Children.Add(val);
+            left.Children.Add(row);
+        }
+        var hk = Toggle("Ctrl+Shift+O shows or hides it", () => Session.OverlayHotkey, v => { Session.OverlayHotkey = v; Changed(); });
+        hk.Margin = new Thickness(0, 10, 0, 0);
+        left.Children.Add(hk);
+        var note = new TextBlock { Text = Loc.T("CPU temperature isn't shown: Windows only gives it to apps that install a kernel driver, which anti-cheats flag. Pulse doesn't."), FontSize = 11.5, Foreground = (Brush)FindResource("TextFaintBrush"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 10, 0, 0) };
+        left.Children.Add(note);
+        grid.Children.Add(left);
+
+        var pv = new Border { Background = new SolidColorBrush(Color.FromRgb(0x3A, 0x4A, 0x40)), CornerRadius = new CornerRadius(8), Padding = new Thickness(14), Width = 300, MinHeight = 170, VerticalAlignment = VerticalAlignment.Top, Child = preview, ToolTip = Loc.T("Preview") };
+        Grid.SetColumn(pv, 1);
+        grid.Children.Add(pv);
+        OverlayOptions.Child = grid;
     }
 
     void Session_Click(object sender, RoutedEventArgs e)
@@ -560,6 +639,7 @@ public partial class GamesPage : UserControl, IPage
         if (_loadingSession) return;
         Session.GameMode = GameModeSwitch.IsChecked == true;
         Session.Overlay = OverlaySwitch.IsChecked == true;
+        OverlayOptions.Visibility = Session.Overlay ? Visibility.Visible : Visibility.Collapsed;
         TweakEngine.Save();
         GameSessionService.Refresh();
     }

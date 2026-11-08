@@ -3196,5 +3196,20 @@
  "Pulse opens a few seconds after you sign in, without the admin prompt, so your crosshair, mic, clips and macros are ready before you start a game.": "Pulse se abre unos segundos después de iniciar sesión, sin el aviso de administrador, para que tu mira, micrófono, clips y macros estén listos antes de jugar.",
  "Start in the tray (the window stays closed until you open it)": "Iniciar en la bandeja (la ventana sigue cerrada hasta que la abras)",
  "Windows didn't allow it.": "Windows no lo permitió.",
- "Click when the circle is white, hold still when it's red. Trains not shooting at the wrong thing. Gets harder as you get it right.": "Haz clic cuando el círculo sea blanco y quédate quieto cuando sea rojo. Entrena a no disparar a lo que no debes. Se vuelve más difícil a medida que aciertas."
+ "Click when the circle is white, hold still when it's red. Trains not shooting at the wrong thing. Gets harder as you get it right.": "Haz clic cuando el círculo sea blanco y quédate quieto cuando sea rojo. Entrena a no disparar a lo que no debes. Se vuelve más difícil a medida que aciertas.",
+ "Performance overlay": "Superposición de rendimiento",
+ "FPS, 1% low, a frame time graph, CPU and GPU load, GPU temperature and memory in a corner while you play. Ctrl+Shift+O hides it. Shows over borderless and windowed games and never touches the game.": "FPS, 1% bajo, gráfico de tiempo de fotograma, carga de CPU y GPU, temperatura de la GPU y memoria en una esquina mientras juegas. Ctrl+Shift+O la oculta. Se muestra sobre juegos en ventana o sin bordes y nunca toca el juego.",
+ "Frame time graph": "Gráfico de tiempo de fotograma",
+ "CPU load": "Carga de CPU",
+ "GPU load": "Carga de GPU",
+ "GPU temperature": "Temperatura de la GPU",
+ "Video memory": "Memoria de vídeo",
+ "System memory": "Memoria del sistema",
+ "Clock": "Reloj",
+ "Layout": "Diseño",
+ "Stacked": "Apilado",
+ "One row": "Una fila",
+ "Background": "Fondo",
+ "Ctrl+Shift+O shows or hides it": "Ctrl+Shift+O la muestra u oculta",
+ "CPU temperature isn't shown: Windows only gives it to apps that install a kernel driver, which anti-cheats flag. Pulse doesn't.": "La temperatura de la CPU no se muestra: Windows solo la da a apps que instalan un controlador de kernel, algo que los antitrampas marcan. Pulse no lo hace."
 }
