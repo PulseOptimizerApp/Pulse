@@ -193,6 +193,10 @@ public sealed class SavedCrosshair
 {
     public string Name { get; set; }
     public CrosshairStyle Style { get; set; }
+    /// <summary>Your own rating, 0 (none) to 5.</summary>
+    public int Rating { get; set; }
+    /// <summary>What you use it for (one of <see cref="CrosshairLibrary.UseCases"/>, or empty).</summary>
+    public string UseCase { get; set; } = "";
 }
 
 /// <summary>The Crosshair page's settings.</summary>
@@ -222,6 +226,8 @@ public sealed class CrosshairSettings
     public bool CycleHotkey { get; set; } = true;
     /// <summary>Game name → saved crosshair name: switches to it by itself when that game starts.</summary>
     public Dictionary<string, string> GameCrosshairs { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    /// <summary>Your ratings of library crosshairs, by name (1–5).</summary>
+    public Dictionary<string, int> LibraryRatings { get; set; } = new();
 
     /// <summary>Starting points. Codes are VALORANT codes, so they look the same in the game.</summary>
     public static IReadOnlyList<(string Name, CrosshairStyle Style)> Presets { get; } = new[]

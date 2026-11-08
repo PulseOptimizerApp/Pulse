@@ -190,14 +190,9 @@ public partial class CrosshairPage : UserControl, IPage
         code.Children.Add(share);
         LeftCol.Children.Add(Card(code));
 
-        // Presets and saved crosshairs.
-        var pre = new StackPanel();
-        pre.Children.Add(Title("Presets"));
-        var wrap = new WrapPanel();
-        foreach (var (name, style) in CrosshairSettings.Presets)
-            wrap.Children.Add(Tile(name, style, () => { S.Style = style.Copy(); Changed(rebuildEditor: true); }, null));
-        pre.Children.Add(wrap);
-        LeftCol.Children.Add(Card(pre));
+        // The library (built-in styles plus yours): search, use cases, ratings, compare.
+        LeftCol.Children.Add(Card(_libraryHost));
+        BuildLibrary();
 
         var saved = new StackPanel();
         var sh = new Grid();
@@ -220,16 +215,17 @@ public partial class CrosshairPage : UserControl, IPage
     void BuildSaved()
     {
         _savedPanel.Children.Clear();
+        if (_libList.IsLoaded || _libraryHost.Children.Count > 0) BuildLibraryList();
         if (S.Saved.Count == 0) { _savedPanel.Children.Add(Dim(Loc.T("Save crosshairs here to switch between them in one click."))); return; }
         foreach (var sc in S.Saved.ToList())
-            _savedPanel.Children.Add(Tile(sc.Name, sc.Style, () => { S.Style = sc.Style.Copy(); Changed(rebuildEditor: true); },
+            _savedPanel.Children.Add(SavedTile(sc, Tile(sc.Name, sc.Style, () => { S.Style = sc.Style.Copy(); Changed(rebuildEditor: true); },
                 () => { S.Saved.Remove(sc); TweakEngine.Save(); BuildSaved(); },
                 name =>
                 {
                     // Keep game links pointing at it under its new name.
                     foreach (var k in S.GameCrosshairs.Where(kv => kv.Value == sc.Name).Select(kv => kv.Key).ToList()) S.GameCrosshairs[k] = name;
                     sc.Name = name; TweakEngine.Save(); BuildSaved(); if (_links != null) BuildLinks();
-                }));
+                })));
     }
 
     /// <summary>A small square with a crosshair on it and its name; click to use it.</summary>
