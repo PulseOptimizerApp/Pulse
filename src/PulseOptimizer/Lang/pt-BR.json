@@ -3990,5 +3990,11 @@
  "No player with that Riot ID was found. Check the spelling and the tag.": "Nenhum jogador com esse Riot ID foi encontrado. Confira a escrita e a tag.",
  "Reading rank…": "Lendo o elo…",
  "Reading recent matches…": "Lendo partidas recentes…",
- "Found the player, but Riot didn't share any matches or rank for them.": "O jogador foi encontrado, mas a Riot não compartilhou partidas nem elo dele."
+ "Found the player, but Riot didn't share any matches or rank for them.": "O jogador foi encontrado, mas a Riot não compartilhou partidas nem elo dele.",
+ "Smurf chance": "Chance de smurf",
+ "Low chance": "Chance baixa",
+ "Plays like {0}, ranked {1}": "Joga como {0}, com elo {1}",
+ "Won {0:0}% of the {1} matches Pulse saw": "Venceu {0:0}% das {1} partidas que o Pulse viu",
+ "K/D of {0:0.00} over {1} matches": "K/D de {0:0.00} em {1} partidas",
+ "Smurf chance adds up warning signs; it's a hint, not proof. Some players are just good, or improving fast.": "A chance de smurf soma sinais de alerta; é uma pista, não uma prova. Alguns jogadores só são bons ou estão melhorando rápido."
 }

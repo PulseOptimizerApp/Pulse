@@ -187,6 +187,7 @@ public static class Tracker
             else { p.Against++; if (m.Won) p.AgainstWins++; }
         }
         Score(p);
+        if (!p.IsYou) p.Smurf = SmurfChance(p, Smurf.None);
         return p;
     }
 
@@ -197,6 +198,37 @@ public static class Tracker
         p.Totals = Analysis.For(theirs, puuid);
         Score(p);
         return p;
+    }
+
+    /// <summary>
+    /// How likely the account is a smurf, from signs: the account's own (RR per win, win rate this act, peak far above
+    /// now), plus what only a tracker sees: skills that play like a much higher rank than the one they're in, and a
+    /// win rate or K/D far above their lobby in the matches Pulse saw. One sign alone never says "likely".
+    /// </summary>
+    public static Smurf SmurfChance(Profile p, Smurf account)
+    {
+        int score = account.Score;
+        var signs = new List<string>(account.Signs);
+        if (p.Tier >= 3)
+        {
+            var gaps = p.Skills.Where(k => k.PlaysLikeTier > 0).Select(k => k.PlaysLikeTier - p.Tier).ToList();
+            if (gaps.Count >= 3)
+            {
+                double gap = gaps.Average();
+                int like = (int)Math.Round(p.Tier + gap);
+                if (gap >= 6) { score += 35; signs.Add(Pulse.Ui.Loc.F("Plays like {0}, ranked {1}", ValorantMatches.RankName(Math.Min(27, like)), ValorantMatches.RankName(p.Tier))); }
+                else if (gap >= 4) { score += 20; signs.Add(Pulse.Ui.Loc.F("Plays like {0}, ranked {1}", ValorantMatches.RankName(Math.Min(27, like)), ValorantMatches.RankName(p.Tier))); }
+            }
+        }
+        var t = p.Totals;
+        if (p.FromYourMatches && t.Matches >= 8)
+        {
+            if (t.WinPct >= 75) { score += 25; signs.Add(Pulse.Ui.Loc.F("Won {0:0}% of the {1} matches Pulse saw", t.WinPct, t.Matches)); }
+            else if (t.WinPct >= 65) { score += 15; signs.Add(Pulse.Ui.Loc.F("Won {0:0}% of the {1} matches Pulse saw", t.WinPct, t.Matches)); }
+        }
+        if (t.Matches >= 5 && t.KdRatio >= 1.6) { score += 10; signs.Add(Pulse.Ui.Loc.F("K/D of {0:0.00} over {1} matches", t.KdRatio, t.Matches)); }
+        if (signs.Count == 1) score = Math.Min(score, 40);
+        return new Smurf(Math.Min(100, score), signs);
     }
 
     /// <summary>For tests.</summary>

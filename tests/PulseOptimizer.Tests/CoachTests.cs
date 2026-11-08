@@ -315,4 +315,21 @@ public class TrackerTests
         Assert.Equal(20, Tracker.PlaysLike(byTier, 26));
         Assert.Equal(0, Tracker.PlaysLike(new Dictionary<int, List<double>> { [12] = new() { 1, 2 } }, 5));
     }
+
+    [Fact]
+    public void Smurf_chance_adds_up_signs_and_one_alone_is_never_likely()
+    {
+        var skill = Tracker.Skills[0];
+        var p = new Profile { Tier = 9 }; // Silver 1
+        for (int i = 0; i < 3; i++) p.Skills.Add(new SkillScore(skill, 30, 5, 18)); // plays like Diamond 3
+        var one = Tracker.SmurfChance(p, Pulse.Core.Games.Live.Smurf.None);
+        Assert.Single(one.Signs);
+        Assert.Equal(35, one.Score);
+        p.Totals.Matches = 6; p.Totals.Kills = 120; p.Totals.Deaths = 60; // K/D 2.0
+        var two = Tracker.SmurfChance(p, Pulse.Core.Games.Live.Smurf.None);
+        Assert.Equal(2, two.Signs.Count);
+        Assert.Equal(45, two.Score);
+        var clean = Tracker.SmurfChance(new Profile { Tier = 9 }, Pulse.Core.Games.Live.Smurf.None);
+        Assert.Equal(0, clean.Score);
+    }
 }

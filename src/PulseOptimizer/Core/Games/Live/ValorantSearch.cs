@@ -127,7 +127,7 @@ public static class ValorantSearch
         p.Name = name;
         p.Tier = tier; p.Rr = rr; p.Peak = Math.Max(peak, tier); p.PeakAct = peakAct; p.ActWinPct = win; p.ActGames = games;
         p.IsYou = puuid == s.Puuid;
-        p.Smurf = p.IsYou ? Smurf.None : ValorantLobby.SmurfSigns(0, tier, peak, win, games, gains);
+        p.Smurf = p.IsYou ? Smurf.None : Tracker.SmurfChance(p, ValorantLobby.SmurfSigns(0, tier, peak, win, games, gains));
         if (matches.Count == 0 && tier == 0) return new Result(p, "Found the player, but Riot didn't share any matches or rank for them.");
         return new Result(p, null);
     }

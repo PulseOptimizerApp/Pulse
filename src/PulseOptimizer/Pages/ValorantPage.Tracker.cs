@@ -218,9 +218,9 @@ public partial class ValorantPage
         gauges.Children.Add(Gauge("Win rate", t.WinPct, 100, $"{t.WinPct:0}%", t.WinPct >= 55 ? "Climbing" : t.WinPct <= 45 ? "Struggling" : "Even", Loc.F("{0} won of {1}", t.Wins, t.Matches)));
         gauges.Children.Add(Gauge("K/D", t.KdRatio, 2, t.KdRatio.ToString("0.00", CultureInfo.CurrentCulture), t.KdRatio >= 1.2 ? "Strong" : t.KdRatio >= 0.9 ? "Average" : "Below average", Loc.F("{0} kills, {1} deaths", t.Kills, t.Deaths)));
         gauges.Children.Add(Gauge("Headshots", t.HeadshotPct, 40, double.IsNaN(t.HeadshotPct) ? "–" : $"{t.HeadshotPct:0}%", t.HeadshotPct >= 25 ? "Sharp" : t.HeadshotPct >= 17 ? "Average" : "Low", Loc.F("{0:0} damage per round", t.Adr)));
-        if (!p.IsYou && !p.FromYourMatches)
-            gauges.Children.Add(Gauge("Smurf signs", p.Smurf.Score, 100, $"{p.Smurf.Score}", p.Smurf.Score >= 60 ? "Likely smurf" : p.Smurf.Score >= 35 ? "Possible smurf" : "No signs",
-                p.Smurf.Signs.Count > 0 ? string.Join(" · ", p.Smurf.Signs.Select(Loc.T)) : Loc.T("Nothing unusual about this account")));
+        if (!p.IsYou)
+            gauges.Children.Add(Gauge("Smurf chance", p.Smurf.Score, 100, $"{p.Smurf.Score}%", p.Smurf.Score >= 60 ? "Likely smurf" : p.Smurf.Score >= 35 ? "Possible smurf" : "Low chance",
+                p.Smurf.Signs.Count > 0 ? string.Join(" · ", p.Smurf.Signs) : Loc.T("Nothing unusual about this account")));
         else
             gauges.Children.Add(Gauge("KAST", t.KastPct, 100, double.IsNaN(t.KastPct) ? "–" : $"{t.KastPct:0}%", t.KastPct >= 72 ? "Reliable" : t.KastPct >= 64 ? "Average" : "Low", Loc.T("Rounds with a kill, assist, survival or trade")));
         yield return gauges;
@@ -238,6 +238,7 @@ public partial class ValorantPage
         var grid = new UniformGrid { Columns = 4, Margin = new Thickness(0, 12, 0, 0) };
         foreach (var s in p.Skills) grid.Children.Add(SkillTile(s));
         skills.Children.Add(grid);
+        if (!p.IsYou) skills.Children.Add(Faint(Loc.T("Smurf chance adds up warning signs; it's a hint, not proof. Some players are just good, or improving fast."), 11.5, 10));
         skills.Children.Add(Faint(Loc.T("\"Top %\" and \"Plays like\" compare with every player in the matches saved on this PC, using the rank each of them had in that match. They get more precise the more you play."), 11.5, 10));
         yield return Card(skills);
 
@@ -313,7 +314,7 @@ public partial class ValorantPage
         const double size = 110, stroke = 9;
         double frac = double.IsNaN(value) ? 0 : Math.Clamp(value / max, 0, 1);
         var c = frac >= 0.66 ? Color.FromRgb(0x3D, 0xDC, 0x84) : frac >= 0.4 ? Color.FromRgb(0xFA, 0xD6, 0x63) : Color.FromRgb(0xFF, 0x5A, 0x4E);
-        if (title == "Smurf signs") c = value >= 60 ? Color.FromRgb(0xFF, 0x5A, 0x4E) : value >= 35 ? Color.FromRgb(0xFA, 0xD6, 0x63) : Color.FromRgb(0x3D, 0xDC, 0x84);
+        if (title == "Smurf chance") c = value >= 60 ? Color.FromRgb(0xFF, 0x5A, 0x4E) : value >= 35 ? Color.FromRgb(0xFA, 0xD6, 0x63) : Color.FromRgb(0x3D, 0xDC, 0x84);
         var ring = new Grid { Width = size, Height = size, Margin = new Thickness(0, 10, 0, 8), HorizontalAlignment = HorizontalAlignment.Center };
         ring.Children.Add(Arc(size, stroke, 1, Color.FromArgb(0x30, c.R, c.G, c.B)));
         if (frac > 0) ring.Children.Add(Arc(size, stroke, frac, c));
