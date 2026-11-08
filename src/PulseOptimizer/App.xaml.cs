@@ -105,11 +105,24 @@ public partial class App : Application
         {
             window.Show();
             window.Dispatcher.BeginInvoke(StartServices, System.Windows.Threading.DispatcherPriority.Loaded);
-            // Once: offer to skip the admin prompt on future launches.
+            // Once: offer to start with Windows, then to skip the admin prompt on future launches.
             window.Dispatcher.BeginInvoke(async () =>
             {
-                await Task.Delay(4000);
+                await Task.Delay(2500);
                 var st = Core.TweakEngine.State.Settings;
+                if (!st.AskedStartWithWindows)
+                {
+                    st.AskedStartWithWindows = true;
+                    Core.TweakEngine.Save();
+                    if (!Ui.AppStartup.IsOn && await window.Confirm(Ui.Loc.T("Start Pulse with Windows?"),
+                            Ui.Loc.T("Pulse can open quietly in the tray when you sign in, so your clips, macros, crosshair, GPU tune and match recaps are ready before you start a game. You can change this any time in Settings."),
+                            Ui.Loc.T("Turn on"), Ui.Loc.T("Not now")))
+                    {
+                        if (Ui.AppStartup.Set(true)) window.Toast(Ui.Loc.T("Pulse will start with Windows, in the tray."));
+                        else window.Toast(Ui.Loc.T("Windows didn't allow it."), ToastKind.Warning);
+                    }
+                    await Task.Delay(1500);
+                }
                 if (st.AskedNoAdminPrompt) return;
                 st.AskedNoAdminPrompt = true;
                 Core.TweakEngine.Save();

@@ -36,6 +36,8 @@ public class AppSettings
     public bool StartInTray { get; set; } = true;
     /// <summary>The Home card suggesting "start with Windows" was closed.</summary>
     public bool StartupCardDismissed { get; set; }
+    /// <summary>Asked once (on first open, or the first open after updating) whether to start with Windows.</summary>
+    public bool AskedStartWithWindows { get; set; }
 }
 
 public class AppState

@@ -89,6 +89,7 @@
                             <TextBlock Style="{StaticResource NavHeader}" Text="SAFETY"/>
                             <RadioButton Style="{StaticResource NavButton}" Tag="security" ui:Icon.Glyph="&#xEA18;" ui:Icon.Path="M12 3 L19 6 V11 C19 15.5 16 18.8 12 21 C8 18.8 5 15.5 5 11 V6 Z M9 12 L11 14 L15 10" Content="Security" Checked="Nav_Checked" Click="Nav_Click"/>
                             <RadioButton Style="{StaticResource NavButton}" Tag="safety" ui:Icon.Glyph="&#xE7A7;" ui:Icon.Path="M9 14 L4 9 L9 4 M4 9 H14 A5.5 5.5 0 0 1 14 20 H10.5" Content="Undo &amp; restore" Checked="Nav_Checked" Click="Nav_Click"/>
+                            <RadioButton Style="{StaticResource NavButton}" Tag="settings" ui:Icon.Glyph="&#xE713;" ui:Icon.Path="M12 9 A3 3 0 1 1 11.99 9 M12 2.8 V5.2 M12 18.8 V21.2 M2.8 12 H5.2 M18.8 12 H21.2 M5.5 5.5 L7.2 7.2 M16.8 16.8 L18.5 18.5 M5.5 18.5 L7.2 16.8 M16.8 7.2 L18.5 5.5" Content="Settings" Checked="Nav_Checked" Click="Nav_Click"/>
                         </StackPanel>
                     </Grid>
                 </ScrollViewer>

@@ -178,6 +178,7 @@ public partial class MainWindow : Window
                 "guide" => new GuidePage(),
                 "gpu" => new GpuPage(),
                 "valorant" => new ValorantPage(),
+                "settings" => new SettingsPage(),
                 "crosshair" => new CrosshairPage(),
                 "games" => new GamesPage(),
                 "cleanup" => new DeclutterPage(),
@@ -452,10 +453,15 @@ public partial class MainWindow : Window
         LangPopup.IsOpen = true;
     }
 
-    async void LangPick_Click(object sender, RoutedEventArgs e)
+    void LangPick_Click(object sender, RoutedEventArgs e)
     {
         LangPopup.IsOpen = false;
-        var code = (string)((FrameworkElement)sender).Tag;
+        SetLanguage((string)((FrameworkElement)sender).Tag);
+    }
+
+    /// <summary>Switches Pulse's language ("auto" = match Windows), offering a restart.</summary>
+    public async void SetLanguage(string code)
+    {
         if (code == (TweakEngine.State.Settings.Language ?? "auto")) return;
         TweakEngine.State.Settings.Language = code;
         TweakEngine.Save();
@@ -630,6 +636,9 @@ public partial class MainWindow : Window
 
     void VersionChip_Hover(object sender, MouseEventArgs e) =>
         VersionChip.Background = VersionChip.IsMouseOver ? (Brush)FindResource("Surface2Brush") : Brushes.Transparent;
+
+    /// <summary>Checks for an update right away (Settings' "Check now").</summary>
+    public void CheckForUpdatesNow() => Version_Click(null, null);
 
     /// <summary>Clicking the version number checks for an update right away (even one you skipped).</summary>
     async void Version_Click(object sender, MouseButtonEventArgs e)

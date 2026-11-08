@@ -65,7 +65,7 @@
                         <StackPanel>
                             <TextBlock Style="{StaticResource H2}" Text="Start Pulse with Windows"/>
                             <TextBlock Style="{StaticResource Body}" Margin="0,6,0,0" TextWrapping="Wrap" MaxWidth="760" HorizontalAlignment="Left"
-                                       Text="Pulse opens a few seconds after you sign in, without the admin prompt, so your crosshair, mic, clips and macros are ready before you start a game."/>
+                                       Text="Pulse opens a few seconds after you sign in, without the admin prompt, so your clips, macros, crosshair, GPU tune and match recaps are ready before you start a game."/>
                         </StackPanel>
                         <CheckBox x:Name="StartupSwitch" Grid.Column="1" Style="{StaticResource Switch}" VerticalAlignment="Top" Margin="16,2,0,0" Click="Startup_Click"/>
                     </Grid>

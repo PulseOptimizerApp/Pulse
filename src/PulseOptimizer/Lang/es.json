@@ -3570,5 +3570,21 @@
  "Peaked {0}, now {1}": "Llegó a {0}, ahora {1}",
  "Start with Windows": "Iniciar con Windows",
  "So clips, macros, your crosshair and match recaps are ready when you play. It starts quietly in the tray.": "Para que los clips, las macros, tu mira y los resúmenes estén listos cuando juegues. Se inicia en silencio en la bandeja.",
- "Pulse will start with Windows, in the tray.": "Pulse se iniciará con Windows, en la bandeja."
+ "Pulse will start with Windows, in the tray.": "Pulse se iniciará con Windows, en la bandeja.",
+ "Startup, updates and language.": "Inicio, actualizaciones e idioma.",
+ "Startup": "Inicio",
+ "Start in the tray": "Iniciar en la bandeja",
+ "The window stays closed until you open it from the tray icon.": "La ventana sigue cerrada hasta que la abras desde el icono de la bandeja.",
+ "Pulse opens a few seconds after you sign in, so your clips, macros, crosshair, GPU tune and match recaps are ready before you start a game.": "Pulse se abre unos segundos después de iniciar sesión, para que tus clips, macros, mira, ajuste de GPU y resúmenes estén listos antes de empezar a jugar.",
+ "Pulse opens a few seconds after you sign in, without the admin prompt, so your clips, macros, crosshair, GPU tune and match recaps are ready before you start a game.": "Pulse se abre unos segundos después de iniciar sesión, sin pedir permisos de administrador, para que tus clips, macros, mira, ajuste de GPU y resúmenes estén listos antes de empezar a jugar.",
+ "Pulse needs admin rights to change system settings, so Windows asks each time you open it. With this on, Pulse opens with them straight away through a Windows Task Scheduler entry.": "Pulse necesita permisos de administrador para cambiar ajustes del sistema, así que Windows pregunta cada vez que lo abres. Con esto activado, Pulse se abre con ellos directamente mediante una tarea del Programador de tareas de Windows.",
+ "Updates": "Actualizaciones",
+ "Check for updates automatically": "Buscar actualizaciones automáticamente",
+ "Pulse looks for a newer version on its GitHub page when it starts. Nothing is installed without asking.": "Pulse busca una versión más nueva en su página de GitHub al iniciarse. No se instala nada sin preguntar.",
+ "You have Pulse {0}.": "Tienes Pulse {0}.",
+ "Backup and undo": "Copia y deshacer",
+ "Move your settings to another PC, undo tweaks, and make restore points from Undo & restore.": "Pasa tus ajustes a otro PC, deshaz ajustes y crea puntos de restauración desde Deshacer y restaurar.",
+ "Open Undo & restore": "Abrir Deshacer y restaurar",
+ "Start Pulse with Windows?": "¿Iniciar Pulse con Windows?",
+ "Pulse can open quietly in the tray when you sign in, so your clips, macros, crosshair, GPU tune and match recaps are ready before you start a game. You can change this any time in Settings.": "Pulse puede abrirse en silencio en la bandeja al iniciar sesión, para que tus clips, macros, mira, ajuste de GPU y resúmenes estén listos antes de empezar a jugar. Puedes cambiarlo cuando quieras en Ajustes."
 }
