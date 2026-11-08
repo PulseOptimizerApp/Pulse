@@ -19,6 +19,7 @@ public partial class ValorantPage
 {
     string _rmMatch;
     int _rmRound, _rmKill;
+    bool _rmAll;
     DispatcherTimer _rmTimer;
     ContentControl _rmStage;
 
@@ -95,7 +96,9 @@ public partial class ValorantPage
         Root.Children.Add(Card(pick));
 
         var round = m.Rounds.FirstOrDefault(r => r.N == _rmRound) ?? m.Rounds.First();
-        var kills = m.Kills.Where(k => k.Round == round.N).OrderBy(k => k.GameMs).ToList();
+        var allKills = m.Kills.Where(k => k.Round == round.N).OrderBy(k => k.GameMs).ToList();
+        // By default only your own kills and deaths, so the map shows what you fought.
+        var kills = _rmAll ? allKills : allKills.Where(k => k.Killer == m.Me || k.Victim == m.Me).ToList();
         _rmKill = Math.Clamp(_rmKill, 0, Math.Max(0, kills.Count - 1));
 
         var body = new Grid();
@@ -105,8 +108,14 @@ public partial class ValorantPage
         body.Children.Add(_rmStage);
         var side = new StackPanel { Margin = new Thickness(24, 0, 0, 0) };
         Grid.SetColumn(side, 1);
-        side.Children.Add(RoundSummary(m, round, kills));
-        side.Children.Add(KillList(m, kills));
+        side.Children.Add(RoundSummary(m, round, allKills));
+        var which = new WrapPanel { Margin = new Thickness(0, 14, 0, 0) };
+        which.Children.Add(Chip(Loc.F("My kills and deaths ({0})", allKills.Count(k => k.Killer == m.Me || k.Victim == m.Me)), "rmall", !_rmAll, () => { _rmAll = false; _rmKill = 0; Build(); }));
+        which.Children.Add(Chip(Loc.F("Every kill ({0})", allKills.Count), "rmall", _rmAll, () => { _rmAll = true; _rmKill = 0; Build(); }));
+        side.Children.Add(which);
+        if (kills.Count == 0 && allKills.Count > 0)
+            side.Children.Add(Dim(Loc.T("You didn't get a kill or die this round. Pick \"Every kill\" to see the whole round."), 12.5, 8));
+        else side.Children.Add(KillList(m, kills));
         body.Children.Add(side);
         Root.Children.Add(Card(body));
         Root.Children.Add(Card(Faint(Loc.T("Positions are where everyone stood at the moment of each kill: Riot records them only then, and only hands them out after the match is over. Round times are counted from when the barriers drop."), 11.5, 0)));

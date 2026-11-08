@@ -4146,5 +4146,8 @@
  "Unusual stats": "Estatísticas incomuns",
  "{0:0}% headshots this match (very rare at {1})": "{0:0}% de headshots nesta partida (muito raro em {1})",
  "{0:0} damage per round this match (very rare at {1})": "{0:0} de dano por round nesta partida (muito raro em {1})",
- "K/D of {0:0.0} this match": "K/D de {0:0.0} nesta partida"
+ "K/D of {0:0.0} this match": "K/D de {0:0.0} nesta partida",
+ "My kills and deaths ({0})": "Minhas kills e mortes ({0})",
+ "Every kill ({0})": "Todas as kills ({0})",
+ "You didn't get a kill or die this round. Pick \"Every kill\" to see the whole round.": "Você não fez kill nem morreu neste round. Escolha \"Todas as kills\" para ver o round inteiro."
 }
