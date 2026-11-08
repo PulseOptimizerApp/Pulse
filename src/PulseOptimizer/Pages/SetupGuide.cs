@@ -8,7 +8,7 @@ using Pulse.Ui;
 namespace Pulse.Pages;
 
 /// <summary>
-/// The "How to set it up" guide on the Mic studio and Headphones pages: numbered steps for virtual cable mode and
+/// The "How to set it up" guide on the Headphones page: numbered steps for virtual cable mode and
 /// no-cable mode, with buttons for the downloads and settings, and fixes for common problems. Folds away.
 /// </summary>
 static class SetupGuide
@@ -19,50 +19,18 @@ static class SetupGuide
     static readonly Dictionary<string, bool> Open = new();
     static readonly Dictionary<string, string> Chosen = new();
 
-    public static Way[] Mic => new[]
-    {
-        new Way("cable", "Virtual cable", new[]
-        {
-            new Step("Install VB-CABLE (free): download it, unzip it, right-click VBCABLE_Setup_x64 and choose Run as administrator, then Install Driver. Restart your PC.", "Get VB-CABLE", "https://vb-audio.com/Cable/"),
-            new Step("In Pulse: pick Virtual cable at the top of this page, choose your real mic, and turn the Mic studio on. It shows \"Sending voice\" when you talk."),
-            new Step("Discord: Settings → Voice & Video → Input Device: \"CABLE Output (VB-Audio Virtual Cable)\". Turn off Discord's Noise Suppression, since Pulse already does it."),
-            new Step("Games: in the game's voice chat settings, pick \"CABLE Output\" as the microphone. If a game has no mic setting, make CABLE Output the default in Windows sound settings.", "Open sound settings", "ms-settings:sound"),
-            new Step("OBS: add an Audio Input Capture source with \"CABLE Output\" and mute your normal mic there."),
-            new Step("Test it: the Sound check tab plays your voice before and after, or use Discord's \"Let's Check\"."),
-        }, new[]
-        {
-            "Discord hears nothing: check the Mic studio is on and the level bar moves when you talk, and that Discord's input is CABLE Output (not CABLE In).",
-            "You hear yourself in your headset: turn off \"Listen to yourself\" here, and \"Listen to this device\" in Windows' mic properties.",
-            "Your voice sounds robotic or cuts out: set the noise removal to Light, or turn off Discord's own noise suppression and echo cancellation.",
-            "Pulse says there's no cable: restart your PC after installing VB-CABLE, then press Check again.",
-        }),
-        new Way("apo", "No cable (Equalizer APO)", new[]
-        {
-            new Step("Install Equalizer APO (free) and run its installer.", "Get Equalizer APO", "https://sourceforge.net/projects/equalizerapo/"),
-            new Step("When its Configurator opens, go to Capture devices and tick your real mic. Restart your PC."),
-            new Step("In Pulse: pick No cable at the top of this page, choose your mic, and turn the Mic studio on."),
-            new Step("Discord and games: keep your normal mic selected. Nothing else to change."),
-            new Step("Test it with Discord's \"Let's Check\" while you type: the keyboard noise should be gone."),
-        }, new[]
-        {
-            "No change in sound: open Equalizer APO's Configurator, check your mic is ticked under Capture devices, and restart.",
-            "Voice effects and the soundboard need the Virtual cable way.",
-            "After a big Windows or driver update, if it stops working, open the Configurator once and press OK.",
-        }),
-    };
-
     public static Way[] Headphones => new[]
     {
         new Way("cable", "Virtual cable", new[]
         {
-            new Step("Install Hi-Fi Cable (free) from VB-Audio, a second cable just for game sound (VB-CABLE stays for your mic). Run its installer as administrator and restart your PC.", "Get Hi-Fi Cable", "https://vb-audio.com/Cable/"),
-            new Step("In Pulse: pick Virtual cable at the top of this page. Game sound comes in through \"Hi-Fi Cable Output\" and plays in your headset. Turn Game audio on."),
-            new Step("Send the game into the cable: start the game, open Windows sound settings → Volume mixer, find the game and set its Output device to \"Hi-Fi Cable Input\". Some games have this in their own audio settings.", "Open the volume mixer", "ms-settings:apps-volume"),
+            new Step("Install VB-CABLE (free): download it, unzip it, right-click VBCABLE_Setup_x64 and choose Run as administrator, then Install Driver. Restart your PC. Already using VB-CABLE for something else? Get Hi-Fi Cable from the same page instead.", "Get VB-CABLE", "https://vb-audio.com/Cable/"),
+            new Step("In Pulse: pick Virtual cable at the top of this page. Game sound comes in through the cable (\"CABLE Output\") and plays in your headset. Turn Game audio on."),
+            new Step("Send the game into the cable: start the game, open Windows sound settings → Volume mixer, find the game and set its Output device to \"CABLE Input\" (or \"Hi-Fi Cable Input\"). Some games have this in their own audio settings.", "Open the volume mixer", "ms-settings:apps-volume"),
             new Step("Keep Discord and music on your headset directly, so only the game gets the footsteps EQ."),
             new Step("Pick a preset, then hold \"Hold to hear without Pulse\" to compare."),
         }, new[]
         {
-            "No game sound at all: check Game audio is on and the level bar moves, and that the game's output is Hi-Fi Cable Input.",
+            "No game sound at all: check Game audio is on and the level bar moves, and that the game's output is the cable's input.",
             "Sound is doubled or echoey: the game is playing to both your headset and the cable. Set only its output to the cable.",
             "Delay feels off: use the No cable way instead (no added delay).",
             "Turn off Windows Sonic, Dolby Atmos or DTS on your headset so the sound isn't processed twice.",

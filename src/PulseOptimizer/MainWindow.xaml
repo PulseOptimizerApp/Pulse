@@ -80,7 +80,6 @@
                             <RadioButton Style="{StaticResource NavButton}" Tag="fresh" ui:Icon.Glyph="&#xE895;" ui:Icon.Path="M19.5 12 A7.5 7.5 0 1 1 17.1 6.5 M18 3 V7 H14" Content="Keep it fresh" Checked="Nav_Checked" Click="Nav_Click"/>
 
                             <TextBlock Style="{StaticResource NavHeader}" Text="GEAR"/>
-                            <RadioButton Style="{StaticResource NavButton}" Tag="mic" ui:Icon.Glyph="&#xE720;" ui:Icon.Path="M9 6 A3 3 0 0 1 15 6 V11 A3 3 0 0 1 9 11 Z M5.5 11 A6.5 6.5 0 0 0 18.5 11 M12 17.5 V21 M9 21 H15" Content="Mic studio" Checked="Nav_Checked" Click="Nav_Click"/>
                             <RadioButton Style="{StaticResource NavButton}" Tag="audio" ui:Icon.Glyph="&#xE7F6;" ui:Icon.Path="M4 15.5 V12 A8 8 0 0 1 20 12 V15.5 M4 14 H7.5 V20.5 H5.5 A1.5 1.5 0 0 1 4 19 Z M20 14 H16.5 V20.5 H18.5 A1.5 1.5 0 0 0 20 19 Z" Content="Headphones" Checked="Nav_Checked" Click="Nav_Click"/>
                             <RadioButton Style="{StaticResource NavButton}" Tag="macros" ui:Icon.Glyph="&#xE765;" ui:Icon.Path="M13 3 L5 13.5 H11.5 L10.5 21 L19 10.5 H12.5 Z" Content="Macros" Checked="Nav_Checked" Click="Nav_Click"/>
                             <RadioButton Style="{StaticResource NavButton}" Tag="reaction" ui:Icon.Glyph="&#xE916;" ui:Icon.Path="M12 6.5 A7 7 0 1 1 11.99 6.5 M12 13.5 L14.8 10.7 M9.5 3 H14.5 M12 3 V6.5" Content="Reaction trainer" Checked="Nav_Checked" Click="Nav_Click"/>

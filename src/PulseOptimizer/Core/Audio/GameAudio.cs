@@ -1,6 +1,5 @@
 using NAudio.CoreAudioApi;
 using NAudio.Wave;
-using Pulse.Core.Mic;
 
 namespace Pulse.Core.Audio;
 
@@ -72,13 +71,10 @@ public static class GameAudio
     /// <summary>The name to pick as the game's sound output for a cable's recording side ("CABLE Output" → "CABLE In 16ch").</summary>
     public static string PlaybackNameFor(string sourceName) => sourceName == null ? "" : Cables.OtherEnd(sourceName, wantInput: false);
 
-    /// <summary>Cable recording sides a game can play into (the Mic studio's cable is left out).</summary>
+    /// <summary>Cable recording sides a game can play into (Hi-Fi Cable first, since it's made for this).</summary>
     public static List<Device> Sources()
     {
         var list = Cables.Devices().Where(d => d.Input && Cables.IsVirtual(d.Name)).Select(d => new Device(d.Id, d.Name)).ToList();
-        // The Mic studio sends your voice through its cable; using the same one here would mix the game into your mic.
-        var micCable = MicStudio.S.Enabled ? MicStudio.OutputName ?? MicStudio.FindCable()?.Name : null;
-        if (micCable != null) list.RemoveAll(d => Cables.SameCable(d.Name, micCable));
         return list.OrderBy(d => d.Name.Contains("Hi-Fi") ? 0 : 1).ThenBy(d => d.Name).ToList();
     }
 
@@ -221,7 +217,7 @@ public sealed class GameAudioChain
                 {
                     0 => Biquad.LowShelf(_rate, 40, v),
                     9 => Biquad.HighShelf(_rate, 12000, v),
-                    _ => Biquad.Peak(_rate, MicSettings.EqFreqs[b], 1.4, v),
+                    _ => Biquad.Peak(_rate, EqBands.Freqs[b], 1.4, v),
                 };
             }
         }

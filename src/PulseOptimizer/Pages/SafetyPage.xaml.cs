@@ -59,10 +59,10 @@ public partial class SafetyPage : UserControl, IPage
         if (dlg.ShowDialog() != true) return;
         var info = SettingsBackup.Peek(dlg.FileName);
         if (info == null) { MainWindow.Instance.Toast("That file isn't a Pulse settings backup.", ToastKind.Warning); return; }
-        var (version, created, crosshairs, sounds, macros) = info.Value;
+        var (version, created, crosshairs, macros) = info.Value;
         if (!await MainWindow.Instance.Confirm(Pulse.Ui.Loc.T("Restore these settings?"),
-                Pulse.Ui.Loc.F("Saved {0} from Pulse {1}: {2} crosshairs, {3} sounds, {4} macros. They replace the settings here; this PC's tweaks and undo history stay as they are. Pulse restarts to finish.",
-                    created == DateTime.MinValue ? "?" : created.ToString("g"), version, crosshairs, sounds, macros),
+                Pulse.Ui.Loc.F("Saved {0} from Pulse {1}: {2} crosshairs, {3} macros. They replace the settings here; this PC's tweaks and undo history stay as they are. Pulse restarts to finish.",
+                    created == DateTime.MinValue ? "?" : created.ToString("g"), version, crosshairs, macros),
                 Pulse.Ui.Loc.T("Restore and restart"), Pulse.Ui.Loc.T("Cancel"))) return;
         var problem = SettingsBackup.Import(dlg.FileName);
         if (problem != null) { MainWindow.Instance.Toast(problem, ToastKind.Warning); return; }

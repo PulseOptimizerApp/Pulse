@@ -7,7 +7,6 @@ using System.Windows.Media;
 using System.Windows.Threading;
 using Pulse.Core;
 using Pulse.Core.Audio;
-using Pulse.Core.Mic;
 using Pulse.Ui;
 
 namespace Pulse.Pages;
@@ -192,17 +191,14 @@ public partial class HeadphonesPage : UserControl, IPage, IReleasable
     UIElement Setup()
     {
         var sp = new StackPanel();
-        sp.Children.Add(Title("One-time setup: a second virtual cable"));
-        sp.Children.Add(Dim(Loc.T("Games play into a virtual cable, Pulse tunes the sound and sends it to your headphones. Use a different cable from the Mic studio's: VB-Audio Hi-Fi Cable is free."), 12.5));
-        bool micHasIt = MicStudio.S.Enabled && Pulse.Core.Audio.Cables.Devices().Any(d => d.Input && Pulse.Core.Audio.Cables.IsVirtual(d.Name));
-        if (micHasIt)
-            sp.Children.Add(Dim(Loc.T("Your VB-CABLE is already carrying your voice for the Mic studio, so game sound can't share it (your friends would hear your game). Add Hi-Fi Cable for the game, or turn the Mic studio off to use VB-CABLE here."), 12.5, "WarnBrush").Also(t => t.Margin = new Thickness(0, 8, 0, 0)));
+        sp.Children.Add(Title("One-time setup: a virtual cable"));
+        sp.Children.Add(Dim(Loc.T("Games play into a virtual cable, Pulse tunes the sound and sends it to your headphones. VB-CABLE and Hi-Fi Cable are both free."), 12.5));
         var steps = new StackPanel { Margin = new Thickness(0, 12, 0, 0) };
-        foreach (var (i, line) in new[] { "Download VB-Audio Hi-Fi Cable and run its installer as administrator.", "Come back here: Pulse finds it by itself.", "Set your game's sound output to \"Hi-Fi Cable Input\" (Windows sound settings → Volume mixer, or the game's audio settings)." }.Select((l, i) => (i, l)))
+        foreach (var (i, line) in new[] { "Download VB-CABLE (or Hi-Fi Cable) and run its installer as administrator.", "Come back here: Pulse finds it by itself.", "Set your game's sound output to the cable's input, \"CABLE Input\" (Windows sound settings → Volume mixer, or the game's audio settings)." }.Select((l, i) => (i, l)))
             steps.Children.Add(Dim($"{i + 1}.  " + Loc.T(line), 13, "TextBrush").Also(t => t.Margin = new Thickness(0, 0, 0, 6)));
         sp.Children.Add(steps);
         var row = new WrapPanel { Margin = new Thickness(0, 6, 0, 0) };
-        row.Children.Add(Btn("Get Hi-Fi Cable (free)", () => Open("https://vb-audio.com/Cable/"), primary: true));
+        row.Children.Add(Btn("Get VB-CABLE (free)", () => Open("https://vb-audio.com/Cable/"), primary: true));
         row.Children.Add(Btn("Check again", GameAudio.Refresh));
         sp.Children.Add(row);
         var b = Card(sp);
@@ -257,7 +253,7 @@ public partial class HeadphonesPage : UserControl, IPage, IReleasable
         for (int b = 0; b < Math.Min(10, eq?.Length ?? 0); b++)
         {
             if (Math.Abs(eq[b]) < 0.05) continue;
-            var q = b switch { 0 => Biquad.LowShelf(48000, 40, eq[b]), 9 => Biquad.HighShelf(48000, 12000, eq[b]), _ => Biquad.Peak(48000, MicSettings.EqFreqs[b], 1.4, eq[b]) };
+            var q = b switch { 0 => Biquad.LowShelf(48000, 40, eq[b]), 9 => Biquad.HighShelf(48000, 12000, eq[b]), _ => Biquad.Peak(48000, EqBands.Freqs[b], 1.4, eq[b]) };
             sum += q.ResponseDb(48000, f);
         }
         return sum;

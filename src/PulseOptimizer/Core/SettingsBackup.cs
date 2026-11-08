@@ -5,8 +5,7 @@ using System.Text.Json.Nodes;
 namespace Pulse.Core;
 
 /// <summary>
-/// Moves Pulse's settings to another PC: crosshairs (and their pictures), Mic studio and soundboard sounds, headphone
-/// EQ, macros, clips settings, overlay, Roblox, reaction history and app options go into one .pulsebackup file.
+/// Moves Pulse's settings to another PC: crosshairs (and their pictures), headphone EQ, macros, clips settings, overlay, Roblox, reaction history and app options go into one .pulsebackup file.
 /// What belongs to this PC stays behind: tweak backups and undo history, restore points, key remaps, game file
 /// backups and health snapshots (restoring those on another PC would undo things that were never done there).
 /// </summary>
@@ -14,13 +13,13 @@ public static class SettingsBackup
 {
     public const string Extension = ".pulsebackup";
     const string SettingsEntry = "pulse-settings.json", InfoEntry = "pulse-backup.json";
-    static readonly string[] Folders = { "crosshairs", "sounds" };
+    static readonly string[] Folders = { "crosshairs" };
 
     /// <summary>The parts of the saved state that travel to another PC.</summary>
     internal static readonly string[] Portable =
     {
         "Settings", "GameChecklist", "CustomGames", "Roblox", "Clips", "Reaction", "Macros", "MacroList", "MacroOptions",
-        "GameSession", "Crosshair", "Mic", "GameAudio",
+        "GameSession", "Crosshair", "GameAudio",
     };
 
     public static void Export(string path)
@@ -59,7 +58,7 @@ public static class SettingsBackup
             var set = JsonNode.Parse(Read(zip, SettingsEntry) ?? "");
             if ((string)info?["app"] != "Pulse" || set == null) return null;
             return ((string)info["version"] ?? "?", DateTime.TryParse((string)info["created"], out var d) ? d : DateTime.MinValue,
-                (set["Crosshair"]?["Saved"] as JsonArray)?.Count ?? 0, (set["Mic"]?["Sounds"] as JsonArray)?.Count ?? 0, (set["MacroList"] as JsonArray)?.Count ?? 0);
+                (set["Crosshair"]?["Saved"] as JsonArray)?.Count ?? 0, (set["MacroList"] as JsonArray)?.Count ?? 0);
         }
         catch { return null; }
     }

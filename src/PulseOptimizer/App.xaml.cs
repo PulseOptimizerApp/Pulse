@@ -91,7 +91,7 @@ public partial class App : Application
             Ui.MatchService.Init();
             Ui.GameSessionService.Init();
             Ui.CrosshairService.Init();
-            try { Core.Mic.MicStudio.Init(); } catch { }
+            try { Core.Audio.EqApo.ClearMic(); } catch { } // the Mic studio was removed: undo its Equalizer APO mic settings
             try { Core.Audio.GameAudio.Init(); } catch { }
         }
 
@@ -194,7 +194,6 @@ public partial class App : Application
         try { Ui.MatchService.Shutdown(); } catch { }
         try { Ui.GameSessionService.Shutdown(); } catch { }
         try { Ui.CrosshairService.Shutdown(); } catch { }
-        try { Core.Mic.MicStudio.Shutdown(); } catch { }
         try { Core.Audio.GameAudio.Shutdown(); } catch { }
         try { Ui.TrayIcon.Hide(); } catch { }
         try { _instance?.ReleaseMutex(); } catch { }

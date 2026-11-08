@@ -1,17 +1,13 @@
 using System.Globalization;
-using System.IO.Compression;
-using System.Reflection;
 using System.Text;
 using Microsoft.Win32;
-using Pulse.Core.Mic;
 
 namespace Pulse.Core.Audio;
 
 /// <summary>
 /// "No cable" mode: the sound is changed inside Windows itself by Equalizer APO (free, open source, signed), so
-/// Discord and games keep using your real mic and headset. Pulse writes Equalizer APO's settings for you: EQ, tone,
-/// volume, and AI noise removal through the RNNoise plugin (GPL-3, by werman) that Pulse carries.
-/// Pulse only writes its own two files plus two Include lines in config.txt (backed up first).
+/// games keep playing to your real headset. Pulse writes Equalizer APO's settings for you: EQ, volume and crossfeed.
+/// Pulse only writes its own file plus an Include line in config.txt (backed up first).
 /// </summary>
 public static class EqApo
 {
@@ -84,40 +80,17 @@ public static class EqApo
 
     static string F(double v) => v.ToString("0.##", CultureInfo.InvariantCulture);
 
-    /// <summary>Puts the RNNoise plugin next to Equalizer APO (it only loads plugins from its own folder tree). Null if unavailable.</summary>
-    static string Plugin(bool mono)
-    {
-        try
-        {
-            if (InstallPath is not { } ip) return null;
-            var dir = Path.Combine(ip, "VSTPlugins", "Pulse");
-            var name = mono ? "rnnoise_mono.dll" : "rnnoise_stereo.dll";
-            var file = Path.Combine(dir, name);
-            if (File.Exists(file)) return file;
-            using var s = Assembly.GetExecutingAssembly().GetManifestResourceStream("rnnoise-vst.zip");
-            if (s == null) return null;
-            Directory.CreateDirectory(dir);
-            using var zip = new ZipArchive(s);
-            foreach (var e in zip.Entries)
-                if (e.Name is "rnnoise_mono.dll" or "rnnoise_stereo.dll") e.ExtractToFile(Path.Combine(dir, e.Name), true);
-            return File.Exists(file) ? file : null;
-        }
-        catch { return null; }
-    }
-
-    public static bool HasNoiseRemoval => Assembly.GetExecutingAssembly().GetManifestResourceInfo("rnnoise-vst.zip") != null;
-
-    /// <summary>Adds "Include: pulse-mic.txt / pulse-headphones.txt" to config.txt once (keeping a copy of the original).</summary>
+    /// <summary>Adds "Include: pulse-headphones.txt" to config.txt once (keeping a copy of the original).</summary>
     static void EnsureIncludes(string dir)
     {
         var cfg = Path.Combine(dir, "config.txt");
         var text = File.Exists(cfg) ? File.ReadAllText(cfg) : "";
-        if (text.Contains("Include: " + MicFile, StringComparison.OrdinalIgnoreCase)) return;
+        if (text.Contains("Include: " + PhonesFile, StringComparison.OrdinalIgnoreCase)) return;
         var backup = Path.Combine(dir, "config.before-pulse.txt");
         if (!File.Exists(backup)) File.WriteAllText(backup, text);
         File.WriteAllText(cfg, text.TrimEnd() + Environment.NewLine + Environment.NewLine +
-            "# Pulse: your mic and headphone settings (written by the Pulse app)" + Environment.NewLine +
-            "Include: " + MicFile + Environment.NewLine + "Include: " + PhonesFile + Environment.NewLine);
+            "# Pulse: your headphone settings (written by the Pulse app)" + Environment.NewLine +
+            "Include: " + PhonesFile + Environment.NewLine);
     }
 
     static void Write(string file, string body)
@@ -126,23 +99,6 @@ public static class EqApo
         if (dir == null) return;
         EnsureIncludes(dir);
         File.WriteAllText(Path.Combine(dir, file), "# Written by Pulse. Change these settings in Pulse; edits here are replaced." + Environment.NewLine + body);
-    }
-
-    /// <summary>The mic's chain as Equalizer APO settings. Empty (no change) when off.</summary>
-    internal static string MicConfig(MicSettings s, string deviceId, string plugin)
-    {
-        var g = Guid(deviceId);
-        if (!s.Enabled || g == null) return "";
-        var b = new StringBuilder();
-        b.AppendLine("Device: " + g);
-        if (s.NoiseRemoval && plugin != null) b.AppendLine($"VSTPlugin: Library \"{plugin}\"");
-        b.AppendLine("Filter: ON HP Fc 80 Hz");
-        Tone(b, s.BassDb, s.ClarityDb, s.AirDb, s.Eq);
-        // Leave room for the boosts so loud words don't clip, then the output volume.
-        double boost = Math.Max(0, Math.Max(s.BassDb, Math.Max(s.ClarityDb, s.AirDb)) + (s.Eq?.Max() ?? 0));
-        b.AppendLine($"Preamp: {F(s.OutputDb - boost * 0.6)} dB");
-        b.AppendLine("Device: all");
-        return b.ToString();
     }
 
     internal static string PhonesConfig(GameAudioSettings s, string deviceId)
@@ -173,17 +129,25 @@ public static class EqApo
             {
                 0 => $"Filter: ON LS Fc 40 Hz Gain {F(eq[i])} dB",
                 9 => $"Filter: ON HS Fc 12000 Hz Gain {F(eq[i])} dB",
-                _ => $"Filter: ON PK Fc {F(MicSettings.EqFreqs[i])} Hz Gain {F(eq[i])} dB Q 1.4",
+                _ => $"Filter: ON PK Fc {F(EqBands.Freqs[i])} Hz Gain {F(eq[i])} dB Q 1.4",
             });
         }
     }
 
-    /// <summary>Writes the mic settings for the chosen mic. Returns null or what went wrong.</summary>
-    public static string ApplyMic(MicSettings s, string deviceId, bool mono)
+    /// <summary>
+    /// Pulse used to have a Mic studio that could also write mic settings here. It's gone, so an older install's mic
+    /// settings are emptied (the file stays, so Equalizer APO's config keeps loading without errors).
+    /// </summary>
+    public static void ClearMic()
     {
-        if (!Installed) return "Equalizer APO isn't installed.";
-        try { Write(MicFile, MicConfig(s, deviceId, s.NoiseRemoval ? Plugin(mono) : null)); return null; }
-        catch (Exception ex) { return ex.Message; }
+        try
+        {
+            if (ConfigPath is not { } dir) return;
+            var file = Path.Combine(dir, MicFile);
+            if (!File.Exists(file) || !File.ReadAllText(file).Contains("Device:", StringComparison.Ordinal)) return;
+            File.WriteAllText(file, "# Pulse no longer changes your mic. This file is left empty on purpose." + Environment.NewLine);
+        }
+        catch { }
     }
 
     public static string ApplyPhones(GameAudioSettings s, string deviceId)

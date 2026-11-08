@@ -1,6 +1,5 @@
 using NAudio.CoreAudioApi;
 using NAudio.Wave;
-using Pulse.Core.Mic;
 
 namespace Pulse.Core.Audio;
 
