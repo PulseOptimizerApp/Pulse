@@ -25,16 +25,6 @@ jobs:
         with:
           dotnet-version: 8.0.x
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-
-      - name: Build the mouse drivers (OpenMouse mouse-protocol, AGPL-3.0, pinned in drivers/protocol.lock)
-        working-directory: drivers
-        run: |
-          npm install --no-audit --no-fund
-          npm run build
-
       - uses: ilammy/msvc-dev-cmd@v1
 
       - name: Build RNNoise for the Mic studio (Xiph, BSD-3-Clause)

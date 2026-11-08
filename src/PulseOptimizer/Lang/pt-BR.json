@@ -3211,5 +3211,6 @@
  "One row": "Uma linha",
  "Background": "Fundo",
  "Ctrl+Shift+O shows or hides it": "Ctrl+Shift+O mostra ou esconde",
- "CPU temperature isn't shown: Windows only gives it to apps that install a kernel driver, which anti-cheats flag. Pulse doesn't.": "A temperatura da CPU não aparece: o Windows só a fornece para apps que instalam um driver de kernel, algo que os anticheats sinalizam. O Pulse não faz isso."
+ "CPU temperature isn't shown: Windows only gives it to apps that install a kernel driver, which anti-cheats flag. Pulse doesn't.": "A temperatura da CPU não aparece: o Windows só a fornece para apps que instalam um driver de kernel, algo que os anticheats sinalizam. O Pulse não faz isso.",
+ "Keyboard & audio": "Teclado e áudio"
 }

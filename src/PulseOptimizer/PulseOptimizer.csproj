@@ -30,7 +30,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2792.45" />
     <PackageReference Include="NAudio.Wasapi" Version="2.2.1" />
   </ItemGroup>
 
@@ -43,7 +42,6 @@
     <EmbeddedResource Include="Lang\*.json" LogicalName="Lang.%(Filename).json" />
     <EmbeddedResource Include="Core\Guide\guide.json" LogicalName="guide.json" />
     <!-- Mouse drivers: OpenMouse mouse-protocol (AGPL-3.0-or-later), built by CI from drivers/ -->
-    <EmbeddedResource Include="Assets\Drivers\mouse-drivers.js" LogicalName="mouse-drivers.js" Condition="Exists('Assets\Drivers\mouse-drivers.js')" />
     <Resource Include="Assets\Games\*.png" />
     <!-- VALORANT agent, map and rank art for match recaps, fetched by tools/get-match-art.py at build time (not committed). -->
     <Resource Include="Assets\Matches\*.png" />

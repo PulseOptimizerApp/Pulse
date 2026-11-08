@@ -153,7 +153,7 @@ public partial class MainWindow : Window
     void ShowPage(string key)
     {
         // Pages without their own sidebar entry (Keyboard and audio) highlight their parent (Mouse).
-        var navKey = key == "devices" ? "mouse" : key;
+        var navKey = key;
         var rb = NavPanel.Children.OfType<RadioButton>().FirstOrDefault(r => (string)r.Tag == navKey) ?? NavPanel.Children.OfType<RadioButton>().First();
         if (rb.IsChecked != true) { _suppressNav = true; rb.IsChecked = true; _suppressNav = false; }
         var y = rb.TranslatePoint(new Point(0, 0), NavPanel).Y;
@@ -178,7 +178,6 @@ public partial class MainWindow : Window
                 "guide" => new GuidePage(),
                 "crosshair" => new CrosshairPage(),
                 "devices" => new DevicesPage(),
-                "mouse" => new MousePage(),
                 "mic" => new MicPage(),
                 "games" => new GamesPage(),
                 "cleanup" => new DeclutterPage(),

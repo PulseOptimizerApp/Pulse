@@ -64,4 +64,4 @@ Pulse keeps its backups and results in `%LocalAppData%\PulseOptimizer\`: `state.
 ## License
 GNU Affero General Public License v3.0 or later (AGPL-3.0-or-later); see [LICENSE](LICENSE). Releases up to v0.4.17 were published under the MIT license.
 
-Pulse includes the [OpenMouse mouse-protocol](https://github.com/OpenMouse-Project/mouse-protocol) drivers (AGPL-3.0-or-later) for its Mouse page, built from the commit pinned in `drivers/protocol.lock`. PresentMon is © Intel Corporation, MIT license. Pulse is not affiliated with Microsoft, Intel, Logitech, OpenMouse or any mouse maker.
+PresentMon is © Intel Corporation, MIT license; RNNoise is © Xiph.Org, BSD-3-Clause; NAudio is MIT. See NOTICE.md. Pulse is not affiliated with Microsoft, Intel or any game or hardware maker.
