@@ -11,10 +11,10 @@ public class CoachTests
 {
     const string Me = "me", Mate = "mate", Mate2 = "mate2", E1 = "e1", E2 = "e2";
 
-    static string Pos(string id, double x, double y) => $$"""{"subject":"{{id}}","viewRadians":0,"location":{"x":{{x}},"y":{{y}}}}""";
+    static string Pos(string id, double x, double y) => "{\"subject\":\"" + id + "\",\"viewRadians\":0,\"location\":{\"x\":" + x + ",\"y\":" + y + "}}";
 
     static string Kill(int round, long game, long roundMs, string killer, string victim, double vx, double vy, params string[] pos) =>
-        $$"""{"round":{{round}},"gameTime":{{game}},"roundTime":{{roundMs}},"killer":"{{killer}}","victim":"{{victim}}","victimLocation":{"x":{{vx}},"y":{{vy}}},"assistants":[],"playerLocations":[{{string.Join(",", pos)}}],"finishingDamage":{"damageType":"Weapon","damageItem":"9C82E19D-4575-0200-1A81-3EACF00CF872"}}""";
+        "{\"round\":" + round + ",\"gameTime\":" + game + ",\"roundTime\":" + roundMs + ",\"killer\":\"" + killer + "\",\"victim\":\"" + victim + "\",\"victimLocation\":{\"x\":" + vx + ",\"y\":" + vy + "},\"assistants\":[],\"playerLocations\":[" + string.Join(",", pos) + "],\"finishingDamage\":{\"damageType\":\"Weapon\",\"damageItem\":\"9C82E19D-4575-0200-1A81-3EACF00CF872\"}}";
 
     /// <summary>
     /// Three rounds. Round 0: you die first, alone (mate 30 m away), to e1 with e2 close by; nobody trades.
@@ -30,9 +30,9 @@ public class CoachTests
             Kill(2, 240000, 15000, Me, E2, 1000, 0, Pos(Me, 0, 0), Pos(Mate, 200, 0), Pos(E1, 2000, 0), Pos(E2, 1000, 0), Pos(Mate2, 5000, 5000)),
         };
         string P(string id, string team, string agent) =>
-            $$"""{"subject":"{{id}}","teamId":"{{team}}","characterId":"","competitiveTier":12,"stats":{"kills":1,"deaths":1,"assists":0,"score":100,"roundsPlayed":3,"abilityCasts":{"grenadeCasts":3,"ability1Casts":2,"ability2Casts":1,"ultimateCasts":0}}}""";
+            "{\"subject\":\"" + id + "\",\"teamId\":\"" + team + "\",\"characterId\":\"\",\"competitiveTier\":12,\"stats\":{\"kills\":1,\"deaths\":1,\"assists\":0,\"score\":100,\"roundsPlayed\":3,\"abilityCasts\":{\"grenadeCasts\":3,\"ability1Casts\":2,\"ability2Casts\":1,\"ultimateCasts\":0}}}";
         string Round(int n, string winner, string planter = null) =>
-            $$"""{"roundNum":{{n}},"winningTeam":"{{winner}}","roundResultCode":"Elimination","bombPlanter":"{{planter ?? ""}}","plantRoundTime":{{(planter != null ? 50000 : 0)}},"playerStats":[{"subject":"{{Me}}","damage":[{"receiver":"{{E2}}","damage":150,"headshots":1,"bodyshots":2,"legshots":0}],"economy":{"loadoutValue":3900,"spent":3900,"remaining":200}}]}""";
+            "{\"roundNum\":" + n + ",\"winningTeam\":\"" + winner + "\",\"roundResultCode\":\"Elimination\",\"bombPlanter\":\"" + (planter ?? "") + "\",\"plantRoundTime\":" + (planter != null ? 50000 : 0) + ",\"playerStats\":[{\"subject\":\"" + Me + "\",\"damage\":[{\"receiver\":\"" + E2 + "\",\"damage\":150,\"headshots\":1,\"bodyshots\":2,\"legshots\":0}],\"economy\":{\"loadoutValue\":3900,\"spent\":3900,\"remaining\":200}}]}";
         var json = $$"""
         {
           "matchInfo": {"matchId":"m1","mapId":"/Game/Maps/Ascent/Ascent","queueID":"{{queue}}","gameStartMillis":1762560000000,"gameLengthMillis":1800000},
