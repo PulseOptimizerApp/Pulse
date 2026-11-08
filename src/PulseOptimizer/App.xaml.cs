@@ -92,6 +92,7 @@ public partial class App : Application
             Ui.GameSessionService.Init();
             Ui.CrosshairService.Init();
             try { Core.Mic.MicStudio.Init(); } catch { }
+            try { Core.Audio.GameAudio.Init(); } catch { }
         }
 
         // Started at sign-in for Clips: stay in the tray until the user opens Pulse.
@@ -194,6 +195,7 @@ public partial class App : Application
         try { Ui.GameSessionService.Shutdown(); } catch { }
         try { Ui.CrosshairService.Shutdown(); } catch { }
         try { Core.Mic.MicStudio.Shutdown(); } catch { }
+        try { Core.Audio.GameAudio.Shutdown(); } catch { }
         try { Ui.TrayIcon.Hide(); } catch { }
         try { _instance?.ReleaseMutex(); } catch { }
         base.OnExit(e);

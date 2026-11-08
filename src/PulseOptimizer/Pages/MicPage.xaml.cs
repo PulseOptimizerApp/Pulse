@@ -504,7 +504,7 @@ public partial class MicPage : UserControl, IPage, IReleasable
         head.Children.Add(Title("10-band equalizer", 0));
         sp.Children.Add(head);
         sp.Children.Add(Dim(Loc.T("Drag a point up or down. Double-click a point to set it back to 0. The line shows your whole sound, including Bass, Clarity and Air."), 12.5));
-        _eqGraph = new EqGraph(S, Res("AccentBrush"), Res("BorderBrush"), Res("TextDimBrush"), Res("TextBrush"), Res("Surface2Brush"))
+        _eqGraph = new EqGraph(() => S.Eq ??= new double[10], f => MicChain.EqCurveDb(S, f), Res("AccentBrush"), Res("BorderBrush"), Res("TextDimBrush"), Res("TextBrush"), Res("Surface2Brush"))
         {
             Height = 260, Margin = new Thickness(0, 14, 0, 0),
         };
@@ -798,30 +798,30 @@ sealed class LevelMeter : FrameworkElement
     }
 }
 
-/// <summary>The 10-band EQ as a graph: drag each band's point; the curve is the full EQ response (with bass / clarity / air).</summary>
+/// <summary>A 10-band EQ as a graph: drag each band's point; the curve is the whole response. Used by the Mic studio and Headphones.</summary>
 sealed class EqGraph : FrameworkElement
 {
-    readonly MicSettings _s;
+    readonly Func<double[]> _bands;
+    readonly Func<double, double> _curve;
+    double[] Eq { get { var e = _bands(); return e.Length == 10 ? e : new double[10]; } }
     readonly Brush _accent, _grid, _label, _text, _fill;
     readonly Pen _gridPen, _zeroPen, _curvePen;
     int _drag = -1;
     public event Action Moved;
     const double Pad = 30, Range = 12;
 
-    public EqGraph(MicSettings s, Brush accent, Brush grid, Brush label, Brush text, Brush fill)
+    public EqGraph(Func<double[]> bands, Func<double, double> curve, Brush accent, Brush grid, Brush label, Brush text, Brush fill)
     {
-        _s = s; _accent = accent; _grid = grid; _label = label; _text = text; _fill = fill;
+        _bands = bands; _curve = curve; _accent = accent; _grid = grid; _label = label; _text = text; _fill = fill;
         _gridPen = new Pen(grid, 1); _zeroPen = new Pen(label, 1) { DashStyle = DashStyles.Dash };
         _curvePen = new Pen(accent, 2.5) { LineJoin = PenLineJoin.Round };
         Cursor = Cursors.Hand;
-        _s.Eq ??= new double[10];
-        if (_s.Eq.Length != 10) _s.Eq = new double[10];
     }
 
     Rect Plot => new(Pad + 6, 10, Math.Max(10, ActualWidth - Pad - 16), Math.Max(10, ActualHeight - 38));
     double X(double f, Rect p) => p.Left + (Math.Log10(f) - Math.Log10(20)) / (Math.Log10(20000) - Math.Log10(20)) * p.Width;
     double Y(double db, Rect p) => p.Top + (1 - (Math.Clamp(db, -Range, Range) + Range) / (2 * Range)) * p.Height;
-    Point Handle(int b, Rect p) => new(X(MicSettings.EqFreqs[b], p), Y(_s.Eq[b], p));
+    Point Handle(int b, Rect p) => new(X(MicSettings.EqFreqs[b], p), Y(Eq[b], p));
 
     protected override void OnRender(DrawingContext dc)
     {
@@ -852,7 +852,7 @@ sealed class EqGraph : FrameworkElement
         for (int i = 0; i <= 160; i++)
         {
             double f = 20 * Math.Pow(1000, i / 160.0);
-            pts.Add(new Point(X(f, p), Y(MicChain.EqCurveDb(_s, f), p)));
+            pts.Add(new Point(X(f, p), Y(_curve(f), p)));
         }
         using (var c = line.Open()) { c.BeginFigure(pts[0], false, false); c.PolyLineTo(pts.Skip(1).ToList(), true, true); }
         using (var c = area.Open())
@@ -872,7 +872,7 @@ sealed class EqGraph : FrameworkElement
             dc.DrawEllipse(b == _drag ? _accent : _fill, new Pen(_accent, 2), h, 6.5, 6.5);
             if (b == _drag)
             {
-                var t = new FormattedText((_s.Eq[b] > 0 ? "+" : "") + _s.Eq[b].ToString("0.0", CultureInfo.CurrentCulture) + " dB", CultureInfo.CurrentCulture, FlowDirection.LeftToRight, tf, 11.5, _text, dpi);
+                var t = new FormattedText((Eq[b] > 0 ? "+" : "") + Eq[b].ToString("0.0", CultureInfo.CurrentCulture) + " dB", CultureInfo.CurrentCulture, FlowDirection.LeftToRight, tf, 11.5, _text, dpi);
                 dc.DrawText(t, new Point(Math.Clamp(h.X - t.Width / 2, 0, ActualWidth - t.Width), Math.Max(0, h.Y - 26)));
             }
         }
@@ -885,7 +885,7 @@ sealed class EqGraph : FrameworkElement
         int best = -1; double bd = 22;
         for (int b = 0; b < 10; b++) { double d = Math.Abs(Handle(b, p).X - m.X); if (d < bd) { bd = d; best = b; } }
         if (best < 0) return;
-        if (e.ClickCount == 2) { _s.Eq[best] = 0; Moved?.Invoke(); InvalidateVisual(); return; }
+        if (e.ClickCount == 2) { Eq[best] = 0; Moved?.Invoke(); InvalidateVisual(); return; }
         _drag = best;
         CaptureMouse();
         Move(m);
@@ -909,7 +909,7 @@ sealed class EqGraph : FrameworkElement
     {
         var p = Plot;
         double db = (1 - (m.Y - p.Top) / p.Height) * 2 * Range - Range;
-        _s.Eq[_drag] = Math.Round(Math.Clamp(db, -Range, Range) * 2) / 2;
+        Eq[_drag] = Math.Round(Math.Clamp(db, -Range, Range) * 2) / 2;
         Moved?.Invoke();
         InvalidateVisual();
     }

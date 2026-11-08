@@ -79,6 +79,8 @@ public class AppState
     public Pulse.Core.Devices.DeviceSettings Devices { get; set; } = new();
     /// <summary>The Mic studio: noise removal, EQ, voice effects and the soundboard.</summary>
     public Pulse.Core.Mic.MicSettings Mic { get; set; } = new();
+    /// <summary>The Headphones page: game audio EQ, presets and virtual surround.</summary>
+    public Pulse.Core.Audio.GameAudioSettings GameAudio { get; set; } = new();
 }
 
 /// <summary>Applies and undoes tweaks, keeping a backup of every value it changes on disk.</summary>
