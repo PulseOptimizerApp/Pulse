@@ -48,6 +48,18 @@
 
             <Border Style="{StaticResource Card}" Margin="0,16,0,0" ui:Anim.Reveal="True">
                 <StackPanel>
+                    <TextBlock Style="{StaticResource H2}" Text="Move your settings to another PC"/>
+                    <TextBlock Style="{StaticResource Body}" Margin="0,6,0,0" TextWrapping="Wrap" MaxWidth="760" HorizontalAlignment="Left"
+                               Text="Saves your crosshairs, Mic studio and soundboard, headphone EQ, macros, overlay and clips settings in one file. Tweaks aren't included: apply them again on the new PC, since every PC needs different ones."/>
+                    <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
+                        <Button Style="{StaticResource GhostButton}" Content="Save settings to a file" Margin="0,0,8,0" Click="ExportSettings_Click"/>
+                        <Button Style="{StaticResource GhostButton}" Content="Restore from a file" Click="ImportSettings_Click"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource Card}" Margin="0,16,0,0" ui:Anim.Reveal="True">
+                <StackPanel>
                     <Grid>
                         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                         <StackPanel>

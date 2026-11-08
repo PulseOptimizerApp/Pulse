@@ -3251,5 +3251,17 @@
  "Places the game's two channels like speakers in front of you, which is easier on the ears over long sessions. For full surround, set the cable to 7.1 in Windows sound settings and turn on 7.1 in the game.": "Posiciona os dois canais do jogo como alto-falantes à sua frente, mais confortável em sessões longas. Para surround completo, configure o cabo em 7.1 nas configurações de som do Windows e ative 7.1 no jogo.",
  "Turn off Windows Sonic, Dolby Atmos or DTS for these headphones so the sound isn't processed twice.": "Desative Windows Sonic, Dolby Atmos ou DTS nesses fones para o som não ser processado duas vezes.",
  "No headphones or speakers found.": "Nenhum fone ou alto-falante encontrado.",
- "The game audio stopped (a device was unplugged). Trying again…": "O áudio do jogo parou (um dispositivo foi desconectado). Tentando de novo…"
+ "The game audio stopped (a device was unplugged). Trying again…": "O áudio do jogo parou (um dispositivo foi desconectado). Tentando de novo…",
+ "Move your settings to another PC": "Leve suas configurações para outro PC",
+ "Saves your crosshairs, Mic studio and soundboard, headphone EQ, macros, overlay and clips settings in one file. Tweaks aren't included: apply them again on the new PC, since every PC needs different ones.": "Salva suas miras, estúdio de microfone e mesa de sons, equalizador dos fones, macros, sobreposição e configurações de clipes num arquivo. Os ajustes do sistema não vão junto: aplique de novo no PC novo, já que cada PC precisa de ajustes diferentes.",
+ "Save settings to a file": "Salvar configurações num arquivo",
+ "Restore from a file": "Restaurar de um arquivo",
+ "Pulse settings": "Configurações do Pulse",
+ "Saved {0}. Open Pulse on the other PC and choose Restore from a file.": "Salvo {0}. Abra o Pulse no outro PC e escolha Restaurar de um arquivo.",
+ "That file isn't a Pulse settings backup.": "Esse arquivo não é um backup de configurações do Pulse.",
+ "Restore these settings?": "Restaurar estas configurações?",
+ "Saved {0} from Pulse {1}: {2} crosshairs, {3} sounds, {4} macros. They replace the settings here; this PC's tweaks and undo history stay as they are. Pulse restarts to finish.": "Salvo em {0} pelo Pulse {1}: {2} miras, {3} sons, {4} macros. Elas substituem as configurações daqui; os ajustes e o histórico de desfazer deste PC continuam como estão. O Pulse reinicia para terminar.",
+ "Restore and restart": "Restaurar e reiniciar",
+ "Restored. Close and reopen Pulse to finish.": "Restaurado. Feche e abra o Pulse de novo para terminar.",
+ "Settings restored from a backup": "Configurações restauradas de um backup"
 }

@@ -37,6 +37,45 @@ public partial class SafetyPage : UserControl, IPage
         TrayRow.Visibility = st.StartWithWindows ? Visibility.Visible : Visibility.Collapsed;
     }
 
+    void ExportSettings_Click(object sender, RoutedEventArgs e)
+    {
+        var dlg = new Microsoft.Win32.SaveFileDialog
+        {
+            Title = Pulse.Ui.Loc.T("Save settings to a file"), FileName = $"Pulse settings {DateTime.Now:yyyy-MM-dd}{SettingsBackup.Extension}",
+            Filter = Pulse.Ui.Loc.T("Pulse settings") + $" (*{SettingsBackup.Extension})|*{SettingsBackup.Extension}", DefaultExt = SettingsBackup.Extension,
+        };
+        if (dlg.ShowDialog() != true) return;
+        try
+        {
+            SettingsBackup.Export(dlg.FileName);
+            MainWindow.Instance.Toast(Pulse.Ui.Loc.F("Saved {0}. Open Pulse on the other PC and choose Restore from a file.", System.IO.Path.GetFileName(dlg.FileName)));
+        }
+        catch (Exception ex) { MainWindow.Instance.Toast(ex.Message, ToastKind.Warning); }
+    }
+
+    async void ImportSettings_Click(object sender, RoutedEventArgs e)
+    {
+        var dlg = new Microsoft.Win32.OpenFileDialog { Title = Pulse.Ui.Loc.T("Restore from a file"), Filter = Pulse.Ui.Loc.T("Pulse settings") + $" (*{SettingsBackup.Extension})|*{SettingsBackup.Extension}", CheckFileExists = true };
+        if (dlg.ShowDialog() != true) return;
+        var info = SettingsBackup.Peek(dlg.FileName);
+        if (info == null) { MainWindow.Instance.Toast("That file isn't a Pulse settings backup.", ToastKind.Warning); return; }
+        var (version, created, crosshairs, sounds, macros) = info.Value;
+        if (!await MainWindow.Instance.Confirm(Pulse.Ui.Loc.T("Restore these settings?"),
+                Pulse.Ui.Loc.F("Saved {0} from Pulse {1}: {2} crosshairs, {3} sounds, {4} macros. They replace the settings here; this PC's tweaks and undo history stay as they are. Pulse restarts to finish.",
+                    created == DateTime.MinValue ? "?" : created.ToString("g"), version, crosshairs, sounds, macros),
+                Pulse.Ui.Loc.T("Restore and restart"), Pulse.Ui.Loc.T("Cancel"))) return;
+        var problem = SettingsBackup.Import(dlg.FileName);
+        if (problem != null) { MainWindow.Instance.Toast(problem, ToastKind.Warning); return; }
+        if (TweakEngine.State.Settings.StartWithWindows) Pulse.Ui.ClipsService.SetStartWithWindows(true);
+        try
+        {
+            Process.Start(new ProcessStartInfo(Environment.ProcessPath!, "--restarted") { UseShellExecute = false });
+            MainWindow.Instance.PrepareForExit();
+            MainWindow.Instance.QuitApp();
+        }
+        catch { MainWindow.Instance.Toast("Restored. Close and reopen Pulse to finish."); }
+    }
+
     void Tray_Click(object sender, RoutedEventArgs e)
     {
         TweakEngine.State.Settings.StartInTray = TraySwitch.IsChecked == true;

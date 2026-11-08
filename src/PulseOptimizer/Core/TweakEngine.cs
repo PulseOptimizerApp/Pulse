@@ -94,6 +94,9 @@ public static class TweakEngine
 
     public static AppState State { get; private set; } = Load();
 
+    /// <summary>Puts restored settings in place (Settings backup) and saves them.</summary>
+    internal static void ReplaceState(AppState s) { lock (Gate) State = s; Save(); }
+
     public static event Action Changed;
 
     static AppState Load()
