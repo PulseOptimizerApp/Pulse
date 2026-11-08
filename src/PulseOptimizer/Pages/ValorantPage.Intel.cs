@@ -554,7 +554,7 @@ public partial class ValorantPage
         try
         {
             var coach = Coach.Analyze(ms);
-            foreach (var w in coach.Weaknesses.Take(3)) plan.Add(Loc.F("Work on {0}: {1}", Loc.T(w.Metric.Name), Loc.T(w.Metric.Tip)));
+            foreach (var w in coach.Weaknesses.Take(3)) plan.Add(Loc.F("Work on {0}: {1}", Loc.T(w.Metric.Name), Loc.T(w.Metric.Tip.Steps.Length > 0 ? w.Metric.Tip.Steps[0] : w.Metric.Tip.Why)));
         }
         catch { }
         if (plan.Count == 0) plan.Add(Loc.T("Nothing is declining and nothing stands out as a weakness: pick the stat you'd most like to push and make it this week's focus in Coach."));
