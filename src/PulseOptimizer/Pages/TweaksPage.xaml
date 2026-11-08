@@ -25,7 +25,7 @@
             </StackPanel>
             <Button Grid.Column="1" Style="{StaticResource PrimaryButton}" VerticalAlignment="Top" Click="ApplyRecommended_Click">
                 <StackPanel Orientation="Horizontal">
-                    <TextBlock Text="&#xE945;" Style="{StaticResource IconText}" FontSize="14"/>
+                    <ui:LineIcon Kind="macros" Width="16.1" Height="16.1"/>
                     <TextBlock Text="Apply safe recommended" Margin="8,0,0,0"/>
                 </StackPanel>
             </Button>
@@ -86,12 +86,12 @@
 
                                         <StackPanel Orientation="Horizontal" Margin="0,8,0,0"
                                                     Visibility="{Binding GateStatus.Met, Converter={StaticResource InverseBoolToVis}}">
-                                            <TextBlock Text="&#xE7BA;" Style="{StaticResource IconText}" FontSize="12" Foreground="{StaticResource WarnBrush}" VerticalAlignment="Top" Margin="0,2,8,0"/>
+                                            <ui:LineIcon Kind="warning" Width="13.8" Height="13.8" Foreground="{StaticResource WarnBrush}" VerticalAlignment="Top" Margin="0,2,8,0"/>
                                             <TextBlock Style="{StaticResource Body}" Foreground="{StaticResource WarnBrush}" Text="{Binding GateStatus.Why}" MaxWidth="640"/>
                                         </StackPanel>
                                         <StackPanel Orientation="Horizontal" Margin="0,8,0,0"
                                                     Visibility="{Binding HasMeasuredResult, Converter={StaticResource BoolToVis}}">
-                                            <TextBlock Text="&#xE9D2;" Style="{StaticResource IconText}" FontSize="12" Foreground="{StaticResource GoodBrush}" Margin="0,0,8,0"/>
+                                            <ui:LineIcon Kind="measure" Width="13.8" Height="13.8" Foreground="{StaticResource GoodBrush}" Margin="0,0,8,0"/>
                                             <TextBlock Style="{StaticResource Body}" Foreground="{StaticResource GoodBrush}" Text="{Binding MeasuredResult, StringFormat='Measured: {0}'}"/>
                                         </StackPanel>
 

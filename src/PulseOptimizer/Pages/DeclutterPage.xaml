@@ -43,7 +43,7 @@
                             <Button x:Name="RescanBtn" Style="{StaticResource GhostButton}" Content="Scan again" Click="Rescan_Click"/>
                             <Button x:Name="FreeBtn" Style="{StaticResource PrimaryButton}" Margin="10,0,0,0" Padding="22,12" Click="Free_Click" IsEnabled="False">
                                 <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="&#xE74D;" Style="{StaticResource IconText}" FontSize="14"/>
+                                    <ui:LineIcon Kind="cleanup" Width="16.1" Height="16.1"/>
                                     <TextBlock x:Name="FreeBtnText" Text="Free space" Margin="8,0,0,0" FontSize="14"/>
                                 </StackPanel>
                             </Button>
@@ -109,7 +109,7 @@
                         <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
                             <Button x:Name="GoalFreeBtn" Style="{StaticResource PrimaryButton}" Click="GoalFree_Click" IsEnabled="False">
                                 <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="&#xE74D;" Style="{StaticResource IconText}" FontSize="13"/>
+                                    <ui:LineIcon Kind="cleanup" Width="14.9" Height="14.9"/>
                                     <TextBlock x:Name="GoalFreeText" Text="Free the ticked items" Margin="8,0,0,0"/>
                                 </StackPanel>
                             </Button>
@@ -197,7 +197,7 @@
                     </StackPanel>
                     <Button x:Name="BulkBtn" Style="{StaticResource PrimaryButton}" HorizontalAlignment="Right" Click="BulkRemove_Click">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#xE74D;" Style="{StaticResource IconText}" FontSize="13"/>
+                            <ui:LineIcon Kind="cleanup" Width="14.9" Height="14.9"/>
                             <TextBlock x:Name="BulkBtnText" Text="Remove selected" Margin="8,0,0,0"/>
                         </StackPanel>
                     </Button>

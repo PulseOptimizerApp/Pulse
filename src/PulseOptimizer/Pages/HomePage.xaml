@@ -54,7 +54,7 @@
                     <Button Style="{StaticResource GhostButton}" Content="Measure FPS" Tag="measure" Click="Tile_Click" Margin="0,0,10,0"/>
                     <Button Style="{StaticResource PrimaryButton}" Tag="games" Click="Tile_Click">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#xE945;" Style="{StaticResource IconText}" FontSize="13"/>
+                            <ui:LineIcon Kind="macros" Width="14.9" Height="14.9"/>
                             <TextBlock Text="Optimize a game" Margin="8,0,0,0"/>
                         </StackPanel>
                     </Button>
@@ -118,7 +118,7 @@
                         </ItemsControl>
                         <Button x:Name="HealthBtn" Style="{StaticResource PrimaryButton}" Margin="0,8,0,0" HorizontalAlignment="Stretch" Click="Health_Click">
                             <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="&#xE9D9;" Style="{StaticResource IconText}" FontSize="14"/>
+                                <ui:LineIcon Kind="diagnose" Width="16.1" Height="16.1"/>
                                 <TextBlock x:Name="HealthBtnText" Text="Run checkup" Margin="8,0,0,0"/>
                             </StackPanel>
                         </Button>
@@ -176,7 +176,7 @@
                 <Button Style="{StaticResource DashTile}" Margin="0,0,12,0" Tag="cleanup" Click="Tile_Click" ui:Anim.Reveal="True">
                     <StackPanel>
                         <Border Width="36" Height="36" CornerRadius="10" Background="#1AF2EFE8" HorizontalAlignment="Left">
-                            <TextBlock Text="&#xE74D;" Style="{StaticResource IconText}" FontSize="17" Foreground="#F2EFE8" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            <ui:LineIcon Kind="cleanup" Width="19.5" Height="19.5" Foreground="#F2EFE8" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <TextBlock Text="Debloat" FontWeight="SemiBold" FontSize="14" Margin="0,12,0,0"/>
                         <TextBlock x:Name="DeclutterStat" FontSize="12" Foreground="{StaticResource TextDimBrush}" Margin="0,3,0,0" TextTrimming="CharacterEllipsis"/>
@@ -185,7 +185,7 @@
                 <Button Style="{StaticResource DashTile}" Margin="4,0,8,0" Tag="tweaks" Click="Tile_Click" ui:Anim.Reveal="True">
                     <StackPanel>
                         <Border Width="36" Height="36" CornerRadius="10" Background="#1FE0773F" HorizontalAlignment="Left">
-                            <TextBlock Text="&#xE945;" Style="{StaticResource IconText}" FontSize="17" Foreground="#E0773F" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            <ui:LineIcon Kind="macros" Width="19.5" Height="19.5" Foreground="#E0773F" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <TextBlock Text="Tweaks" FontWeight="SemiBold" FontSize="14" Margin="0,12,0,0"/>
                         <TextBlock x:Name="TweakStat" FontSize="12" Foreground="{StaticResource TextDimBrush}" Margin="0,3,0,0" TextTrimming="CharacterEllipsis"/>
@@ -194,7 +194,7 @@
                 <Button Style="{StaticResource DashTile}" Margin="8,0,4,0" Tag="clips" Click="Tile_Click" ui:Anim.Reveal="True">
                     <StackPanel>
                         <Border Width="36" Height="36" CornerRadius="10" Background="#1F8DB596" HorizontalAlignment="Left">
-                            <TextBlock Text="&#xE714;" Style="{StaticResource IconText}" FontSize="17" Foreground="#8DB596" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            <ui:LineIcon Kind="clips" Width="19.5" Height="19.5" Foreground="#8DB596" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <TextBlock Text="Clips" FontWeight="SemiBold" FontSize="14" Margin="0,12,0,0"/>
                         <TextBlock x:Name="ClipStat" FontSize="12" Foreground="{StaticResource TextDimBrush}" Margin="0,3,0,0" TextTrimming="CharacterEllipsis" Text="Save your best moments with a hotkey"/>
@@ -203,7 +203,7 @@
                 <Button Style="{StaticResource DashTile}" Margin="12,0,0,0" Tag="reaction" Click="Tile_Click" ui:Anim.Reveal="True">
                     <StackPanel>
                         <Border Width="36" Height="36" CornerRadius="10" Background="#1A34D399" HorizontalAlignment="Left">
-                            <TextBlock Text="&#xE916;" Style="{StaticResource IconText}" FontSize="17" Foreground="#34D399" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            <ui:LineIcon Kind="reaction" Width="19.5" Height="19.5" Foreground="#34D399" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <TextBlock Text="Reaction trainer" FontWeight="SemiBold" FontSize="14" Margin="0,12,0,0"/>
                         <TextBlock FontSize="12" Foreground="{StaticResource TextDimBrush}" Margin="0,3,0,0" TextTrimming="CharacterEllipsis" Text="Train the reactions games use"/>

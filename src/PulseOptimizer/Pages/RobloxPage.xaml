@@ -186,7 +186,7 @@
                     <Border x:Name="NvImportBar" Background="{StaticResource InfoSoftBrush}" CornerRadius="10" Padding="14,10" Margin="0,14,0,0" Visibility="Collapsed">
                         <Grid>
                             <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                            <TextBlock Text="&#xE8E5;" Style="{StaticResource IconText}" Foreground="{StaticResource InfoBrush}" VerticalAlignment="Center"/>
+                            <ui:LineIcon Kind="folder" Width="18.4" Height="18.4" Foreground="{StaticResource InfoBrush}" VerticalAlignment="Center"/>
                             <TextBlock x:Name="NvImportText" Grid.Column="1" Style="{StaticResource Body}" Foreground="{StaticResource TextBrush}" Margin="10,0" VerticalAlignment="Center" TextWrapping="Wrap"/>
                             <Button Grid.Column="2" Style="{StaticResource LinkButton}" Content="Remove" Click="NvRemoveImport_Click"/>
                         </Grid>
@@ -285,7 +285,7 @@
                         <StackPanel Grid.Column="1" Orientation="Horizontal">
                             <Button Style="{StaticResource GhostButton}" Margin="0,0,10,0" Click="NvImport_Click" ToolTip="Use a file exported from NVIDIA Profile Inspector">
                                 <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="&#xE8E5;" Style="{StaticResource IconText}" FontSize="13"/>
+                                    <ui:LineIcon Kind="folder" Width="14.9" Height="14.9"/>
                                     <TextBlock Text="Import .nip" Margin="8,0,0,0"/>
                                 </StackPanel>
                             </Button>
@@ -339,7 +339,7 @@
                     <Button Style="{StaticResource GhostButton}" Content="Clear Roblox cache" Click="Cache_Click" Margin="0,0,10,0"/>
                     <Button x:Name="ApplyBtn" Style="{StaticResource PrimaryButton}" Click="Apply_Click">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#xE73E;" Style="{StaticResource IconText}" FontSize="13"/>
+                            <ui:LineIcon Kind="check" Width="14.9" Height="14.9"/>
                             <TextBlock Text="Apply to Roblox" Margin="8,0,0,0"/>
                         </StackPanel>
                     </Button>

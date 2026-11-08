@@ -143,7 +143,7 @@
         <Border CornerRadius="13" Padding="10,4,12,5"
                 Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" ToolTip="{Binding Text, ElementName=SidebarStatus}">
             <StackPanel Orientation="Horizontal">
-                <TextBlock Text="&#xE73E;" Style="{StaticResource IconText}" FontSize="11" Foreground="{StaticResource GoodBrush}"/>
+                <ui:LineIcon Kind="check" Width="12.6" Height="12.6" Foreground="{StaticResource GoodBrush}"/>
                 <TextBlock Text="Every change can be undone" Margin="7,0,0,0" FontSize="12" Foreground="{StaticResource TextDimBrush}"/>
                 <TextBlock x:Name="SidebarStatus" Visibility="Collapsed"/>
             </StackPanel>
@@ -234,7 +234,7 @@
                                             <ui:Spinner Width="18" Height="18" Thickness="2" Brush="{StaticResource AccentGradient}" Visibility="{Binding IsActive, Converter={StaticResource BoolToVis}}"/>
                                             <Grid Visibility="{Binding IsDone, Converter={StaticResource BoolToVis}}">
                                                 <Ellipse Fill="{StaticResource GoodSoftBrush}"/>
-                                                <TextBlock Text="&#xE73E;" Style="{StaticResource IconText}" FontSize="10" Foreground="{StaticResource GoodBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                <ui:LineIcon Kind="check" Width="11.5" Height="11.5" Foreground="{StaticResource GoodBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                             </Grid>
                                             <Grid Visibility="{Binding IsSkipped, Converter={StaticResource BoolToVis}}">
                                                 <Ellipse Fill="{StaticResource WarnSoftBrush}"/>

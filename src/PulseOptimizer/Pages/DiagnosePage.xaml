@@ -32,7 +32,7 @@
                                    Text="Run a checkup to see what's holding this PC back. It takes about a minute and includes a short CPU load test."/>
                         <Button x:Name="RunBtn" Style="{StaticResource PrimaryButton}" Margin="0,16,0,0" Click="Run_Click" HorizontalAlignment="Stretch">
                             <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="&#xE9D9;" Style="{StaticResource IconText}" FontSize="14"/>
+                                <ui:LineIcon Kind="diagnose" Width="16.1" Height="16.1"/>
                                 <TextBlock x:Name="RunBtnText" Text="Run checkup" Margin="8,0,0,0"/>
                             </StackPanel>
                         </Button>
@@ -111,7 +111,7 @@
                                                 </ItemsControl.ItemTemplate>
                                             </ItemsControl>
                                             <StackPanel Orientation="Horizontal" Visibility="{Binding HasConfirm, Converter={StaticResource BoolToVis}}">
-                                                <TextBlock Text="&#xE73E;" Style="{StaticResource IconText}" FontSize="12" Foreground="{StaticResource GoodBrush}" VerticalAlignment="Top" Margin="4,3,12,0"/>
+                                                <ui:LineIcon Kind="check" Width="13.8" Height="13.8" Foreground="{StaticResource GoodBrush}" VerticalAlignment="Top" Margin="4,3,12,0"/>
                                                 <TextBlock Style="{StaticResource Body}" MaxWidth="640" HorizontalAlignment="Left">
                                                     <Run Text="How to tell it worked: " FontWeight="SemiBold" Foreground="{StaticResource GoodBrush}"/><Run Text="{Binding Confirm, Mode=OneWay}"/>
                                                 </TextBlock>
@@ -147,21 +147,21 @@
             <UniformGrid Columns="3">
                 <Button Style="{StaticResource GhostButton}" Margin="0,0,12,0" Padding="18,16" HorizontalContentAlignment="Stretch" Click="Recommended_Click">
                     <StackPanel>
-                        <TextBlock Text="&#xE945;" Style="{StaticResource IconText}" FontSize="20" Foreground="{StaticResource AccentBrush}" HorizontalAlignment="Left"/>
+                        <ui:LineIcon Kind="macros" Width="23" Height="23" Foreground="{StaticResource AccentBrush}" HorizontalAlignment="Left"/>
                         <TextBlock Text="Apply safe tweaks" FontSize="14" Margin="0,10,0,0"/>
                         <TextBlock Style="{StaticResource Body}" FontWeight="Normal" FontSize="12" Margin="0,4,0,0" Text="Documented, reversible settings that fit this PC."/>
                     </StackPanel>
                 </Button>
                 <Button Style="{StaticResource GhostButton}" Margin="6,0,6,0" Padding="18,16" HorizontalContentAlignment="Stretch" Click="Measure_Click">
                     <StackPanel>
-                        <TextBlock Text="&#xE9D2;" Style="{StaticResource IconText}" FontSize="20" Foreground="{StaticResource AccentBrush}" HorizontalAlignment="Left"/>
+                        <ui:LineIcon Kind="measure" Width="23" Height="23" Foreground="{StaticResource AccentBrush}" HorizontalAlignment="Left"/>
                         <TextBlock Text="Measure your game" FontSize="14" Margin="0,10,0,0"/>
                         <TextBlock Style="{StaticResource Body}" FontWeight="Normal" FontSize="12" Margin="0,4,0,0" Text="Prove whether a tweak actually helps your FPS."/>
                     </StackPanel>
                 </Button>
                 <Button Style="{StaticResource GhostButton}" Margin="12,0,0,0" Padding="18,16" HorizontalContentAlignment="Stretch" Click="Security_Click">
                     <StackPanel>
-                        <TextBlock Text="&#xEA18;" Style="{StaticResource IconText}" FontSize="20" Foreground="{StaticResource AccentBrush}" HorizontalAlignment="Left"/>
+                        <ui:LineIcon Kind="security" Width="23" Height="23" Foreground="{StaticResource AccentBrush}" HorizontalAlignment="Left"/>
                         <TextBlock Text="Check for malware" FontSize="14" Margin="0,10,0,0"/>
                         <TextBlock Style="{StaticResource Body}" FontWeight="Normal" FontSize="12" Margin="0,4,0,0" Text="Defender scan plus a check of everything that starts with Windows."/>
                     </StackPanel>

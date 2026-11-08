@@ -112,7 +112,7 @@
                         <UniformGrid Columns="2" Margin="0,22,0,0">
                             <Border Style="{StaticResource Card}" Margin="0,0,8,8" Padding="18,14">
                                 <StackPanel>
-                                    <TextBlock Text="&#xE9D9;" Style="{StaticResource IconText}" FontSize="18" Foreground="{StaticResource AccentBrush}" HorizontalAlignment="Left"/>
+                                    <ui:LineIcon Kind="diagnose" Width="20.7" Height="20.7" Foreground="{StaticResource AccentBrush}" HorizontalAlignment="Left"/>
                                     <TextBlock Style="{StaticResource CardTitle}" Margin="0,10,0,0" Text="Your graphics card does the work"/>
                                     <TextBlock Style="{StaticResource Body}" FontSize="13" Margin="0,3,0,0" Text="Recording uses the video chip built into your graphics card (NVIDIA, AMD or Intel), not the part that runs your game. Pulse shows exactly what it uses."/>
                                 </StackPanel>
@@ -142,7 +142,7 @@
                         <StackPanel Orientation="Horizontal" Margin="0,24,0,0">
                             <Button x:Name="EnableBtn" Style="{StaticResource PrimaryButton}" Padding="26,12" Click="Enable_Click">
                                 <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="&#xE714;" Style="{StaticResource IconText}" FontSize="14"/>
+                                    <ui:LineIcon Kind="clips" Width="16.1" Height="16.1"/>
                                     <TextBlock Text="Turn on Clips" Margin="10,0,0,0" FontSize="14"/>
                                 </StackPanel>
                             </Button>
@@ -184,7 +184,7 @@
                         <StackPanel Grid.Column="1" VerticalAlignment="Top">
                             <Button x:Name="SaveNowBtn" Style="{StaticResource PrimaryButton}" Click="SaveNow_Click">
                                 <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="&#xE7C8;" Style="{StaticResource IconText}" FontSize="13"/>
+                                    <ui:LineIcon Kind="record" Width="14.9" Height="14.9"/>
                                     <TextBlock Text="Save clip now" Margin="8,0,0,0"/>
                                 </StackPanel>
                             </Button>
@@ -212,7 +212,7 @@
                     <StackPanel>
                         <Button Style="{StaticResource LinkButton}" HorizontalAlignment="Left" Margin="0,0,0,12" Click="Settings_Click">
                             <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="&#xE72B;" Style="{StaticResource IconText}" FontSize="12"/>
+                                <ui:LineIcon Kind="back" Width="13.8" Height="13.8"/>
                                 <TextBlock Text="Back to your clips" Margin="8,0,0,0"/>
                             </StackPanel>
                         </Button>
@@ -494,7 +494,7 @@
                         <StackPanel Grid.Column="2" Orientation="Horizontal">
                             <Button x:Name="NowSaveBtn" Style="{StaticResource PrimaryButton}" Padding="14,6" Click="SaveNow_Click">
                                 <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="&#xE7C8;" Style="{StaticResource IconText}" FontSize="12"/>
+                                    <ui:LineIcon Kind="record" Width="13.8" Height="13.8"/>
                                     <TextBlock Text="Save clip now" Margin="8,0,0,0"/>
                                 </StackPanel>
                             </Button>
@@ -549,7 +549,7 @@
                                         <Image Source="{Binding Image}" Stretch="UniformToFill"/>
                                         <Border x:Name="PlayHint" Width="46" Height="46" CornerRadius="23" Background="#99000000" Opacity="0"
                                                 HorizontalAlignment="Center" VerticalAlignment="Center">
-                                            <TextBlock Text="&#xE768;" Style="{StaticResource IconText}" FontSize="18" Foreground="White" Margin="3,0,0,0" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            <ui:LineIcon Kind="play" Width="20.7" Height="20.7" Foreground="White" Margin="3,0,0,0" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                         </Border>
                                         <Border HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="8" CornerRadius="5" Padding="7,2,7,3" Background="#D90B0C10"
                                                 Visibility="{Binding HasDuration, Converter={StaticResource BoolToVis}}">
@@ -577,7 +577,7 @@
                                     <Grid Margin="6,6,6,6" Visibility="{Binding DeleteVisibility}">
                                         <Button Style="{StaticResource LinkButton}" HorizontalAlignment="Left" Margin="7,0,0,0" Tag="{Binding}" Click="CardReveal_Click" ToolTip="Show in folder">
                                             <StackPanel Orientation="Horizontal">
-                                                <TextBlock Text="&#xE838;" Style="{StaticResource IconText}" FontSize="12" Margin="0,1,7,0"/>
+                                                <ui:LineIcon Kind="folder" Width="13.8" Height="13.8" Margin="0,1,7,0"/>
                                                 <TextBlock Text="Show in folder" FontSize="12.5"/>
                                             </StackPanel>
                                         </Button>
@@ -586,7 +586,7 @@
                                                 <TextBlock Text="{Binding FavGlyph}" Style="{StaticResource IconText}" FontSize="13" Foreground="{Binding FavBrush}"/>
                                             </Button>
                                             <Button Style="{StaticResource IconButton}" Tag="{Binding}" Click="CardDelete_Click" ToolTip="Delete this clip">
-                                                <TextBlock Text="&#xE74D;" Style="{StaticResource IconText}" FontSize="13"/>
+                                                <ui:LineIcon Kind="cleanup" Width="14.9" Height="14.9"/>
                                             </Button>
                                         </StackPanel>
                                     </Grid>
@@ -683,7 +683,7 @@
                         </Grid>
                         <StackPanel x:Name="InputPanel" Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,16,0" Visibility="Collapsed"
                                     ToolTip="Show the keys and buttons you pressed. Saved and Discord copies include it too.">
-                            <TextBlock Text="&#xE765;" Style="{StaticResource IconText}" FontSize="14" Foreground="{StaticResource TextDimBrush}" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                            <ui:LineIcon Kind="keyboard" Width="16.1" Height="16.1" Foreground="{StaticResource TextDimBrush}" Margin="0,0,10,0" VerticalAlignment="Center"/>
                             <WrapPanel x:Name="InputChips"/>
                         </StackPanel>
                     </Grid>
@@ -696,10 +696,10 @@
                                 <TextBlock Text="&#xE8AC;" Style="{StaticResource IconText}" FontSize="14"/>
                             </Button>
                             <Button Style="{StaticResource GhostButton}" Width="42" Padding="0,9" Margin="0,0,6,0" Click="Reveal_Click" ToolTip="Show in folder">
-                                <TextBlock Text="&#xE838;" Style="{StaticResource IconText}" FontSize="14"/>
+                                <ui:LineIcon Kind="folder" Width="16.1" Height="16.1"/>
                             </Button>
                             <Button Style="{StaticResource GhostButton}" Width="42" Padding="0,9" Margin="0,0,6,0" Click="Delete_Click" ToolTip="Delete (Del)">
-                                <TextBlock Text="&#xE74D;" Style="{StaticResource IconText}" FontSize="14"/>
+                                <ui:LineIcon Kind="cleanup" Width="16.1" Height="16.1"/>
                             </Button>
                             <Border Width="28" Height="28" CornerRadius="14" Margin="6,0,0,0" Background="#14FFFFFF" VerticalAlignment="Center" Cursor="Help"
                                     ToolTip="Space play · ← → one frame · Shift ← → one second · I / O set start and end · F full screen · Del delete">
@@ -716,7 +716,7 @@
                             <Button x:Name="SaveCopyBtn" Style="{StaticResource GhostButton}" Content="Save trimmed copy" Click="Trim_Click" Margin="0,0,8,0"/>
                             <Button x:Name="DiscordBtn" Style="{StaticResource PrimaryButton}" Click="Discord_Click">
                                 <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="&#xE72D;" Style="{StaticResource IconText}" FontSize="13"/>
+                                    <ui:LineIcon Kind="share" Width="14.9" Height="14.9"/>
                                     <TextBlock Text="Discord copy (under 10 MB)" Margin="8,0,0,0"/>
                                 </StackPanel>
                             </Button>

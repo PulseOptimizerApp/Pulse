@@ -145,7 +145,7 @@
             <Grid Margin="0,0,0,10">
                 <Button x:Name="BackBtn" Style="{StaticResource GhostButton}" HorizontalAlignment="Left" Click="Back_Click" Padding="14,8" ToolTip="Back to all games (Esc)">
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="&#xE72B;" Style="{StaticResource IconText}" FontSize="12"/>
+                        <ui:LineIcon Kind="back" Width="13.8" Height="13.8"/>
                         <TextBlock Text="All games" Margin="8,0,0,0"/>
                     </StackPanel>
                 </Button>
@@ -206,7 +206,7 @@
                                 <Button x:Name="AutoUndoBtn" Style="{StaticResource GhostButton}" Content="Undo" Margin="0,0,10,0" Click="AutoUndo_Click" Visibility="Collapsed"/>
                                 <Button x:Name="AutoBtn" Style="{StaticResource PrimaryButton}" Click="Auto_Click">
                                     <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="&#xE945;" Style="{StaticResource IconText}" FontSize="13"/>
+                                        <ui:LineIcon Kind="macros" Width="14.9" Height="14.9"/>
                                         <TextBlock x:Name="AutoBtnText" Text="Apply" Margin="8,0,0,0"/>
                                     </StackPanel>
                                 </Button>
@@ -274,7 +274,7 @@
                                 </StackPanel>
                                 <Button x:Name="CheckBtn" Style="{StaticResource PrimaryButton}" HorizontalAlignment="Right" VerticalAlignment="Top" Click="Check_Click">
                                     <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="&#xE9D2;" Style="{StaticResource IconText}" FontSize="13"/>
+                                        <ui:LineIcon Kind="measure" Width="14.9" Height="14.9"/>
                                         <TextBlock x:Name="CheckBtnText" Text="Check delay" Margin="8,0,0,0"/>
                                     </StackPanel>
                                 </Button>
@@ -360,7 +360,7 @@
                     <Grid Grid.Row="2" Margin="0,16,0,0">
                         <Button Style="{StaticResource GhostButton}" HorizontalAlignment="Left" Click="PickerBrowse_Click">
                             <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="&#xE8E5;" Style="{StaticResource IconText}" FontSize="13"/>
+                                <ui:LineIcon Kind="folder" Width="14.9" Height="14.9"/>
                                 <TextBlock Text="Browse for a game's .exe" Margin="8,0,0,0"/>
                             </StackPanel>
                         </Button>

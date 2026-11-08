@@ -21,7 +21,7 @@
                         <StackPanel Orientation="Horizontal" Margin="0,18,0,0">
                             <Button x:Name="CheckBtn" Style="{StaticResource PrimaryButton}" Click="Check_Click">
                                 <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="&#xE9D9;" Style="{StaticResource IconText}" FontSize="13"/>
+                                    <ui:LineIcon Kind="diagnose" Width="14.9" Height="14.9"/>
                                     <TextBlock x:Name="CheckBtnText" Text="Save snapshot" Margin="8,0,0,0"/>
                                 </StackPanel>
                             </Button>
