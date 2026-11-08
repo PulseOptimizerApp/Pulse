@@ -4297,5 +4297,9 @@
  "Premier": "Premier",
  "Impact": "Impacto",
  "Hide the scoreboard": "Ocultar el marcador",
- "Show the full scoreboard": "Ver el marcador completo"
+ "Show the full scoreboard": "Ver el marcador completo",
+ "Your last {0} games had only {1} Competitive, Unrated, Premier or Swiftplay matches, and Pulse has all of them. Deathmatch and Team Deathmatch don't count: play a few 5v5 matches and they'll show up here.": "Tus últimas {0} partidas solo tenían {1} partidas competitivas, no competitivas, premier o swiftplay, y Pulse ya las tiene todas. Combate a muerte y Combate a muerte por equipos no cuentan: juega algunas partidas 5v5 y aparecerán aquí.",
+ "Shows the ranks of your enemies and teammates once you have a match saved where most players are ranked.": "Muestra los rangos de tus enemigos y compañeros cuando tengas guardada una partida en la que la mayoría de jugadores tenga rango.",
+ "Needs about 8 games per agent across your saved matches. You have {0} matches so far.": "Necesita unas 8 partidas por agente entre tus partidas guardadas. Por ahora tienes {0}.",
+ "Pulse has {0} of your matches.": "Pulse tiene {0} de tus partidas."
 }

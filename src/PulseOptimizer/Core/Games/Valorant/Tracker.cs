@@ -518,7 +518,7 @@ public static class Tracker
     /// An agent tier list from your lobbies: win rate and pick rate of each agent across every player in the saved
     /// matches (at least 15 picks). Graded on win rate: S 55%+, A 52%+, B 48%+, C 45%+, D below.
     /// </summary>
-    public static List<TierEntry> TierList(IReadOnlyList<VMatch> all, int minPicks = 15)
+    public static List<TierEntry> TierList(IReadOnlyList<VMatch> all, int minPicks = 8)
     {
         var by = ByAgent(all);
         int totalMatches = all.Count(m => VMatch.Counts(m.Queue));
@@ -560,7 +560,7 @@ public static class Tracker
     /// </summary>
     public static Opposition Against(IReadOnlyList<VMatch> mine, int n = 5)
     {
-        var ranked = mine.Where(m => m.Queue is "competitive" or "premier" && m.Players.Count(p => p.Tier >= 3) >= 6).OrderByDescending(m => m.StartUtc).Take(n).ToList();
+        var ranked = mine.Where(m => VMatch.Counts(m.Queue) && m.Players.Count(p => p.Tier >= 3) >= 6).OrderByDescending(m => m.StartUtc).Take(n).ToList();
         if (ranked.Count == 0) return null;
         var enemies = ranked.SelectMany(m => m.Players.Where(p => p.Team != m.MyTeam && p.Tier >= 3).Select(p => (m, p))).ToList();
         var mates = ranked.SelectMany(m => m.Players.Where(p => p.Team == m.MyTeam && p.Id != m.Me && p.Tier >= 3)).ToList();

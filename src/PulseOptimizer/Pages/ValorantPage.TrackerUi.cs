@@ -467,14 +467,14 @@ public partial class ValorantPage
         if (p.IsYou)
         {
             var opp = Tracker.Against(mine);
-            yield return opp != null ? OppositionCard(opp) : Card2(Waiting("Who you're up against", "Shows the ranks of your enemies and teammates once you have a Competitive or Premier match saved."), Red);
+            yield return opp != null ? OppositionCard(opp) : Card2(Waiting("Who you're up against", "Shows the ranks of your enemies and teammates once you have a match saved where most players are ranked."), Red);
             yield return MmrCard(mmr, p);
             var all = VStore.All;
             var yours = Tracker.YourAgents(mine, all);
             yield return yours.Count > 0 ? YourAgentsCard(yours, all, p.Puuid) : Card2(Waiting("How you play your agents", "Play an agent in two matches to see how you compare with everyone else on it."), Blue);
             var tiers = Tracker.TierList(all);
             int counted = all.Count(m => VMatch.Counts(m.Queue));
-            yield return tiers.Count >= 4 ? TierListCard(tiers, counted) : Card2(Waiting("Agent tier list in your lobbies", Loc.F("Needs about 15 games per agent across your saved matches. You have {0} matches so far.", counted)), Yellow);
+            yield return tiers.Count >= 4 ? TierListCard(tiers, counted) : Card2(Waiting("Agent tier list in your lobbies", Loc.F("Needs about 8 games per agent across your saved matches. You have {0} matches so far.", counted)), Yellow);
         }
 
         // Recent matches.
@@ -500,11 +500,23 @@ public partial class ValorantPage
         yield return Card2(recent, Green);
     }
 
+    /// <summary>A section that can't show yet: what it needs, and (when Pulse has few of your matches) a button to fetch them.</summary>
     FrameworkElement Waiting(string title, string text)
     {
         var sp = new StackPanel();
         sp.Children.Add(Heading(title));
         sp.Children.Add(Dim(Loc.T(text), 12.5, 6));
+        int have = CoachMatches().Count;
+        if (have < 20)
+        {
+            var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 10, 0, 0) };
+            var get = Btn(_downloading ? "Downloading…" : "Get my recent matches", true);
+            get.IsEnabled = !_downloading;
+            get.Click += (_, _) => _ = Download(true);
+            row.Children.Add(get);
+            row.Children.Add(Faint(_downloadText ?? Loc.F("Pulse has {0} of your matches.", have), 11.5, 0).Also(t => { t.VerticalAlignment = VerticalAlignment.Center; t.Margin = new Thickness(10, 0, 0, 0); }));
+            sp.Children.Add(row);
+        }
         return sp;
     }
 }

@@ -257,7 +257,8 @@ public sealed class ValorantMatches : IDisposable
     }
 
     /// <summary>What a download of recent matches did: how many it added, or why it couldn't.</summary>
-    public sealed record BackfillResult(int Added, int Found, string Error);
+    /// <summary>Added: new matches saved. Found: new ones Riot listed. Scanned: games in your history looked at. Real: of those, 5v5 matches (not Deathmatch etc.).</summary>
+    public sealed record BackfillResult(int Added, int Found, string Error, int Scanned = 0, int Real = 0);
 
     /// <summary>
     /// Downloads your recent matches the coach doesn't have yet (up to <paramref name="count"/>), one every second or
@@ -277,7 +278,7 @@ public sealed class ValorantMatches : IDisposable
 
         // Your history mixes every mode (Deathmatch, Team Deathmatch…); page back up to 100 games to find enough real matches.
         var ids = new List<string>();
-        int seen = 0;
+        int seen = 0, scanned = 0;
         for (int start = 0; start < 100 && seen < count; start += 20)
         {
             var (history, code) = await GetStatus(s, $"https://pd.{s.Shard}.a.pvp.net/match-history/v1/history/{s.Puuid}?startIndex={start}&endIndex={start + 20}");
@@ -292,6 +293,7 @@ public sealed class ValorantMatches : IDisposable
             {
                 if (history.RootElement.Get("History") is not { ValueKind: JsonValueKind.Array } h) break;
                 got = h.GetArrayLength();
+                scanned += got;
                 foreach (var x in h.EnumerateArray().Where(x => Pulse.Core.Games.Valorant.VMatch.Counts(x.Str("QueueID"))))
                 {
                     seen++;
@@ -302,7 +304,8 @@ public sealed class ValorantMatches : IDisposable
             if (got < 20) break; // that was the last page
             await Task.Delay(600, ct);
         }
-        if (ids.Count == 0) return new BackfillResult(0, 0, null);
+        TweakEngine.AddLog("valorant", $"Match download: {scanned} games in your history, {seen} real matches, {ids.Count} new");
+        if (ids.Count == 0) return new BackfillResult(0, 0, null, scanned, seen);
 
         // Names are a nicety (Pulse has its own list); never let them hold the download up.
         var self = new ValorantMatches();
@@ -343,7 +346,7 @@ public sealed class ValorantMatches : IDisposable
         await Task.WhenAll(ids.Select(One));
         progress?.Report(("match", ids.Count, ids.Count));
         if (failed > 0) TweakEngine.AddLog("valorant", $"Coach download: {added} added, {failed} failed ({lastError})");
-        return new BackfillResult(added, ids.Count, added == 0 && failed > 0 ? "Riot didn't send the matches (" + lastError + ")" : null);
+        return new BackfillResult(added, ids.Count, added == 0 && failed > 0 ? "Riot didn't send the matches (" + lastError + ")" : null, scanned, seen);
 
         static BackfillResult Fail(string why, string detail)
         {

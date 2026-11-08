@@ -119,6 +119,7 @@ public partial class ValorantPage
         _downloadText = r.Error == "no-client" ? (manual ? Loc.T("Open VALORANT or the Riot Client first, then try again.") : null)
             : r.Error != null ? (manual ? Loc.F("{0}. Try again in a minute.", Loc.T(r.Error)) : null)
             : r.Added > 0 ? Loc.F("Added {0} matches.", r.Added)
+            : r.Scanned > 0 && r.Real < 10 ? Loc.F("Your last {0} games had only {1} Competitive, Unrated, Premier or Swiftplay matches, and Pulse has all of them. Deathmatch and Team Deathmatch don't count: play a few 5v5 matches and they'll show up here.", r.Scanned, r.Real)
             : manual ? Loc.T("You're up to date: every recent match is already here.") : null;
         if (_tab is "coach" or "maps" or "review" or "tracker" && (manual || r.Added > 0)) Build();
     }
