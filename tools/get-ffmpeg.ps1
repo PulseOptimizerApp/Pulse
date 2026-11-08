@@ -8,7 +8,16 @@ param(
 $ErrorActionPreference = 'Stop'
 $headers = @{ 'User-Agent' = 'PulseOptimizer-build' }
 if ($env:GH_TOKEN) { $headers['Authorization'] = "Bearer $env:GH_TOKEN" }
-$release = Invoke-RestMethod -Uri 'https://api.github.com/repos/BtbN/FFmpeg-Builds/releases/tags/latest' -Headers $headers
+$release = $null
+for ($try = 1; -not $release; $try++) {
+    try { $release = Invoke-RestMethod -Uri 'https://api.github.com/repos/BtbN/FFmpeg-Builds/releases/tags/latest' -Headers $headers }
+    catch {
+        if ($try -ge 6) { throw }
+        Write-Host "GitHub API busy ($($_.Exception.Message)), retrying in $(20 * $try)s"
+        if ($try -eq 3) { $headers.Remove('Authorization') }   # try the other rate-limit pool
+        Start-Sleep -Seconds (20 * $try)
+    }
+}
 $asset = $release.assets |
     Where-Object { $_.name -match '^ffmpeg-n(\d+)\.(\d+)-latest-win64-gpl-\d+\.\d+\.zip$' } |
     Sort-Object { [int]($_.name -replace '^ffmpeg-n(\d+)\.(\d+).*', '$1') }, { [int]($_.name -replace '^ffmpeg-n(\d+)\.(\d+).*', '$2') } |
