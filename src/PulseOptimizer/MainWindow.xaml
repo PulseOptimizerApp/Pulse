@@ -76,6 +76,7 @@
                             <RadioButton Style="{StaticResource NavButton}" Tag="diagnose" ui:Icon.Glyph="&#xE9D9;" ui:Icon.Path="M10.5 4 A6.5 6.5 0 1 1 10.49 4 M15.3 15.3 L20 20 M6.5 10.5 H8.3 L9.6 8.3 L11.4 12.7 L12.6 10.5 H14.5" Content="Diagnose" Checked="Nav_Checked" Click="Nav_Click"/>
                             <RadioButton Style="{StaticResource NavButton}" Tag="tweaks" ui:Icon.Glyph="&#xE945;" ui:Icon.Path="M6 4 V20 M12 4 V20 M18 4 V20 M4 15 H8 M10 8 H14 M16 12.5 H20" Content="Tweaks" Checked="Nav_Checked" Click="Nav_Click"/>
                             <RadioButton Style="{StaticResource NavButton}" Tag="measure" ui:Icon.Glyph="&#xE9D2;" ui:Icon.Path="M4.4 17 A8.5 8.5 0 1 1 19.6 17 M12 14 L16 9.5 M12 14 h0.01" Content="Measure" Checked="Nav_Checked" Click="Nav_Click"/>
+                            <RadioButton Style="{StaticResource NavButton}" Tag="report" ui:Icon.Glyph="&#xE9F9;" ui:Icon.Path="M4 20 H20 M6.5 20 V13 M11 20 V8.5 M15.5 20 V11 M20 20 V5" Content="Weekly report" Checked="Nav_Checked" Click="Nav_Click"/>
                             <RadioButton Style="{StaticResource NavButton}" Tag="gpu" ui:Icon.Glyph="&#xE950;" ui:Icon.Path="M3 7 H21 V16 H3 Z M7 16 V19 M11 16 V19 M15 16 V19 M9 11.5 A2.5 2.5 0 1 0 8.99 11.5 M15 10 H18 M15 13 H18" Content="GPU tuning" Checked="Nav_Checked" Click="Nav_Click"/>
                             <RadioButton Style="{StaticResource NavButton}" Tag="cleanup" ui:Icon.Glyph="&#xE74D;" ui:Icon.Path="M4.5 7 H19.5 M9 7 V4.5 H15 V7 M6.5 7 L7.5 20 H16.5 L17.5 7 M10.3 10.5 V16.5 M13.7 10.5 V16.5" Content="Debloat" Checked="Nav_Checked" Click="Nav_Click"/>
                             <RadioButton Style="{StaticResource NavButton}" Tag="startup" ui:Icon.Glyph="&#xE7E8;" ui:Icon.Path="M12 3 V11 M7.2 6.2 A7.5 7.5 0 1 0 16.8 6.2" Content="Startup apps" Checked="Nav_Checked" Click="Nav_Click"/>
@@ -197,6 +198,21 @@
                     <Button x:Name="UpdateLaterBtn" Style="{StaticResource GhostButton}" Content="Later" Margin="10,0,0,0" Click="UpdateLater_Click"/>
                     <Button x:Name="UpdateCancelBtn" Style="{StaticResource GhostButton}" Content="Cancel" Margin="10,0,0,0" Click="UpdateCancel_Click" Visibility="Collapsed"/>
                     <Button x:Name="UpdateSkipBtn" Style="{StaticResource LinkButton}" Content="Skip this version" Margin="14,0,0,0" VerticalAlignment="Center" Click="UpdateSkip_Click"/>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
+        <!-- ═════════ Notices: a new graphics driver, the weekly report ═════════ -->
+        <Border x:Name="NoticeBar" Grid.Row="1" Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,28,24"
+                Style="{StaticResource HeroCard}" Background="{StaticResource Surface2Brush}" Padding="18,14" MaxWidth="440" Visibility="Collapsed">
+            <Border.Effect><DropShadowEffect BlurRadius="28" ShadowDepth="4" Opacity="0.5" Color="Black"/></Border.Effect>
+            <StackPanel>
+                <TextBlock x:Name="NoticeTitle" Style="{StaticResource CardTitle}"/>
+                <TextBlock x:Name="NoticeText" Style="{StaticResource Body}" FontSize="13" Margin="0,4,0,0" TextWrapping="Wrap"/>
+                <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                    <Button x:Name="NoticeBtn" Style="{StaticResource PrimaryButton}" Click="Notice_Click"/>
+                    <Button x:Name="NoticeLaterBtn" Style="{StaticResource GhostButton}" Content="Later" Margin="10,0,0,0" Click="NoticeLater_Click"/>
+                    <Button x:Name="NoticeSkipBtn" Style="{StaticResource LinkButton}" Margin="14,0,0,0" VerticalAlignment="Center" Click="NoticeSkip_Click" Visibility="Collapsed"/>
                 </StackPanel>
             </StackPanel>
         </Border>

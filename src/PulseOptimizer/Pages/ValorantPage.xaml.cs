@@ -17,24 +17,83 @@ public partial class ValorantPage : UserControl, IPage
 {
     static Core.Clips.ClipSettings S => TweakEngine.State.Clips;
 
+    readonly Dictionary<string, (TextBlock Label, Border Line)> _tabs = new();
+    string _tab = "coach";
+
     public ValorantPage()
     {
         InitializeComponent();
+        foreach (var (key, title) in new[] { ("coach", "Coach"), ("maps", "Heatmaps"), ("review", "Death review"), ("store", "Store"), ("overview", "Live lobby & matches") })
+            Tabs.Children.Add(TabButton(key, title));
+        Unloaded += (_, _) => StopReview();
     }
 
-    public void OnShown(object parameter) => Build();
+    public void OnShown(object parameter)
+    {
+        if (parameter is string key && _tabs.ContainsKey(key)) _tab = key;
+        ShowTab(_tab, false);
+    }
 
     Brush Res(string k) => (Brush)FindResource(k);
     Border Card(UIElement child) => new() { Style = (Style)FindResource("Card"), Padding = new Thickness(22, 18, 22, 18), Margin = new Thickness(0, 0, 0, 14), Child = child };
     TextBlock Heading(string t) => new() { Text = Loc.T(t), FontSize = 16, FontWeight = FontWeights.SemiBold, Foreground = Res("TextBrush"), FontFamily = (FontFamily)FindResource("DisplayFont"), TextWrapping = TextWrapping.Wrap };
     TextBlock Dim(string t, double size = 12.5, double top = 4) => new() { Text = t, FontSize = size, TextWrapping = TextWrapping.Wrap, Foreground = Res("TextDimBrush"), Margin = new Thickness(0, top, 0, 0), LineHeight = size * 1.45 };
+    TextBlock Faint(string t, double size = 11.5, double top = 4) => new() { Text = t, FontSize = size, TextWrapping = TextWrapping.Wrap, Foreground = Res("TextFaintBrush"), Margin = new Thickness(0, top, 0, 0) };
+    TextBlock Label(string t) => new() { Text = Loc.T(t).ToUpper(CultureInfo.CurrentCulture), FontSize = 10.5, FontWeight = FontWeights.Bold, Foreground = Res("TextFaintBrush"), Margin = new Thickness(0, 0, 0, 6) };
+
+    Button Btn(string text, bool primary = false) => new() { Style = (Style)FindResource(primary ? "PrimaryButton" : "GhostButton"), Content = Loc.T(text), Padding = new Thickness(14, 6, 14, 6), Margin = new Thickness(0, 0, 10, 0) };
+
+    RadioButton Chip(string text, string group, bool on, Action pick)
+    {
+        var c = new RadioButton { Style = (Style)FindResource("Chip"), Content = text, GroupName = group, IsChecked = on, Margin = new Thickness(0, 0, 6, 6) };
+        c.Checked += (_, _) => pick();
+        return c;
+    }
+
+    FrameworkElement TabButton(string key, string title)
+    {
+        var label = new TextBlock { Text = Loc.T(title), FontSize = 13.5, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 11) };
+        var line = new Border { Height = 2, CornerRadius = new CornerRadius(2), VerticalAlignment = VerticalAlignment.Bottom };
+        var g = new Grid { Margin = new Thickness(0, 0, 26, 0), Background = Brushes.Transparent, Cursor = System.Windows.Input.Cursors.Hand };
+        g.Children.Add(label);
+        g.Children.Add(line);
+        g.MouseLeftButtonUp += (_, _) => ShowTab(key);
+        g.MouseEnter += (_, _) => { if (_tab != key) label.Foreground = Res("TextBrush"); };
+        g.MouseLeave += (_, _) => { if (_tab != key) label.Foreground = Res("TextDimBrush"); };
+        _tabs[key] = (label, line);
+        return g;
+    }
+
+    void ShowTab(string key, bool animate = true)
+    {
+        if (_tab == "review" && key != "review") StopReview();
+        _tab = key;
+        foreach (var (k, (label, line)) in _tabs)
+        {
+            label.Foreground = Res(k == key ? "TextBrush" : "TextDimBrush");
+            line.Background = k == key ? Res("AccentBrush") : Brushes.Transparent;
+        }
+        Build();
+        Scroller.ScrollToTop();
+        if (!animate) return;
+        Root.BeginAnimation(OpacityProperty, new System.Windows.Media.Animation.DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(180)));
+    }
 
     void Build()
     {
         Root.Children.Clear();
-        Root.Children.Add(LobbyCard());
-        Root.Children.Add(MatchesCard());
-        Root.Children.Add(MoreCard());
+        switch (_tab)
+        {
+            case "coach": BuildCoach(); break;
+            case "maps": BuildMaps(); break;
+            case "review": BuildReview(); break;
+            case "store": BuildStore(); break;
+            default:
+                Root.Children.Add(LobbyCard());
+                Root.Children.Add(MatchesCard());
+                Root.Children.Add(MoreCard());
+                break;
+        }
     }
 
     // ───────── live lobby ─────────

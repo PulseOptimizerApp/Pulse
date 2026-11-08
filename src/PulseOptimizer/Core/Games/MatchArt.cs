@@ -23,6 +23,10 @@ public static class MatchArt
     public static ImageSource Rank(MatchRecord m) => m.Game == "VALORANT" && m.RankTier >= 3 ? Load($"rank-{m.RankTier}.png", 64) : null;
     /// <summary>A VALORANT rank badge by tier number (3 = Iron 1 … 27 = Radiant); null when unranked.</summary>
     public static ImageSource RankIcon(int tier) => tier >= 3 ? Load($"rank-{tier}.png", 64) : null;
+    /// <summary>A VALORANT map's minimap (top-down layout) by name; null when it wasn't embedded.</summary>
+    public static ImageSource Minimap(string map) => string.IsNullOrEmpty(map) ? null : Load($"mini-{Key(map)}.png", 512);
+    /// <summary>A VALORANT map's picture by name.</summary>
+    public static ImageSource MapPicture(string map) => string.IsNullOrEmpty(map) ? null : Load($"map-{Key(map)}.jpg", 640);
     /// <summary>A VALORANT agent's portrait by name.</summary>
     public static ImageSource AgentIcon(string agent) => string.IsNullOrEmpty(agent) ? null : Load($"agent-{Key(agent)}.png", 256);
 

@@ -83,6 +83,10 @@ public class AppState
     public Dictionary<string, List<string>> GuideDone { get; set; } = new();
     /// <summary>The GPU tuning page's settings (NVIDIA cards).</summary>
     public Pulse.Core.Gpu.GpuTuneSettings GpuTune { get; set; } = new();
+    /// <summary>The VALORANT coach: this week's focus and past ones.</summary>
+    public Pulse.Core.Games.Valorant.CoachState Coach { get; set; } = new();
+    /// <summary>Play sessions for the weekly report, and the driver Pulse last told you about.</summary>
+    public Pulse.Core.Reports.ReportState Report { get; set; } = new();
     /// <summary>The Devices page: backups of key remaps and key repeat.</summary>
     public Pulse.Core.Devices.DeviceSettings Devices { get; set; } = new();
 }
@@ -94,7 +98,9 @@ public static class TweakEngine
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "PulseOptimizer");
     static string StateFile => Path.Combine(DataDir, "state.json");
     static readonly object Gate = new();
-    static readonly JsonSerializerOptions Json = new() { WriteIndented = true };
+    static readonly JsonSerializerOptions ReadOptions = new() { NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.AllowNamedFloatingPointLiterals };
+    // Named floats: a number that has no value yet (NaN, like a coach focus with no matches) must never stop settings from saving.
+    static readonly JsonSerializerOptions Json = new() { WriteIndented = true, NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.AllowNamedFloatingPointLiterals };
 
     public static AppState State { get; private set; } = Load();
 
@@ -108,7 +114,7 @@ public static class TweakEngine
         try
         {
             if (File.Exists(StateFile))
-                return JsonSerializer.Deserialize<AppState>(File.ReadAllText(StateFile)) ?? new AppState();
+                return JsonSerializer.Deserialize<AppState>(File.ReadAllText(StateFile), ReadOptions) ?? new AppState();
         }
         catch
         {

@@ -5,9 +5,13 @@
         <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
         <StackPanel>
             <TextBlock Style="{StaticResource H1}" Text="VALORANT"/>
-            <TextBlock Style="{StaticResource Sub}" Margin="0,4,0,0" Text="The live lobby, your recent matches, and everything Pulse does for VALORANT."/>
+            <TextBlock Style="{StaticResource Sub}" Margin="0,4,0,0" Text="Your coach, heatmaps, death review, store and live lobby, from your own matches."/>
+            <Grid Margin="0,18,0,0">
+                <Border VerticalAlignment="Bottom" Height="1" Background="{StaticResource BorderBrush}"/>
+                <StackPanel x:Name="Tabs" Orientation="Horizontal"/>
+            </Grid>
         </StackPanel>
-        <ScrollViewer Grid.Row="1" Margin="0,18,0,0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <ScrollViewer x:Name="Scroller" Grid.Row="1" Margin="0,18,0,0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
             <StackPanel x:Name="Root" Margin="0,0,8,32"/>
         </ScrollViewer>
     </Grid>

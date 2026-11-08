@@ -20,7 +20,7 @@ namespace Pulse.Core.Games.Live;
 /// </summary>
 public sealed class ValorantMatches : IDisposable
 {
-    static readonly HttpClient Http = new(new HttpClientHandler
+    internal static readonly HttpClient Http = new(new HttpClientHandler
     {
         // The Riot Client's local API (127.0.0.1) uses its own certificate; Riot's servers use normal ones.
         ServerCertificateCustomValidationCallback = (req, _, _, errors) => req.RequestUri?.Host == "127.0.0.1" || errors == System.Net.Security.SslPolicyErrors.None,
@@ -28,7 +28,7 @@ public sealed class ValorantMatches : IDisposable
     { Timeout = TimeSpan.FromSeconds(15) };
 
     // Riot's documented client platform header value (Windows PC), base64 JSON.
-    const string ClientPlatform = "ew0KCSJwbGF0Zm9ybVR5cGUiOiAiUEMiLA0KCSJwbGF0Zm9ybU9TIjogIldpbmRvd3MiLA0KCSJwbGF0Zm9ybU9TVmVyc2lvbiI6ICIxMC4wLjE5MDQyLjEuMjU2LjY0Yml0IiwNCgkicGxhdGZvcm1DaGlwc2V0IjogIlVua25vd24iDQp9";
+    internal const string ClientPlatform = "ew0KCSJwbGF0Zm9ybVR5cGUiOiAiUEMiLA0KCSJwbGF0Zm9ybU9TIjogIldpbmRvd3MiLA0KCSJwbGF0Zm9ybU9TVmVyc2lvbiI6ICIxMC4wLjE5MDQyLjEuMjU2LjY0Yml0IiwNCgkicGxhdGZvcm1DaGlwc2V0IjogIlVua25vd24iDQp9";
 
     CancellationTokenSource _cts;
     string _lastSeen;
@@ -233,9 +233,66 @@ public sealed class ValorantMatches : IDisposable
         await LoadNames(s);
         using var doc = await Get(s, $"https://pd.{s.Shard}.a.pvp.net/match-details/v1/matches/{id}");
         if (doc == null) return null;
-        MatchEvents.RaiseMoments(KillsAndDeaths(doc.RootElement, s.Puuid, await RoundStarts()));
+        var marks = await RoundStarts();
+        MatchEvents.RaiseMoments(KillsAndDeaths(doc.RootElement, s.Puuid, marks));
+        SaveForCoach(doc.RootElement, s.Puuid, marks);
         return Parse(doc.RootElement, s.Puuid, _agents, _maps, "val-" + id);
     }
+
+    /// <summary>Keeps the full match (every kill with where everyone stood) for the coach, heatmaps and death review.</summary>
+    void SaveForCoach(JsonElement root, string puuid, RoundMarks marks)
+    {
+        try
+        {
+            var vm = Pulse.Core.Games.Valorant.VMatch.Parse(root, puuid, _agents, _maps);
+            if (vm == null) return;
+            vm.ZeroUtc = ZeroUtc(root, marks);
+            Pulse.Core.Games.Valorant.VStore.Save(vm);
+        }
+        catch { }
+    }
+
+    /// <summary>
+    /// Downloads your recent matches the coach doesn't have yet (up to <paramref name="count"/>), one every second or
+    /// so, so the stats have something to work with from the first day. Only your own match history is read.
+    /// Returns how many were added, or -1 when the Riot Client isn't running.
+    /// </summary>
+    public static async Task<int> Backfill(int count, IProgress<(int Done, int Total)> progress = null, CancellationToken ct = default)
+    {
+        var s = await Login();
+        if (s == null) return -1;
+        var self = new ValorantMatches();
+        await self.LoadNames(s);
+        using var doc = await Get(s, $"https://pd.{s.Shard}.a.pvp.net/match-history/v1/history/{s.Puuid}?startIndex=0&endIndex={Math.Clamp(count, 1, 25)}");
+        if (doc?.RootElement.Get("History") is not { ValueKind: JsonValueKind.Array } h) return 0;
+        var ids = h.EnumerateArray()
+            .Where(x => Pulse.Core.Games.Valorant.VMatch.Counts(x.Str("QueueID")))
+            .Select(x => x.Str("MatchID")).Where(id => id.Length > 0 && !Pulse.Core.Games.Valorant.VStore.Has(id)).ToList();
+        int added = 0;
+        var marks = ids.Count > 0 ? await RoundStarts() : null;
+        for (int i = 0; i < ids.Count; i++)
+        {
+            ct.ThrowIfCancellationRequested();
+            progress?.Report((i, ids.Count));
+            try
+            {
+                using var d = await Get(s, $"https://pd.{s.Shard}.a.pvp.net/match-details/v1/matches/{ids[i]}");
+                if (d != null && Pulse.Core.Games.Valorant.VMatch.Parse(d.RootElement, s.Puuid, self._agents, self._maps) is { } vm)
+                {
+                    vm.ZeroUtc = ZeroUtc(d.RootElement, marks); // the log still has the last session's matches
+                    Pulse.Core.Games.Valorant.VStore.Save(vm);
+                    added++;
+                }
+            }
+            catch { }
+            await Task.Delay(1200, ct); // gentle on Riot's servers
+        }
+        progress?.Report((ids.Count, ids.Count));
+        return added;
+    }
+
+    /// <summary>Your Riot account id, when the Riot Client is running (null otherwise).</summary>
+    public static async Task<string> MyId() => (await Login())?.Puuid;
 
     /// <summary>Agent and map names from Riot's content service (falls back to Pulse's own list).</summary>
     async Task LoadNames(Session s)
@@ -456,10 +513,7 @@ public sealed class ValorantMatches : IDisposable
                 .SelectMany(r => r.Get("playerStats") is { ValueKind: JsonValueKind.Array } ps ? ps.EnumerateArray() : Enumerable.Empty<JsonElement>())
                 .SelectMany(p => p.Get("kills") is { ValueKind: JsonValueKind.Array } k ? k.EnumerateArray() : Enumerable.Empty<JsonElement>());
         var all = kills.Where(k => k.Get("gameTime") is { ValueKind: JsonValueKind.Number }).ToList();
-        var zero = Align(all.Where(k => k.Get("roundTime") is { ValueKind: JsonValueKind.Number })
-            .Select(k => (k.Get("gameTime").Value.GetInt64(), k.Get("roundTime").Value.GetInt64())).ToList(), marks,
-            DateTimeOffset.FromUnixTimeMilliseconds(sm.GetInt64()).UtcDateTime);
-        if (zero is DateTime z) start = z.ToLocalTime();
+        if (ZeroUtc(root, marks) is DateTime z) start = z.ToLocalTime();
         foreach (var k in all)
         {
             var when = start.AddMilliseconds(k.Get("gameTime").Value.GetInt64());
@@ -467,6 +521,22 @@ public sealed class ValorantMatches : IDisposable
             if (k.Str("victim") == puuid) list.Add(new Moment(when, Moment.Death, "VALORANT"));
         }
         return list;
+    }
+
+    /// <summary>When game time 0 was on this PC's clock (UTC), lined up with VALORANT's round log; null when it can't be.</summary>
+    internal static DateTime? ZeroUtc(JsonElement root, RoundMarks marks)
+    {
+        var info = root.Get("matchInfo") ?? default;
+        if (marks == null || info.Get("gameStartMillis") is not { ValueKind: JsonValueKind.Number } sm) return null;
+        IEnumerable<JsonElement> kills = Enumerable.Empty<JsonElement>();
+        if (root.Get("kills") is { ValueKind: JsonValueKind.Array } top && top.GetArrayLength() > 0) kills = top.EnumerateArray();
+        else if (root.Get("roundResults") is { ValueKind: JsonValueKind.Array } rounds)
+            kills = rounds.EnumerateArray()
+                .SelectMany(r => r.Get("playerStats") is { ValueKind: JsonValueKind.Array } ps ? ps.EnumerateArray() : Enumerable.Empty<JsonElement>())
+                .SelectMany(p => p.Get("kills") is { ValueKind: JsonValueKind.Array } k ? k.EnumerateArray() : Enumerable.Empty<JsonElement>());
+        var pairs = kills.Where(k => k.Get("gameTime") is { ValueKind: JsonValueKind.Number } && k.Get("roundTime") is { ValueKind: JsonValueKind.Number })
+            .Select(k => (k.Get("gameTime").Value.GetInt64(), k.Get("roundTime").Value.GetInt64())).ToList();
+        return Align(pairs, marks, DateTimeOffset.FromUnixTimeMilliseconds(sm.GetInt64()).UtcDateTime);
     }
 
     /// <summary>Agent IDs → names, used when Riot's content service can't be reached.</summary>

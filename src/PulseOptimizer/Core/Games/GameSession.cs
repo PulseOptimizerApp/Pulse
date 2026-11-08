@@ -131,8 +131,12 @@ public sealed class LiveFrames : IDisposable
         catch { }
     }
 
+    /// <summary>Every frame of the whole session, for the weekly report.</summary>
+    public Pulse.Core.Reports.FrameTally Tally { get; } = new();
+
     internal void Add(double at, double ms)
     {
+        Tally.Add(ms);
         lock (_gate)
         {
             _frames.Enqueue((at, ms));

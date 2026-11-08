@@ -178,6 +178,7 @@ public partial class MainWindow : Window
                 "guide" => new GuidePage(),
                 "gpu" => new GpuPage(),
                 "valorant" => new ValorantPage(),
+                "report" => new ReportPage(),
                 "settings" => new SettingsPage(),
                 "crosshair" => new CrosshairPage(),
                 "games" => new GamesPage(),
@@ -629,9 +630,66 @@ public partial class MainWindow : Window
         _checkForUpdate = () => CheckForUpdate(false);
         Task Check() => CheckForUpdate(false);
         var t = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromHours(1) };
-        t.Tick += async (_, _) => await Check();
+        t.Tick += async (_, _) => { await Check(); await CheckNotices(); };
         t.Start();
         _ = Task.Delay(8000).ContinueWith(_ => Dispatcher.InvokeAsync(Check));
+        _ = Task.Delay(TimeSpan.FromSeconds(90)).ContinueWith(_ => Dispatcher.InvokeAsync(CheckNotices));
+    }
+
+    // ───────── Notices: a new graphics driver, the weekly report ─────────
+
+    Action _noticeGo, _noticeSkip;
+
+    void ShowNotice(string title, string text, string go, Action onGo, string skip = null, Action onSkip = null)
+    {
+        if (UpdateBar.Visibility == Visibility.Visible || NoticeBar.Visibility == Visibility.Visible) return;
+        NoticeTitle.Text = title;
+        NoticeText.Text = text;
+        NoticeBtn.Content = go;
+        _noticeGo = onGo;
+        _noticeSkip = onSkip;
+        NoticeSkipBtn.Content = skip ?? "";
+        NoticeSkipBtn.Visibility = skip != null ? Visibility.Visible : Visibility.Collapsed;
+        NoticeBar.Visibility = Visibility.Visible;
+    }
+
+    void Notice_Click(object sender, RoutedEventArgs e) { NoticeBar.Visibility = Visibility.Collapsed; _noticeGo?.Invoke(); }
+    void NoticeLater_Click(object sender, RoutedEventArgs e) => NoticeBar.Visibility = Visibility.Collapsed;
+    void NoticeSkip_Click(object sender, RoutedEventArgs e) { NoticeBar.Visibility = Visibility.Collapsed; _noticeSkip?.Invoke(); }
+
+    /// <summary>Once a day: a newer graphics driver? Once a week: last week's report is ready.</summary>
+    async Task CheckNotices()
+    {
+        try
+        {
+            var r = TweakEngine.State.Report ??= new Core.Reports.ReportState();
+            if (r.DriverAlerts && DateTime.UtcNow - r.LastDriverCheck > TimeSpan.FromHours(24))
+            {
+                var d = await Core.Reports.DriverCheck.Check();
+                TweakEngine.Save();
+                if (d is { UpdateAvailable: true } && d.Newest.Version != r.SkippedDriver)
+                {
+                    ShowNotice(Loc.F("NVIDIA driver {0} is out", d.Newest.Version),
+                        Loc.F("You have {0}. New drivers often fix bugs and add support for new games.", d.Installed),
+                        Loc.T("See how to install it"), () => Navigate("report"),
+                        Loc.T("Skip this driver"), () => { r.SkippedDriver = d.Newest.Version; TweakEngine.Save(); });
+                    return;
+                }
+            }
+            // The weekly report: on the first start of a new week, if last week had any play.
+            var lastWeek = Core.Reports.PlayLog.WeekStart(DateTime.Now).AddDays(-7);
+            if (r.TrackPlay && r.AnnouncedWeek < lastWeek && r.Sessions.Any(s => s.Start >= lastWeek && s.Start < lastWeek.AddDays(7)))
+            {
+                r.AnnouncedWeek = lastWeek;
+                TweakEngine.Save();
+                var games = Core.Reports.PlayLog.Week(r.Sessions, lastWeek);
+                var hours = games.Sum(g => g.Hours);
+                ShowNotice(Loc.T("Your weekly report is ready"),
+                    Loc.F("Last week: {0:0.#} hours, mostly {1}.", hours, games.FirstOrDefault()?.Game ?? ""),
+                    Loc.T("Open the report"), () => Navigate("report", "last"));
+            }
+        }
+        catch { }
     }
 
     void VersionChip_Hover(object sender, MouseEventArgs e) =>

@@ -42,6 +42,7 @@ public static class GameSessionService
 
     public static void Shutdown()
     {
+        EndSession();
         _timer?.Stop();
         StopOverlay();
         GamePowerPlan.End();
@@ -50,42 +51,75 @@ public static class GameSessionService
     /// <summary>Settings changed on the Games page.</summary>
     public static void Refresh() { _pid = -1; GameDetector.Forget(); _ = Tick(); }
 
+    static Core.Reports.ReportState R => TweakEngine.State.Report ??= new Core.Reports.ReportState();
+    static Core.Reports.PlaySession _session;
+
     static async Task Tick()
     {
-        bool want = S.GameMode || S.Overlay;
+        bool want = S.GameMode || S.Overlay || R.TrackPlay;
         string game = want ? await Task.Run(GameDetector.RunningGame) : null;
         int pid = game != null ? GameDetector.GamePid : 0;
 
         if (pid == 0)
         {
-            if (_pid != 0) { StopOverlay(); GamePowerPlan.End(); }
+            if (_pid != 0) { EndSession(); StopOverlay(); GamePowerPlan.End(); }
             _pid = 0;
             return;
         }
         if (pid == _pid) return;
+        EndSession();
         _pid = pid;
 
         if (S.GameMode) GamePowerPlan.Start(); else GamePowerPlan.End();
         StopOverlay();
-        if (S.Overlay)
+        string name = null;
+        try { using var p = Process.GetProcessById(pid); name = p.ProcessName; } catch { }
+        // The frame counter runs for the overlay, and for the weekly report's FPS when that's on.
+        if (name != null && (S.Overlay || (R.TrackPlay && R.TrackFps))) _frames = LiveFrames.Start(name);
+        if (S.Overlay && _frames != null)
         {
-            string name = null;
-            try { using var p = Process.GetProcessById(pid); name = p.ProcessName; } catch { }
-            if (name != null && (_frames = LiveFrames.Start(name)) != null)
-            {
-                _overlay = new FpsOverlay(S);
-                if (!_hiddenByKey) _overlay.Show();
-                _cpu.Sample();
-                _overlayTimer.Start();
-                RegisterHotkey();
-            }
+            _overlay = new FpsOverlay(S);
+            if (!_hiddenByKey) _overlay.Show();
+            _cpu.Sample();
+            _overlayTimer.Start();
+            RegisterHotkey();
         }
+        if (R.TrackPlay) BeginSession(game);
+    }
+
+    // ───────── play sessions for the weekly report ─────────
+
+    static void BeginSession(string game)
+    {
+        _session = new Core.Reports.PlaySession { Game = game, Start = DateTime.Now };
+        _ = Task.Run(() =>
+        {
+            var s = _session;
+            if (s == null) return;
+            s.Driver = Core.Reports.PlayLog.DriverLabel();
+            s.Windows = Core.Reports.PlayLog.WindowsLabel();
+        });
+    }
+
+    /// <summary>The game closed (or Pulse is closing): file the session with its FPS.</summary>
+    static void EndSession()
+    {
+        var s = _session;
+        _session = null;
+        if (s == null) return;
+        s.End = DateTime.Now;
+        if (_frames != null)
+        {
+            var (frames, secs, avg, low) = _frames.Tally.Result();
+            s.Frames = frames; s.FrameSeconds = secs; s.AvgFps = avg; s.Low1 = low;
+        }
+        try { Core.Reports.PlayLog.Add(s); } catch { }
     }
 
     static async void UpdateOverlay()
     {
         if (_frames == null || _overlay == null || _sampling) return;
-        if (!_frames.Running) { StopOverlay(); _pid = -1; return; }
+        if (!_frames.Running) { EndSession(); StopOverlay(); _pid = -1; return; }
         var (fps, low, ms) = _frames.Now();
         var reading = new OverlayReading { Fps = fps, Low1 = low, FrameMs = ms, Graph = S.OverlayGraph ? _frames.Recent(3) : null, Clock = DateTime.Now };
         // Counters and the GPU kernel query run off the UI thread, and only the ones that are shown.

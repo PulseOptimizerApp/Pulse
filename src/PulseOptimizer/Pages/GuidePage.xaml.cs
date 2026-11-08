@@ -17,7 +17,7 @@ namespace Pulse.Pages;
 /// rate best, prebuilt PC makers, and hardware news. Content comes from <see cref="GuideLive"/> (Pulse's website),
 /// so prices and news stay current between Pulse releases.
 /// </summary>
-public partial class GuidePage : UserControl
+public partial class GuidePage : UserControl, IPage
 {
     static string _tab = "guides";
     static readonly Dictionary<string, string> SubTab = new();
@@ -49,6 +49,12 @@ public partial class GuidePage : UserControl
             UpdateFresh();
         };
         Unloaded += (_, _) => GuideLive.Changed -= changed;
+    }
+
+    /// <summary>Opened with a guide's id (like "clean-driver") from elsewhere in Pulse: open that guide.</summary>
+    public void OnShown(object parameter)
+    {
+        if (parameter is string id && G.Guides.Any(g => g.Id == id)) OpenGuide(id);
     }
 
     // ───────── header ─────────

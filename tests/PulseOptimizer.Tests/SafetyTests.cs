@@ -33,8 +33,34 @@ public class SafetyTests
             "Match recaps read the games' own data: League's Live Client API on 127.0.0.1 (LeagueLive.cs) and, for VALORANT, " +
             "your own last match from Riot with the Riot Client's local login (ValorantMatches.cs), plus the opt-in live lobby " +
             "(the players in your current match and their ranks, from Riot the same way: ValorantLobby.cs). The PC guide downloads " +
-            "its latest prices and news from Pulse's own website (GuideLive.cs)",
-            "Ffmpeg.cs", "Updater.cs", "LeagueLive.cs", "ValorantMatches.cs", "ValorantLobby.cs", "GuideLive.cs");
+            "its latest prices and news from Pulse's own website (GuideLive.cs). The VALORANT store reads your own store from Riot " +
+            "the same way, with skin names and pictures from valorant-api.com (ValorantStore.cs). The driver check asks " +
+            "NVIDIA's public driver lookup for the newest Game Ready version (DriverCheck.cs)",
+            "Ffmpeg.cs", "Updater.cs", "LeagueLive.cs", "ValorantMatches.cs", "ValorantLobby.cs", "GuideLive.cs", "ValorantStore.cs", "DriverCheck.cs");
+
+    [Fact]
+    public void The_store_only_reads_your_store_and_skin_pictures()
+    {
+        var src = File.ReadAllText(Repo.SourceFiles().Single(f => Path.GetFileName(f) == "ValorantStore.cs"));
+        var urls = Regex.Matches(src, @"https?://[^\s""]+").Select(m => m.Value).Distinct().ToList();
+        Assert.All(urls, u => Assert.Matches(@"^https://(pd\.\{s\.Shard\}\.a\.pvp\.net/store/|valorant-api\.com/v1/(bundles|weapons/skinlevels)/|media\.valorant-api\.com/)", u));
+        // The one POST is the storefront read (Riot's store answers reads with POST); nothing is ever bought.
+        Assert.Single(Regex.Matches(src, @"HttpMethod\.Post"));
+        Assert.DoesNotContain("/order", src);
+        Assert.DoesNotContain("PostAsync", src);
+        Assert.DoesNotContain("PutAsync", src);
+    }
+
+    [Fact]
+    public void The_driver_check_only_asks_NVIDIAs_lookup()
+    {
+        var src = File.ReadAllText(Repo.SourceFiles().Single(f => Path.GetFileName(f) == "DriverCheck.cs"));
+        var called = Regex.Matches(src, @"Get\w*Async\(([^,)]+)").Select(m => m.Groups[1].Value.Trim()).Distinct().ToList();
+        Assert.Equal(new[] { "NvidiaLookup" }, called);
+        Assert.Contains("https://gfwsl.geforce.com/", src);
+        Assert.DoesNotContain("PostAsync", src);
+        Assert.DoesNotContain("SendAsync", src);
+    }
 
     [Fact]
     public void The_guide_only_downloads_from_Pulses_own_website()

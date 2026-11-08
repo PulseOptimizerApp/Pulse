@@ -42,8 +42,8 @@ def save(url, path, size=None, jpeg=False):
 
 def main():
     os.makedirs(OUT, exist_ok=True)
-    meta = {"agents": {}, "count": {}}
-    done = {"agents": 0, "maps": 0, "ranks": 0}
+    meta = {"agents": {}, "maps": {}, "weapons": {}, "count": {}}
+    done = {"agents": 0, "maps": 0, "ranks": 0, "minimaps": 0, "weapons": 0}
 
     try:
         for a in get(f"{API}/agents?isPlayableCharacter=true")["data"]:
@@ -73,6 +73,21 @@ def main():
                 done["maps"] += 1
             except Exception as e:
                 print(f"  map {k}: {e}")
+            # The minimap and how match positions land on it (coach heatmaps). The game's x/y are swapped on the
+            # minimap: across = y * xMultiplier + xScalarToAdd, down = x * yMultiplier + yScalarToAdd.
+            mini = m.get("displayIcon")
+            if mini and m.get("xMultiplier"):
+                try:
+                    save(mini, os.path.join(OUT, f"mini-{k}.png"), (512, 512))
+                    calls = []
+                    for c in m.get("callouts") or []:
+                        loc = c.get("location") or {}
+                        if c.get("regionName") and "x" in loc and "y" in loc:
+                            calls.append([c["regionName"], c.get("superRegionName") or "", loc["x"], loc["y"]])
+                    meta["maps"][k] = {"m": [m["xMultiplier"], m["yMultiplier"], m["xScalarToAdd"], m["yScalarToAdd"]], "c": calls}
+                    done["minimaps"] += 1
+                except Exception as e:
+                    print(f"  minimap {k}: {e}")
     except Exception as e:
         print(f"Maps: {e}")
 
@@ -92,10 +107,18 @@ def main():
     except Exception as e:
         print(f"Ranks: {e}")
 
+    try:
+        for w in get(f"{API}/weapons")["data"]:
+            if w.get("uuid") and w.get("displayName"):
+                meta["weapons"][w["uuid"].lower()] = w["displayName"]
+                done["weapons"] += 1
+    except Exception as e:
+        print(f"Weapons: {e}")
+
     meta["count"] = done
     with open(os.path.join(OUT, "meta.json"), "w", encoding="utf-8") as f:
         json.dump(meta, f, indent=1)
-    print(f"Match art: {done['agents']} agents, {done['maps']} maps, {done['ranks']} ranks")
+    print(f"Match art: {done['agents']} agents, {done['maps']} maps ({done['minimaps']} minimaps), {done['ranks']} ranks, {done['weapons']} weapons")
 
 if __name__ == "__main__":
     try:
