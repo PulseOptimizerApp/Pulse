@@ -3908,5 +3908,15 @@
  "Get the NVIDIA app  ↗": "Descargar la NVIDIA app  ↗",
  "Get the NVIDIA app": "Descargar la NVIDIA app",
  "You have {0}. Update it in the NVIDIA app: Drivers → Download.": "Tienes el {0}. Actualízalo en la NVIDIA app: Controladores → Descargar.",
- "Glow: where each side has been so far this round": "Brillo: por dónde ha pasado cada lado en lo que va de ronda"
+ "Glow: where each side has been so far this round": "Brillo: por dónde ha pasado cada lado en lo que va de ronda",
+ "Reading your match list…": "Leyendo tu lista de partidas…",
+ "Saving…": "Guardando…",
+ "{0}. Try again in a minute.": "{0}. Vuelve a intentarlo en un minuto.",
+ "You're up to date: every recent match is already here.": "Está todo al día: todas tus partidas recientes ya están aquí.",
+ "Couldn't connect to the Riot Client": "No se pudo conectar con el cliente de Riot",
+ "Riot asked to log in again": "Riot pidió volver a iniciar sesión",
+ "Riot says too many requests": "Riot dice que hay demasiadas solicitudes",
+ "Riot's servers didn't answer": "Los servidores de Riot no respondieron",
+ "Riot refused the request": "Riot rechazó la solicitud",
+ "It took too long": "Tardó demasiado"
 }

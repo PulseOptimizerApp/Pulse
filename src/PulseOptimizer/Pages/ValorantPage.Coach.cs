@@ -19,6 +19,7 @@ public partial class ValorantPage
 {
     static CoachState CS => TweakEngine.State.Coach ??= new CoachState();
     static bool _downloading;
+    TextBlock _downloadLabel;
     static string _downloadText;
 
     /// <summary>Your matches for the coach: the account of your newest match (so a second account doesn't mix in).</summary>
@@ -78,7 +79,9 @@ public partial class ValorantPage
         Grid.SetColumn(get, 1);
         top.Children.Add(get);
         sp.Children.Add(top);
-        if (_downloadText != null) sp.Children.Add(Faint(_downloadText, 11.5, 8));
+        _downloadLabel = Faint(_downloadText ?? "", 11.5, 8);
+        _downloadLabel.Visibility = _downloadText != null ? Visibility.Visible : Visibility.Collapsed;
+        sp.Children.Add(_downloadLabel);
         if (matches.Count < 3 && !_downloading)
             sp.Children.Add(Dim(Loc.T("Open VALORANT (or the Riot Client) and press \"Get my recent matches\". Pulse also adds each match by itself when it ends, as long as Pulse is running."), 12, 10));
         return Card(sp);
@@ -97,20 +100,27 @@ public partial class ValorantPage
         _downloading = true;
         _downloadText = manual ? Loc.T("Connecting to the Riot Client…") : null;
         if (manual && _tab == "coach") Build();
-        var progress = new Progress<(int Done, int Total)>(p =>
+        var progress = new Progress<(string Step, int Done, int Total)>(p =>
         {
-            _downloadText = p.Total == 0 ? Loc.T("You're up to date.") : Loc.F("Downloading match {0} of {1}…", Math.Min(p.Done + 1, p.Total), p.Total);
-            if (_tab == "coach" && manual) Build();
+            if (!manual) return;
+            _downloadText = p.Step == "list" ? Loc.T("Reading your match list…")
+                : p.Done >= p.Total ? Loc.T("Saving…")
+                : Loc.F("Downloading match {0} of {1}…", p.Done + 1, p.Total);
+            // Only the status line changes while it downloads; the page is rebuilt once at the end.
+            if (_downloadLabel != null) { _downloadLabel.Text = _downloadText; _downloadLabel.Visibility = Visibility.Visible; }
         });
-        int added;
-        try { added = await ValorantMatches.Backfill(20, progress); }
-        catch { added = 0; }
+        ValorantMatches.BackfillResult r;
+        using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(3));
+        try { r = await ValorantMatches.Backfill(20, progress, cts.Token); }
+        catch (OperationCanceledException) { r = new ValorantMatches.BackfillResult(0, 0, "It took too long"); }
+        catch (Exception ex) { r = new ValorantMatches.BackfillResult(0, 0, ex.Message); }
         _downloading = false;
-        if (added >= 0) { CS.LastBackfill = DateTime.UtcNow; TweakEngine.Save(); }
-        _downloadText = added < 0 ? (manual ? Loc.T("Open VALORANT or the Riot Client first, then try again.") : null)
-            : added == 0 ? (manual ? Loc.T("You're up to date.") : null)
-            : Loc.F("Added {0} matches.", added);
-        if (_tab is "coach" or "maps" or "review" && (manual || added > 0)) Build();
+        if (r.Error == null) { CS.LastBackfill = DateTime.UtcNow; TweakEngine.Save(); }
+        _downloadText = r.Error == "no-client" ? (manual ? Loc.T("Open VALORANT or the Riot Client first, then try again.") : null)
+            : r.Error != null ? (manual ? Loc.F("{0}. Try again in a minute.", Loc.T(r.Error)) : null)
+            : r.Added > 0 ? Loc.F("Added {0} matches.", r.Added)
+            : manual ? Loc.T("You're up to date: every recent match is already here.") : null;
+        if (_tab is "coach" or "maps" or "review" && (manual || r.Added > 0)) Build();
     }
 
     // ───────── what to work on ─────────

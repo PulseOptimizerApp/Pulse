@@ -252,43 +252,97 @@ public sealed class ValorantMatches : IDisposable
         catch { }
     }
 
+    /// <summary>What a download of recent matches did: how many it added, or why it couldn't.</summary>
+    public sealed record BackfillResult(int Added, int Found, string Error);
+
     /// <summary>
     /// Downloads your recent matches the coach doesn't have yet (up to <paramref name="count"/>), one every second or
-    /// so, so the stats have something to work with from the first day. Only your own match history is read.
-    /// Returns how many were added, or -1 when the Riot Client isn't running.
+    /// so, so the stats have something to work with from the first day. Only your own match history is read. Runs off
+    /// the UI thread; progress reports the step ("list", "match") and how far it is.
     /// </summary>
-    public static async Task<int> Backfill(int count, IProgress<(int Done, int Total)> progress = null, CancellationToken ct = default)
+    public static Task<BackfillResult> Backfill(int count, IProgress<(string Step, int Done, int Total)> progress = null, CancellationToken ct = default) =>
+        Task.Run(() => BackfillCore(count, progress, ct), ct);
+
+    static async Task<BackfillResult> BackfillCore(int count, IProgress<(string Step, int Done, int Total)> progress, CancellationToken ct)
     {
-        var s = await Login();
-        if (s == null) return -1;
+        Session s;
+        try { s = await Login(); }
+        catch (Exception ex) { return Fail("Couldn't connect to the Riot Client", ex.Message); }
+        if (s == null) return new BackfillResult(0, 0, "no-client");
+        progress?.Report(("list", 0, 0));
+
+        var (history, code) = await GetStatus(s, $"https://pd.{s.Shard}.a.pvp.net/match-history/v1/history/{s.Puuid}?startIndex=0&endIndex={Math.Clamp(count, 1, 25)}");
+        if (history == null)
+        {
+            if (code is 401 or 403) { Forget(); return Fail("Riot asked to log in again", $"HTTP {code}"); }
+            return Fail(code == 429 ? "Riot says too many requests" : code == 0 ? "Riot's servers didn't answer" : "Riot refused the request", code == 0 ? "timeout" : $"HTTP {code}");
+        }
+        List<string> ids;
+        using (history)
+        {
+            if (history.RootElement.Get("History") is not { ValueKind: JsonValueKind.Array } h) return new BackfillResult(0, 0, null);
+            ids = h.EnumerateArray()
+                .Where(x => Pulse.Core.Games.Valorant.VMatch.Counts(x.Str("QueueID")))
+                .Select(x => x.Str("MatchID")).Where(id => id.Length > 0 && !Pulse.Core.Games.Valorant.VStore.Has(id)).ToList();
+        }
+        if (ids.Count == 0) return new BackfillResult(0, 0, null);
+
+        // Names are a nicety (Pulse has its own list); never let them hold the download up.
         var self = new ValorantMatches();
-        await self.LoadNames(s);
-        using var doc = await Get(s, $"https://pd.{s.Shard}.a.pvp.net/match-history/v1/history/{s.Puuid}?startIndex=0&endIndex={Math.Clamp(count, 1, 25)}");
-        if (doc?.RootElement.Get("History") is not { ValueKind: JsonValueKind.Array } h) return 0;
-        var ids = h.EnumerateArray()
-            .Where(x => Pulse.Core.Games.Valorant.VMatch.Counts(x.Str("QueueID")))
-            .Select(x => x.Str("MatchID")).Where(id => id.Length > 0 && !Pulse.Core.Games.Valorant.VStore.Has(id)).ToList();
-        int added = 0;
-        var marks = ids.Count > 0 ? await RoundStarts() : null;
+        try { await self.LoadNames(s).WaitAsync(TimeSpan.FromSeconds(10), ct); } catch { }
+        RoundMarks marks = null;
+        try { marks = await RoundStarts(); } catch { }
+
+        int added = 0, failed = 0;
+        string lastError = null;
         for (int i = 0; i < ids.Count; i++)
         {
             ct.ThrowIfCancellationRequested();
-            progress?.Report((i, ids.Count));
+            progress?.Report(("match", i, ids.Count));
             try
             {
-                using var d = await Get(s, $"https://pd.{s.Shard}.a.pvp.net/match-details/v1/matches/{ids[i]}");
-                if (d != null && Pulse.Core.Games.Valorant.VMatch.Parse(d.RootElement, s.Puuid, self._agents, self._maps) is { } vm)
+                var (d, c) = await GetStatus(s, $"https://pd.{s.Shard}.a.pvp.net/match-details/v1/matches/{ids[i]}");
+                using (d)
                 {
-                    vm.ZeroUtc = ZeroUtc(d.RootElement, marks); // the log still has the last session's matches
-                    Pulse.Core.Games.Valorant.VStore.Save(vm);
-                    added++;
+                    if (d != null && Pulse.Core.Games.Valorant.VMatch.Parse(d.RootElement, s.Puuid, self._agents, self._maps) is { } vm)
+                    {
+                        vm.ZeroUtc = ZeroUtc(d.RootElement, marks); // the log still has the last session's matches
+                        Pulse.Core.Games.Valorant.VStore.Save(vm);
+                        added++;
+                    }
+                    else { failed++; lastError = d == null ? $"HTTP {c}" : "unreadable match"; }
                 }
+                if (c == 429) await Task.Delay(5000, ct); // Riot asked to slow down
             }
-            catch { }
+            catch (Exception ex) when (ex is not OperationCanceledException) { failed++; lastError = ex.Message; }
             await Task.Delay(1200, ct); // gentle on Riot's servers
         }
-        progress?.Report((ids.Count, ids.Count));
-        return added;
+        progress?.Report(("match", ids.Count, ids.Count));
+        if (failed > 0) TweakEngine.AddLog("valorant", $"Coach download: {added} added, {failed} failed ({lastError})");
+        return new BackfillResult(added, ids.Count, added == 0 && failed > 0 ? "Riot didn't send the matches (" + lastError + ")" : null);
+
+        static BackfillResult Fail(string why, string detail)
+        {
+            TweakEngine.AddLog("valorant", $"Coach download failed: {why} ({detail})");
+            return new BackfillResult(0, 0, why);
+        }
+    }
+
+    /// <summary>Like <see cref="Get"/>, with the HTTP status (0 when Riot didn't answer at all).</summary>
+    static async Task<(JsonDocument Doc, int Status)> GetStatus(Session s, string url)
+    {
+        try
+        {
+            using var req = new HttpRequestMessage(HttpMethod.Get, url);
+            req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", s.Access);
+            req.Headers.Add("X-Riot-Entitlements-JWT", s.Entitlement);
+            req.Headers.Add("X-Riot-ClientPlatform", ClientPlatform);
+            if (s.Version.Length > 0) req.Headers.Add("X-Riot-ClientVersion", s.Version);
+            using var res = await Http.SendAsync(req);
+            if (!res.IsSuccessStatusCode) return (null, (int)res.StatusCode);
+            return (JsonDocument.Parse(await res.Content.ReadAsStringAsync()), (int)res.StatusCode);
+        }
+        catch { return (null, 0); }
     }
 
     /// <summary>Your Riot account id, when the Riot Client is running (null otherwise).</summary>
