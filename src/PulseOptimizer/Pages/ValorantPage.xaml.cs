@@ -25,7 +25,7 @@ public partial class ValorantPage : UserControl, IPage
         InitializeComponent();
         foreach (var (key, title) in new[] { ("coach", "Coach"), ("maps", "Heatmaps"), ("review", "Death review"), ("store", "Store"), ("overview", "Live lobby & matches") })
             Tabs.Children.Add(TabButton(key, title));
-        Unloaded += (_, _) => StopReview();
+        Unloaded += (_, _) => { StopReview(); StopRoundPlay(); };
     }
 
     public void OnShown(object parameter)
@@ -67,6 +67,7 @@ public partial class ValorantPage : UserControl, IPage
     void ShowTab(string key, bool animate = true)
     {
         if (_tab == "review" && key != "review") StopReview();
+        StopRoundPlay();
         _tab = key;
         foreach (var (k, (label, line)) in _tabs)
         {

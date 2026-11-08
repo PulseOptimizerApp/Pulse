@@ -15,7 +15,8 @@ namespace Pulse.Pages;
 /// </summary>
 public partial class ValorantPage
 {
-    string _mapName, _mapLayer = "deaths", _mapSide = "all", _mapPhase = "all";
+    string _mapName, _mapLayer = "deaths", _mapSide = "all", _mapPhase = "all", _mapBuy = "all", _mapResult = "all";
+    string _mapMode = "heat";
 
     sealed record Dot(double X, double Y, string Callout, string Tip);
 
@@ -31,6 +32,16 @@ public partial class ValorantPage
         if (_mapName == null || !maps.Contains(_mapName)) _mapName = maps.FirstOrDefault();
 
         var pick = new StackPanel();
+        var modeRow = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
+        modeRow.Children.Add(Chip(Loc.T("Heatmap of all rounds"), "vmode", _mapMode == "heat", () => { _mapMode = "heat"; Build(); }));
+        modeRow.Children.Add(Chip(Loc.T("Round by round"), "vmode", _mapMode == "rounds", () => { _mapMode = "rounds"; Build(); }));
+        pick.Children.Add(modeRow);
+        if (_mapMode == "rounds")
+        {
+            Root.Children.Add(Card(pick));
+            BuildRounds(matches);
+            return;
+        }
         var mapRow = new WrapPanel();
         foreach (var m in maps)
         {
@@ -62,6 +73,19 @@ public partial class ValorantPage
             }
         }
         pick.Children.Add(sideRow);
+        var buyRow = new WrapPanel { Margin = new Thickness(0, 2, 0, 0) };
+        foreach (var (key, title) in new[] { ("all", "Any buy"), ("pistol", "Pistol rounds"), ("eco", "Eco"), ("half", "Half buy"), ("full", "Full buy") })
+        {
+            var k = key;
+            buyRow.Children.Add(Chip(Loc.T(title), "vbuy", _mapBuy == key, () => { _mapBuy = k; Build(); }));
+        }
+        buyRow.Children.Add(new Border { Width = 14 });
+        foreach (var (key, title) in new[] { ("all", "Won and lost"), ("won", "Rounds won"), ("lost", "Rounds lost") })
+        {
+            var k = key;
+            buyRow.Children.Add(Chip(Loc.T(title), "vres", _mapResult == key, () => { _mapResult = k; Build(); }));
+        }
+        pick.Children.Add(buyRow);
         Root.Children.Add(Card(pick));
 
         var onMap = matches.Where(m => m.Map == _mapName).ToList();
@@ -121,7 +145,9 @@ public partial class ValorantPage
         foreach (var m in onMap)
         {
             var team = m.MyTeam;
-            bool SideOk(VKill k) => _mapSide == "all" || (m.Attacking(team, k.Round) == (_mapSide == "attack"));
+            bool SideOk(VKill k) => (_mapSide == "all" || (m.Attacking(team, k.Round) == (_mapSide == "attack")))
+                && (_mapBuy == "all" || BuyType(m, k.Round) == _mapBuy)
+                && (_mapResult == "all" || (RoundWon(m, k.Round) == (_mapResult == "won")));
             foreach (var k in m.Kills.Where(SideOk))
             {
                 switch (_mapLayer)
