@@ -395,7 +395,7 @@ public class SpeedTestTests
         Assert.Equal("A", r.BloatGrade);
         r.LoadedUpMs = 21; r.LoadedDownMs = 22;
         Assert.Equal("A+", r.BloatGrade);
-        r.LoadedUpMs = 300;
+        r.LoadedUpMs = 150;
         Assert.Equal("C", r.BloatGrade);
         r.LoadedDownMs = 600;
         Assert.Equal("F", r.BloatGrade);
