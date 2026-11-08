@@ -54,24 +54,35 @@ static class RecapCard
             top.Children.Add(Text(Up(Loc.T(m.Mode)), 10.5, Label).Also(t => { t.HorizontalAlignment = HorizontalAlignment.Right; t.VerticalAlignment = VerticalAlignment.Center; }));
         body.Children.Add(top);
 
-        // ── Agent, result, rank ──
-        var head = new Grid { Margin = new Thickness(0, 14, 0, 0) };
+        // ── Agent, result, rank: a strip in the agent's color that fades out to the right, the portrait at its left ──
+        var head = new Grid();
         head.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         head.ColumnDefinitions.Add(new ColumnDefinition());
         head.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         var tint = MatchArt.AgentColor(m) ?? Color.FromRgb(0x4A, 0x4A, 0x55);
-        // The portrait sits on a soft gradient in the agent's own color, cropped to the face and shoulders.
+        var strip = new Border
+        {
+            CornerRadius = new CornerRadius(10), ClipToBounds = true, Margin = new Thickness(0, 12, 0, 0),
+            Background = new LinearGradientBrush(new GradientStopCollection
+            {
+                new GradientStop(Color.FromArgb(0xB0, tint.R, tint.G, tint.B), 0),
+                new GradientStop(Color.FromArgb(0x40, tint.R, tint.G, tint.B), 0.45),
+                new GradientStop(Color.FromArgb(0x00, tint.R, tint.G, tint.B), 1),
+            }, 0),
+            BorderBrush = new LinearGradientBrush(Color.FromArgb(0x70, tint.R, tint.G, tint.B), Color.FromArgb(0x10, 0xFF, 0xFF, 0xFF), 0),
+            BorderThickness = new Thickness(1),
+            Child = head,
+        };
+        // The portrait fills the strip's height, cropped to head and shoulders, with no box of its own.
         var portrait = new Border
         {
-            Width = 66, Height = 66, CornerRadius = new CornerRadius(14), ClipToBounds = true,
-            Background = new LinearGradientBrush(Color.FromArgb(0xE0, tint.R, tint.G, tint.B), Color.FromArgb(0x55, (byte)(tint.R / 3), (byte)(tint.G / 3), (byte)(tint.B / 3)), 60),
-            BorderBrush = new SolidColorBrush(Color.FromArgb(0x55, tint.R, tint.G, tint.B)), BorderThickness = new Thickness(1),
+            Width = 64, Height = 64, ClipToBounds = true,
             Child = MatchArt.Agent(m) is { } art
-                ? new Image { Source = art, Stretch = Stretch.UniformToFill, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(-4, -2, -4, -8) }.Also(i => RenderOptions.SetBitmapScalingMode(i, BitmapScalingMode.HighQuality))
+                ? new Image { Source = art, Stretch = Stretch.UniformToFill, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(-2, -1, -2, -6) }.Also(i => RenderOptions.SetBitmapScalingMode(i, BitmapScalingMode.HighQuality))
                 : null,
         };
         head.Children.Add(portrait);
-        var who = new StackPanel { Margin = new Thickness(12, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center };
+        var who = new StackPanel { Margin = new Thickness(10, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center };
         who.Children.Add(Text(Up(string.IsNullOrEmpty(m.Character) ? m.Game : m.Character), 20, White, displayFont: true));
         var result = m.Result switch { "Win" => Loc.T("Win"), "Loss" => Loc.T("Loss"), "Draw" => Loc.T("Draw"), _ => "" };
         if (result.Length > 0)
@@ -90,13 +101,13 @@ static class RecapCard
         if (MatchArt.Rank(m) is { } rank)
         {
             // Just the badge and its name: no box around it.
-            var r = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+            var r = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 12, 0) };
             r.Children.Add(new Image { Source = rank, Width = 40, Height = 40, HorizontalAlignment = HorizontalAlignment.Center }.Also(i => RenderOptions.SetBitmapScalingMode(i, BitmapScalingMode.HighQuality)));
             if (!string.IsNullOrEmpty(m.Rank)) r.Children.Add(Text(Up(m.Rank), 9.5, Label).Also(t => { t.HorizontalAlignment = HorizontalAlignment.Center; t.Margin = new Thickness(0, 3, 0, 0); }));
             Grid.SetColumn(r, 2);
             head.Children.Add(r);
         }
-        body.Children.Add(head);
+        body.Children.Add(strip);
 
         // ── Three tiles: map score · K/D/A · headshots ──
         var stats = new Grid { Margin = new Thickness(0, 14, 0, 0) };
