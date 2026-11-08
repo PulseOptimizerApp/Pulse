@@ -82,6 +82,92 @@ public class CoachTests
     }
 
     [Fact]
+    public void Overview_counts_like_the_trackers()
+    {
+        var m = Parsed();
+        var o = Stats.Of(new[] { m }, Me);
+        Assert.Equal(1, o.Matches);
+        Assert.Equal(1, o.Wins);                 // Red won 2–1
+        Assert.Equal(3, o.Rounds);
+        Assert.Equal(1, o.Kills);                // Riot's scoreboard
+        Assert.Equal(2, o.Deaths);
+        Assert.Equal(1, o.FirstBloods);
+        Assert.Equal(1, o.Flawless);             // round 2: won, nobody on the team died
+        Assert.Equal(0, o.Plants);
+        Assert.Equal(450.0 / 3, o.DamagePerRound, 3);
+        Assert.Equal(0.5, o.Kd, 3);
+        Assert.Equal(100, o.HeadshotPct * 3, 3); // 3 head of 9 hits
+        Assert.Equal(1, Stats.Of(new[] { m }, Mate).Plants);
+    }
+
+    [Fact]
+    public void Match_pages_count_duels_economy_and_rounds()
+    {
+        var m = Parsed();
+        var duels = Stats.Duels(m);
+        Assert.Equal(2, duels[E1][Me]);
+        Assert.Equal(1, duels[Me][E2]);
+        Assert.Equal(1, duels[Mate][E1]);
+        var eco = Stats.Economy(m, "Red");
+        Assert.Equal(3, eco.Count);
+        Assert.Equal(Stats.Buy.FullBuy, eco[0].TeamBuy);
+        Assert.Equal(3900, eco[0].TeamLoadout);
+        var feed = Stats.Feed(m);
+        Assert.Equal(2, feed[1].Kills.Count);
+        Assert.Equal(Me, feed[1].Kills[0].Victim.Id);
+    }
+
+    [Fact]
+    public void Aces_multi_kills_and_placements()
+    {
+        var m = new VMatch { Id = "a", Queue = "competitive", Me = "me" };
+        m.Players.Add(new VPlayer { Id = "me", Team = "Red", Score = 400 });
+        for (int i = 0; i < 4; i++) m.Players.Add(new VPlayer { Id = "m" + i, Team = "Red", Score = 100 + i });
+        for (int i = 0; i < 5; i++) m.Players.Add(new VPlayer { Id = "e" + i, Team = "Blue", Score = 200 + i });
+        m.Rounds.Add(new VRound { N = 0, Winner = "Red" });
+        m.Rounds.Add(new VRound { N = 1, Winner = "Blue" });
+        for (int i = 0; i < 5; i++) m.Kills.Add(new VKill { Round = 0, GameMs = i, Killer = "me", Victim = "e" + i });
+        m.Kills.Add(new VKill { Round = 1, GameMs = 100, Killer = "me", Victim = "e0" });
+        m.Kills.Add(new VKill { Round = 1, GameMs = 101, Killer = "me", Victim = "e1" });
+        m.Kills.Add(new VKill { Round = 1, GameMs = 102, Killer = "e2", Victim = "me" });
+        var o = Stats.Of(new[] { m }, "me");
+        Assert.Equal(1, o.Aces);
+        Assert.Equal(1, o.TwoK);
+        Assert.Equal(2, o.MultiKills);
+        Assert.Equal(1, o.Flawless);             // round 0: an ace and nobody lost
+        var place = Stats.PlaceOf(m, "me");
+        Assert.True(place.MatchMvp);
+        Assert.Equal(1, place.Place);
+        var top = Stats.PlaceOf(m, "e4");        // best of the other team, second overall
+        Assert.True(top.TeamMvp);
+        Assert.Equal(2, top.Place);
+    }
+
+    [Fact]
+    public void Filters_pick_a_playlist_and_an_act()
+    {
+        var a = new VMatch { Id = "1", Queue = "competitive", StartUtc = new DateTime(2026, 10, 1) };
+        var b = new VMatch { Id = "2", Queue = "unrated", StartUtc = new DateTime(2026, 10, 20) };
+        var c = new VMatch { Id = "3", Queue = "deathmatch", StartUtc = new DateTime(2026, 10, 21) };
+        var all = new[] { a, b, c };
+        Assert.Equal(2, new TrackerFilter().Apply(all).Count());
+        Assert.Equal(new[] { "1" }, new TrackerFilter("competitive").Apply(all).Select(m => m.Id));
+        Assert.Equal(new[] { "2" }, new TrackerFilter("all", new DateTime(2026, 10, 15)).Apply(all).Select(m => m.Id));
+        Assert.Equal(new[] { "1" }, new TrackerFilter("all", null, new DateTime(2026, 10, 15)).Apply(all).Select(m => m.Id));
+    }
+
+    [Fact]
+    public void Riot_ids_are_kept_with_the_match()
+    {
+        var json = Match().GetRawText().Replace("\"subject\":\"" + Me + "\",", "\"subject\":\"" + Me + "\",\"gameName\":\"Pro\",\"tagLine\":\"NA1\",\"accountLevel\":42,\"partyId\":\"p1\",");
+        var m = VMatch.Parse(JsonDocument.Parse(json).RootElement, Me, null, null);
+        Assert.Equal("Pro#NA1", m.Players.First(p => p.Id == Me).Name);
+        Assert.Equal(42, m.Players.First(p => p.Id == Me).Level);
+        Assert.Equal("Pro#NA1", Stats.NameOf(m, Me));
+        Assert.Equal(VMatch.CurrentVersion, m.Version);
+    }
+
+    [Fact]
     public void Totals_count_kast_first_kills_trades_and_damage()
     {
         var m = Parsed();
