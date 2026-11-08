@@ -8,6 +8,8 @@ namespace Pulse.Core.Audio;
 public sealed class GameAudioSettings
 {
     public bool Enabled { get; set; }
+    /// <summary>"apo": EQ inside Windows on your headset via Equalizer APO, no cable. "cable": through a virtual cable.</summary>
+    public string Engine { get; set; } = "apo";
     /// <summary>The virtual cable's recording side that games play into (e.g. "CABLE-A Output"); empty = found automatically.</summary>
     public string SourceId { get; set; } = "";
     /// <summary>Your headphones; empty = the Windows default (never a cable).</summary>
@@ -85,9 +87,17 @@ public static class GameAudio
         return Cables.Devices().Where(d => !d.Input && !Cables.IsVirtual(d.Name)).Select(d => new Device(d.Id, d.Name)).ToList();
     }
 
-    public static void Init() { if (S.Enabled) Start(); }
+    public static void Init() { ApplyApo(); if (S.Enabled && S.Engine != "apo") Start(); }
     public static void Shutdown() => Stop();
-    public static void Refresh() { Stop(); if (S.Enabled) Start(); }
+    public static void Refresh() { Stop(); ApplyApo(); if (S.Enabled && S.Engine != "apo") Start(); else Changed?.Invoke(); }
+
+    /// <summary>No-cable mode: writes the headphone EQ for Equalizer APO (or clears it when off or in cable mode).</summary>
+    public static string ApplyApo()
+    {
+        if (!EqApo.Installed) return null;
+        var copy = new GameAudioSettings { Enabled = S.Enabled && S.Engine == "apo", Eq = S.Eq, VolumeDb = S.VolumeDb, Spatial = S.Spatial };
+        return EqApo.ApplyPhones(copy, EqApo.Resolve(S.OutputId, capture: false).Id);
+    }
 
     public static void Start()
     {

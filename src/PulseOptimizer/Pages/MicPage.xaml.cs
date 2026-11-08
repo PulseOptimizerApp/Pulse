@@ -7,6 +7,7 @@ using System.Windows.Media;
 using System.Windows.Shapes;
 using System.Windows.Threading;
 using Pulse.Core;
+using Pulse.Core.Audio;
 using Pulse.Core.Mic;
 using Pulse.Ui;
 
@@ -33,7 +34,7 @@ public partial class MicPage : UserControl, IPage, IReleasable
     public MicPage()
     {
         InitializeComponent();
-        _save.Tick += (_, _) => { _save.Stop(); TweakEngine.Save(); };
+        _save.Tick += (_, _) => { _save.Stop(); TweakEngine.Save(); if (MicStudio.ApoMode) Report(MicStudio.ApplyApo()); };
         _meters.Tick += (_, _) => TickMeters();
         _cableWatch.Tick += (_, _) =>
         {
@@ -91,6 +92,50 @@ public partial class MicPage : UserControl, IPage, IReleasable
 
     void Saved() { _save.Stop(); _save.Start(); }
 
+    static void Report(string problem) { if (problem != null) MainWindow.Instance.Toast(Loc.T("Couldn't update Equalizer APO: ") + problem, ToastKind.Warning); }
+
+    /// <summary>No cable (Equalizer APO changes the real mic) or virtual cable (Pulse processes it; effects and soundboard).</summary>
+    UIElement EngineChooser()
+    {
+        var wrap = new WrapPanel { Margin = new Thickness(0, 0, 0, 14) };
+        foreach (var (key, label, tip) in new[]
+        {
+            ("apo", "No cable (recommended)", "Windows changes your real mic, so Discord and games keep using it. Uses Equalizer APO."),
+            ("cable", "Virtual cable", "Pulse processes your voice and sends it through VB-CABLE. Needed for voice effects and the soundboard."),
+        })
+        {
+            var rb = new RadioButton { Style = (Style)FindResource("Chip"), Content = Loc.T(label), GroupName = "mic-engine", IsChecked = (S.Engine ?? "apo") == key, ToolTip = Loc.T(tip), Margin = new Thickness(0, 0, 6, 0) };
+            rb.Checked += (_, _) => { if (S.Engine == key) return; S.Engine = key; TweakEngine.Save(); MicStudio.Refresh(); Build(); };
+            wrap.Children.Add(rb);
+        }
+        return wrap;
+    }
+
+    /// <summary>Where your voice goes in no-cable mode: Equalizer APO's state for this mic, with the next step.</summary>
+    FrameworkElement ApoStatus(out string sub)
+    {
+        if (!EqApo.Installed)
+        {
+            sub = Loc.T("One-time install: Equalizer APO (free)");
+            var b = Btn("Get Equalizer APO (free)", () => Open(EqApo.Website), primary: true);
+            b.Margin = new Thickness(0, 8, 0, 0); b.HorizontalAlignment = HorizontalAlignment.Left;
+            return b;
+        }
+        var on = EqApo.OnDevice(EqApo.Resolve(S.CaptureId, capture: true).Id);
+        if (on == false)
+        {
+            sub = Loc.T("Equalizer APO isn't on this mic yet");
+            var b = Btn("Turn it on for this mic", EqApo.OpenConfigurator, primary: true);
+            b.Margin = new Thickness(0, 8, 0, 0); b.HorizontalAlignment = HorizontalAlignment.Left;
+            b.ToolTip = Loc.T("In Equalizer APO's Configurator, tick your mic under Capture devices, then restart your PC.");
+            return b;
+        }
+        sub = Loc.T("Keep your normal mic selected");
+        var t = Dim(Loc.T("Nothing to set up in Discord or games: they hear the improved mic."), 12, "TextFaintBrush");
+        t.Margin = new Thickness(0, 8, 0, 0);
+        return t;
+    }
+
     void UpdateState()
     {
         string text; Brush dot;
@@ -120,7 +165,8 @@ public partial class MicPage : UserControl, IPage, IReleasable
         _inMeter = _outMeter = null;
         _eqGraph = null;
         Root.Children.Add(FlowCard());
-        if (S.Enabled && MicStudio.Running && MicStudio.OutputName == null) Root.Children.Add(SetupCard());
+        if (MicStudio.ApoMode) { if (!EqApo.Installed || EqApo.OnDevice(EqApo.Resolve(S.CaptureId, capture: true).Id) == false) Root.Children.Add(ApoSetupCard()); }
+        else if (S.Enabled && MicStudio.Running && MicStudio.OutputName == null) Root.Children.Add(SetupCard());
         else if (S.Enabled && MicStudio.Running) Root.Children.Add(AppsCard());
 
         var tabs = new[] { ("voice", "Voice", ""), ("eq", "Equalizer", ""), ("effects", "Voice effects", ""), ("sounds", "Soundboard", ""), ("check", "Sound check", "") };
@@ -144,6 +190,7 @@ public partial class MicPage : UserControl, IPage, IReleasable
         Root.Children.Add(_tab switch
         {
             "eq" => EqTab(),
+            "effects" or "sounds" when MicStudio.ApoMode => CableOnly(),
             "effects" => EffectsTab(),
             "sounds" => SoundsTab(),
             "check" => CheckTab(),
@@ -162,6 +209,7 @@ public partial class MicPage : UserControl, IPage, IReleasable
     UIElement FlowCard()
     {
         var root = new StackPanel();
+        root.Children.Add(EngineChooser());
         var g = new Grid();
         g.ColumnDefinitions.Add(new ColumnDefinition());
         g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(44) });
@@ -197,7 +245,9 @@ public partial class MicPage : UserControl, IPage, IReleasable
         // 3. Where it goes
         var outs = MicStudio.Outputs();
         FrameworkElement outCtl;
-        if (outs.Any(o => MicStudio.IsCable(o.Name)) || !string.IsNullOrEmpty(S.OutputId))
+        string apoSub = null;
+        if (MicStudio.ApoMode) outCtl = ApoStatus(out apoSub);
+        else if (outs.Any(o => MicStudio.IsCable(o.Name)) || !string.IsNullOrEmpty(S.OutputId))
         {
             var outPick = new ComboBox { Height = 34, Margin = new Thickness(0, 8, 0, 0) };
             outPick.Items.Add(new ComboBoxItem { Content = Loc.T("Find the cable automatically"), Tag = "" });
@@ -213,7 +263,7 @@ public partial class MicPage : UserControl, IPage, IReleasable
             b.HorizontalAlignment = HorizontalAlignment.Left;
             outCtl = b;
         }
-        g.Children.Add(Node("", "Discord, games, OBS", MicStudio.OutputName != null ? Loc.F("Pick \"{0}\" as the mic", MicStudio.MicNameFor(MicStudio.OutputName)) : Loc.T("Needs a virtual cable"), outCtl, 4));
+        g.Children.Add(Node("", "Discord, games, OBS", apoSub ?? (MicStudio.OutputName != null ? Loc.F("Pick \"{0}\" as the mic", MicStudio.MicNameFor(MicStudio.OutputName)) : Loc.T("Needs a virtual cable")), outCtl, 4));
         root.Children.Add(g);
 
         if (S.Enabled && !MicStudio.Running && MicStudio.Problem != null && MicStudio.Problem != "NoCable")
@@ -277,6 +327,7 @@ public partial class MicPage : UserControl, IPage, IReleasable
         acts.Children.Add(lp);
 
         var hold = Btn("Hold to hear the original", () => { }, glyph: "");
+        hold.Visibility = MicStudio.ApoMode ? Visibility.Collapsed : Visibility.Visible;
         hold.ToolTip = Loc.T("While you hold this, everyone hears your mic without Pulse, so you can compare.");
         hold.PreviewMouseLeftButtonDown += (_, _) => { MicStudio.Bypass = true; if (!S.Monitor) MicStudio.SetMonitor(true); };
         hold.PreviewMouseLeftButtonUp += (_, _) => MicStudio.Bypass = false;
@@ -351,6 +402,42 @@ public partial class MicPage : UserControl, IPage, IReleasable
         return b;
     }
 
+    /// <summary>Voice effects and the soundboard add sound to your voice, which needs Pulse in between (cable mode).</summary>
+    UIElement CableOnly()
+    {
+        var sp = new StackPanel();
+        sp.Children.Add(Title(_tab == "sounds" ? "Soundboard" : "Voice effects"));
+        sp.Children.Add(Dim(Loc.T("These need the virtual cable mode: Pulse has to sit between your mic and Discord to change your voice or play sounds into it. Noise removal and the EQ work in both modes."), 12.5));
+        var b = Btn("Switch to virtual cable", () => { S.Engine = "cable"; TweakEngine.Save(); MicStudio.Refresh(); Build(); }, primary: true);
+        b.HorizontalAlignment = HorizontalAlignment.Left; b.Margin = new Thickness(0, 14, 0, 0);
+        sp.Children.Add(b);
+        return Card(sp);
+    }
+
+    UIElement ApoSetupCard()
+    {
+        var sp = new StackPanel();
+        sp.Children.Add(Title("One-time setup: Equalizer APO"));
+        sp.Children.Add(Dim(Loc.T("Equalizer APO is a free, open-source add-on that lets Windows change your real mic and headset. Pulse sets it up for you after this."), 12.5));
+        var steps = new StackPanel { Margin = new Thickness(0, 12, 0, 0) };
+        string[] lines =
+        {
+            "Download Equalizer APO and run the installer.",
+            "When its Configurator opens, tick your mic under Capture devices (and your headset under Playback devices for Headphones).",
+            "Restart your PC. Pulse does the rest, and Discord keeps using your normal mic.",
+        };
+        for (int i = 0; i < lines.Length; i++) steps.Children.Add(Dim($"{i + 1}.  " + Loc.T(lines[i]), 13, "TextBrush").Also(t => t.Margin = new Thickness(0, 0, 0, 6)));
+        sp.Children.Add(steps);
+        var btns = new WrapPanel { Margin = new Thickness(0, 6, 0, 0) };
+        if (!EqApo.Installed) btns.Children.Add(Btn("Get Equalizer APO (free)", () => Open(EqApo.Website), primary: true));
+        else btns.Children.Add(Btn("Open Equalizer APO's Configurator", EqApo.OpenConfigurator, primary: true));
+        btns.Children.Add(Btn("Check again", () => { MicStudio.Refresh(); Build(); }));
+        sp.Children.Add(btns);
+        var b = Card(sp);
+        b.BorderBrush = Res("WarnBrush");
+        return b;
+    }
+
     UIElement AppsCard()
     {
         var sp = new StackPanel();
@@ -406,6 +493,8 @@ public partial class MicPage : UserControl, IPage, IReleasable
     UIElement VoiceTab()
     {
         var root = new StackPanel();
+        if (MicStudio.ApoMode)
+            root.Children.Add(Dim(Loc.T("No-cable mode uses noise removal, tone, the EQ and output volume. The gate, leveling, auto volume and de-esser need the virtual cable mode."), 12, "TextFaintBrush").Also(t => t.Margin = new Thickness(0, 0, 0, 12)));
 
         // Presets
         var ps = new StackPanel();

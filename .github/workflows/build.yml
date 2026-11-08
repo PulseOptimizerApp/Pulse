@@ -30,6 +30,13 @@ jobs:
       - name: Build RNNoise for the Mic studio (Xiph, BSD-3-Clause)
         run: python tools/build-rnnoise.py src/PulseOptimizer/tools/rnnoise.dll
 
+      - name: Get the RNNoise noise removal plugin for no-cable mode (werman/noise-suppression-for-voice, GPL-3.0)
+        shell: pwsh
+        run: |
+          Invoke-WebRequest https://github.com/werman/noise-suppression-for-voice/releases/download/v1.10/win-rnnoise.zip -OutFile $env:RUNNER_TEMP/rnn.zip
+          Expand-Archive $env:RUNNER_TEMP/rnn.zip $env:RUNNER_TEMP/rnn -Force
+          Compress-Archive -Path "$env:RUNNER_TEMP/rnn/win-rnnoise/vst/rnnoise_mono.dll","$env:RUNNER_TEMP/rnn/win-rnnoise/vst/rnnoise_stereo.dll" -DestinationPath src/PulseOptimizer/tools/rnnoise-vst.zip -CompressionLevel Optimal -Force
+
       - name: Run tests (measurement maths, exact undo, tweak list, safety checks)
         run: dotnet test tests/PulseOptimizer.Tests/PulseOptimizer.Tests.csproj -c Release --logger "console;verbosity=normal"
 

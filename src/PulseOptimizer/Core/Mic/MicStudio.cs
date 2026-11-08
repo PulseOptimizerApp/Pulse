@@ -45,12 +45,26 @@ public static class MicStudio
     public static double GateLevelDb => _chain?.GateLevelDb ?? S.GateDb;
 
     /// <summary>Hear your mic untouched while held (to compare).</summary>
-    public static bool Bypass { get => _chain?.Bypass ?? false; set { if (_chain != null) _chain.Bypass = value; } }
+    public static bool Bypass { get => _chain?.Bypass ?? false; set { if (_chain != null) _chain.Bypass = value || ApoMode; } }
 
     public static void Init()
     {
+        ApplyApo();
         if (S.Enabled) Start();
     }
+
+    /// <summary>No-cable mode: hands the mic settings to Equalizer APO (or clears them when off or in cable mode).</summary>
+    public static string ApplyApo()
+    {
+        if (!EqApo.Installed) return null;
+        var copy = S.Copy();
+        copy.Enabled = S.Enabled && S.Engine == "apo";
+        var (id, ch) = EqApo.Resolve(S.CaptureId, capture: true);
+        return EqApo.ApplyMic(copy, id, ch == 1);
+    }
+
+    /// <summary>No cable: Windows changes the mic itself, Pulse only listens (meters, sound check, hearing yourself).</summary>
+    public static bool ApoMode => S.Engine == "apo";
 
     public static void Shutdown()
     {
@@ -61,6 +75,7 @@ public static class MicStudio
     /// <summary>Settings that need a restart changed (devices, on/off).</summary>
     public static void Refresh()
     {
+        ApplyApo();
         if (S.Enabled) { Stop(); Start(); } else Stop();
         RegisterHotkeys();
     }
@@ -125,6 +140,7 @@ public static class MicStudio
             if (!string.IsNullOrEmpty(S.OutputId)) outDev = Get(en, S.OutputId, DataFlow.Render, Role.Multimedia);
             if (outDev == null) { var c = FindCable(); if (c != null) outDev = Get(en, c.Id, DataFlow.Render, Role.Multimedia); }
             if (outDev != null && !IsCable(outDev.FriendlyName) && string.IsNullOrEmpty(S.OutputId)) outDev = null;
+            if (ApoMode) outDev = null;
 
             lock (Lock)
             {
@@ -135,7 +151,8 @@ public static class MicStudio
                     OutputName = outDev.FriendlyName;
                     _out = new OutStream(outDev, 20);
                 }
-                else { OutputName = null; Problem = "NoCable"; }
+                else { OutputName = null; Problem = ApoMode ? null : "NoCable"; }
+                _chain.Bypass = ApoMode;
 
                 _cap = new WasapiCapture(mic, true, 10);
                 var wf = _cap.WaveFormat;

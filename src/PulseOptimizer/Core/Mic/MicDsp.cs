@@ -16,6 +16,11 @@ public sealed class SoundItem
 public sealed class MicSettings
 {
     public bool Enabled { get; set; }
+    /// <summary>
+    /// "apo": changed inside Windows by Equalizer APO, no cable (Discord keeps your real mic).
+    /// "cable": Pulse processes it and sends it through VB-CABLE (needed for voice effects and the soundboard).
+    /// </summary>
+    public string Engine { get; set; } = "apo";
     /// <summary>Windows id of the real microphone; empty = the default mic.</summary>
     public string CaptureId { get; set; } = "";
     /// <summary>Windows id of the output (a virtual cable such as VB-CABLE); empty = found automatically.</summary>

@@ -28,7 +28,7 @@ public partial class HeadphonesPage : UserControl, IPage, IReleasable
     public HeadphonesPage()
     {
         InitializeComponent();
-        _save.Tick += (_, _) => { _save.Stop(); TweakEngine.Save(); };
+        _save.Tick += (_, _) => { _save.Stop(); TweakEngine.Save(); if (S.Engine == "apo" && GameAudio.ApplyApo() is { } p) MainWindow.Instance.Toast(Loc.T("Couldn't update Equalizer APO: ") + p, ToastKind.Warning); };
         _meter.Tick += (_, _) => { if (_level != null && IsVisible) _level.Set(GameAudio.Running ? GameAudio.Peak : 0); };
         _watch.Tick += (_, _) => { if (S.Enabled && GameAudio.Problem == "NoCable" && GameAudio.Sources().Count > 0) GameAudio.Refresh(); };
         _changed = () => Dispatcher.BeginInvoke(() => { UpdateState(); Build(); });
@@ -65,6 +65,7 @@ public partial class HeadphonesPage : UserControl, IPage, IReleasable
     {
         EnabledSwitch.IsChecked = S.Enabled;
         (StateText.Text, StateDot.Fill) = !S.Enabled ? (Loc.T("Off"), Res("TextFaintBrush"))
+            : S.Engine == "apo" ? (EqApo.Installed ? (Loc.T("On"), Res("GoodBrush")) : (Loc.T("Needs Equalizer APO"), Res("WarnBrush")))
             : GameAudio.Problem == "NoCable" ? (Loc.T("Needs a virtual cable"), Res("WarnBrush"))
             : !GameAudio.Running ? (Loc.T("Can't start"), Res("BadBrush"))
             : (Loc.T("On"), Res("GoodBrush"));
@@ -84,7 +85,9 @@ public partial class HeadphonesPage : UserControl, IPage, IReleasable
         Root.Children.Clear();
         _level = null;
         Root.Children.Add(Flow());
-        if (GameAudio.Problem == "NoCable" || (!S.Enabled && GameAudio.Sources().Count == 0)) Root.Children.Add(Setup());
+        bool apo = S.Engine == "apo";
+        if (apo) { if (!EqApo.Installed || EqApo.OnDevice(EqApo.Resolve(S.OutputId, capture: false).Id) == false) Root.Children.Add(ApoSetup()); }
+        else if (GameAudio.Problem == "NoCable" || (!S.Enabled && GameAudio.Sources().Count == 0)) Root.Children.Add(Setup());
         Root.Children.Add(Presets());
         Root.Children.Add(Eq());
         Root.Children.Add(Sound());
@@ -94,6 +97,26 @@ public partial class HeadphonesPage : UserControl, IPage, IReleasable
     UIElement Flow()
     {
         var sp = new StackPanel();
+        var modes = new WrapPanel { Margin = new Thickness(0, 0, 0, 14) };
+        foreach (var (key, label) in new[] { ("apo", "No cable (recommended)"), ("cable", "Virtual cable") })
+        {
+            var rb = new RadioButton { Style = (Style)FindResource("Chip"), Content = Loc.T(label), GroupName = "hp-engine", IsChecked = (S.Engine ?? "apo") == key, Margin = new Thickness(0, 0, 6, 0) };
+            rb.Checked += (_, _) => { if (S.Engine == key) return; S.Engine = key; TweakEngine.Save(); GameAudio.Refresh(); Build(); };
+            modes.Children.Add(rb);
+        }
+        sp.Children.Add(modes);
+        if (S.Engine == "apo")
+        {
+            sp.Children.Add(new TextBlock { Text = Loc.T("Your headset"), FontSize = 12, Foreground = Res("TextDimBrush"), Margin = new Thickness(0, 0, 0, 6) });
+            var pick = new ComboBox { Height = 34, MaxWidth = 520, HorizontalAlignment = HorizontalAlignment.Left, MinWidth = 320 };
+            pick.Items.Add(new ComboBoxItem { Content = Loc.T("Windows default"), Tag = "" });
+            foreach (var d in GameAudio.Headphones()) pick.Items.Add(new ComboBoxItem { Content = d.Name, Tag = d.Id });
+            pick.SelectedItem = pick.Items.Cast<ComboBoxItem>().FirstOrDefault(i => (string)i.Tag == S.OutputId) ?? pick.Items[0];
+            pick.SelectionChanged += (_, _) => { S.OutputId = (string)((ComboBoxItem)pick.SelectedItem).Tag; TweakEngine.Save(); GameAudio.Refresh(); Build(); };
+            sp.Children.Add(pick);
+            sp.Children.Add(Dim(Loc.T("Games play straight to your headset and Windows applies the EQ: no cable, no extra delay. Even out loud and quiet needs the virtual cable mode."), 12, "TextFaintBrush").Also(t => t.Margin = new Thickness(0, 10, 0, 0)));
+            return Card(sp);
+        }
         var g = new Grid();
         g.ColumnDefinitions.Add(new ColumnDefinition());
         g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(20) });
@@ -144,6 +167,25 @@ public partial class HeadphonesPage : UserControl, IPage, IReleasable
         else if (S.Enabled && GameAudio.Problem is { } p && p != "NoCable")
             sp.Children.Add(new Border { Background = Res("BadSoftBrush"), CornerRadius = new CornerRadius(8), Padding = new Thickness(12, 10, 12, 10), Margin = new Thickness(0, 14, 0, 0), Child = Dim(Loc.T(p), 12.5, "TextBrush") });
         return Card(sp);
+    }
+
+    UIElement ApoSetup()
+    {
+        var sp = new StackPanel();
+        sp.Children.Add(Title("One-time setup: Equalizer APO"));
+        sp.Children.Add(Dim(Loc.T("Equalizer APO is a free, open-source add-on that lets Windows change your headset's sound. Pulse sets it up for you after this."), 12.5));
+        var steps = new StackPanel { Margin = new Thickness(0, 12, 0, 0) };
+        string[] lines = { "Download Equalizer APO and run the installer.", "When its Configurator opens, tick your headset under Playback devices.", "Restart your PC. Pulse does the rest." };
+        for (int i = 0; i < lines.Length; i++) steps.Children.Add(Dim($"{i + 1}.  " + Loc.T(lines[i]), 13, "TextBrush").Also(t => t.Margin = new Thickness(0, 0, 0, 6)));
+        sp.Children.Add(steps);
+        var row = new WrapPanel { Margin = new Thickness(0, 6, 0, 0) };
+        if (!EqApo.Installed) row.Children.Add(Btn("Get Equalizer APO (free)", () => Open(EqApo.Website), primary: true));
+        else row.Children.Add(Btn("Open Equalizer APO's Configurator", EqApo.OpenConfigurator, primary: true));
+        row.Children.Add(Btn("Check again", () => { GameAudio.Refresh(); Build(); }));
+        sp.Children.Add(row);
+        var b = Card(sp);
+        b.BorderBrush = Res("WarnBrush");
+        return b;
     }
 
     UIElement Setup()

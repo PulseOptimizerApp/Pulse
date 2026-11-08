@@ -7,6 +7,9 @@ Releases up to and including v0.4.17 were published under the MIT license.
 
 - **RNNoise** — © Xiph.Org Foundation, Jean-Marc Valin; BSD-3-Clause. Built from v0.2 by `tools/build-rnnoise.py` in CI
   and used by the Mic studio for noise removal. https://github.com/xiph/rnnoise
+- **RNNoise plugin** (noise-suppression-for-voice v1.10) — © Michael Werman and contributors, GPL-3.0. Used unmodified
+  in no-cable mode, where Equalizer APO loads it. Source: https://github.com/werman/noise-suppression-for-voice
+- **Equalizer APO** is not included; Pulse writes settings for it when you install it yourself (GPL-2.0, https://sourceforge.net/projects/equalizerapo/).
 - **NAudio** — © Mark Heath and contributors, MIT license. Used by the Mic studio for audio in and out.
 - **PresentMon** — © Intel Corporation, MIT license.
 - **FFmpeg** — downloaded separately on demand (GPL), run as its own program.
