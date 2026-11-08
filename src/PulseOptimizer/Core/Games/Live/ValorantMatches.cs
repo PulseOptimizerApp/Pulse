@@ -227,7 +227,7 @@ public sealed class ValorantMatches : IDisposable
         await LoadNames(s);
         using var doc = await Get(s, $"https://pd.{s.Shard}.a.pvp.net/match-details/v1/matches/{id}");
         if (doc == null) return null;
-        MatchEvents.RaiseMoments(KillsAndDeaths(doc.RootElement, s.Puuid));
+        MatchEvents.RaiseMoments(KillsAndDeaths(doc.RootElement, s.Puuid, await RoundStarts()));
         return Parse(doc.RootElement, s.Puuid, _agents, _maps, "val-" + id);
     }
 
@@ -339,11 +339,105 @@ public sealed class ValorantMatches : IDisposable
         return rec;
     }
 
+    // ───────── when each kill happened, on this PC's clock ─────────
+
     /// <summary>
-    /// Your kills and deaths with when they happened (the match's start plus each kill's game time), so clips from the
-    /// match can show them on their timeline.
+    /// When rounds started on this PC, from VALORANT's own log: every round writes "Gameplay started at local time 0.x"
+    /// when the buy phase opens and "... 30.x" (45.x after side swaps) when the barriers drop. Times are UTC.
     /// </summary>
-    public static List<Moment> KillsAndDeaths(JsonElement root, string puuid)
+    public sealed record RoundMarks(List<DateTime> BuyStarts, List<DateTime> BarrierDrops);
+
+    static readonly Regex LogLine = new(@"^\[(\d{4})\.(\d\d)\.(\d\d)-(\d\d)\.(\d\d)\.(\d\d):(\d{3})\]\[\s*\d+\](.*)$", RegexOptions.Multiline);
+    static readonly Regex GameplayStarted = new(@"Gameplay started at local time (\d+(?:\.\d+)?)");
+
+    static async Task<RoundMarks> RoundStarts()
+    {
+        try
+        {
+            var log = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "VALORANT", "Saved", "Logs", "ShooterGame.log");
+            if (!File.Exists(log)) return null;
+            string text;
+            using (var fs = new FileStream(log, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
+            using (var r = new StreamReader(fs)) text = await r.ReadToEndAsync();
+            return ParseRoundMarks(text, File.GetLastWriteTimeUtc(log));
+        }
+        catch { return null; }
+    }
+
+    /// <summary>
+    /// Reads the round markers. The log's clock is UTC or local depending on the PC, so it's lined up against the
+    /// file's own last-write time (whole hours only; anything else is left as it is).
+    /// </summary>
+    internal static RoundMarks ParseRoundMarks(string text, DateTime lastWriteUtc)
+    {
+        var buy = new List<DateTime>();
+        var drop = new List<DateTime>();
+        DateTime last = default;
+        foreach (Match m in LogLine.Matches(text))
+        {
+            DateTime t;
+            try
+            {
+                t = new DateTime(int.Parse(m.Groups[1].Value), int.Parse(m.Groups[2].Value), int.Parse(m.Groups[3].Value),
+                    int.Parse(m.Groups[4].Value), int.Parse(m.Groups[5].Value), int.Parse(m.Groups[6].Value), int.Parse(m.Groups[7].Value), DateTimeKind.Utc);
+            }
+            catch { continue; }
+            last = t;
+            var g = GameplayStarted.Match(m.Groups[8].Value);
+            if (!g.Success || !double.TryParse(g.Groups[1].Value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var at)) continue;
+            if (at < 2) buy.Add(t);
+            else if (at >= 25 && at <= 50) drop.Add(t);
+        }
+        if (last != default && lastWriteUtc != default)
+        {
+            var hours = Math.Round((lastWriteUtc - last).TotalHours);
+            var rest = Math.Abs((lastWriteUtc - last).TotalHours - hours);
+            if (hours != 0 && Math.Abs(hours) <= 14 && rest < 0.1)
+            {
+                buy = buy.Select(x => x.AddHours(hours)).ToList();
+                drop = drop.Select(x => x.AddHours(hours)).ToList();
+            }
+        }
+        return new RoundMarks(buy, drop);
+    }
+
+    /// <summary>
+    /// Finds the real (UTC) time of game time 0. Each kill's game time minus its round time is when its round started
+    /// in game time; that pattern of round starts is matched against the log's round starts (buy phase or barrier drop,
+    /// whichever lines up), staying within a few minutes of Riot's own start time so another match in the same log is
+    /// never picked. Null when it can't be lined up (two rounds must agree when there are two or more).
+    /// </summary>
+    internal static DateTime? Align(IReadOnlyList<(long GameMs, long RoundMs)> kills, RoundMarks marks, DateTime roughZeroUtc)
+    {
+        if (marks == null || kills.Count == 0) return null;
+        var rounds = kills.Select(k => (double)(k.GameMs - k.RoundMs)).Where(g => g >= 0)
+            .OrderBy(g => g).Aggregate(new List<double>(), (l, g) => { if (l.Count == 0 || g - l[^1] > 3000) l.Add(g); return l; });
+        if (rounds.Count == 0) return null;
+        (DateTime Zero, int Votes, double Error) best = default;
+        foreach (var list in new[] { marks.BuyStarts, marks.BarrierDrops })
+            foreach (var mark in list)
+                foreach (var g in rounds)
+                {
+                    var zero = mark.AddMilliseconds(-g);
+                    if (Math.Abs((zero - roughZeroUtc).TotalMinutes) > 3) continue;
+                    int votes = 0; double err = 0;
+                    foreach (var r in rounds)
+                    {
+                        var expect = zero.AddMilliseconds(r);
+                        var near = list.Select(x => Math.Abs((x - expect).TotalMilliseconds)).DefaultIfEmpty(double.MaxValue).Min();
+                        if (near <= 1500) { votes++; err += near; }
+                    }
+                    if (votes > best.Votes || votes == best.Votes && votes > 0 && err < best.Error) best = (zero, votes, err);
+                }
+        return best.Votes >= Math.Min(2, rounds.Count) ? best.Zero : null;
+    }
+
+    /// <summary>
+    /// Your kills and deaths with when they happened, so clips from the match can show them on their timeline. Times
+    /// come from lining the match up with VALORANT's own round log (exact to a fraction of a second); without the log,
+    /// they fall back to the match's start time from Riot.
+    /// </summary>
+    public static List<Moment> KillsAndDeaths(JsonElement root, string puuid, RoundMarks marks = null)
     {
         var list = new List<Moment>();
         var info = root.Get("matchInfo") ?? default;
@@ -355,10 +449,14 @@ public sealed class ValorantMatches : IDisposable
             kills = rounds.EnumerateArray()
                 .SelectMany(r => r.Get("playerStats") is { ValueKind: JsonValueKind.Array } ps ? ps.EnumerateArray() : Enumerable.Empty<JsonElement>())
                 .SelectMany(p => p.Get("kills") is { ValueKind: JsonValueKind.Array } k ? k.EnumerateArray() : Enumerable.Empty<JsonElement>());
-        foreach (var k in kills)
+        var all = kills.Where(k => k.Get("gameTime") is { ValueKind: JsonValueKind.Number }).ToList();
+        var zero = Align(all.Where(k => k.Get("roundTime") is { ValueKind: JsonValueKind.Number })
+            .Select(k => (k.Get("gameTime").Value.GetInt64(), k.Get("roundTime").Value.GetInt64())).ToList(), marks,
+            DateTimeOffset.FromUnixTimeMilliseconds(sm.GetInt64()).UtcDateTime);
+        if (zero is DateTime z) start = z.ToLocalTime();
+        foreach (var k in all)
         {
-            if (k.Get("gameTime") is not { ValueKind: JsonValueKind.Number } gt) continue;
-            var when = start.AddMilliseconds(gt.GetInt64());
+            var when = start.AddMilliseconds(k.Get("gameTime").Value.GetInt64());
             if (k.Str("killer") == puuid && k.Str("victim") != puuid) list.Add(new Moment(when, Moment.Kill, "VALORANT"));
             if (k.Str("victim") == puuid) list.Add(new Moment(when, Moment.Death, "VALORANT"));
         }
