@@ -141,6 +141,30 @@ public static class ValorantSearch
         return await ValorantLobby.Mmr(s, s.Puuid);
     }
 
+    /// <summary>Your RR change in each of your last 10 competitive matches (wins positive, losses negative).</summary>
+    public static async Task<List<int>> MyRrChanges()
+    {
+        var s = await ValorantMatches.Login();
+        if (s == null) return null;
+        return await ValorantLobby.RecentGains(s, s.Puuid);
+    }
+
+    /// <summary>Current and peak rank of each player (players you met in your own matches), a little apart each.</summary>
+    public static async Task<Dictionary<string, (int Tier, int Peak)>> Peaks(List<string> puuids)
+    {
+        var map = new Dictionary<string, (int, int)>();
+        var s = await ValorantMatches.Login();
+        if (s == null) return map;
+        await ValorantLobby.LoadContent(s);
+        foreach (var id in puuids.Take(25))
+        {
+            var (tier, _, peak, _, _, _) = await ValorantLobby.Mmr(s, id);
+            map[id] = (tier, Math.Max(tier, peak));
+            await Task.Delay(150); // gentle on Riot's servers
+        }
+        return map;
+    }
+
     /// <summary>Names for players from your own matches (Riot ID or null), for the "people you played with" list.</summary>
     public static async Task<Dictionary<string, string>> NamesFor(List<string> puuids)
     {

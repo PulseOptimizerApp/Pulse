@@ -27,6 +27,10 @@ public partial class ValorantPage
     static (int Tier, int Rr, int Peak, string PeakAct, int Win, int Games)? _trMyRank;
     static DateTime _trMyRankAt;
     TextBlock _trStatusLabel;
+    static List<int> _trRr;
+    string _trAgent;
+    static readonly Dictionary<string, (int Tier, int Peak)> _trPeaks = new();
+    static bool _trPeaksBusy;
 
     void BuildTracker()
     {
@@ -165,6 +169,7 @@ public partial class ValorantPage
     {
         _trMyRankAt = DateTime.UtcNow;
         try { _trMyRank = await Task.Run(() => ValorantSearch.MyRank()); } catch { }
+        try { _trRr = await Task.Run(() => ValorantSearch.MyRrChanges()); } catch { }
         if (_trMyRank != null && _tab == "tracker") Build();
     }
 
@@ -210,6 +215,12 @@ public partial class ValorantPage
         {
             yield return Card(Dim(Loc.T("No competitive, unrated, premier or swiftplay matches to measure yet."), 12.5, 0));
             yield break;
+        }
+        if (p.IsYou)
+        {
+            var mine = CoachMatches();
+            if (Tracker.Against(mine) is { } opp) yield return OppositionCard(opp);
+            yield return MmrCard(Tracker.Mmr(mine, _trRr), p);
         }
 
         // Gauges.
@@ -262,6 +273,17 @@ public partial class ValorantPage
         foreach (var m in p.Matches.Take(8)) recent.Children.Add(MatchRow(m, p.Puuid));
         yield return Card(recent);
 
+        if (p.IsYou)
+        {
+            var all = VStore.All;
+            var mineAll = CoachMatches();
+            var yours = Tracker.YourAgents(mineAll, all);
+            if (yours.Count > 0) yield return YourAgentsCard(yours, all, p.Puuid);
+            var tiers = Tracker.TierList(all);
+            if (tiers.Count >= 4) yield return TierListCard(tiers, all.Count(m => VMatch.Counts(m.Queue)));
+            yield break;
+        }
+
         // Agents.
         var agents = p.Matches.GroupBy(m => m.Players.FirstOrDefault(x => x.Id == p.Puuid)?.Agent ?? "").Where(g => g.Key.Length > 0)
             .OrderByDescending(g => g.Count()).Take(4).ToList();
@@ -286,6 +308,245 @@ public partial class ValorantPage
         }
         if (!p.FromYourMatches)
             yield return Card(Faint(Loc.T("Searched profiles use that player's last 10 competitive, unrated, premier and swiftplay matches. Nothing about them is saved."), 11.5, 0));
+    }
+
+    FrameworkElement YourAgentsCard(List<Tracker.AgentLine> lines, IReadOnlyList<VMatch> all, string me)
+    {
+        var sp = new StackPanel();
+        sp.Children.Add(Heading("How you play your agents"));
+        sp.Children.Add(Dim(Loc.T("Each agent you've played twice or more, against every other player on that agent in the matches saved on this PC. Ranked by combat score per round (ACS), the number VALORANT's scoreboard uses."), 12.5, 4));
+        _trAgent ??= lines[0].Agent;
+        foreach (var a in lines)
+        {
+            var g = new Grid();
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(44) });
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(150) });
+            g.ColumnDefinitions.Add(new ColumnDefinition());
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            if (MatchArt.AgentIcon(a.Agent) is { } ai) g.Children.Add(new Image { Source = ai, Width = 36, Height = 36, HorizontalAlignment = HorizontalAlignment.Left }.Also(i => RenderOptions.SetBitmapScalingMode(i, BitmapScalingMode.HighQuality)));
+            var name = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+            name.Children.Add(new TextBlock { Text = a.Agent, FontSize = 13.5, FontWeight = FontWeights.SemiBold, Foreground = Res("TextBrush") });
+            name.Children.Add(new TextBlock { Text = Loc.F("{0} matches · {1:0}% won", a.Matches, a.WinPct), FontSize = 11.5, Foreground = Res("TextDimBrush") });
+            Grid.SetColumn(name, 1); g.Children.Add(name);
+            var stats = new TextBlock
+            {
+                Text = Loc.F("{0:0} ACS · {1:0.00} K/D · {2:0} ADR · {3:0}% HS · {4:0.0} first kills per 100 rounds · {5:0.0} abilities a round",
+                    a.Acs, a.Kd, a.Adr, double.IsNaN(a.HsPct) ? 0 : a.HsPct, a.FirstKillsPer100, double.IsNaN(a.CastsPerRound) ? 0 : a.CastsPerRound),
+                FontSize = 12, Foreground = Res("TextDimBrush"), TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 12, 0),
+            };
+            Grid.SetColumn(stats, 2); g.Children.Add(stats);
+            var tags = new StackPanel { VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Right };
+            var c = double.IsNaN(a.TopPercent) ? Color.FromRgb(0x8A, 0x8F, 0x98) : a.TopPercent <= 25 ? Color.FromRgb(0x3D, 0xDC, 0x84) : a.TopPercent <= 60 ? Color.FromRgb(0xFA, 0xD6, 0x63) : Color.FromRgb(0xFF, 0x5A, 0x4E);
+            tags.Children.Add(new TextBlock
+            {
+                Text = double.IsNaN(a.TopPercent) ? Loc.F("{0} other {1} players so far", a.OthersSeen, a.Agent) : Loc.F("Top {0:0}% of {1} players", a.TopPercent, a.Agent),
+                FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(c), HorizontalAlignment = HorizontalAlignment.Right,
+            });
+            if (a.PlaysLikeTier > 0) tags.Children.Add(new TextBlock { Text = Loc.F("plays like {0}", ValorantMatches.RankName(a.PlaysLikeTier)), FontSize = 11.5, Foreground = Res("TextDimBrush"), HorizontalAlignment = HorizontalAlignment.Right });
+            Grid.SetColumn(tags, 3); g.Children.Add(tags);
+            var agent = a.Agent;
+            var row = new Border
+            {
+                Background = _trAgent == a.Agent ? Res("Surface2Brush") : Brushes.Transparent, CornerRadius = new CornerRadius(8), Padding = new Thickness(10, 8, 12, 8),
+                Margin = new Thickness(0, 8, 0, 0), Child = g, Cursor = Cursors.Hand, ToolTip = Loc.F("See the best {0} players you've met", a.Agent),
+            };
+            row.MouseLeftButtonUp += (_, _) => { _trAgent = agent; Build(); };
+            sp.Children.Add(row);
+        }
+
+        // Best players on the chosen agent.
+        var top = Tracker.TopOn(_trAgent, all, me);
+        if (top.Count > 1)
+        {
+            sp.Children.Add(Label(Loc.F("Best {0} players you've met", _trAgent)).Also(l => l.Margin = new Thickness(0, 18, 0, 6)));
+            int rank = 1;
+            foreach (var t in top)
+            {
+                var g = new Grid { Margin = new Thickness(0, 0, 0, 3) };
+                g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(30) });
+                g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(34) });
+                g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(220) });
+                g.ColumnDefinitions.Add(new ColumnDefinition());
+                g.Children.Add(new TextBlock { Text = $"#{rank++}", FontSize = 12.5, FontWeight = FontWeights.Bold, Foreground = Res(t.You ? "AccentBrush" : "TextFaintBrush"), VerticalAlignment = VerticalAlignment.Center });
+                if (MatchArt.RankIcon(t.Tier) is { } ri) { var im = new Image { Source = ri, Width = 24, Height = 24 }; Grid.SetColumn(im, 1); g.Children.Add(im); }
+                var who = t.You ? Loc.T("You") : S.PlayerSearch && _trNames.TryGetValue(t.Puuid, out var n) && !string.IsNullOrEmpty(n) ? n : ValorantMatches.RankName(t.Tier) is { Length: > 0 } rn ? Loc.F("{0} player", rn) : Loc.T("Player");
+                var w = new TextBlock { Text = who, FontSize = 12.5, FontWeight = t.You ? FontWeights.Bold : FontWeights.SemiBold, Foreground = Res(t.You ? "AccentBrush" : "TextBrush"), VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
+                Grid.SetColumn(w, 2); g.Children.Add(w);
+                var st = new TextBlock { Text = Loc.F("{0:0} ACS · {1:0.00} K/D · {2} matches", t.Acs, t.Kd, t.Matches), FontSize = 12, Foreground = Res("TextDimBrush"), VerticalAlignment = VerticalAlignment.Center };
+                Grid.SetColumn(st, 3); g.Children.Add(st);
+                var row = new Border { Background = t.You ? Res("Surface2Brush") : Brushes.Transparent, CornerRadius = new CornerRadius(6), Padding = new Thickness(8, 4, 8, 4), Child = g };
+                if (!t.You) { var id = t.Puuid; row.Cursor = Cursors.Hand; row.MouseLeftButtonUp += (_, _) => { _trSel = id; Build(); }; }
+                sp.Children.Add(row);
+            }
+        }
+        sp.Children.Add(Faint(Loc.T("Riot's match data has the moment of each kill but not when the damage started, so time-to-kill can't be measured honestly; ACS and first kills show how fast you win fights instead."), 11.5, 10));
+        return Card(sp);
+    }
+
+    FrameworkElement TierListCard(List<Tracker.TierEntry> tiers, int matches)
+    {
+        var sp = new StackPanel();
+        sp.Children.Add(Heading("Agent tier list in your lobbies"));
+        sp.Children.Add(Dim(Loc.F("Win rate of every agent across all players in the {0} matches saved on this PC. It's your rank and servers, not the whole game, and it gets steadier with more matches.", matches), 12.5, 4));
+        foreach (var grade in new[] { "S", "A", "B", "C", "D" })
+        {
+            var group = tiers.Where(t => t.Grade == grade).ToList();
+            if (group.Count == 0) continue;
+            var col = grade switch { "S" => Color.FromRgb(0xFF, 0x7A, 0x59), "A" => Color.FromRgb(0xFA, 0xD6, 0x63), "B" => Color.FromRgb(0x3D, 0xDC, 0x84), "C" => Color.FromRgb(0x4D, 0xA3, 0xFF), _ => Color.FromRgb(0x8A, 0x8F, 0x98) };
+            var g = new Grid { Margin = new Thickness(0, 10, 0, 0) };
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(48) });
+            g.ColumnDefinitions.Add(new ColumnDefinition());
+            g.Children.Add(new Border
+            {
+                Width = 40, Height = 40, CornerRadius = new CornerRadius(8), Background = new SolidColorBrush(col), VerticalAlignment = VerticalAlignment.Top,
+                Child = new TextBlock { Text = grade, FontSize = 20, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(0x14, 0x14, 0x14)), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center },
+            });
+            var wrap = new WrapPanel();
+            foreach (var t in group)
+            {
+                var item = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 14, 6) };
+                if (MatchArt.AgentIcon(t.Agent) is { } ai) item.Children.Add(new Image { Source = ai, Width = 34, Height = 34, Margin = new Thickness(0, 0, 6, 0) }.Also(i => RenderOptions.SetBitmapScalingMode(i, BitmapScalingMode.HighQuality)));
+                var txt = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+                txt.Children.Add(new TextBlock { Text = t.Agent, FontSize = 12.5, FontWeight = FontWeights.SemiBold, Foreground = Res("TextBrush") });
+                txt.Children.Add(new TextBlock { Text = Loc.F("{0:0}% win · picked in {1:0}% · {2} games", t.WinPct, t.PickPct, t.Picks), FontSize = 11, Foreground = Res("TextDimBrush") });
+                item.Children.Add(txt);
+                wrap.Children.Add(item);
+            }
+            Grid.SetColumn(wrap, 1);
+            g.Children.Add(wrap);
+            sp.Children.Add(g);
+        }
+        sp.Children.Add(Faint(Loc.T("Grades by win rate: S 55%+, A 52%+, B 48%+, C 45%+, D below. Agents need 15 games here to be listed."), 11.5, 10));
+        return Card(sp);
+    }
+
+    static string RankOf(double avgTier) => avgTier >= 3 ? ValorantMatches.RankName((int)Math.Round(avgTier)) : "–";
+
+    /// <summary>How far an average rank is from yours, in divisions (Gold 1 → Gold 2 is one).</summary>
+    static string RankGap(double them, double me)
+    {
+        double d = them - me;
+        if (me < 3 || them < 3 || Math.Abs(d) < 1) return Loc.T("about your rank");
+        int n = (int)Math.Round(Math.Abs(d));
+        return d > 0 ? Loc.F("{0} divisions above you", n) : Loc.F("{0} divisions below you", n);
+    }
+
+    /// <summary>Who you've been up against in your last 5 ranked matches.</summary>
+    FrameworkElement OppositionCard(Tracker.Opposition o)
+    {
+        var sp = new StackPanel();
+        sp.Children.Add(Heading("Who you're up against"));
+        sp.Children.Add(Dim(Loc.F("Your last {0} ranked matches. Each player's rank is the one they had in that match.", o.Matches), 12.5, 4));
+        var row = new WrapPanel { Margin = new Thickness(0, 14, 0, 0) };
+        void Stat(string label, double tier, string sub)
+        {
+            var b = new StackPanel { Margin = new Thickness(0, 0, 34, 8) };
+            var line = new StackPanel { Orientation = Orientation.Horizontal };
+            if (MatchArt.RankIcon((int)Math.Round(tier)) is { } icon) line.Children.Add(new Image { Source = icon, Width = 30, Height = 30, Margin = new Thickness(0, 0, 8, 0) }.Also(i => RenderOptions.SetBitmapScalingMode(i, BitmapScalingMode.HighQuality)));
+            line.Children.Add(new TextBlock { Text = RankOf(tier), FontSize = 16, FontWeight = FontWeights.SemiBold, Foreground = Res("TextBrush"), VerticalAlignment = VerticalAlignment.Center });
+            b.Children.Add(new TextBlock { Text = Loc.T(label).ToUpper(CultureInfo.CurrentCulture), FontSize = 10, FontWeight = FontWeights.Bold, Foreground = Res("TextFaintBrush"), Margin = new Thickness(0, 0, 0, 4) });
+            b.Children.Add(line);
+            if (sub.Length > 0) b.Children.Add(new TextBlock { Text = sub, FontSize = 11.5, Foreground = Res("TextDimBrush"), Margin = new Thickness(0, 2, 0, 0) });
+            row.Children.Add(b);
+        }
+        Stat("Average enemy", o.EnemyAvg, RankGap(o.EnemyAvg, o.MyAvg));
+        Stat("Average teammate", o.TeamAvg, RankGap(o.TeamAvg, o.MyAvg));
+        if (o.Toughest != null) Stat("Toughest enemy", o.Toughest.Tier, o.Toughest.Agent);
+        sp.Children.Add(row);
+
+        // Peaks: their best rank ever (a Riot lookup per player, so only with player search on).
+        if (S.PlayerSearch)
+        {
+            var known = o.EnemyIds.Where(_trPeaks.ContainsKey).Select(id => _trPeaks[id]).ToList();
+            if (known.Count > 0)
+            {
+                double avgPeak = known.Where(k => k.Peak >= 3).Select(k => (double)k.Peak).DefaultIfEmpty(0).Average();
+                var best = known.Max(k => k.Peak);
+                sp.Children.Add(Dim(Loc.F("Their peaks: average {0}, highest {1}.", RankOf(avgPeak), ValorantMatches.RankName(best)), 12.5, 4)
+                    .Also(t => t.Foreground = Res("TextBrush")));
+            }
+            else
+            {
+                var b = Btn(_trPeaksBusy ? "Looking up peaks…" : "Look up their peak ranks");
+                b.IsEnabled = !_trPeaksBusy;
+                b.HorizontalAlignment = HorizontalAlignment.Left;
+                b.Margin = new Thickness(0, 6, 0, 0);
+                b.Click += async (_, _) =>
+                {
+                    _trPeaksBusy = true;
+                    Build();
+                    try { foreach (var kv in await Task.Run(() => ValorantSearch.Peaks(o.EnemyIds))) _trPeaks[kv.Key] = kv.Value; } catch { }
+                    _trPeaksBusy = false;
+                    if (_tab == "tracker") Build();
+                };
+                sp.Children.Add(b);
+            }
+        }
+        else sp.Children.Add(Faint(Loc.T("Turn on player search to see their peak ranks too."), 11.5, 4));
+
+        if (o.Repeats.Count > 0)
+        {
+            sp.Children.Add(Label("Enemies you keep meeting").Also(l => l.Margin = new Thickness(0, 16, 0, 6)));
+            foreach (var r in o.Repeats)
+            {
+                var g = new Grid { Margin = new Thickness(0, 0, 0, 4) };
+                g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(32) });
+                g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(220) });
+                g.ColumnDefinitions.Add(new ColumnDefinition());
+                if (MatchArt.AgentIcon(r.Agent) is { } ai) g.Children.Add(new Image { Source = ai, Width = 24, Height = 24, HorizontalAlignment = HorizontalAlignment.Left }.Also(i => RenderOptions.SetBitmapScalingMode(i, BitmapScalingMode.HighQuality)));
+                var name = S.PlayerSearch && _trNames.TryGetValue(r.Puuid, out var n) && !string.IsNullOrEmpty(n) ? n : $"{r.Agent} · {ValorantMatches.RankName(r.Tier)}";
+                var t1 = new TextBlock { Text = name, FontSize = 12.5, FontWeight = FontWeights.SemiBold, Foreground = Res("TextBrush"), VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
+                Grid.SetColumn(t1, 1); g.Children.Add(t1);
+                var t2 = new TextBlock { Text = Loc.F("met {0} times · you won {1}", r.Times, r.YourWins), FontSize = 12, Foreground = Res("TextDimBrush"), VerticalAlignment = VerticalAlignment.Center };
+                Grid.SetColumn(t2, 2); g.Children.Add(t2);
+                var row2 = new Border { Background = Res("Surface2Brush"), CornerRadius = new CornerRadius(7), Padding = new Thickness(10, 5, 10, 5), Margin = new Thickness(0, 0, 0, 4), Child = g, Cursor = Cursors.Hand };
+                var id = r.Puuid;
+                row2.MouseLeftButtonUp += (_, _) => { _trSel = id; Build(); };
+                sp.Children.Add(row2);
+            }
+        }
+        return Card(sp);
+    }
+
+    /// <summary>The hidden MMR estimate: lobby ranks and RR per win/loss, and what they say together.</summary>
+    FrameworkElement MmrCard(Tracker.MmrEstimate e, Profile p)
+    {
+        var sp = new StackPanel();
+        sp.Children.Add(Heading("Hidden MMR estimate"));
+        sp.Children.Add(Dim(Loc.T("Riot never shows your MMR (the hidden rating matchmaking uses). This estimates it the way MMR calculators do: from the ranks of the lobbies Riot puts you in, and from how much RR you gain and lose."), 12.5, 4));
+        if (e.Side == Tracker.MmrSide.Unknown)
+        {
+            sp.Children.Add(Dim(Loc.T("Play a few more competitive matches (and keep VALORANT open so Pulse can read your RR) for an estimate."), 12.5, 10));
+            return Card(sp);
+        }
+        var (word, color, explain) = e.Side switch
+        {
+            Tracker.MmrSide.Above => ("Above your rank", Color.FromRgb(0x3D, 0xDC, 0x84), "Your MMR looks higher than your rank: expect bigger wins and smaller losses until your rank catches up."),
+            Tracker.MmrSide.Below => ("Below your rank", Color.FromRgb(0xFF, 0x5A, 0x4E), "Your MMR looks lower than your rank: wins give less and losses take more until it catches up. Winning streaks fix it fastest."),
+            _ => ("About your rank", Color.FromRgb(0xFA, 0xD6, 0x63), "Your MMR looks about the same as your rank: wins and losses should be roughly even."),
+        };
+        var big = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 14, 0, 0) };
+        if (e.EstimateTier >= 3 && MatchArt.RankIcon(e.EstimateTier) is { } icon) big.Children.Add(new Image { Source = icon, Width = 46, Height = 46, Margin = new Thickness(0, 0, 12, 0) }.Also(i => RenderOptions.SetBitmapScalingMode(i, BitmapScalingMode.HighQuality)));
+        var bt = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+        bt.Children.Add(new TextBlock { Text = Loc.T(word), FontSize = 20, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(color), FontFamily = (FontFamily)FindResource("DisplayFont") });
+        if (e.EstimateTier >= 3) bt.Children.Add(new TextBlock { Text = Loc.F("Estimated around {0}", ValorantMatches.RankName(e.EstimateTier)), FontSize = 12.5, Foreground = Res("TextDimBrush") });
+        big.Children.Add(bt);
+        sp.Children.Add(big);
+        sp.Children.Add(Dim(Loc.T(explain), 12.5, 10));
+        var ev = new WrapPanel { Margin = new Thickness(0, 12, 0, 0) };
+        void Ev(string label, string value)
+        {
+            var b = new StackPanel { Margin = new Thickness(0, 0, 30, 6) };
+            b.Children.Add(new TextBlock { Text = value, FontSize = 15, FontWeight = FontWeights.SemiBold, Foreground = Res("TextBrush") });
+            b.Children.Add(new TextBlock { Text = Loc.T(label), FontSize = 11, Foreground = Res("TextFaintBrush") });
+            ev.Children.Add(b);
+        }
+        if (e.Matches >= 3) { Ev("Your lobbies' average rank", RankOf(e.LobbyAvg)); Ev("Your rank in those matches", RankOf(e.MyAvg)); }
+        if (!double.IsNaN(e.AvgWin)) Ev("RR per win", $"+{e.AvgWin:0}");
+        if (!double.IsNaN(e.AvgLoss)) Ev("RR per loss", $"−{e.AvgLoss:0}");
+        sp.Children.Add(ev);
+        sp.Children.Add(Faint(Loc.F("Based on your last {0} competitive matches. It's an estimate: Riot's real number is private.", Math.Max(e.Matches, _trRr?.Count ?? 0)), 11.5, 6));
+        return Card(sp);
     }
 
     static bool WonFor(VMatch m, string puuid)

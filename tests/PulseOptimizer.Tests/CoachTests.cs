@@ -332,4 +332,40 @@ public class TrackerTests
         var clean = Tracker.SmurfChance(new Profile { Tier = 9 }, Pulse.Core.Games.Live.Smurf.None);
         Assert.Equal(0, clean.Score);
     }
+
+    static VMatch Lobby(int myTier, int othersTier, bool won, int i)
+    {
+        var m = new VMatch { Id = "x" + i, Queue = "competitive", Me = "me", StartUtc = new DateTime(2026, 11, 1).AddHours(i) };
+        m.Players.Add(new VPlayer { Id = "me", Team = "Red", Tier = myTier, Agent = "Jett" });
+        for (int k = 0; k < 9; k++) m.Players.Add(new VPlayer { Id = "p" + k, Team = k < 4 ? "Red" : "Blue", Tier = othersTier, Agent = "Sova" });
+        for (int r = 0; r < 13; r++) m.Rounds.Add(new VRound { N = r, Winner = (won ? r < 13 : r >= 13) ? "Red" : "Blue" });
+        if (!won) for (int r = 0; r < 13; r++) m.Rounds[r].Winner = "Blue";
+        return m;
+    }
+
+    [Fact]
+    public void Mmr_estimate_needs_lobbies_and_rr_to_agree()
+    {
+        var high = Enumerable.Range(0, 6).Select(i => Lobby(9, 13, true, i)).ToList(); // Silver 1 in Gold 2 lobbies
+        var e = Tracker.Mmr(high, new[] { 26, 27, -12, 25, -14 });
+        Assert.Equal(Tracker.MmrSide.Above, e.Side);
+        Assert.Equal(13, e.EstimateTier);
+        Assert.Equal(Tracker.MmrSide.Even, Tracker.Mmr(high, new[] { 12, 13, -25, -26 }).Side);   // they disagree
+        var even = Enumerable.Range(0, 6).Select(i => Lobby(12, 12, i % 2 == 0, i)).ToList();
+        Assert.Equal(Tracker.MmrSide.Even, Tracker.Mmr(even, new[] { 18, -18, 19, -17 }).Side);
+        Assert.Equal(Tracker.MmrSide.Below, Tracker.Mmr(Enumerable.Range(0, 6).Select(i => Lobby(15, 11, false, i)).ToList(), new[] { 12, -26, -25 }).Side);
+        Assert.Equal(Tracker.MmrSide.Unknown, Tracker.Mmr(new List<VMatch>(), null).Side);
+    }
+
+    [Fact]
+    public void Opposition_averages_enemy_and_teammate_ranks()
+    {
+        var ms = Enumerable.Range(0, 5).Select(i => Lobby(12, 15, true, i)).ToList();
+        var o = Tracker.Against(ms);
+        Assert.Equal(5, o.Matches);
+        Assert.Equal(15, o.EnemyAvg, 3);
+        Assert.Equal(12, o.MyAvg, 3);
+        Assert.Equal(15, o.Toughest.Tier);
+        Assert.NotEmpty(o.Repeats);
+    }
 }

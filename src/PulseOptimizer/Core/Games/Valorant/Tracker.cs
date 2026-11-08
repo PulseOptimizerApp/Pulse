@@ -231,6 +231,150 @@ public static class Tracker
         return new Smurf(Math.Min(100, score), signs);
     }
 
+    // ───────── agents: how well you play them, a tier list from your lobbies, the best players you've met ─────────
+
+    public sealed record AgentLine(string Agent, string Role, int Matches, double WinPct, double Acs, double Kd, double Adr, double HsPct,
+        double FirstKillsPer100, double CastsPerRound, double TopPercent, int PlaysLikeTier, int OthersSeen);
+
+    public sealed record TierEntry(string Agent, string Role, string Grade, int Picks, double WinPct, double PickPct, double Acs);
+
+    public sealed record TopPlayer(string Puuid, string Agent, int Tier, int Matches, double Acs, double Kd, bool You);
+
+    /// <summary>Every player-match on each agent in the saved matches: (match, player, totals).</summary>
+    static Dictionary<string, List<(VMatch M, VPlayer P, PlayerTotals T)>> ByAgent(IReadOnlyList<VMatch> all)
+    {
+        var d = new Dictionary<string, List<(VMatch, VPlayer, PlayerTotals)>>(StringComparer.OrdinalIgnoreCase);
+        foreach (var m in all.Where(m => VMatch.Counts(m.Queue)))
+            foreach (var p in m.Players.Where(p => p.Agent.Length > 0))
+            {
+                if (!d.TryGetValue(p.Agent, out var l)) d[p.Agent] = l = new();
+                l.Add((m, p, Analysis.Totals(m, p.Id)));
+            }
+        return d;
+    }
+
+    /// <summary>
+    /// How you play each agent you've played at least twice, against every other player on that agent in the
+    /// matches saved on this PC: "Top X%" by combat score per round, and the rank whose players score like you on it.
+    /// </summary>
+    public static List<AgentLine> YourAgents(IReadOnlyList<VMatch> mine, IReadOnlyList<VMatch> all)
+    {
+        var by = ByAgent(all);
+        var me = mine.Count > 0 ? mine[0].Me : null;
+        var list = new List<AgentLine>();
+        foreach (var g in mine.Where(m => m.MyAgent.Length > 0).GroupBy(m => m.MyAgent).Where(g => g.Count() >= 2))
+        {
+            var t = Analysis.For(g, me);
+            var others = by.TryGetValue(g.Key, out var l) ? l.Where(x => x.P.Id != me && x.T.Rounds >= 8).ToList() : new();
+            var acsSorted = others.Select(x => x.T.Acs).Where(v => !double.IsNaN(v)).OrderBy(v => v).ToList();
+            var byTier = others.Where(x => x.P.Tier >= 3).GroupBy(x => x.P.Tier).ToDictionary(x => x.Key, x => x.Select(y => y.T.Acs).ToList());
+            list.Add(new AgentLine(g.Key, Analysis.RoleOf(g.Key), g.Count(), t.WinPct, t.Acs, t.KdRatio, t.Adr, t.HeadshotPct, t.FirstKillsPer100,
+                t.AllCastsPerRound, TopPercent(acsSorted, t.Acs), PlaysLike(byTier, t.Acs), others.Count));
+        }
+        return list.OrderByDescending(a => a.Matches).ToList();
+    }
+
+    /// <summary>
+    /// An agent tier list from your lobbies: win rate and pick rate of each agent across every player in the saved
+    /// matches (at least 15 picks). Graded on win rate: S 55%+, A 52%+, B 48%+, C 45%+, D below.
+    /// </summary>
+    public static List<TierEntry> TierList(IReadOnlyList<VMatch> all, int minPicks = 15)
+    {
+        var by = ByAgent(all);
+        int totalMatches = all.Count(m => VMatch.Counts(m.Queue));
+        return by.Where(kv => kv.Value.Count >= minPicks).Select(kv =>
+        {
+            double win = 100.0 * kv.Value.Count(x => WonFor(x.M, x.P.Team)) / kv.Value.Count;
+            var acs = kv.Value.Select(x => x.T.Acs).Where(v => !double.IsNaN(v)).DefaultIfEmpty(0).Average();
+            string grade = win >= 55 ? "S" : win >= 52 ? "A" : win >= 48 ? "B" : win >= 45 ? "C" : "D";
+            return new TierEntry(kv.Key, Analysis.RoleOf(kv.Key), grade, kv.Value.Count, win, totalMatches > 0 ? Math.Min(100, 100.0 * kv.Value.Select(x => x.M.Id).Distinct().Count() / totalMatches) : 0, acs);
+        }).OrderBy(e => "SABCD".IndexOf(e.Grade)).ThenByDescending(e => e.WinPct).ToList();
+    }
+
+    static bool WonFor(VMatch m, string team) =>
+        m.Rounds.Count(r => r.Winner == team) > m.Rounds.Count(r => r.Winner.Length > 0 && r.Winner != team);
+
+    /// <summary>The best players on one agent in the saved matches, by combat score per round (you included).</summary>
+    public static List<TopPlayer> TopOn(string agent, IReadOnlyList<VMatch> all, string me, int take = 10)
+    {
+        var by = ByAgent(all);
+        if (!by.TryGetValue(agent, out var l)) return new();
+        return l.GroupBy(x => x.P.Id).Select(g =>
+        {
+            var t = new PlayerTotals();
+            foreach (var x in g) t.Add(x.T);
+            var last = g.OrderByDescending(x => x.M.StartUtc).First();
+            return new TopPlayer(g.Key, agent, last.P.Tier, g.Count(), t.Acs, t.KdRatio, g.Key == me);
+        }).Where(p => p.Matches >= 1 && !double.IsNaN(p.Acs)).OrderByDescending(p => p.Acs).Take(take).ToList();
+    }
+
+    // ───────── who you're up against, and an MMR estimate ─────────
+
+    public sealed record Opponent(string Puuid, string Agent, int Tier, int Times, int YourWins);
+
+    public sealed record Opposition(int Matches, double EnemyAvg, double TeamAvg, double LobbyAvg, double MyAvg, Opponent Toughest, List<Opponent> Repeats, List<string> EnemyIds);
+
+    /// <summary>
+    /// The ranks you've been playing against in your last <paramref name="n"/> ranked matches (Competitive and Premier,
+    /// where Riot records everyone's rank in that match), the toughest enemy, and enemies you keep meeting.
+    /// </summary>
+    public static Opposition Against(IReadOnlyList<VMatch> mine, int n = 5)
+    {
+        var ranked = mine.Where(m => m.Queue is "competitive" or "premier" && m.Players.Count(p => p.Tier >= 3) >= 6).OrderByDescending(m => m.StartUtc).Take(n).ToList();
+        if (ranked.Count == 0) return null;
+        var enemies = ranked.SelectMany(m => m.Players.Where(p => p.Team != m.MyTeam && p.Tier >= 3).Select(p => (m, p))).ToList();
+        var mates = ranked.SelectMany(m => m.Players.Where(p => p.Team == m.MyTeam && p.Id != m.Me && p.Tier >= 3)).ToList();
+        var lobby = ranked.SelectMany(m => m.Players.Where(p => p.Id != m.Me && p.Tier >= 3)).ToList();
+        var me = ranked.Select(m => m.MeP).Where(p => p != null && p.Tier >= 3).ToList();
+        var toughest = enemies.OrderByDescending(e => e.p.Tier).Select(e => new Opponent(e.p.Id, e.p.Agent, e.p.Tier, 1, e.m.Won ? 1 : 0)).FirstOrDefault();
+        // Enemies met more than once anywhere in your saved matches.
+        var all = mine.SelectMany(m => m.Players.Where(p => p.Team != m.MyTeam).Select(p => (m, p))).GroupBy(x => x.p.Id)
+            .Where(g => g.Count() >= 2)
+            .Select(g =>
+            {
+                var last = g.OrderByDescending(x => x.m.StartUtc).First();
+                return new Opponent(g.Key, last.p.Agent, last.p.Tier, g.Count(), g.Count(x => x.m.Won));
+            })
+            .OrderByDescending(o => o.Times).ThenByDescending(o => o.Tier).Take(5).ToList();
+        double Avg(IEnumerable<int> t) => t.DefaultIfEmpty(0).Average();
+        return new Opposition(ranked.Count, Avg(enemies.Select(e => e.p.Tier)), Avg(mates.Select(p => p.Tier)), Avg(lobby.Select(p => p.Tier)),
+            Avg(me.Select(p => p.Tier)), toughest, all, enemies.Select(e => e.p.Id).Distinct().ToList());
+    }
+
+    public enum MmrSide { Unknown, Above, Even, Below }
+
+    public sealed record MmrEstimate(int Matches, double LobbyAvg, double MyAvg, double AvgWin, double AvgLoss, MmrSide Side, int EstimateTier);
+
+    /// <summary>
+    /// Riot never shows MMR, so this estimates it the way MMR calculators do: Riot builds lobbies around your MMR, so
+    /// the average rank of the other players in your recent ranked matches is close to it; and Riot gives more RR per
+    /// win (and takes less per loss) when your MMR is above your rank. Both are shown, and they have to agree for a
+    /// firm answer.
+    /// </summary>
+    public static MmrEstimate Mmr(IReadOnlyList<VMatch> mine, IReadOnlyList<int> rrChanges, int n = 10)
+    {
+        var ranked = mine.Where(m => m.Queue == "competitive" && m.MeP is { Tier: >= 3 } && m.Players.Count(p => p.Tier >= 3) >= 6)
+            .OrderByDescending(m => m.StartUtc).Take(n).ToList();
+        double lobby = ranked.Count == 0 ? 0 : ranked.Average(m => m.Players.Where(p => p.Id != m.Me && p.Tier >= 3).Average(p => p.Tier));
+        double myAvg = ranked.Count == 0 ? 0 : ranked.Average(m => m.MeP.Tier);
+        var wins = rrChanges?.Where(r => r > 0).ToList() ?? new();
+        var losses = rrChanges?.Where(r => r < 0).Select(r => -r).ToList() ?? new();
+        double avgWin = wins.Count >= 2 ? wins.Average() : double.NaN, avgLoss = losses.Count >= 2 ? losses.Average() : double.NaN;
+
+        int lobbyVote = ranked.Count < 3 ? 0 : lobby - myAvg >= 1.5 ? 1 : lobby - myAvg <= -1.5 ? -1 : 0;
+        int rrVote = 0;
+        if (!double.IsNaN(avgWin) && !double.IsNaN(avgLoss))
+            rrVote = avgWin - avgLoss >= 5 ? 1 : avgLoss - avgWin >= 5 ? -1 : 0;
+        else if (!double.IsNaN(avgWin))
+            rrVote = avgWin >= 24 ? 1 : avgWin <= 14 ? -1 : 0;
+        var side = ranked.Count < 3 && double.IsNaN(avgWin) ? MmrSide.Unknown
+            : lobbyVote + rrVote >= 1 && !(lobbyVote == -1 || rrVote == -1) ? MmrSide.Above
+            : lobbyVote + rrVote <= -1 && !(lobbyVote == 1 || rrVote == 1) ? MmrSide.Below
+            : MmrSide.Even;
+        int est = ranked.Count >= 3 ? (int)Math.Round(lobby) : 0;
+        return new MmrEstimate(ranked.Count, lobby, myAvg, avgWin, avgLoss, side, est);
+    }
+
     /// <summary>For tests.</summary>
     internal static void Reset() { _scale = null; _scaleCount = -1; }
 }

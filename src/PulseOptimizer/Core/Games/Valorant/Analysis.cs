@@ -45,6 +45,8 @@ public sealed class PlayerTotals
     public int CastRounds;
     /// <summary>Rounds where you were the last one alive against at least one enemy, and how many of those you won.</summary>
     public int ClutchChances, ClutchWins;
+    /// <summary>Riot's combat score, added up (ACS = this per round).</summary>
+    public int Score;
 
     public void Add(PlayerTotals o)
     {
@@ -53,7 +55,7 @@ public sealed class PlayerTotals
         FirstKills += o.FirstKills; FirstDeaths += o.FirstDeaths; TradeKills += o.TradeKills;
         DeathsWithMates += o.DeathsWithMates; Untraded += o.Untraded; DeathsPlaced += o.DeathsPlaced; Alone += o.Alone; Outnumbered += o.Outnumbered;
         DeathsAbilityKnown += o.DeathsAbilityKnown; NoAbility += o.NoAbility;
-        ClutchChances += o.ClutchChances; ClutchWins += o.ClutchWins;
+        ClutchChances += o.ClutchChances; ClutchWins += o.ClutchWins; Score += o.Score;
         for (int i = 0; i < 4; i++) Casts[i] += o.Casts[i];
         CastRounds += o.CastRounds;
     }
@@ -75,6 +77,8 @@ public sealed class PlayerTotals
     public double CastsPerRound(int slot) => Div(Casts[slot], CastRounds);
     public double AllCastsPerRound => Div(Casts.Sum(), CastRounds);
     public double ClutchWinPct => Div(100.0 * ClutchWins, ClutchChances);
+    /// <summary>Average combat score per round, the number VALORANT's own scoreboard ranks players by.</summary>
+    public double Acs => Div(Score, Rounds);
     public double KdRatio => Deaths > 0 ? (double)Kills / Deaths : Kills;
 }
 
@@ -237,6 +241,7 @@ public static class Analysis
         t.Kills = m.Kills.Count(x => x.Killer == who && x.Victim != who && m.TeamOf(x.Victim) != team);
         t.Deaths = m.Kills.Count(x => x.Victim == who);
         t.Assists = me.Assists;
+        t.Score = me.Score;
         foreach (var d in Deaths(m, who))
         {
             if (d.Tags.Contains(DeathTag.LastAlive)) continue;
