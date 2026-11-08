@@ -166,7 +166,8 @@ public partial class ValorantPage : UserControl, IPage
         Go("Match recaps and kill markers on clips", "clips");
         Go("Crosshair", "crosshair");
         Go("Optimize VALORANT", "games");
-        Go("MSI Afterburner and FPS cap guide", "guide");
+        Go("GPU tuning", "gpu");
+        Go("Fix stutter guide", "guide");
         sp.Children.Add(wrap);
         return Card(sp);
     }

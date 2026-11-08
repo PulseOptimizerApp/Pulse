@@ -72,7 +72,7 @@ public partial class GpuPage : UserControl
             var sp = new StackPanel();
             sp.Children.Add(Heading("GPU tuning needs an NVIDIA graphics card"));
             sp.Children.Add(Dim(SystemInfo.HasAmd
-                ? Loc.T("Pulse tunes cards through NVIDIA's own driver interface. On an AMD Radeon card, AMD Software: Adrenalin Edition does the same job (Performance → Tuning), and Pulse's MSI Afterburner guide walks you through it.")
+                ? Loc.T("Pulse tunes cards through NVIDIA's own driver interface. On an AMD Radeon card, AMD Software: Adrenalin Edition does the same job (Performance → Tuning).")
                 : Loc.T("Pulse tunes cards through NVIDIA's own driver interface, and it didn't find an NVIDIA card (or its driver) on this PC."), 13, 6));
             var b = new Button { Style = (Style)FindResource("GhostButton"), Content = Loc.T("Open the guide"), HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 14, 0, 0), Padding = new Thickness(14, 6, 14, 6) };
             b.Click += (_, _) => MainWindow.Instance.Navigate("guide");

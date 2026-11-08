@@ -13,7 +13,7 @@ namespace Pulse.Pages;
 /// <summary>
 /// The Guides tab: a library of step-by-step guides (search, categories, progress), and a reader that shows one guide
 /// chapter by chapter with steps you tick off. Progress is saved, and guides adapt to the PC: chapters for another GPU
-/// maker are hidden behind a switch, and the MSI Afterburner guide shows what Pulse found on this PC.
+/// maker are hidden behind a switch.
 /// </summary>
 public partial class GuidePage
 {
@@ -154,14 +154,6 @@ public partial class GuidePage
         sp.Children.Add(new TextBlock { Text = T("Featured guide").ToUpper(CultureInfo.CurrentCulture), FontSize = 10.5, FontWeight = FontWeights.Bold, Foreground = Res("AccentBrush") });
         sp.Children.Add(Heading(T(g.Title), 21).Also(h => h.Margin = new Thickness(0, 6, 0, 0)));
         sp.Children.Add(Dim(T(g.Summary), 13.5, 6));
-        if (g.Tool == "afterburner")
-        {
-            var found = new List<string>();
-            if (MyGpu != null) found.Add(MyGpu);
-            var v = Afterburner.Version;
-            found.Add(v == null ? T("Afterburner not installed yet") : F("Afterburner {0} installed", v.ToString(3)));
-            sp.Children.Add(Faint(T("On this PC:") + " " + string.Join("  ·  ", found), 12, 10));
-        }
         sp.Children.Add(Meta(g));
         var open = new Button { Style = (Style)FindResource("PrimaryButton"), Content = T(Progress(g).Done > 0 ? "Continue" : "Start the guide"), HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 16, 0, 0), Padding = new Thickness(16, 7, 16, 7) };
         open.Click += (_, _) => OpenGuide(g.Id);
@@ -211,8 +203,6 @@ public partial class GuidePage
         metaRow.Children.Add(reset);
         head.Children.Add(metaRow);
         root.Children.Add(head);
-
-        if (d.Tool == "afterburner") root.Children.Add(AfterburnerPanel());
 
         // Chapters, filtered by GPU maker when the guide has maker-specific chapters.
         var body = new StackPanel();
@@ -378,52 +368,5 @@ public partial class GuidePage
             BorderBrush = Res(brush), BorderThickness = new Thickness(2, 0, 0, 0), Background = Res("Surface2Brush"),
             CornerRadius = new CornerRadius(0, 6, 6, 0), Padding = new Thickness(12, 8, 12, 9), Margin = new Thickness(0, 9, 0, 0), Child = sp,
         };
-    }
-
-    // ───────── what Pulse found, for the Afterburner guide ─────────
-
-    FrameworkElement AfterburnerPanel()
-    {
-        var sp = new StackPanel();
-        sp.Children.Add(Heading(T("On this PC"), 14.5));
-        var v = Afterburner.Version;
-        bool old = v != null && v < Afterburner.Needed && MyGpu != null && System.Text.RegularExpressions.Regex.IsMatch(MyGpu, @"RTX\s*50|RX\s*9\d\d\d", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-        var start = Afterburner.StartingPoint(MyGpu);
-        var rows = new (string Label, string Value, string Brush)[]
-        {
-            (T("Graphics card"), MyGpu ?? T("Not found"), "TextBrush"),
-            ("MSI Afterburner", v == null ? T("Not installed") : old ? F("{0}: too old for your card, update to 4.6.6 or newer", v.ToString(3)) : F("{0} installed", v.ToString(3)), v == null || old ? "WarnBrush" : "GoodBrush"),
-            ("RivaTuner Statistics Server", Afterburner.RtssExe != null ? T("Installed") : T("Not installed (needed for the overlay and FPS cap)"), Afterburner.RtssExe != null ? "GoodBrush" : "WarnBrush"),
-            (T("Starting point for your card"), start != null ? T(start) : T("Use the general steps below"), "TextBrush"),
-        };
-        var grid = new Grid { Margin = new Thickness(0, 10, 0, 0) };
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(210) });
-        grid.ColumnDefinitions.Add(new ColumnDefinition());
-        for (int i = 0; i < rows.Length; i++)
-        {
-            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            var l = Faint(rows[i].Label, 12.5).Also(t => t.Margin = new Thickness(0, 0, 12, 8));
-            var val = new TextBlock { Text = rows[i].Value, FontSize = 12.5, FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap, Foreground = Res(rows[i].Brush), Margin = new Thickness(0, 0, 0, 8) };
-            Grid.SetRow(l, i); Grid.SetRow(val, i); Grid.SetColumn(val, 1);
-            grid.Children.Add(l); grid.Children.Add(val);
-        }
-        sp.Children.Add(grid);
-
-        var buttons = new WrapPanel { Margin = new Thickness(0, 6, 0, 0) };
-        if (v != null)
-        {
-            var open = new Button { Style = (Style)FindResource("PrimaryButton"), Content = T(Afterburner.Running ? "Show Afterburner" : "Open Afterburner"), Padding = new Thickness(14, 6, 14, 6), Margin = new Thickness(0, 0, 10, 0) };
-            open.Click += (_, _) => Afterburner.Open();
-            buttons.Children.Add(open);
-        }
-        if (v == null || old)
-        {
-            var get = new Button { Style = (Style)FindResource(v == null ? "PrimaryButton" : "GhostButton"), Content = T("Get Afterburner from MSI") + "  ↗", Padding = new Thickness(14, 6, 14, 6), Margin = new Thickness(0, 0, 10, 0) };
-            get.Click += (_, _) => Open(Afterburner.Download);
-            buttons.Children.Add(get);
-        }
-        sp.Children.Add(buttons);
-        sp.Children.Add(Faint(T("These are common starting points testers report, not guarantees: every chip is different, which is why the guide tests each step."), 11.5, 10));
-        return Card(sp);
     }
 }

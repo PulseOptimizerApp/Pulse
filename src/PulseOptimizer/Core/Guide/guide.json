@@ -978,7 +978,12 @@
    "Changing DNS for lower ping": "Cambiar el DNS para bajar el ping",
    "DNS only finds the server's address before you connect. In-game ping doesn't change.": "El DNS solo encuentra la dirección del servidor antes de conectar. El ping en el juego no cambia.",
    "Timer resolution tools": "Herramientas de resolución del temporizador",
-   "Windows 11 already gives games the timer they ask for, and forcing it for everything raises power use.": "Windows 11 ya da a los juegos el temporizador que piden, y forzarlo para todo sube el consumo."
+   "Windows 11 already gives games the timer they ask for, and forcing it for everything raises power use.": "Windows 11 ya da a los juegos el temporizador que piden, y forzarlo para todo sube el consumo.",
+   "To undervolt a Radeon card, use AMD Software: Performance → Tuning → Custom, then lower the maximum voltage in small steps and test each one in your game.": "Para hacer undervolt a una Radeon, usa AMD Software: Rendimiento → Ajuste → Personalizado, y baja el voltaje máximo en pasos pequeños, probando cada uno en tu juego.",
+   "Turn on Pulse's performance overlay (Games page) and watch its frame-time graph while it happens.": "Activa la superposición de rendimiento de Pulse (página Juegos) y mira su gráfico de tiempo de fotograma mientras pasa.",
+   "Undervolt the graphics card: often 10 °C cooler at the same FPS. On NVIDIA, Pulse's GPU tuning page walks you through it.": "Haz undervolt a la tarjeta gráfica: a menudo 10 °C menos con los mismos FPS. En NVIDIA, la página de ajuste de GPU de Pulse te guía paso a paso.",
+   "Open GPU tuning": "Abrir ajuste de GPU",
+   "Set gentle fan curves in the BIOS (usually under Hardware Monitor or Smart Fan).": "Pon curvas de ventilador suaves en la BIOS (suele estar en Hardware Monitor o Smart Fan)."
   },
   "pt-BR": {
    "36 g for $99.99.": "36 g por US$ 99,99.",
@@ -1330,293 +1335,15 @@
    "Changing DNS for lower ping": "Trocar o DNS para baixar o ping",
    "DNS only finds the server's address before you connect. In-game ping doesn't change.": "O DNS só acha o endereço do servidor antes de conectar. O ping no jogo não muda.",
    "Timer resolution tools": "Ferramentas de resolução do timer",
-   "Windows 11 already gives games the timer they ask for, and forcing it for everything raises power use.": "O Windows 11 já dá aos jogos o timer que eles pedem, e forçar para tudo aumenta o consumo."
+   "Windows 11 already gives games the timer they ask for, and forcing it for everything raises power use.": "O Windows 11 já dá aos jogos o timer que eles pedem, e forçar para tudo aumenta o consumo.",
+   "To undervolt a Radeon card, use AMD Software: Performance → Tuning → Custom, then lower the maximum voltage in small steps and test each one in your game.": "Para undervolt em uma Radeon, use o AMD Software: Desempenho → Ajuste → Personalizado, e baixe a tensão máxima em passos pequenos, testando cada um no seu jogo.",
+   "Turn on Pulse's performance overlay (Games page) and watch its frame-time graph while it happens.": "Ligue a sobreposição de desempenho do Pulse (página Jogos) e olhe o gráfico de tempo de quadro enquanto acontece.",
+   "Undervolt the graphics card: often 10 °C cooler at the same FPS. On NVIDIA, Pulse's GPU tuning page walks you through it.": "Faça undervolt na placa de vídeo: muitas vezes 10 °C a menos com o mesmo FPS. Na NVIDIA, a página de ajuste de GPU do Pulse mostra o passo a passo.",
+   "Open GPU tuning": "Abrir ajuste de GPU",
+   "Set gentle fan curves in the BIOS (usually under Hardware Monitor or Smart Fan).": "Configure curvas suaves de ventoinha na BIOS (normalmente em Hardware Monitor ou Smart Fan)."
   }
  },
  "Guides": [
-  {
-   "Id": "afterburner",
-   "Title": "MSI Afterburner: undervolt, fans, overlay and FPS cap",
-   "Summary": "Run your graphics card cooler and quieter at the same speed, see FPS and temperatures in game, and cap your frame rate the right way. Works on any brand of card, not just MSI.",
-   "Category": "Graphics card",
-   "Minutes": 45,
-   "Level": "Medium",
-   "Tool": "afterburner",
-   "Featured": true,
-   "Chapters": [
-    {
-     "Title": "Before you start",
-     "Intro": "What Afterburner is, and what it can and can't do.",
-     "Steps": [
-      {
-       "Text": "Afterburner is free and works with NVIDIA, AMD and Intel cards of any brand. It comes with RivaTuner Statistics Server (RTSS), which draws the in-game overlay and caps FPS."
-      },
-      {
-       "Text": "Undervolting is the safe kind of tuning: you lower the voltage, you don't raise it.",
-       "Detail": "The worst that happens is a game crash or a driver reset, and you fix it by going back one step. It doesn't damage the card or void the warranty, and a reset puts it back to stock."
-      },
-      {
-       "Text": "Use one tuning app at a time. Close or uninstall the others so they don't fight over the same settings.",
-       "Detail": "For example NVIDIA App's automatic tuning, the tuning page in AMD Software, ASUS GPU Tweak, Gigabyte Control Center or EVGA Precision."
-      },
-      {
-       "Text": "On a laptop, voltage is usually locked. Afterburner still gives you the overlay and the frame cap; for laptop undervolting, use the maker's software if it has the option."
-      },
-      {
-       "Text": "Write down where you start: play a demanding game for 10 minutes and note the FPS, GPU temperature, clock speed and power draw. Every change gets compared to this.",
-       "Tip": "Set up the overlay first (the chapter further down) so you can read all of this in game."
-      }
-     ]
-    },
-    {
-     "Title": "Install it safely",
-     "Intro": null,
-     "Steps": [
-      {
-       "Text": "Download it only from MSI or Guru3D. Fake 'Afterburner' sites spread malware.",
-       "Button": "Open MSI's download page",
-       "Url": "https://www.msi.com/Landing/afterburner/graphics-cards"
-      },
-      {
-       "Text": "Use version 4.6.6 or newer. Older versions don't recognise RTX 50 or Radeon RX 9000 cards.",
-       "Tip": "The 4.6.7 beta on Guru3D has an improved curve editor, if you're happy to use a beta.",
-       "Button": "Guru3D beta page",
-       "Url": "https://www.guru3d.com/download/msi-afterburner-beta-download/"
-      },
-      {
-       "Text": "When the installer asks, install both MSI Afterburner and RivaTuner Statistics Server."
-      },
-      {
-       "Text": "Open Afterburner → Settings (the gear) → General, and tick 'Unlock voltage monitoring'.",
-       "Detail": "Leave 'Unlock voltage control' off. You don't need it to undervolt, and it's the part that can raise voltage."
-      }
-     ]
-    },
-    {
-     "Title": "Quick win: lower the power limit",
-     "Intro": "A two-minute undervolt. It costs a little speed but cuts heat and noise a lot. MSI's own guide starts here.",
-     "Steps": [
-      {
-       "Text": "Start a demanding game or a benchmark and leave it running in a window."
-      },
-      {
-       "Text": "Drag Power Limit (%) down to 85 and press Apply (the check mark).",
-       "Detail": "MSI suggests 80 to 85% as a start. How low you can go depends on the card."
-      },
-      {
-       "Text": "Watch the temperature and FPS for a few minutes and compare with your notes. Usually you lose a few FPS and a lot of heat."
-      },
-      {
-       "Text": "Happy with it? Save it as a profile. Want full speed with less heat? Put Power Limit back to 100 and use the curve method instead."
-      }
-     ]
-    },
-    {
-     "Title": "Undervolt with the curve (NVIDIA)",
-     "Intro": "The real undervolt: the same clock speed at a lower voltage. On RTX 30, 40 and 50 cards the Core Voltage slider does nothing; the curve editor is the way.",
-     "Steps": [
-      {
-       "Text": "Press Reset (the circular arrow) so you start from stock, with Power Limit at 100."
-      },
-      {
-       "Text": "Press Ctrl+F to open the Voltage/Frequency curve editor.",
-       "Detail": "Each point is a voltage (bottom, in mV) and the clock speed the card runs at that voltage (left, in MHz)."
-      },
-      {
-       "Text": "Pick your target voltage. Good starting points: RTX 50: 900 to 950 mV · RTX 40: 950 mV · RTX 30: 850 to 875 mV · RTX 20 and GTX 16: 900 mV.",
-       "Tip": "Pulse shows the starting point for your own card at the top of this guide."
-      },
-      {
-       "Text": "In the main window, set Core Clock to −250 and press Apply. The whole curve drops, so no point can spike up later."
-      },
-      {
-       "Text": "In the curve editor, click the point at your target voltage, hold Shift and drag it up to your stock clock speed from your notes (for example 2,750 MHz)."
-      },
-      {
-       "Text": "Press Apply in the main window. Everything right of your point becomes a flat line: the card now never goes above that voltage.",
-       "Detail": "If points on the right still stick up, drag a box around them with Shift, pull them below your line and Apply again. Or click your point and press L to lock it (a dotted line appears), which is MSI's own method."
-      },
-      {
-       "Text": "Test it (see 'Test it properly'). Stable? Go 25 mV lower at the same clock, or 15 to 30 MHz higher at the same voltage. One step at a time.",
-       "Warn": "Never drag points above about 1,100 mV, and don't touch the Core Voltage slider. Undervolting means lower, never higher.",
-       "Tip": "The clock settles 15 to 30 MHz below your line once the card is hot. That's normal."
-      }
-     ],
-     "Only": "nvidia"
-    },
-    {
-     "Title": "Undervolt a Radeon card (AMD)",
-     "Intro": "Afterburner's support for RX 9000 cards is unofficial, and AMD's own software does this better. Use AMD Software for the undervolt and Afterburner for the overlay and FPS cap.",
-     "Steps": [
-      {
-       "Text": "Open AMD Software: Adrenalin Edition → Performance → Tuning → Custom. Turn on GPU Tuning and Advanced Control."
-      },
-      {
-       "Text": "RX 9000 cards: set Voltage Offset to −50 mV and apply. Many cards hold more; try 10 to 20 mV more each time and test."
-      },
-      {
-       "Text": "RX 7000 and 6000 cards: lower Max Voltage by about 50 mV (for example 1,150 → 1,100 mV) and apply."
-      },
-      {
-       "Text": "Power Limit: −10% for less heat, or the maximum to let an undervolted card hold its clocks for more FPS."
-      },
-      {
-       "Text": "If AMD Software says 'Default settings restored due to unexpected system failure', your last step went too far. Go back to the last stable value."
-      },
-      {
-       "Text": "Leave Afterburner's sliders alone on an AMD card, so the two apps don't fight."
-      }
-     ],
-     "Only": "amd"
-    },
-    {
-     "Title": "Test it properly",
-     "Intro": "A setting that passes one benchmark can still crash a game an hour later.",
-     "Steps": [
-      {
-       "Text": "Run a GPU stress test for 15 to 20 minutes: Unigine Superposition (free), OCCT's 3D test (free) or a 3DMark stress test.",
-       "Button": "Get Superposition",
-       "Url": "https://benchmark.unigine.com/superposition"
-      },
-      {
-       "Text": "Then play your most demanding game for an hour. Ray tracing and shader-heavy games catch unstable settings that benchmarks miss."
-      },
-      {
-       "Text": "Too far if: the game closes, the screen flashes black, Windows says the display driver stopped responding, or you see sparkles. Go back one step (+25 mV or −30 MHz)."
-      },
-      {
-       "Text": "Check it really helped: FPS within 1 to 2% of your notes, with lower temperature and power. Pulse's Measure page compares before and after.",
-       "Button": "Open Measure",
-       "Page": "measure"
-      }
-     ]
-    },
-    {
-     "Title": "Save profiles and apply at startup",
-     "Intro": null,
-     "Steps": [
-      {
-       "Text": "Click the save icon, then a number from 1 to 5. Keep profile 1 as stock (press Reset first) and profile 2 as your undervolt."
-      },
-      {
-       "Text": "Settings → Profiles: give each profile a hotkey, for example Ctrl+Alt+1 for stock and Ctrl+Alt+2 for your undervolt."
-      },
-      {
-       "Text": "Once it's tested, turn on 'Apply overclocking at system startup' (the Windows button at the bottom left), and in Settings → General tick 'Start with Windows' and 'Start minimized'.",
-       "Warn": "Only after testing. An unstable setting applied at startup can crash Windows as it starts. Holding Ctrl while Afterburner starts skips your settings."
-      },
-      {
-       "Text": "After a graphics driver update, open Afterburner once and check your profile is still applied. Driver installs reset the card to stock."
-      }
-     ]
-    },
-    {
-     "Title": "Fan curve: cool and quiet",
-     "Intro": null,
-     "Steps": [
-      {
-       "Text": "Settings → Fan → tick 'Enable user defined software automatic fan control'."
-      },
-      {
-       "Text": "Make a gentle curve, for example 30% at 40 °C, 45% at 60 °C, 60% at 70 °C, 80% at 80 °C and 100% at 85 °C."
-      },
-      {
-       "Text": "Set 'Temperature hysteresis' to 3 to 5 °C so the fans don't keep speeding up and slowing down."
-      },
-      {
-       "Text": "Most cards stop their fans below 50 to 60 °C on their own. A custom curve turns that off, so keep the default if you want silence on the desktop."
-      }
-     ]
-    },
-    {
-     "Title": "In-game overlay: FPS, temperatures, frame times",
-     "Intro": null,
-     "Steps": [
-      {
-       "Text": "Settings → Monitoring. Click each item you want and tick 'Show in On-Screen Display'.",
-       "Detail": "A good set: GPU temperature, GPU usage, core clock, power, framerate, frametime, CPU temperature, CPU usage and RAM usage."
-      },
-      {
-       "Text": "For Frametime, pick 'graph' instead of 'text'. A flat line is smooth; spikes are the stutters you feel."
-      },
-      {
-       "Text": "Settings → On-Screen Display: set a 'Toggle On-Screen Display' hotkey, for example F11."
-      },
-      {
-       "Text": "RivaTuner Statistics Server must be running (its icon is in the tray). It's where you change the overlay's position, size and color."
-      },
-      {
-       "Text": "Reading it: GPU usage under 95% while FPS is low means the CPU or the game is holding you back, not the graphics card.",
-       "Warn": "A few games with strict anti-cheat block overlays. If one won't start, add it in RTSS with '+' and set Application detection level to None."
-      }
-     ]
-    },
-    {
-     "Title": "Cap your frame rate the right way",
-     "Intro": "Blur Busters measured this with a latency tester: the game's own limiter and NVIDIA Reflex have ½ to 1 frame less input lag than outside limiters like RTSS. RTSS has the steadiest frame pacing.",
-     "Steps": [
-      {
-       "Text": "First choice: the game's own frame limiter, or NVIDIA Reflex if the game has it."
-      },
-      {
-       "Text": "Use RTSS when the game has no limiter, or its FPS jumps around a lot."
-      },
-      {
-       "Text": "With G-SYNC or FreeSync: cap at least 3 FPS below your refresh rate (141 at 144 Hz, 237 at 240 Hz). Turn V-Sync on in the NVIDIA or AMD settings and off in the game."
-      },
-      {
-       "Text": "In RTSS, select Global, type your cap in 'Framerate limit' and press Enter. For one game only, press '+' at the bottom left, pick its .exe and set the cap there."
-      },
-      {
-       "Text": "In a game with Reflex, skip the RTSS cap: Reflex with G-SYNC and V-Sync caps for you (about 138 FPS at 144 Hz)."
-      }
-     ]
-    },
-    {
-     "Title": "When something goes wrong",
-     "Intro": null,
-     "Steps": [
-      {
-       "Text": "Settings won't apply or sliders are grey: close other tuning apps, run Afterburner as administrator and update to the newest version."
-      },
-      {
-       "Text": "The card went back to stock after a crash or driver update: load your profile again and re-test."
-      },
-      {
-       "Text": "The curve keeps creeping back up: you raised points on the right end. Reset, set Core Clock to −250 first, then raise only your one target point."
-      },
-      {
-       "Text": "RTX 50 shows a hot spot of 255 °C: those cards don't have that sensor, and older builds misread it. Update Afterburner and ignore that reading."
-      },
-      {
-       "Text": "A memory overclock seems stable but FPS goes down: GDDR6X and GDDR7 memory fix errors quietly, which costs speed. Judge memory clocks by FPS, not by crashes."
-      }
-     ]
-    }
-   ],
-   "Sources": [
-    {
-     "Name": "MSI: RTX 50 overclocking and undervolting guide, part 1",
-     "Url": "https://www.msi.com/blog/rtx-5070-5060ti-overclocking-undervolting-guide-with-msi-afterburner-part-1"
-    },
-    {
-     "Name": "MSI: RTX 50 overclocking and undervolting guide, part 2",
-     "Url": "https://us.msi.com/blog/rtx-5070-5060ti-overclocking-undervolting-guide-with-msi-afterburner-part-2"
-    },
-    {
-     "Name": "TweakTown: Afterburner 4.6.6, first stable release in two years",
-     "Url": "https://www.tweaktown.com/news/108004/msi-afterburner-4-6-is-available-now-the-first-stable-release-in-couple-of-years/index.html"
-    },
-    {
-     "Name": "Blur Busters: engine-level vs. external FPS limiters",
-     "Url": "https://forums.blurbusters.com/viewtopic.php?p=97250"
-    },
-    {
-     "Name": "Blur Busters G-SYNC 101: optimal settings",
-     "Url": "https://www.blurbusters.com/gsync/gsync101-input-lag-tests-and-settings/14/"
-    }
-   ]
-  },
   {
    "Id": "nvidia-settings",
    "Title": "NVIDIA settings for smooth, low-latency games",
@@ -1758,7 +1485,7 @@
        "Url": "https://www.amd.com/en/support/download/drivers.html"
       },
       {
-       "Text": "For undervolting a Radeon card, see the AMD chapter of the MSI Afterburner guide."
+       "Text": "To undervolt a Radeon card, use AMD Software: Performance → Tuning → Custom, then lower the maximum voltage in small steps and test each one in your game."
       }
      ]
     }
@@ -1915,11 +1642,11 @@
    "Minutes": 20,
    "Level": "Easy",
    "Tool": null,
-   "Featured": false,
+   "Featured": true,
    "Chapters": [
     {
      "Title": "Find the kind of stutter",
-     "Intro": "Turn on a frame-time graph (the overlay chapter of the Afterburner guide) and watch it while it happens.",
+     "Intro": "Turn on Pulse's performance overlay (Games page) and watch its frame-time graph while it happens.",
      "Steps": [
       {
        "Text": "Spikes the first time you see an effect or a new area, fewer the second time: shader compilation. See the next chapter."
@@ -2102,7 +1829,9 @@
        "Text": "Airflow: front fans pull air in, rear and top fans push it out. A little more in than out keeps dust down."
       },
       {
-       "Text": "Undervolt the graphics card: often 10 °C cooler at the same FPS. See the MSI Afterburner guide."
+       "Text": "Undervolt the graphics card: often 10 °C cooler at the same FPS. On NVIDIA, Pulse's GPU tuning page walks you through it.",
+       "Button": "Open GPU tuning",
+       "Page": "gpu"
       },
       {
        "Text": "Still hot after three or more years? Fresh thermal paste on the CPU cooler usually helps. On a graphics card it can affect the warranty, so check first."
@@ -2117,7 +1846,7 @@
      "Intro": null,
      "Steps": [
       {
-       "Text": "Set gentle fan curves in the BIOS (usually under Hardware Monitor or Smart Fan) and in Afterburner for the graphics card."
+       "Text": "Set gentle fan curves in the BIOS (usually under Hardware Monitor or Smart Fan)."
       },
       {
        "Text": "Cap your FPS. A card rendering 300 FPS in a menu is working, and spinning its fans, for nothing."

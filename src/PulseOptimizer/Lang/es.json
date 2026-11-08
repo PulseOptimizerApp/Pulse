@@ -3586,5 +3586,7 @@
  "Move your settings to another PC, undo tweaks, and make restore points from Undo & restore.": "Pasa tus ajustes a otro PC, deshaz ajustes y crea puntos de restauración desde Deshacer y restaurar.",
  "Open Undo & restore": "Abrir Deshacer y restaurar",
  "Start Pulse with Windows?": "¿Iniciar Pulse con Windows?",
- "Pulse can open quietly in the tray when you sign in, so your clips, macros, crosshair, GPU tune and match recaps are ready before you start a game. You can change this any time in Settings.": "Pulse puede abrirse en silencio en la bandeja al iniciar sesión, para que tus clips, macros, mira, ajuste de GPU y resúmenes estén listos antes de empezar a jugar. Puedes cambiarlo cuando quieras en Ajustes."
+ "Pulse can open quietly in the tray when you sign in, so your clips, macros, crosshair, GPU tune and match recaps are ready before you start a game. You can change this any time in Settings.": "Pulse puede abrirse en silencio en la bandeja al iniciar sesión, para que tus clips, macros, mira, ajuste de GPU y resúmenes estén listos antes de empezar a jugar. Puedes cambiarlo cuando quieras en Ajustes.",
+ "Pulse tunes cards through NVIDIA's own driver interface. On an AMD Radeon card, AMD Software: Adrenalin Edition does the same job (Performance → Tuning).": "Pulse ajusta las tarjetas mediante la interfaz del propio controlador de NVIDIA. En una AMD Radeon, AMD Software: Adrenalin Edition hace lo mismo (Rendimiento → Ajuste).",
+ "Fix stutter guide": "Guía para arreglar tirones"
 }

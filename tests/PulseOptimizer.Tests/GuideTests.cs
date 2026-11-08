@@ -29,7 +29,7 @@ public class GuideTests
     [Fact]
     public void Tip_buttons_open_real_pages()
     {
-        var pages = new[] { "home", "diagnose", "fresh", "roblox", "clips", "tweaks", "measure", "reaction", "macros", "guide", "games", "cleanup", "startup", "security", "safety" };
+        var pages = new[] { "home", "diagnose", "fresh", "roblox", "clips", "tweaks", "measure", "reaction", "macros", "guide", "games", "cleanup", "startup", "security", "safety", "gpu" };
         Assert.All(GuideData.BuiltIn.Tips.Where(t => t.PulsePage != null), t => Assert.Contains(t.PulsePage, pages));
     }
 
@@ -55,10 +55,11 @@ public class GuideTests
     public void Step_by_step_guides_are_complete()
     {
         var g = GuideData.BuiltIn;
-        Assert.True(g.Guides.Length >= 8);
-        Assert.Contains(g.Guides, d => d.Id == "afterburner" && d.Tool == "afterburner" && d.Featured);
+        Assert.True(g.Guides.Length >= 7);
+        Assert.DoesNotContain(g.Guides, d => d.Id == "afterburner" || d.Tool == "afterburner");
+        Assert.Single(g.Guides, d => d.Featured);
         Assert.Equal(g.Guides.Length, g.Guides.Select(d => d.Id).Distinct().Count());
-        var pages = new[] { "home", "diagnose", "fresh", "roblox", "clips", "tweaks", "measure", "reaction", "macros", "guide", "games", "cleanup", "startup", "security", "safety" };
+        var pages = new[] { "home", "diagnose", "fresh", "roblox", "clips", "tweaks", "measure", "reaction", "macros", "guide", "games", "cleanup", "startup", "security", "safety", "gpu" };
         foreach (var d in g.Guides)
         {
             Assert.False(string.IsNullOrWhiteSpace(d.Title) || string.IsNullOrWhiteSpace(d.Summary), d.Id);
