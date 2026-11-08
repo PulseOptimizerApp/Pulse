@@ -29,12 +29,30 @@ public partial class HomePage : UserControl, IPage
         };
     }
 
+    void StartupOn_Click(object sender, RoutedEventArgs e)
+    {
+        if (AppStartup.Set(true))
+        {
+            StartupCard.Visibility = Visibility.Collapsed;
+            MainWindow.Instance.Toast(Loc.T("Pulse will start with Windows, in the tray."));
+        }
+        else MainWindow.Instance.Toast(Loc.T("Windows didn't allow it."), ToastKind.Warning);
+    }
+
+    void StartupDismiss_Click(object sender, RoutedEventArgs e)
+    {
+        TweakEngine.State.Settings.StartupCardDismissed = true;
+        TweakEngine.Save();
+        StartupCard.Visibility = Visibility.Collapsed;
+    }
+
     public async void OnShown(object parameter)
     {
         var hour = DateTime.Now.Hour;
         Greeting.Text = Loc.T(hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening");
         ShowHealth();
         UpdateStats();
+        StartupCard.Visibility = AppStartup.IsOn || TweakEngine.State.Settings.StartupCardDismissed ? Visibility.Collapsed : Visibility.Visible;
 
         if (!_loaded)
         {

@@ -7,7 +7,15 @@ namespace Pulse.Core.Games.Live;
 
 /// <summary>One player in the live lobby.</summary>
 public sealed record LobbyPlayer(string Puuid, bool Ally, bool Me, string Agent, string Name, bool Hidden, int Level,
-    int Tier, int Rr, int PeakTier, string PeakAct, int WinPercent, int Games);
+    int Tier, int Rr, int PeakTier, string PeakAct, int WinPercent, int Games, Smurf Smurf);
+
+/// <summary>How much a player looks like a smurf (0–100) and the signs behind it, in words.</summary>
+public sealed record Smurf(int Score, List<string> Signs)
+{
+    public static readonly Smurf None = new(0, new());
+    /// <summary>"Likely smurf", "Possible smurf" or null.</summary>
+    public string Label => Score >= 60 ? "Likely smurf" : Score >= 35 ? "Possible smurf" : null;
+}
 
 /// <summary>The match you just loaded into: map, mode, and both teams.</summary>
 public sealed record Lobby(string MatchId, string Map, string Mode, List<LobbyPlayer> Players);
@@ -53,10 +61,12 @@ public static class ValorantLobby
         foreach (var p in raw)
         {
             var (tier, rr, peak, peakAct, win, games) = await Mmr(s, p.Puuid);
+            var gains = await RecentGains(s, p.Puuid);
+            var smurf = p.Puuid == s.Puuid ? Smurf.None : SmurfSigns(p.HideLevel ? 0 : p.Level, tier, peak, win, games, gains);
             bool hidden = p.Incognito && p.Puuid != s.Puuid;
             list.Add(new LobbyPlayer(p.Puuid, p.Team == myTeam, p.Puuid == s.Puuid,
                 _agents != null && _agents.TryGetValue(p.Agent, out var a) ? a : ValorantMatches.AgentName(p.Agent),
-                hidden ? null : names.GetValueOrDefault(p.Puuid), hidden, p.HideLevel ? 0 : p.Level, tier, rr, peak, peakAct, win, games));
+                hidden ? null : names.GetValueOrDefault(p.Puuid), hidden, p.HideLevel ? 0 : p.Level, tier, rr, peak, peakAct, win, games, smurf));
             await Task.Delay(120);   // gentle on Riot's servers
         }
         var info = match.RootElement;
@@ -129,6 +139,60 @@ public static class ValorantLobby
                         }
             }
         return (tier, rr, peak, peakAct, win, games);
+    }
+
+    /// <summary>RR won or lost in the player's last competitive games (newest first), from Riot's competitive updates.</summary>
+    static async Task<List<int>> RecentGains(ValorantMatches.Session s, string puuid)
+    {
+        var list = new List<int>();
+        try
+        {
+            using var doc = await ValorantMatches.Get(s, $"https://pd.{s.Shard}.a.pvp.net/mmr/v1/players/{puuid}/competitiveupdates?startIndex=0&endIndex=10&queue=competitive");
+            if (doc?.RootElement.Get("Matches") is { ValueKind: JsonValueKind.Array } m)
+                foreach (var x in m.EnumerateArray())
+                    if (x.Get("RankedRatingEarned") is { ValueKind: JsonValueKind.Number } e) list.Add(e.GetInt32());
+        }
+        catch { }
+        return list;
+    }
+
+    /// <summary>
+    /// Smurf signs, each from data Riot gives for every player, weighted by how strongly it points to a player whose
+    /// skill is above their rank:
+    /// <list type="bullet">
+    /// <item>RR per win: Riot gives more RR per win when your hidden skill rating (MMR) is above your rank. Most players
+    /// gain about 15–22 RR a win; a steady 25 or more means the game itself thinks they belong higher. The strongest sign.</item>
+    /// <item>Win rate this act over at least 10 games: 65% and up is rare for someone at their right rank.</item>
+    /// <item>A low account level in ranked (a new account).</item>
+    /// <item>A peak rank two ranks or more above where they are now (a strong player in a lower lobby).</item>
+    /// </list>
+    /// Signs, not proof: a good player on a hot streak can show them too, so the page always says why.
+    /// </summary>
+    internal static Smurf SmurfSigns(int level, int tier, int peak, int winPercent, int games, IReadOnlyList<int> gains)
+    {
+        int score = 0;
+        var signs = new List<string>();
+        var wins = gains.Where(g => g > 0).ToList();
+        if (wins.Count >= 3)
+        {
+            double avg = wins.Average();
+            if (avg >= 28) { score += 40; signs.Add(Pulse.Ui.Loc.F("Gains {0} RR a win (most players get 15 to 22)", Math.Round(avg))); }
+            else if (avg >= 24) { score += 25; signs.Add(Pulse.Ui.Loc.F("Gains {0} RR a win (most players get 15 to 22)", Math.Round(avg))); }
+        }
+        if (games >= 10 && winPercent >= 0)
+        {
+            if (winPercent >= 75) { score += 30; signs.Add(Pulse.Ui.Loc.F("Wins {0}% of {1} games this act", winPercent, games)); }
+            else if (winPercent >= 65) { score += 20; signs.Add(Pulse.Ui.Loc.F("Wins {0}% of {1} games this act", winPercent, games)); }
+        }
+        if (level > 0 && tier >= 3)
+        {
+            if (level <= 30) { score += 25; signs.Add(Pulse.Ui.Loc.F("New account (level {0}) in ranked", level)); }
+            else if (level <= 60) { score += 12; signs.Add(Pulse.Ui.Loc.F("Fairly new account (level {0})", level)); }
+        }
+        if (peak >= 3 && tier >= 3 && peak - tier >= 6) { score += 15; signs.Add(Pulse.Ui.Loc.F("Peaked {0}, now {1}", ValorantMatches.RankName(peak), ValorantMatches.RankName(tier))); }
+        // A single sign on its own is weak: cap it so one alone never says "likely".
+        if (signs.Count == 1) score = Math.Min(score, 40);
+        return new Smurf(Math.Min(100, score), signs);
     }
 
     /// <summary>Agent names and the list of acts (with start dates) from Riot's content service.</summary>

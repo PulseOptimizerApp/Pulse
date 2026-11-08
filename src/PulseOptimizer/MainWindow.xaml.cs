@@ -177,6 +177,7 @@ public partial class MainWindow : Window
                 "macros" => new MacrosPage(),
                 "guide" => new GuidePage(),
                 "gpu" => new GpuPage(),
+                "valorant" => new ValorantPage(),
                 "crosshair" => new CrosshairPage(),
                 "games" => new GamesPage(),
                 "cleanup" => new DeclutterPage(),

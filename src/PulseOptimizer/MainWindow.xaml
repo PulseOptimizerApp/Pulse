@@ -69,6 +69,7 @@
                             <RadioButton Style="{StaticResource NavButton}" Tag="games" ui:Icon.Glyph="&#xE7FC;" ui:Icon.Path="M7.5 8 H16.5 A4.5 4.5 0 0 1 21 12.5 V15 A3 3 0 0 1 15.9 17.1 L14.5 15.5 H9.5 L8.1 17.1 A3 3 0 0 1 3 15 V12.5 A4.5 4.5 0 0 1 7.5 8 Z M7.5 10.5 V14 M5.75 12.25 H9.25 M15.5 11.5 h0.01 M17.5 13.5 h0.01" Content="Games" Checked="Nav_Checked" Click="Nav_Click"/>
                             <RadioButton Style="{StaticResource NavButton}" Tag="clips" ui:Icon.Glyph="&#xE714;" ui:Icon.Path="M4 6 H20 V18 H4 Z M10 9.5 L15 12 L10 14.5 Z" Content="Clips" Checked="Nav_Checked" Click="Nav_Click"/>
                             <RadioButton Style="{StaticResource NavButton}" Tag="crosshair" ui:Icon.Glyph="&#xE1D9;" ui:Icon.Path="M12 5 A7 7 0 1 1 11.99 5 M12 2.5 V7.5 M12 16.5 V21.5 M2.5 12 H7.5 M16.5 12 H21.5 M12 12 h0.01" Content="Crosshair" Checked="Nav_Checked" Click="Nav_Click"/>
+                            <RadioButton Style="{StaticResource NavButton}" Tag="valorant" ui:Icon.Glyph="&#xE7C1;" ui:Icon.Path="M12 3 L20.5 12 L12 21 L3.5 12 Z M12 8.5 V15.5 M8.5 12 H15.5" Content="VALORANT" Checked="Nav_Checked" Click="Nav_Click"/>
                             <RadioButton Style="{StaticResource NavButton}" Tag="roblox" ui:Icon.Glyph="&#xE768;" ui:Icon.Path="M6.6 3.6 L20.4 6.6 L17.4 20.4 L3.6 17.4 Z M11.1 9.7 L14.3 10.4 L13.6 13.6 L10.4 12.9 Z" Content="Roblox" Checked="Nav_Checked" Click="Nav_Click"/>
 
                             <TextBlock Style="{StaticResource NavHeader}" Text="PERFORMANCE"/>

@@ -106,6 +106,9 @@ public static class TrayIcon
         }
         menu.Items.Add(Item("Save clip", () => _ = ClipsService.SaveClip()));
         menu.Items.Add(Item("Open Pulse", () => OpenRequested?.Invoke()));
+        var startup = new MenuItem { Header = Loc.T("Start with Windows"), IsCheckable = true, IsChecked = AppStartup.IsOn };
+        startup.Click += (_, _) => AppStartup.Set(startup.IsChecked);
+        menu.Items.Add(startup);
         menu.Items.Add(new Separator());
         menu.Items.Add(Item("Quit Pulse", () => QuitRequested?.Invoke()));
         menu.IsOpen = true;

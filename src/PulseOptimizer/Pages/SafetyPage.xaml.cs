@@ -25,15 +25,11 @@ public partial class SafetyPage : UserControl, IPage
     {
         bool on = StartupSwitch.IsChecked == true;
         var st = TweakEngine.State.Settings;
-        st.StartWithWindows = on;
-        if (!Pulse.Ui.ClipsService.SetStartWithWindows(on))
+        if (!Pulse.Ui.AppStartup.Set(on) && on)
         {
-            st.StartWithWindows = false;
             StartupSwitch.IsChecked = false;
             MainWindow.Instance.Toast("Windows didn't allow it.", ToastKind.Warning);
         }
-        else TweakEngine.AddLog("app", on ? "Starts with Windows" : "Doesn't start with Windows");
-        TweakEngine.Save();
         TrayRow.Visibility = st.StartWithWindows ? Visibility.Visible : Visibility.Collapsed;
     }
 
@@ -90,7 +86,7 @@ public partial class SafetyPage : UserControl, IPage
             : "Pulse hasn't created one yet. Windows may have its own restore points; open System Restore to see them.";
         AutoRp.IsChecked = st.Settings.AutoRestorePoint;
         NoPromptSwitch.IsChecked = Elevation.IsOn();
-        StartupSwitch.IsChecked = st.Settings.StartWithWindows;
+        StartupSwitch.IsChecked = Pulse.Ui.AppStartup.IsOn;
         TraySwitch.IsChecked = st.Settings.StartInTray;
         TrayRow.Visibility = st.Settings.StartWithWindows ? Visibility.Visible : Visibility.Collapsed;
 

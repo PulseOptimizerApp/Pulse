@@ -208,7 +208,7 @@ public static class LobbyOverlay
         Grid.SetColumn(theirs, 2);
         cols.Children.Add(mine); cols.Children.Add(theirs);
         sp.Children.Add(cols);
-        sp.Children.Add(T(Loc.T("Peak = highest rank won at in any act. Players who hid their name stay hidden."), 10.5, Dim, bold: false).Also(t => { t.Margin = new Thickness(0, 10, 0, 0); t.TextWrapping = TextWrapping.Wrap; }));
+        sp.Children.Add(T(Loc.T("Peak = highest rank won at in any act. Smurf tags are signs, not proof: hover one to see why. Players who hid their name stay hidden."), 10.5, Dim, bold: false).Also(t => { t.Margin = new Thickness(0, 10, 0, 0); t.TextWrapping = TextWrapping.Wrap; }));
         return sp;
     }
 
@@ -235,7 +235,21 @@ public static class LobbyOverlay
         g.Children.Add(face);
 
         var who = new StackPanel { Margin = new Thickness(6, 0, 6, 0), VerticalAlignment = VerticalAlignment.Center };
-        who.Children.Add(p.Hidden ? T(Loc.T("Hidden player"), 12, Dim).Also(t => t.FontStyle = FontStyles.Italic) : T(p.Name ?? p.Agent, 12, White));
+        var nameRow = new StackPanel { Orientation = Orientation.Horizontal };
+        nameRow.Children.Add(p.Hidden ? T(Loc.T("Hidden player"), 12, Dim).Also(t => t.FontStyle = FontStyles.Italic) : T(p.Name ?? p.Agent, 12, White));
+        if (p.Smurf?.Label is { } label)
+        {
+            // Smurf signs: amber for "possible", orange for "likely"; hover for the reasons.
+            var c = p.Smurf.Score >= 60 ? Color.FromRgb(0xE0, 0x77, 0x3F) : Color.FromRgb(0xE5, 0xB8, 0x4F);
+            nameRow.Children.Add(new Border
+            {
+                CornerRadius = new CornerRadius(999), Padding = new Thickness(6, 0, 6, 1), Margin = new Thickness(6, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center,
+                Background = new SolidColorBrush(Color.FromArgb(0x30, c.R, c.G, c.B)),
+                Child = T(Loc.T(label).ToUpper(CultureInfo.CurrentCulture), 9, new SolidColorBrush(c)),
+                ToolTip = Loc.T("Signs, not proof:") + "\n• " + string.Join("\n• ", p.Smurf.Signs),
+            });
+        }
+        who.Children.Add(nameRow);
         var sub = new List<string>();
         if (p.Level > 0) sub.Add(Loc.F("Lvl {0}", p.Level));
         if (p.WinPercent >= 0) sub.Add(Loc.F("{0}% WR · {1} games", p.WinPercent, p.Games));

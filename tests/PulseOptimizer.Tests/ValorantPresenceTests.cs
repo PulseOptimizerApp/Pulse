@@ -106,3 +106,29 @@ public class ValorantLobbyTests
         Assert.Equal("Immortal 1", ValorantMatches.RankName(peak));
     }
 }
+
+public class SmurfSignsTests
+{
+    [Fact]
+    public void A_regular_player_gets_no_tag()
+    {
+        var s = ValorantLobby.SmurfSigns(level: 180, tier: 12, peak: 13, winPercent: 52, games: 40, gains: new[] { 18, -15, 21, 17, -19, 20 });
+        Assert.Null(s.Label);
+    }
+
+    [Fact]
+    public void Big_rr_gains_a_high_win_rate_and_a_new_account_say_likely()
+    {
+        var s = ValorantLobby.SmurfSigns(level: 22, tier: 9, peak: 9, winPercent: 80, games: 15, gains: new[] { 30, 29, -8, 31, 28 });
+        Assert.Equal("Likely smurf", s.Label);
+        Assert.Equal(3, s.Signs.Count);
+    }
+
+    [Fact]
+    public void One_sign_alone_is_never_likely()
+    {
+        var s = ValorantLobby.SmurfSigns(level: 200, tier: 15, peak: 15, winPercent: 50, games: 30, gains: new[] { 32, 31, 30, -10 });
+        Assert.NotEqual("Likely smurf", s.Label);
+        Assert.Single(s.Signs);
+    }
+}
