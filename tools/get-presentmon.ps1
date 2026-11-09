@@ -8,6 +8,13 @@ $asset = $release.assets | Where-Object { $_.name -match '^PresentMon-[\d\.]+-x6
 if (-not $asset) { throw "No x64 console exe found in PresentMon release $($release.tag_name). Assets: $($release.assets.name -join ', ')" }
 New-Item -ItemType Directory -Force -Path (Split-Path $Out) | Out-Null
 Write-Host "PresentMon $($release.tag_name): $($asset.name)"
-Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $Out -UseBasicParsing
+for ($try = 1; ; $try++) {
+    try { Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $Out -UseBasicParsing; break }
+    catch {
+        if ($try -ge 6) { throw }
+        Write-Host "Download failed ($($_.Exception.Message)), retrying in $(15 * $try)s"
+        Start-Sleep -Seconds (15 * $try)
+    }
+}
 $sig = Get-AuthenticodeSignature -FilePath $Out
 Write-Host "Signature: $($sig.Status) ($($sig.SignerCertificate.Subject))"

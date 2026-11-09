@@ -28,7 +28,15 @@ Write-Host "FFmpeg: $($asset.name)"
 $work = Join-Path ([IO.Path]::GetTempPath()) "pulse-ffmpeg"
 Remove-Item -Recurse -Force $work -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force $work, "$work/pack" | Out-Null
-Invoke-WebRequest -Uri $asset.browser_download_url -OutFile "$work/src.zip" -UseBasicParsing
+# GitHub's download servers sometimes time out (504); retry instead of failing the whole release.
+for ($try = 1; ; $try++) {
+    try { Invoke-WebRequest -Uri $asset.browser_download_url -OutFile "$work/src.zip" -UseBasicParsing; break }
+    catch {
+        if ($try -ge 6) { throw }
+        Write-Host "Download failed ($($_.Exception.Message)), retrying in $(15 * $try)s"
+        Start-Sleep -Seconds (15 * $try)
+    }
+}
 Expand-Archive "$work/src.zip" -DestinationPath "$work/src"
 $exe = Get-ChildItem "$work/src" -Recurse -Filter ffmpeg.exe | Select-Object -First 1
 $license = Get-ChildItem "$work/src" -Recurse -Filter LICENSE.txt | Select-Object -First 1
