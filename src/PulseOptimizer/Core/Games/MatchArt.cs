@@ -30,6 +30,9 @@ public static class MatchArt
     /// <summary>A VALORANT agent's portrait by name.</summary>
     public static ImageSource AgentIcon(string agent) => string.IsNullOrEmpty(agent) ? null : Load($"agent-{Key(agent)}.png", 256);
     /// <summary>A weapon's killfeed silhouette (white on clear) by Riot's weapon id; null when it wasn't embedded.</summary>
+    /// <summary>The agent's bust portrait (the tracker's player card); null when the build couldn't get it.</summary>
+    public static ImageSource AgentBust(string agent) => string.IsNullOrEmpty(agent) ? null : Load($"bust-{Key(agent)}.png", 300);
+
     public static ImageSource WeaponIcon(string id) => string.IsNullOrEmpty(id) ? null : Load($"weapon-{id.ToLowerInvariant()}.png", 192);
 
     /// <summary>The agent's own color (from the game's art), for the tint behind the portrait; null if unknown.</summary>
@@ -53,7 +56,7 @@ public static class MatchArt
 
     static Stream Open(string file)
     {
-        try { return Application.GetResourceStream(new Uri($"pack://application:,,,/Assets/Matches/{file}", UriKind.Absolute))?.Stream; }
+        try { return Application.GetResourceStream(new Uri($"pack://application:,,,/Pulse;component/Assets/Matches/{file}", UriKind.Absolute))?.Stream; }
         catch { return null; }
     }
 

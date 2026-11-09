@@ -68,6 +68,7 @@ public partial class ValorantPage : UserControl, IPage
     void ShowTab(string key, bool animate = true)
     {
         if (_tab == "review" && key != "review") StopReview();
+        if (key != "tracker" && MatchLayer.Visibility == Visibility.Visible) CloseMatch();
         StopRoundPlay();
         _tab = key;
         foreach (var (k, (label, line)) in _tabs)

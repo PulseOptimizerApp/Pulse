@@ -410,8 +410,9 @@ public partial class ValorantPage
     // ───────── the whole profile ─────────
 
     /// <summary>
-    /// A profile, top to bottom: the header, the four gauges and skills (Pulse's own), then the tracker: playlist and
-    /// act filters, overview, the side panels and match history, and Pulse's insights at the end.
+    /// A profile, top to bottom: the header and tracker.gg's tab bar; on Overview, Pulse's four gauges, the acts and
+    /// skills, then the tracker (playlist and act buttons, side rail, act overview, top agents, last matches). The
+    /// other tabs show one thing each (TrackerBody), so nothing needs a long scroll.
     /// </summary>
     IEnumerable<FrameworkElement> ProfileView(Profile p)
     {
@@ -419,102 +420,63 @@ public partial class ValorantPage
             .GroupBy(a => a).OrderByDescending(g => g.Count()).Select(g => g.Key).FirstOrDefault();
         var mine = p.IsYou ? CoachMatches() : null;
         var mmr = p.IsYou ? Tracker.Mmr(mine, _trRr) : null;
+        if (_trView == "insights" && !p.IsYou) _trView = "overview";
         yield return Header(p, mainAgent, mmr);
+        yield return ProfileNav(p);
 
-        if (p.Matches.Count == 0)
+        if (p.Matches.Count == 0 && ProfileMatches(p).Count == 0)
         {
             yield return Card2(Dim(Loc.T("No competitive, unrated, premier or swiftplay matches to measure yet."), 12.5, 0), Grey);
             yield break;
         }
 
-        // Gauges.
-        var t = p.Totals;
-        var gauges = new UniformGrid { Columns = 4, Margin = new Thickness(0, 0, -10, 0) };
-        var cheatC = p.Cheat.Score >= 60 ? Red : p.Cheat.Score >= 30 ? Yellow : Green;
-        gauges.Children.Add(GaugeA("Cheating signals", IconShield, p.CheatChecks == 0 ? double.NaN : p.Cheat.Score / 100.0, p.CheatChecks == 0 ? "–" : $"{p.Cheat.Score}", p.CheatChecks == 0 ? "" : "%", cheatC,
-            p.CheatChecks < 2 ? "Insufficient evidence" : p.Cheat.Score >= 60 ? "Repeated anomalies" : p.Cheat.Score >= 30 ? "Statistical outlier" : p.Cheat.Score > 0 ? "Unusual performance" : "No anomalies",
-            Loc.F("{0} of {1} signals", p.Cheat.Signs.Count, Math.Max(p.CheatChecks, 4)),
-            p.Cheat.Signs.Count > 0 ? string.Join(" · ", p.Cheat.Signs) : p.CheatChecks == 0 ? Loc.T("Needs about 5 matches to check.") : Loc.F("Nothing unusual for {0}.", p.CompareTier >= 3 ? ValorantMatches.RankName(p.CompareTier) : Loc.T("their rank"))));
-        var smC = p.Smurf.Score >= 60 ? Red : p.Smurf.Score >= 35 ? Yellow : Green;
-        gauges.Children.Add(GaugeA("Smurf chance", IconMask, p.Smurf.Score / 100.0, $"{p.Smurf.Score}", "%", smC,
-            p.Smurf.Score >= 60 ? "Likely smurf" : p.Smurf.Score >= 35 ? "Possible smurf" : p.Smurf.Score >= 15 ? "Unusual, inconclusive" : "Consistent with rank",
-            Loc.F("{0} signs", p.Smurf.Signs.Count),
-            p.Smurf.Signs.Count > 0 ? string.Join(" · ", p.Smurf.Signs) : Loc.T("Nothing unusual about this account")));
-        var maps = p.Matches.GroupBy(m => m.Map).Where(g => g.Count() >= 2).Select(g => (Map: g.Key, Win: 100.0 * g.Count(m => WonFor(m, p.Puuid)) / g.Count())).OrderByDescending(x => x.Win).ToList();
-        var winC = t.WinPct >= 55 ? Green : t.WinPct >= 45 ? Yellow : Red;
-        gauges.Children.Add(GaugeA("Win rate", IconTrophy, t.WinPct / 100, $"{t.WinPct:0}", "%", winC,
-            t.WinPct >= 55 ? "Climbing" : t.WinPct <= 45 ? "Struggling" : "Even", Loc.F("{0} won of {1}", t.Wins, t.Matches),
-            maps.Count >= 2 ? Loc.F("Best map {0} {1:0}% · weakest {2} {3:0}%", maps[0].Map, maps[0].Win, maps[^1].Map, maps[^1].Win) : Loc.T("Best and worst maps show after two games on each.")));
-        var kdC = t.KdRatio >= 1.4 ? Gold : t.KdRatio >= 1.2 ? Blue : t.KdRatio >= 1.0 ? Green : t.KdRatio >= 0.8 ? Grey : Red;
-        var acsTop = p.Stats.FirstOrDefault(x => x.Skill.Id == "acs");
-        gauges.Children.Add(GaugeA("K/D", IconCross, t.KdRatio / 2, t.KdRatio.ToString("0.00", CultureInfo.CurrentCulture), "", kdC,
-            t.KdRatio >= 1.4 ? "Elite" : t.KdRatio >= 1.2 ? "Strong" : t.KdRatio >= 1.0 ? "Positive" : t.KdRatio >= 0.8 ? "Average" : "Below average", Loc.F("{0} kills · {1} deaths", t.Kills, t.Deaths),
-            (acsTop != null && !double.IsNaN(acsTop.TopPercent) ? Loc.F("Top {0:0}% in your matches", acsTop.TopPercent) + " · " : "") + Loc.F("{0:0} ACS", t.Acs)));
-        yield return gauges;
-        yield return ActsStrip(p);
-
-        // Skills.
-        var sk = new StackPanel();
-        int scaleN = VStore.All.Sum(m => m.Players.Count);
-        sk.Children.Add(SectionHead("Skills", Loc.F("{0} matches · compared with {1:N0} players in your games", p.Matches.Count, scaleN)));
-        var row = new Grid();
-        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(220) });
-        row.ColumnDefinitions.Add(new ColumnDefinition());
-        row.Children.Add(RatingPanel(p.Rating));
-        var grid = new UniformGrid { Columns = 3, Margin = new Thickness(0, 0, -10, 0) };
-        var words = new Dictionary<string, string> { ["aim"] = "Aims like", ["positioning"] = "Positions like", ["utility"] = "Utility like", ["opening"] = "Duels like", ["clutch"] = "Clutches like", ["trading"] = "Trades like" };
-        foreach (var id in new[] { "aim", "positioning", "utility", "opening", "clutch", "trading" })
-            if (p.Skills.FirstOrDefault(x => x.Skill.Id == id) is { } s) grid.Children.Add(SkillTile2(s, p.CompareTier, words[id]));
-        Grid.SetColumn(grid, 1);
-        row.Children.Add(grid);
-        sk.Children.Add(row);
-        yield return Card2(sk, Purple);
-
-        // The tracker.
-        yield return FilterBar(p);
-        var ms = CurrentFilter(p).Apply(p.Matches).OrderByDescending(m => m.StartUtc).ToList();
-        if (ms.Count == 0 && _trAct != "all")
+        if (_trView == "overview" && p.Matches.Count > 0)
         {
-            // An act from before Pulse saved matches: Riot keeps only the rank and record (shown in the acts card).
-            var none = new StackPanel();
-            none.Children.Add(Heading("No saved matches from this act"));
-            none.Children.Add(Dim(Loc.T("Riot shares only the rank, record and peak for earlier acts (shown above), not the matches themselves. Pulse keeps every match you play from now on, so future acts get the full breakdown."), 12.5, 6));
-            var all = Btn("Show all matches");
-            all.Margin = new Thickness(0, 12, 0, 0);
-            all.HorizontalAlignment = HorizontalAlignment.Left;
-            all.Click += (_, _) => { _trAct = "all"; Build(); };
-            none.Children.Add(all);
-            yield return Card2(none, Grey);
-            yield break;
-        }
-        yield return OverviewPanel(ms, p.Puuid);
-        var left = new StackPanel();
-        left.Children.Add(ScorePanel(ms, p.Puuid));
-        left.Children.Add(AccuracyPanel(ms, p.Puuid));
-        left.Children.Add(RolesPanel(ms, p.Puuid));
-        left.Children.Add(WeaponsPanel(ms, p.Puuid));
-        left.Children.Add(MapsPanel(ms, p.Puuid));
-        var right = new StackPanel();
-        right.Children.Add(AgentsTable(ms, p.Puuid));
-        right.Children.Add(HistoryPanel(p, ms));
-        yield return PanelRow((left, 340), (right, 0));
-        if (!p.FromYourMatches) yield return Faint(Loc.T("Searched profiles start with the player's last 10 matches; load more under match history. Only anonymous numbers from them are kept (each player's rank and stats, no names), to make skill comparisons more accurate."), 11.5, 0);
-        if (!p.IsYou) yield return Faint(Loc.T("Cheating signals and smurf chance add up warning signs; they're hints, not proof. Some players are just good, or improving fast."), 11.5, 4);
+            // Gauges.
+            var t = p.Totals;
+            var gauges = new UniformGrid { Columns = 4, Margin = new Thickness(0, 0, -10, 0) };
+            var cheatC = p.Cheat.Score >= 60 ? Red : p.Cheat.Score >= 30 ? Yellow : Green;
+            gauges.Children.Add(GaugeA("Cheating signals", IconShield, p.CheatChecks == 0 ? double.NaN : p.Cheat.Score / 100.0, p.CheatChecks == 0 ? "–" : $"{p.Cheat.Score}", p.CheatChecks == 0 ? "" : "%", cheatC,
+                p.CheatChecks < 2 ? "Insufficient evidence" : p.Cheat.Score >= 60 ? "Repeated anomalies" : p.Cheat.Score >= 30 ? "Statistical outlier" : p.Cheat.Score > 0 ? "Unusual performance" : "No anomalies",
+                Loc.F("{0} of {1} signals", p.Cheat.Signs.Count, Math.Max(p.CheatChecks, 4)),
+                p.Cheat.Signs.Count > 0 ? string.Join(" · ", p.Cheat.Signs) : p.CheatChecks == 0 ? Loc.T("Needs about 5 matches to check.") : Loc.F("Nothing unusual for {0}.", p.CompareTier >= 3 ? ValorantMatches.RankName(p.CompareTier) : Loc.T("their rank"))));
+            var smC = p.Smurf.Score >= 60 ? Red : p.Smurf.Score >= 35 ? Yellow : Green;
+            gauges.Children.Add(GaugeA("Smurf chance", IconMask, p.Smurf.Score / 100.0, $"{p.Smurf.Score}", "%", smC,
+                p.Smurf.Score >= 60 ? "Likely smurf" : p.Smurf.Score >= 35 ? "Possible smurf" : p.Smurf.Score >= 15 ? "Unusual, inconclusive" : "Consistent with rank",
+                Loc.F("{0} signs", p.Smurf.Signs.Count),
+                p.Smurf.Signs.Count > 0 ? string.Join(" · ", p.Smurf.Signs) : Loc.T("Nothing unusual about this account")));
+            var maps = p.Matches.GroupBy(m => m.Map).Where(g => g.Count() >= 2).Select(g => (Map: g.Key, Win: 100.0 * g.Count(m => WonFor(m, p.Puuid)) / g.Count())).OrderByDescending(x => x.Win).ToList();
+            var winC = t.WinPct >= 55 ? Green : t.WinPct >= 45 ? Yellow : Red;
+            gauges.Children.Add(GaugeA("Win rate", IconTrophy, t.WinPct / 100, $"{t.WinPct:0}", "%", winC,
+                t.WinPct >= 55 ? "Climbing" : t.WinPct <= 45 ? "Struggling" : "Even", Loc.F("{0} won of {1}", t.Wins, t.Matches),
+                maps.Count >= 2 ? Loc.F("Best map {0} {1:0}% · weakest {2} {3:0}%", maps[0].Map, maps[0].Win, maps[^1].Map, maps[^1].Win) : Loc.T("Best and worst maps show after two games on each.")));
+            var kdC = t.KdRatio >= 1.4 ? Gold : t.KdRatio >= 1.2 ? Blue : t.KdRatio >= 1.0 ? Green : t.KdRatio >= 0.8 ? Grey : Red;
+            var acsTop = p.Stats.FirstOrDefault(x => x.Skill.Id == "acs");
+            gauges.Children.Add(GaugeA("K/D", IconCross, t.KdRatio / 2, t.KdRatio.ToString("0.00", CultureInfo.CurrentCulture), "", kdC,
+                t.KdRatio >= 1.4 ? "Elite" : t.KdRatio >= 1.2 ? "Strong" : t.KdRatio >= 1.0 ? "Positive" : t.KdRatio >= 0.8 ? "Average" : "Below average", Loc.F("{0} kills · {1} deaths", t.Kills, t.Deaths),
+                (acsTop != null && !double.IsNaN(acsTop.TopPercent) ? Loc.F("Top {0:0}% in your matches", acsTop.TopPercent) + " · " : "") + Loc.F("{0:0} ACS", t.Acs)));
+            yield return gauges;
+            yield return ActsStrip(p);
 
-        // Pulse insights for you: who you're up against, MMR, agents, tier list.
-        if (p.IsYou)
-        {
-            yield return SectionHead("Pulse insights", Loc.T("What only Pulse works out")).Also(h => h.Margin = new Thickness(0, 14, 0, 10));
-            var opp = Memo("against:" + mine.Count, () => Tracker.Against(mine));
-            yield return opp != null ? OppositionCard(opp) : Card2(Waiting("Who you're up against", "Shows the ranks of your enemies and teammates once you have a match saved where most players are ranked."), Red);
-            yield return MmrCard(mmr, p);
-            var all = VStore.All;
-            var yours = Memo("youragents:" + mine.Count, () => Tracker.YourAgents(mine, all));
-            yield return yours.Count > 0 ? YourAgentsCard(yours, all, p.Puuid) : Card2(Waiting("How you play your agents", "Play an agent in two matches to see how you compare with everyone else on it."), Blue);
-            var tiers = Memo("tiers", () => Tracker.TierList(all));
-            int counted = all.Count(m => VMatch.Counts(m.Queue));
-            yield return tiers.Count >= 4 ? TierListCard(tiers, counted) : Card2(Waiting("Agent tier list in your lobbies", Loc.F("Needs about 8 games per agent across your saved matches. You have {0} matches so far.", counted)), Yellow);
+            // Skills.
+            var sk = new StackPanel();
+            int scaleN = VStore.All.Sum(m => m.Players.Count);
+            sk.Children.Add(SectionHead("Skills", Loc.F("{0} matches · compared with {1:N0} players in your games", p.Matches.Count, scaleN)));
+            var row = new Grid();
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(220) });
+            row.ColumnDefinitions.Add(new ColumnDefinition());
+            row.Children.Add(RatingPanel(p.Rating));
+            var grid = new UniformGrid { Columns = 3, Margin = new Thickness(0, 0, -10, 0) };
+            var words = new Dictionary<string, string> { ["aim"] = "Aims like", ["positioning"] = "Positions like", ["utility"] = "Utility like", ["opening"] = "Duels like", ["clutch"] = "Clutches like", ["trading"] = "Trades like" };
+            foreach (var id in new[] { "aim", "positioning", "utility", "opening", "clutch", "trading" })
+                if (p.Skills.FirstOrDefault(x => x.Skill.Id == id) is { } s) grid.Children.Add(SkillTile2(s, p.CompareTier, words[id]));
+            Grid.SetColumn(grid, 1);
+            row.Children.Add(grid);
+            sk.Children.Add(row);
+            yield return Card2(sk, Purple);
         }
+
+        foreach (var e in TrackerBody(p, mmr)) yield return e;
     }
 
     /// <summary>A section that can't show yet: what it needs, and (when Pulse has few of your matches) a button to fetch them.</summary>
