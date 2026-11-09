@@ -305,7 +305,117 @@ public static class ClipsService
         var r = _rec;
         _rec = null;
         _lastCpuAt = default;
+        // A match kept for highlights survives the game closing: Riot's match data often arrives a minute later.
+        if (r?.StopTape() is { } tape) { DropPendingTape(); _pendingTape = tape; }
         if (r != null) Task.Run(r.Dispose);
+    }
+
+    // ───────── VALORANT auto-highlights ─────────
+
+    static (string Path, DateTime Start)? _pendingTape;
+
+    /// <summary>A match is being kept for highlights.</summary>
+    public static bool TapeActive => _rec?.TapeActive == true;
+    public static double TapeSeconds => _rec?.TapeSeconds ?? 0;
+
+    /// <summary>Space a match file can take: an hour at the clip bitrate, plus room to spare.</summary>
+    static long TapeBudgetBytes => (long)((S.BitrateMbps + 0.5) * 1e6 / 8 * 3600) + 5L * 1024 * 1024 * 1024;
+
+    /// <summary>
+    /// A VALORANT match started: keep it in a temporary file so its best plays can be cut out when it ends. Skipped when
+    /// clips aren't recording or the clips drive is short of space. Returns why it didn't start, or null.
+    /// </summary>
+    public static string StartMatchTape()
+    {
+        if (_rec == null || !_rec.Running) return "Clips aren't recording";
+        if (_rec.TapeActive) return null;
+        CleanOldTapes();
+        try
+        {
+            var drive = new DriveInfo(Path.GetPathRoot(Path.GetFullPath(S.ClipsFolder))!);
+            if (drive.AvailableFreeSpace < TapeBudgetBytes) return "Not enough free space on the clips drive";
+        }
+        catch { }
+        try { _rec.StartTape(S.ClipsFolder); TweakEngine.AddLog("clips", "Keeping this VALORANT match for highlights"); return null; }
+        catch (Exception ex) { return ex.Message; }
+    }
+
+    /// <summary>
+    /// The match is in Riot's records: cut its best plays (3K+, clutches won 1v2 or harder, at most 8) out of the match
+    /// file, then delete the file. Returns how many clips were made.
+    /// </summary>
+    public static async Task<int> FinishMatchTape(Pulse.Core.Games.Valorant.VMatch vm)
+    {
+        var rec = _rec;
+        var tape = rec?.TapeActive == true ? rec.StopTape() : _pendingTape;
+        if (tape == null) return 0;
+        if (tape == _pendingTape) _pendingTape = null;
+        var (file, start) = tape.Value;
+        int made = 0;
+        string last = null;
+        try
+        {
+            var plays = Pulse.Core.Games.Valorant.Highlights.Find(vm);
+            // Only if the file covers this match (not a tape started for the next one).
+            if (plays.Count == 0 || plays.Max(p => p.To) < start) return 0;
+            foreach (var p in plays.OrderByDescending(p => p.Rank).Take(8).OrderBy(p => p.From))
+            {
+                double from = (p.From - start).TotalSeconds, len = (p.To - p.From).TotalSeconds;
+                if (from + len <= 0) continue;
+                if (from < 0) { len += from; from = 0; }
+                try
+                {
+                    var name = (vm.Map is { Length: > 0 } map ? "VALORANT " + map : "VALORANT");
+                    var path = rec != null && rec.Running ? await rec.CutTape(file, from, len, S.ClipsFolder, name) : await CutPlain(file, from, len, name);
+                    S.Titles[Path.GetFileNameWithoutExtension(path)] = p.Title;   // "Ace", "4K", "1v3 clutch"
+                    ClipLibrary.SaveEnd(path, p.To);
+                    made++;
+                    last = path;
+                    Application.Current?.Dispatcher.Invoke(() => Saved?.Invoke(path));
+                    _ = Task.Run(async () => { try { await ClipLibrary.MakeThumbnail(path); } catch { } Application.Current?.Dispatcher.Invoke(() => Saved?.Invoke(path)); });
+                }
+                catch (Exception ex) { TweakEngine.AddLog("clips", "Couldn't cut a highlight: " + ex.Message); }
+            }
+            if (made > 0)
+            {
+                TweakEngine.Save();
+                TweakEngine.AddLog("clips", $"VALORANT highlights: {made} clips from {vm.Map}");
+                Application.Current?.Dispatcher.BeginInvoke(() =>
+                {
+                    ClipToast.Show(Loc.F("{0} highlights clipped", made), vm.Map ?? "", true);
+                    if (last != null) ClipToast.Picture(last);
+                });
+                try { ClipLibrary.EnforceLimit(S); } catch { }
+            }
+            return made;
+        }
+        finally { ReplayRecorder.DeleteTape(file); }
+    }
+
+    /// <summary>Drops a match file without cutting anything (a match that never showed up in Riot's records).</summary>
+    public static void DropMatchTape()
+    {
+        if (_rec?.StopTape() is { } t) ReplayRecorder.DeleteTape(t.Path);
+        DropPendingTape();
+    }
+
+    static void DropPendingTape()
+    {
+        if (_pendingTape is { } p) ReplayRecorder.DeleteTape(p.Path);
+        _pendingTape = null;
+    }
+
+    /// <summary>Match files left behind by a crash or a power cut.</summary>
+    static void CleanOldTapes() => ReplayRecorder.DeleteOldTapes(S.ClipsFolder, _pendingTape?.Path);
+
+    /// <summary>Cutting after the recorder stopped (VALORANT was closed before the match data arrived).</summary>
+    static async Task<string> CutPlain(string tape, double from, double seconds, string name)
+    {
+        var mp4 = ReplayRecorder.UniquePath(S.ClipsFolder, name);
+        string ss = from.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture), len = seconds.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
+        var (code, err) = await Ffmpeg.Run($"-hide_banner -loglevel error -y -ss {ss} -i \"{tape}\" -map 0 -c copy -t {len} -movflags +faststart \"{mp4}\"", default, 300_000);
+        if (code != 0 || !File.Exists(mp4)) throw new InvalidOperationException(err.Trim());
+        return mp4;
     }
 
     /// <summary>Saves the instant replay as a clip. Safe to call from anywhere (hotkey, tray, button).</summary>

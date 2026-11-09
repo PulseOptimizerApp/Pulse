@@ -5112,5 +5112,8 @@
  "{0}-day streak. Same time tomorrow.": "Racha de {0} días. Mañana a la misma hora.",
  "🔥 {0}-day streak": "🔥 Racha de {0} días",
  "Open VALORANT or the Riot Client to see players' Riot IDs.": "Abre VALORANT o el cliente de Riot para ver los Riot ID de los jugadores.",
- "Riot didn't send names for these players. They'll load next time you open the match.": "Riot no envió los nombres de estos jugadores. Se cargarán la próxima vez que abras la partida."
+ "Riot didn't send names for these players. They'll load next time you open the match.": "Riot no envió los nombres de estos jugadores. Se cargarán la próxima vez que abras la partida.",
+ "VALORANT highlights": "Mejores jugadas de VALORANT",
+ "VALORANT doesn't share kills while you play, so Pulse keeps each match in a temporary file and, when it ends, clips your aces, 4Ks, 3Ks and clutches (1v2 or harder) using Riot's match data. The file is deleted right after. It needs free space while the match runs: about 18 GB an hour at 40 Mbps.": "VALORANT no comparte las bajas mientras juegas, así que Pulse guarda cada partida en un archivo temporal y, al terminar, recorta tus aces, 4K, 3K y clutches (1v2 o más difíciles) con los datos de Riot. El archivo se borra justo después. Necesita espacio libre durante la partida: unos 18 GB por hora a 40 Mbps.",
+ "{0} highlights clipped": "{0} jugadas recortadas"
 }
