@@ -72,7 +72,8 @@ public class SafetyTests
         Assert.Equal(new[] { "https://speed.cloudflare.com" }, urls);
         var paths = Regex.Matches(src, @"\{Base\}(/[A-Za-z_]+)").Select(m => m.Groups[1].Value).Distinct().ToList();
         Assert.NotEmpty(paths);
-        Assert.All(paths, p => Assert.Matches("^/__(down|up)$", p));
+        // __down / __up move test data; /meta is Cloudflare's read-only "who's testing" lookup (provider, IP, server city).
+        Assert.All(paths, p => Assert.Matches("^/(__down|__up|meta)$", p));
     }
 
     [Fact]

@@ -266,8 +266,16 @@ public partial class SpeedTestPage : UserControl, IPage
         // Middle: the live number, or a GO button before the first test.
         if (!_running && _last == null)
         {
-            var go = new Button { Width = 120, Height = 120, Cursor = Cursors.Hand, ToolTip = Loc.T("Start test"), Template = GoTemplate() };
-            go.Click += (_, _) => _ = Start();
+            var go = new Border
+            {
+                Width = 120, Height = 120, CornerRadius = new CornerRadius(60), BorderThickness = new Thickness(3), Cursor = Cursors.Hand, ToolTip = Loc.T("Start test"),
+                BorderBrush = new LinearGradientBrush(Color.FromRgb(0x00, 0xB4, 0xFF), Color.FromRgb(0x7D, 0xF0, 0x7A), 45),
+                Background = B(Color.FromArgb(0x18, 0x22, 0xD3, 0xEE)),
+                Child = new TextBlock { Text = Loc.T("GO"), FontSize = 34, FontWeight = FontWeights.SemiBold, Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center },
+            };
+            go.MouseEnter += (_, _) => go.Background = B(Color.FromArgb(0x30, 0x22, 0xD3, 0xEE));
+            go.MouseLeave += (_, _) => go.Background = B(Color.FromArgb(0x18, 0x22, 0xD3, 0xEE));
+            go.MouseLeftButtonUp += (_, _) => _ = Start();
             Canvas.SetLeft(go, GSize / 2 - 60); Canvas.SetTop(go, GSize / 2 - 60);
             c.Children.Add(go);
         }
@@ -281,26 +289,6 @@ public partial class SpeedTestPage : UserControl, IPage
             c.Children.Add(mid);
         }
         return c;
-    }
-
-    ControlTemplate GoTemplate()
-    {
-        var t = new ControlTemplate(typeof(Button));
-        var ring = new FrameworkElementFactory(typeof(Border));
-        ring.SetValue(Border.CornerRadiusProperty, new CornerRadius(60));
-        ring.SetValue(Border.BorderThicknessProperty, new Thickness(3));
-        ring.SetValue(Border.BorderBrushProperty, new LinearGradientBrush(Color.FromRgb(0x00, 0xB4, 0xFF), Color.FromRgb(0x7D, 0xF0, 0x7A), 45));
-        ring.SetValue(Border.BackgroundProperty, B(Color.FromArgb(0x18, 0x22, 0xD3, 0xEE)));
-        var txt = new FrameworkElementFactory(typeof(TextBlock));
-        txt.SetValue(TextBlock.TextProperty, Loc.T("GO"));
-        txt.SetValue(TextBlock.FontSizeProperty, 34.0);
-        txt.SetValue(TextBlock.FontWeightProperty, FontWeights.SemiBold);
-        txt.SetValue(TextBlock.ForegroundProperty, Brushes.White);
-        txt.SetValue(HorizontalAlignmentProperty, HorizontalAlignment.Center);
-        txt.SetValue(VerticalAlignmentProperty, VerticalAlignment.Center);
-        ring.AppendChild(txt);
-        t.VisualTree = ring;
-        return t;
     }
 
     /// <summary>Moves the needle, arc and number toward the live value (smoothly while running).</summary>
