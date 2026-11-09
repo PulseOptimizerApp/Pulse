@@ -230,7 +230,95 @@ public partial class MousePage
 
         if (Has("ui") && _status.GetProperty("ui").TryGetProperty("statusNote", out var note) && note.ValueKind == JsonValueKind.String)
             MousePanel.Children.Add(Faint(note.GetString()));
+        ShowButtons();
+        ShowLighting();
         ShowProfiles();
+    }
+
+    // ───────── buttons ─────────
+
+    /// <summary>Each button and what it does, from the mouse; pick another action from what the mouse offers.</summary>
+    void ShowButtons()
+    {
+        if (!Has("buttonMappings") || !_methods.Contains("setButtonMapping") || _status.GetProperty("buttonMappings").ValueKind != JsonValueKind.Object) return;
+        var options = Has("buttonOptions") ? _status.GetProperty("buttonOptions").EnumerateArray().Select(o => o.GetString()).Where(o => o != null).ToList() : new List<string>();
+        if (options.Count == 0) return;
+        var fixedOnes = Has("fixedButtons") ? _status.GetProperty("fixedButtons").EnumerateArray().Select(o => o.GetString()).ToHashSet() : new HashSet<string>();
+        var row = Row("Buttons", "What each button does. Saved on the mouse, so it works in every game and on any PC.");
+        var grid = new System.Windows.Controls.Primitives.UniformGrid { Columns = 2 };
+        foreach (var b in _status.GetProperty("buttonMappings").EnumerateObject())
+        {
+            string button = b.Name, action = b.Value.ToString();
+            var line = new Grid { Margin = new Thickness(0, 0, 18, 8) };
+            line.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(130) });
+            line.ColumnDefinitions.Add(new ColumnDefinition());
+            line.Children.Add(new TextBlock { Text = Loc.T(button), FontSize = 12.5, Foreground = (Brush)FindResource("TextDimBrush"), VerticalAlignment = VerticalAlignment.Center });
+            var pick = new ComboBox { IsEnabled = !fixedOnes.Contains(button) };
+            foreach (var o in options.Contains(action) ? options : options.Prepend(action)) pick.Items.Add(o);
+            pick.SelectedItem = action;
+            pick.SelectionChanged += (_, _) => { if (pick.SelectedItem is string a && a != action) Set("setButtonMapping", button, a); };
+            Grid.SetColumn(pick, 1);
+            line.Children.Add(pick);
+            grid.Children.Add(line);
+        }
+        row.Children.Add(grid);
+        MousePanel.Children.Add(Wrap(row));
+    }
+
+    // ───────── lighting ─────────
+
+    /// <summary>The mouse's lighting: effect, colours, speed and brightness, as far as its driver supports them.</summary>
+    void ShowLighting()
+    {
+        if (!Has("lighting") || !_methods.Contains("setLighting")) return;
+        var l = _status.GetProperty("lighting");
+        if (l.ValueKind != JsonValueKind.Object || !l.TryGetProperty("modes", out var modesEl) || modesEl.ValueKind != JsonValueKind.Array) return;
+        List<string> List(string name) => l.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.Array ? v.EnumerateArray().Select(x => x.ToString()).ToList() : new();
+        string Text(string name) => l.TryGetProperty(name, out var v) && v.ValueKind is JsonValueKind.String or JsonValueKind.Number ? v.ToString() : null;
+        var modes = List("modes");
+        if (modes.Count == 0) return;
+        bool writeOnly = l.TryGetProperty("writeOnly", out var wo) && wo.ValueKind == JsonValueKind.True;
+
+        var row = Row("Lighting", writeOnly ? "This mouse can't report its lighting back, so this shows what Pulse last set." : null);
+        var panel = new WrapPanel();
+        var mode = new ComboBox { Width = 170, Margin = new Thickness(0, 0, 10, 6) };
+        foreach (var m in modes) mode.Items.Add(m);
+        mode.SelectedItem = Text("mode") ?? modes[0];
+        panel.Children.Add(mode);
+        var color = new TextBox { Style = (Style)FindResource("SearchBox"), Width = 96, Text = Text("color") ?? "#ffffff", Margin = new Thickness(0, 0, 10, 6), ToolTip = Loc.T("Colour (#rrggbb)") };
+        var color2 = new TextBox { Style = (Style)FindResource("SearchBox"), Width = 96, Text = Text("color2") ?? "#000000", Margin = new Thickness(0, 0, 10, 6), ToolTip = Loc.T("Second colour (#rrggbb)") };
+        var speed = new ComboBox { Width = 110, Margin = new Thickness(0, 0, 10, 6), ToolTip = Loc.T("Speed") };
+        foreach (var sp in List("speeds")) speed.Items.Add(sp);
+        speed.SelectedItem = Text("speed");
+        var bright = new ComboBox { Width = 110, Margin = new Thickness(0, 0, 10, 6), ToolTip = Loc.T("Brightness") };
+        foreach (var b in List("brightnessLevels")) bright.Items.Add(b);
+        bright.SelectedItem = Text("brightness");
+        panel.Children.Add(color); panel.Children.Add(color2); panel.Children.Add(speed); panel.Children.Add(bright);
+        void Visible()
+        {
+            var m = mode.SelectedItem as string;
+            color.Visibility = List("colorModes").Contains(m) ? Visibility.Visible : Visibility.Collapsed;
+            color2.Visibility = List("dualColorModes").Contains(m) ? Visibility.Visible : Visibility.Collapsed;
+            speed.Visibility = List("reactiveModes").Contains(m) && speed.Items.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+            bright.Visibility = bright.Items.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        }
+        mode.SelectionChanged += (_, _) => Visible();
+        Visible();
+        var apply = new Button { Style = (Style)FindResource("PrimaryButton"), Content = Loc.T("Apply"), Margin = new Thickness(0, 0, 0, 6) };
+        apply.Click += (_, _) =>
+        {
+            // The driver takes the whole lighting object back with the changes in it.
+            var next = JsonSerializer.Deserialize<Dictionary<string, object>>(l.GetRawText())!;
+            next["mode"] = mode.SelectedItem as string;
+            if (System.Text.RegularExpressions.Regex.IsMatch(color.Text.Trim(), "^#[0-9a-fA-F]{6}$")) next["color"] = color.Text.Trim().ToLowerInvariant();
+            if (System.Text.RegularExpressions.Regex.IsMatch(color2.Text.Trim(), "^#[0-9a-fA-F]{6}$")) next["color2"] = color2.Text.Trim().ToLowerInvariant();
+            if (speed.SelectedItem is string spd && double.TryParse(spd, NumberStyles.Float, CultureInfo.InvariantCulture, out var sv)) next["speed"] = sv;
+            if (bright.SelectedItem is string br && double.TryParse(br, NumberStyles.Float, CultureInfo.InvariantCulture, out var bv)) next["brightness"] = bv;
+            Set("setLighting", next);
+        };
+        panel.Children.Add(apply);
+        row.Children.Add(panel);
+        MousePanel.Children.Add(Wrap(row));
     }
 
     // ───────── game profiles ─────────

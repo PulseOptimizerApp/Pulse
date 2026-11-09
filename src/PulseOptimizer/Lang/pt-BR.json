@@ -5196,5 +5196,11 @@
  "Warn me when the battery drops below {0}%": "Avisar quando a bateria ficar abaixo de {0}%",
  "Your mouse isn't connected.": "Seu mouse não está conectado.",
  "{0}: battery {1}%": "{0}: bateria {1}%",
- "Charge it soon.": "Carregue em breve."
+ "Charge it soon.": "Carregue em breve.",
+ "What each button does. Saved on the mouse, so it works in every game and on any PC.": "O que cada botão faz. Fica salvo no mouse, então funciona em todos os jogos e em qualquer PC.",
+ "Lighting": "Iluminação",
+ "This mouse can't report its lighting back, so this shows what Pulse last set.": "Este mouse não informa a iluminação, então mostra o que o Pulse definiu por último.",
+ "Colour (#rrggbb)": "Cor (#rrggbb)",
+ "Second colour (#rrggbb)": "Segunda cor (#rrggbb)",
+ "Brightness": "Brilho"
 }
