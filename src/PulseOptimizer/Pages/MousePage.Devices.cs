@@ -158,7 +158,7 @@ public partial class MousePage
         sp.Children.Add(top);
 
         var go = connected
-            ? new Button { Content = Loc.T("Configure"), Style = (Style)FindResource("PrimaryButton"), Background = Green, BorderBrush = Green, Foreground = Brushes.Black }
+            ? new Button { Content = Loc.T("Configure"), Style = (Style)FindResource("GhostButton"), Background = Green, Foreground = Brushes.Black, FontWeight = FontWeights.SemiBold }
             : new Button { Content = Loc.T("Open"), Style = (Style)FindResource("GhostButton") };
         go.HorizontalAlignment = HorizontalAlignment.Stretch;
         go.Padding = new Thickness(10, 7, 10, 7);

@@ -36,8 +36,9 @@ public class SafetyTests
             "its latest prices and news from Pulse's own website (GuideLive.cs). The VALORANT store reads your own store from Riot " +
             "the same way, with skin names and pictures from valorant-api.com (ValorantStore.cs). The driver check asks " +
             "NVIDIA's public driver lookup for the newest Game Ready version (DriverCheck.cs). The speed test downloads and uploads " +
-            "random filler to Cloudflare's public speed-test servers (SpeedTest.cs)",
-            "Ffmpeg.cs", "Updater.cs", "LeagueLive.cs", "ValorantMatches.cs", "ValorantLobby.cs", "GuideLive.cs", "ValorantStore.cs", "DriverCheck.cs", "ValorantSearch.cs", "SpeedTest.cs");
+            "random filler to Cloudflare's public speed-test servers (SpeedTest.cs). The Mouse page downloads device pictures " +
+            "from OpenMouse's image server, only from img.openmouse.app and openmouse.app (DeviceArt.cs)",
+            "Ffmpeg.cs", "Updater.cs", "LeagueLive.cs", "ValorantMatches.cs", "ValorantLobby.cs", "GuideLive.cs", "ValorantStore.cs", "DriverCheck.cs", "ValorantSearch.cs", "SpeedTest.cs", "DeviceArt.cs");
 
     [Fact]
     public void Player_search_only_reads_from_the_Riot_Client_and_Riot()
