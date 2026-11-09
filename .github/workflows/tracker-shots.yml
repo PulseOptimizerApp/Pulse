@@ -1,0 +1,28 @@
+name: Tracker screenshots
+
+# Temporary (tracker-gg branch only): renders the tracker with made-up matches so its layout can be checked.
+on:
+  push:
+    branches: [tracker-gg]
+
+jobs:
+  shots:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Get VALORANT art
+        run: |
+          python -m pip install pillow --quiet
+          python tools/get-match-art.py src/PulseOptimizer/Assets/Matches
+      - name: Render
+        env:
+          PULSE_SHOTS: ${{ github.workspace }}\shots
+        run: dotnet test tests/PulseOptimizer.Tests/PulseOptimizer.Tests.csproj -c Release --filter "FullyQualifiedName~TrackerTests" --logger "console;verbosity=normal"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: shots
+          path: shots
