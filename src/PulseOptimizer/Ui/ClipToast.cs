@@ -2,6 +2,7 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
@@ -52,7 +53,8 @@ public static class ClipToast
         if (app == null) return;
         if (!app.Dispatcher.CheckAccess()) { app.Dispatcher.BeginInvoke(() => Show(title, detail, kind, clip)); return; }
 
-        _clip = clip;
+        _clip = kind == Kind.Ok ? clip : null;
+        Clickable(_clip != null);
         var card = Card(app, title, detail, kind, clip);
         // "Clipping…" waits for the save (with a safety limit); results stay a moment so you can read them.
         var stay = kind == Kind.Saving ? TimeSpan.FromSeconds(15) : TimeSpan.FromSeconds(kind == Kind.Ok ? 3.2 : 4.5);
@@ -65,7 +67,8 @@ public static class ClipToast
         var app = Application.Current;
         if (app == null) return;
         if (!app.Dispatcher.CheckAccess()) { app.Dispatcher.BeginInvoke(() => Recap(m, clips, bestClip)); return; }
-        _clip = null;
+        _clip = bestClip;   // clicking the recap opens its best clip
+        Clickable(_clip != null);
         Present(app, RecapCard.Build(app, m, clips, bestClip), TimeSpan.FromSeconds(10), Kind.Ok);
     }
 
@@ -100,9 +103,14 @@ public static class ClipToast
         };
         _w.SourceInitialized += (s, _) =>
         {
-            var h = new WindowInteropHelper((Window)s).Handle;
-            SetWindowLong(h, GWL_EXSTYLE, GetWindowLong(h, GWL_EXSTYLE) | WS_EX_TRANSPARENT | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE | WS_EX_TOPMOST);
+            _hwnd = new WindowInteropHelper((Window)s).Handle;
+            SetWindowLong(_hwnd, GWL_EXSTYLE, GetWindowLong(_hwnd, GWL_EXSTYLE) | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE | WS_EX_TOPMOST);
+            Clickable(_clip != null);
         };
+        // A popup about a saved clip can be clicked to watch it; hovering keeps it up.
+        root.MouseLeftButtonUp += (_, _) => { if (_clip != null) OpenClip(app, _clip); };
+        root.MouseEnter += (_, _) => { if (_clip != null) _hide?.Stop(); };
+        root.MouseLeave += (_, _) => { if (_clip != null && !_hiding) _hide?.Start(); };
         _w.Loaded += (s, _) =>
         {
             var w = (Window)s;
@@ -116,6 +124,30 @@ public static class ClipToast
         };
         _w.Show();
         Restart(stay, kind);
+    }
+
+    static IntPtr _hwnd;
+
+    /// <summary>
+    /// The popup lets clicks through (so it never gets in the way, in a game or on the desktop) unless it's showing a
+    /// saved clip: then it can be clicked to open it.
+    /// </summary>
+    static void Clickable(bool on)
+    {
+        if (_w == null || _hwnd == IntPtr.Zero) return;
+        int ex = GetWindowLong(_hwnd, GWL_EXSTYLE);
+        SetWindowLong(_hwnd, GWL_EXSTYLE, on ? ex & ~WS_EX_TRANSPARENT : ex | WS_EX_TRANSPARENT);
+        if (_w.Content is FrameworkElement root) root.Cursor = on ? Cursors.Hand : null;
+    }
+
+    /// <summary>Brings Pulse up with the clip open in the player.</summary>
+    static void OpenClip(Application app, string clip)
+    {
+        _hide?.Stop();
+        Hide();
+        if (app.MainWindow is not MainWindow mw) return;
+        mw.ShowFromTray();
+        mw.Navigate("clips", "open:" + clip);
     }
 
     /// <summary>The "Clipping…" popup, shown the moment the clip key is pressed.</summary>
