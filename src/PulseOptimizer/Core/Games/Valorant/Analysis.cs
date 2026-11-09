@@ -231,10 +231,12 @@ public static class Analysis
         t.Matches = 1;
         t.Wins = m.WonBy(team) ? 1 : 0;
         t.Rounds = m.PlayedRounds(who);
+        // Riot says this player missed rounds (left or joined late): only count the rounds they were in.
+        bool partial = me.Rounds > 0 && me.Rounds < m.PlayableRounds;
         foreach (var r in m.Rounds)
         {
-            // Only rounds this player was in, and not the "round" a surrender ends on: trackers count per round played.
-            if (r.Result == "Surrendered" || !VMatch.Present(r, who)) continue;
+            // Not the "round" a surrender ends on, nor rounds the player missed: trackers count per round played.
+            if (r.Result == "Surrendered" || (partial && !VMatch.Present(r, who))) continue;
             var rk = byRound.TryGetValue(r.N, out var l) ? l : new List<VKill>();
             bool k = rk.Any(x => x.Killer == who && x.Victim != who && m.TeamOf(x.Victim) != team);
             bool a = rk.Any(x => x.Assists.Contains(who));
