@@ -5142,5 +5142,18 @@
  "Match summary": "Resumen de la partida",
  "#{0} of {1} · ACS {2} · ADR {3} · HS {4}%": "#{0} de {1} · ACS {2} · ADR {3} · HS {4}%",
  "A few seconds after each match: the result, your numbers, your Pulse score and the one thing that cost you the most rounds (or won them), with a button to open the match.": "Unos segundos después de cada partida: el resultado, tus números, tu puntuación Pulse y lo que más rondas te costó (o te dio), con un botón para abrir la partida.",
- "Show the last match's summary": "Ver el resumen de la última partida"
+ "Show the last match's summary": "Ver el resumen de la última partida",
+ "Your sensitivity in every game, matched exactly.": "Tu sensibilidad en cada juego, exactamente igual.",
+ "Matches how far you turn for the same mouse movement (cm per 360°), using each game's exact turn rate. Change DPI too and it adjusts for that.": "Iguala cuánto giras con el mismo movimiento del ratón (cm por 360°), usando la velocidad de giro exacta de cada juego. Si cambias también los DPI, lo tiene en cuenta.",
+ "From": "De",
+ "To": "A",
+ "Swap": "Intercambiar",
+ "Copied": "Copiado",
+ "Your aim in every game": "Tu puntería en cada juego",
+ "Enter your sensitivity and DPI.": "Escribe tu sensibilidad y tus DPI.",
+ "{0} cm per 360° ({1} in) · eDPI {2} → {3}": "{0} cm por 360° ({1} in) · eDPI {2} → {3}",
+ "{0} cm per 360° at {1} DPI, in each game:": "{0} cm por 360° a {1} DPI, en cada juego:",
+ "Uses the \"Legacy\" sensitivity setting.": "Usa el ajuste de sensibilidad \"Legacy\".",
+ "The X/Y sensitivity slider, in % (e.g. 8.0).": "El control de sensibilidad X/Y, en % (p. ej. 8.0).",
+ "Mouse sensitivity at the default multiplier (0.02).": "Sensibilidad del ratón con el multiplicador por defecto (0.02)."
 }
