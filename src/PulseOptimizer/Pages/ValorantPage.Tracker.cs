@@ -25,6 +25,8 @@ public partial class ValorantPage
     static bool _trBusy;
     static Dictionary<string, string> _trNames = new();
     static ValorantSearch.Mine _trMyRank;
+    /// <summary>The tracker's platform, like tracker.gg's PC / Console tabs: console has its own queues and rank.</summary>
+    static bool _trConsole;
     static DateTime _trMyRankAt;
     TextBlock _trStatusLabel;
     static List<int> _trRr;
@@ -154,7 +156,8 @@ public partial class ValorantPage
     async Task LoadMyRank()
     {
         _trMyRankAt = DateTime.UtcNow;
-        try { _trMyRank = await Task.Run(() => ValorantSearch.MyRank()); } catch { }
+        bool console = _trConsole;
+        try { var r = await Task.Run(() => ValorantSearch.MyRank(console)); if (console == _trConsole) _trMyRank = r; } catch { }
         _trRr = _trMyRank?.RrChanges;
         if (_trMyRank != null && _tab == "tracker") Build();
     }

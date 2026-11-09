@@ -173,7 +173,7 @@ public partial class ValorantPage
     static List<VMatch> ProfileMatches(Profile p) => Memo("pm:" + p.Puuid + ":" + p.Matches.Count + ":" + p.FromYourMatches, () =>
     {
         if (!p.FromYourMatches) return p.Matches;
-        var dm = VStore.All.Where(m => m.Queue == "deathmatch" && m.Players.Any(x => x.Id == p.Puuid)).ToList();
+        var dm = VStore.All.Where(m => m.Queue == "deathmatch" && m.Console == _trConsole && m.Players.Any(x => x.Id == p.Puuid)).ToList();
         return p.Matches.Concat(dm).OrderByDescending(m => m.StartUtc).ToList();
     });
 

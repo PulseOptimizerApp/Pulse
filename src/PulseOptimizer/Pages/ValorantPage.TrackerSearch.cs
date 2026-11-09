@@ -34,12 +34,13 @@ public partial class ValorantPage
     static bool _allBusy;
 
     /// <summary>Every saved match of the account the tracker shows (the coach only looks at the newest 60).</summary>
-    static List<VMatch> TrackerMatches() => Memo("trackerms:" + ValorantMatches.SignedIn, () =>
+    static List<VMatch> TrackerMatches() => Memo("trackerms:" + ValorantMatches.SignedIn + ":" + _trConsole, () =>
     {
-        var all = VStore.ForCoach();
+        var all = VStore.ForCoach(console: _trConsole);
         if (all.Count == 0) return all;
         var me = ValorantMatches.SignedIn is { } signed && all.Any(m => m.Me == signed) ? signed : all[0].Me;
-        return all.Where(m => m.Me == me).OrderByDescending(m => m.StartUtc).ToList();
+        // Only the picked platform's matches (PC or console), like tracker.gg's tabs.
+        return all.Where(m => m.Me == me && m.Console == _trConsole).OrderByDescending(m => m.StartUtc).ToList();
     });
 
     // ───────── the search card ─────────
@@ -59,6 +60,23 @@ public partial class ValorantPage
         sp.Children.Add(head);
         ShowRiotStatus();
         CheckRiot();
+
+        // PC or console, like tracker.gg: console has its own queues, matches and rank.
+        var platform = new WrapPanel { Margin = new Thickness(0, 12, 0, 0) };
+        void Platform(bool console)
+        {
+            if (_trConsole == console || _trBusy) return;
+            _trConsole = console;
+            _trQueue = null; _trMatchId = null; _trMyRank = null; _trMyRankAt = default;
+            // A searched player is looked up again for the other platform.
+            var again = _trSearched is { FromYourMatches: false } sp ? sp.Name : null;
+            if (again != null) { _trSearched = null; _trSel = null; }
+            Build();
+            if (again != null) _ = _trSearchFor?.Invoke(again);
+        }
+        platform.Children.Add(Chip(Loc.T("PC"), "trplatform", !_trConsole, () => Platform(false)));
+        platform.Children.Add(Chip(Loc.T("Console"), "trplatform", _trConsole, () => Platform(true)));
+        sp.Children.Add(platform);
 
         var row = new Grid { Margin = new Thickness(0, 12, 0, 0) };
         row.ColumnDefinitions.Add(new ColumnDefinition { MaxWidth = 460 });
@@ -115,7 +133,8 @@ public partial class ValorantPage
                 Hint(_trStatus, "busy");
             });
             ValorantSearch.Result r;
-            try { r = await Task.Run(() => ValorantSearch.Search(text, progress)); }
+            bool console = _trConsole;
+            try { r = await Task.Run(() => ValorantSearch.Search(text, progress, default, console)); }
             catch (Exception ex)
             {
                 TweakEngine.AddLog("valorant", "Tracker search failed: " + ex.GetType().Name + ": " + ex.Message);

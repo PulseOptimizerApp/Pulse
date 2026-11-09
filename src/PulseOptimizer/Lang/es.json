@@ -5272,5 +5272,8 @@
  "Previous track": "Pista anterior",
  "Volume up": "Subir volumen",
  "Volume down": "Bajar volumen",
- "Middle button": "Botón central"
+ "Middle button": "Botón central",
+ "Console": "Consola",
+ "PC": "PC",
+ "Found the player, but they have no console matches or console rank. Switch to PC to see their PC stats.": "Se encontró al jugador, pero no tiene partidas ni rango en consola. Cambia a PC para ver sus estadísticas de PC."
 }

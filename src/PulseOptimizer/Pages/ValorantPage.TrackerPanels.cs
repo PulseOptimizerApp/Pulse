@@ -285,7 +285,7 @@ public partial class ValorantPage
     /// <summary>What happened in the match (facts) kept apart from what it might mean (interpretations).</summary>
     FrameworkElement AutopsyView(VMatch m, string viewer)
     {
-        var pool = _trSearched != null && _trSearched.Puuid == viewer ? _trSearched.Matches : VStore.All.Where(x => x.Players.Any(p => p.Id == viewer)).OrderByDescending(x => x.StartUtc).ToList();
+        var pool = _trSearched != null && _trSearched.Puuid == viewer ? _trSearched.Matches : VStore.All.Where(x => x.Console == _trConsole && x.Players.Any(p => p.Id == viewer)).OrderByDescending(x => x.StartUtc).ToList();
         Pulse.Core.Games.Valorant.Intel.Expected.Line line = null;
         try
         {
