@@ -56,12 +56,14 @@ public static class GameSessionService
 
     /// <summary>A game is running (as far as Pulse is watching for one).</summary>
     public static bool GameRunning => _pid > 0;
+    /// <summary>The game that's running (as Pulse names it), or null.</summary>
+    public static string CurrentGame { get; private set; }
     /// <summary>A game started (true) or closed (false).</summary>
     public static event Action<bool> GameChanged;
 
     static async Task Tick()
     {
-        bool want = S.GameMode || S.Overlay || R.TrackPlay;
+        bool want = S.GameMode || S.Overlay || R.TrackPlay || Core.Mouse.MouseSettings.WantsGames(TweakEngine.State.Mouse);
         string game = want ? await Task.Run(GameDetector.RunningGame) : null;
         int pid = game != null ? GameDetector.GamePid : 0;
 
@@ -70,12 +72,14 @@ public static class GameSessionService
             if (_pid != 0) { EndSession(); StopOverlay(); GamePowerPlan.End(); }
             bool was = _pid > 0;
             _pid = 0;
+            CurrentGame = null;
             if (was) GameChanged?.Invoke(false);
             return;
         }
         if (pid == _pid) return;
         EndSession();
         _pid = pid;
+        CurrentGame = game;
         try { GameChanged?.Invoke(true); } catch { }
 
         if (S.GameMode) GamePowerPlan.Start(); else GamePowerPlan.End();

@@ -1,0 +1,90 @@
+<UserControl x:Class="Pulse.Pages.MousePage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="clr-namespace:Pulse.Ui">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Margin="0,6,0,40">
+            <TextBlock Style="{StaticResource H1}" Text="Mouse"/>
+            <TextBlock Style="{StaticResource Sub}" Margin="0,6,0,0" MaxWidth="760" HorizontalAlignment="Left"
+                       Text="Your mouse's settings without its brand's app, and your sensitivity in every game, matched exactly."/>
+
+            <!-- Your mice: settings through OpenMouse's drivers -->
+            <Border Style="{StaticResource Card}" Margin="0,20,0,0" ui:Anim.Reveal="True">
+                <StackPanel>
+                    <Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <TextBlock Style="{StaticResource CardTitle}" Text="Your mice"/>
+                        <Button x:Name="ScanButton" Grid.Column="1" Style="{StaticResource GhostButton}" Content="Scan again" Click="Scan_Click"/>
+                    </Grid>
+                    <TextBlock x:Name="MiceStatus" Style="{StaticResource Body}" FontSize="12.5" Foreground="{StaticResource TextDimBrush}" Margin="0,4,0,0" TextWrapping="Wrap" MaxWidth="720" HorizontalAlignment="Left"/>
+                    <WrapPanel x:Name="MiceList" Margin="0,12,0,0"/>
+                    <StackPanel x:Name="MousePanel" Margin="0,8,0,0"/>
+                    <TextBlock Style="{StaticResource Body}" FontSize="11" Foreground="{StaticResource TextFaintBrush}" Margin="0,12,0,0" TextWrapping="Wrap" MaxWidth="720" HorizontalAlignment="Left"
+                               Text="Mouse support comes from OpenMouse's open-source drivers (about 60 brands). Changes are saved on the mouse itself, so they work everywhere, even without Pulse running."/>
+                </StackPanel>
+            </Border>
+
+            <!-- Sensitivity converter -->
+            <Border Style="{StaticResource Card}" Margin="0,20,0,0" ui:Anim.Reveal="True">
+                <StackPanel>
+                    <TextBlock Style="{StaticResource CardTitle}" Text="Sensitivity converter"/>
+                    <TextBlock Style="{StaticResource Body}" FontSize="12.5" Foreground="{StaticResource TextDimBrush}" Margin="0,4,0,0" TextWrapping="Wrap" MaxWidth="720" HorizontalAlignment="Left"
+                               Text="Matches how far you turn for the same mouse movement (cm per 360°), using each game's exact turn rate. Change DPI too and it adjusts for that."/>
+                    <Grid Margin="0,16,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel>
+                            <TextBlock Text="From" FontSize="12" Foreground="{StaticResource TextDimBrush}"/>
+                            <ComboBox x:Name="FromGame" Margin="0,6,0,0" SelectionChanged="Input_Changed"/>
+                            <Grid Margin="0,10,0,0">
+                                <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="12"/><ColumnDefinition/></Grid.ColumnDefinitions>
+                                <StackPanel>
+                                    <TextBlock Text="Sensitivity" FontSize="12" Foreground="{StaticResource TextDimBrush}"/>
+                                    <TextBox x:Name="FromSens" Style="{StaticResource SearchBox}" Margin="0,6,0,0" TextChanged="Input_Changed"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Text="DPI" FontSize="12" Foreground="{StaticResource TextDimBrush}"/>
+                                    <TextBox x:Name="FromDpi" Style="{StaticResource SearchBox}" Margin="0,6,0,0" TextChanged="Input_Changed"/>
+                                </StackPanel>
+                            </Grid>
+                            <TextBlock x:Name="FromNote" FontSize="11.5" Foreground="{StaticResource TextFaintBrush}" Margin="0,6,0,0" TextWrapping="Wrap"/>
+                        </StackPanel>
+                        <Button Grid.Column="1" Style="{StaticResource GhostButton}" Content="⇄" FontSize="16" Margin="16,24,16,0" VerticalAlignment="Top" Click="Swap_Click" ToolTip="Swap"/>
+                        <StackPanel Grid.Column="2">
+                            <TextBlock Text="To" FontSize="12" Foreground="{StaticResource TextDimBrush}"/>
+                            <ComboBox x:Name="ToGame" Margin="0,6,0,0" SelectionChanged="Input_Changed"/>
+                            <Grid Margin="0,10,0,0">
+                                <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="12"/><ColumnDefinition/></Grid.ColumnDefinitions>
+                                <StackPanel>
+                                    <TextBlock Text="Sensitivity" FontSize="12" Foreground="{StaticResource TextDimBrush}"/>
+                                    <Border Background="{StaticResource Surface2Brush}" CornerRadius="8" Padding="12,7,12,7" Margin="0,6,0,0">
+                                        <TextBlock x:Name="Result" FontSize="15" FontWeight="Bold" Foreground="{StaticResource TextBrush}"/>
+                                    </Border>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Text="DPI" FontSize="12" Foreground="{StaticResource TextDimBrush}"/>
+                                    <TextBox x:Name="ToDpi" Style="{StaticResource SearchBox}" Margin="0,6,0,0" TextChanged="Input_Changed"/>
+                                </StackPanel>
+                            </Grid>
+                            <TextBlock x:Name="ToNote" FontSize="11.5" Foreground="{StaticResource TextFaintBrush}" Margin="0,6,0,0" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Grid>
+                    <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
+                        <Button x:Name="CopyButton" Style="{StaticResource GhostButton}" Content="Copy" Click="Copy_Click"/>
+                        <TextBlock x:Name="Summary" FontSize="12.5" Foreground="{StaticResource TextDimBrush}" VerticalAlignment="Center" Margin="14,0,0,0" TextWrapping="Wrap"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- The same aim in every game -->
+            <Border Style="{StaticResource Card}" Margin="0,16,0,0" ui:Anim.Reveal="True">
+                <StackPanel>
+                    <TextBlock Style="{StaticResource CardTitle}" Text="Your aim in every game"/>
+                    <TextBlock x:Name="AllNote" Style="{StaticResource Body}" FontSize="12.5" Foreground="{StaticResource TextDimBrush}" Margin="0,4,0,0" TextWrapping="Wrap"/>
+                    <StackPanel x:Name="AllGames" Margin="0,12,0,0"/>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>
