@@ -378,7 +378,7 @@
                             <TextBlock Style="{StaticResource CardTitle}" Text="Behaviour" Margin="0,8,0,10"/>
                             <Grid Style="{StaticResource Row}">
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                                <TextBlock Style="{StaticResource RowLabel}" Text="Only keep a replay while a game is running (uses nothing the rest of the time)"/>
+                                <TextBlock Style="{StaticResource RowLabel}" Text="Clip the desktop too, not only games (keeps a replay whenever Pulse is open; off uses nothing outside games)"/>
                                 <CheckBox x:Name="OnlyGamingSwitch" Grid.Column="1" Style="{StaticResource Switch}" Click="Setting_Click"/>
                             </Grid>
                             <Grid Style="{StaticResource Row}">

@@ -327,7 +327,7 @@ public static class ClipsService
         if (_saving) return null;
         if (_rec == null || !_rec.Running)
         {
-            if (S.Enabled && title == null) ClipToast.Show(Loc.T("Nothing to save yet"), Loc.T(S.OnlyWhileGaming ? "Clips records while a game is running." : "The replay is starting."), false);
+            if (S.Enabled && title == null) ClipToast.Show(Loc.T("Nothing to save yet"), Loc.T(S.OnlyWhileGaming ? "No game is running. To clip your desktop too, turn on \"Clip the desktop too\" on the Clips page." : "The replay is starting."), false);
             return null;
         }
         _saving = true;
@@ -335,7 +335,7 @@ public static class ClipsService
         if (title == null) Feedback.Pressed(S, seconds); // the sound and "Clipping…" popup come the moment the key is pressed (auto clips show when saved)
         try
         {
-            var path = await _rec.Save(S.ClipsFolder, _game ?? "Clip", seconds);
+            var path = await _rec.Save(S.ClipsFolder, _game ?? "Desktop", seconds);
             SaveInputs(path);
             ClipLibrary.SaveEnd(path, pressedAt);
             if (title != null)
@@ -374,14 +374,14 @@ public static class ClipsService
     {
         if (_rec == null || !_rec.Running)
         {
-            if (S.Enabled) ClipToast.Show(Loc.T("Nothing to record yet"), Loc.T(S.OnlyWhileGaming ? "Clips records while a game is running." : "The replay is starting."), false);
+            if (S.Enabled) ClipToast.Show(Loc.T("Nothing to record yet"), Loc.T(S.OnlyWhileGaming ? "No game is running. To clip your desktop too, turn on \"Clip the desktop too\" on the Clips page." : "The replay is starting."), false);
             return null;
         }
         if (!_rec.SessionActive)
         {
             try
             {
-                _rec.StartSession(S.ClipsFolder, _game ?? "Recording");
+                _rec.StartSession(S.ClipsFolder, _game ?? "Desktop");
                 SyncInput();
                 ClipToast.Show(Loc.T("Recording started"), Loc.F("Press {0} again to stop.", HotkeyText(S.SessionModifiers, S.SessionKey)), true);
                 TweakEngine.AddLog("clips", "Started a long recording");
@@ -431,14 +431,14 @@ public static class ClipsService
         if (_shooting) return null;
         if (_rec == null || !_rec.Running)
         {
-            if (S.Enabled) ClipToast.Show(Loc.T("Nothing to save yet"), Loc.T(S.OnlyWhileGaming ? "Clips records while a game is running." : "The replay is starting."), false);
+            if (S.Enabled) ClipToast.Show(Loc.T("Nothing to save yet"), Loc.T(S.OnlyWhileGaming ? "No game is running. To clip your desktop too, turn on \"Clip the desktop too\" on the Clips page." : "The replay is starting."), false);
             return null;
         }
         _shooting = true;
         Feedback.ScreenshotPressed(S); // the shutter sound plays the moment the key is pressed
         try
         {
-            var path = await _rec.SaveScreenshot(S.ScreenshotsFolder, _game ?? "Screenshot");
+            var path = await _rec.SaveScreenshot(S.ScreenshotsFolder, _game ?? "Desktop");
             Feedback.Screenshot(S);
             TweakEngine.AddLog("clips", $"Saved a screenshot: {Path.GetFileName(path)}");
             return path;
