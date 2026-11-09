@@ -59,7 +59,6 @@ if (babel) {
     "@babel/plugin-transform-object-rest-spread",
     "@babel/plugin-transform-destructuring",
     "@babel/plugin-transform-parameters",
-    "@babel/plugin-transform-spread",
     "@babel/plugin-transform-for-of",
     "@babel/plugin-transform-block-scoping",
   ]), ["@babel/plugin-transform-regenerator"]);
