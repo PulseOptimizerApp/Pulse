@@ -135,7 +135,7 @@ public sealed class ValorantMatches : IDisposable
         return s;
     }
 
-    static void Forget() => _session = null;
+    internal static void Forget() => _session = null;
 
     internal static HttpRequestMessage Local(Session s, string path)
     {

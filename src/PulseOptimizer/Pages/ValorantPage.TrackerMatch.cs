@@ -400,6 +400,8 @@ public partial class ValorantPage
             }
             sp.Children.Add(g);
         }
+        if (_namesProblem != null && m.Players.Any(p => Stats.NameOf(m, p.Id) == null && NameBook.Get(p.Id) == null))
+            sp.Children.Add(Txt(_namesProblem, 11, TgYellow).Also(t => t.Margin = new Thickness(14, 8, 14, 0)));
         sp.Children.Add(Txt(Loc.T("Click a player to open their profile, or a column to sort. Colored edges mark players who queued together."), 11, TgDim).Also(t => t.Margin = new Thickness(14, 8, 14, 12)));
         return sp;
     }

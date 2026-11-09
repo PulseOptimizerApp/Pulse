@@ -132,3 +132,21 @@ public class SmurfSignsTests
         Assert.Single(s.Signs);
     }
 }
+
+public class NameServiceTests
+{
+    [Fact]
+    public void Reads_riot_ids_and_skips_hidden_names()
+    {
+        var json = """
+        [ { "DisplayName": "", "Subject": "a1", "GameName": "dilan", "TagLine": "fps" },
+          { "DisplayName": "", "Subject": "b2", "GameName": "", "TagLine": "" },
+          { "DisplayName": "", "Subject": "c3", "GameName": "NoTag", "TagLine": "" } ]
+        """;
+        var map = Pulse.Core.Games.Live.ValorantLobby.ReadNames(json);
+        Assert.Equal("dilan#fps", map["a1"]);
+        Assert.False(map.ContainsKey("b2"));
+        Assert.Equal("NoTag", map["c3"]);
+        Assert.Empty(Pulse.Core.Games.Live.ValorantLobby.ReadNames("not json"));
+    }
+}

@@ -259,11 +259,25 @@ public static class ValorantSearch
         return map;
     }
 
-    /// <summary>Names for players from your own matches (Riot ID or null), for the "people you played with" list.</summary>
+    /// <summary>
+    /// Riot IDs for players from your own matches. Up to 1,000 at a time (100 per request). If Riot refuses the login
+    /// (it expired), Pulse signs in again through the Riot Client and tries once more. Empty when the Riot Client isn't open.
+    /// </summary>
     public static async Task<Dictionary<string, string>> NamesFor(List<string> puuids)
     {
+        if (puuids == null || puuids.Count == 0) return new();
+        var ids = puuids.Distinct().Take(1000).ToList();
         var s = await ValorantMatches.Login();
-        if (s == null || puuids.Count == 0) return new();
-        return await ValorantLobby.Names(s, puuids.Take(100).ToList());
+        if (s == null) return new();
+        var (found, rejected) = await ValorantLobby.NameLookup(s, ids);
+        if (rejected)
+        {
+            ValorantMatches.Forget();
+            s = await ValorantMatches.Login();
+            if (s == null) return found;
+            var (more, _) = await ValorantLobby.NameLookup(s, ids.Where(i => !found.ContainsKey(i)).ToList());
+            foreach (var kv in more) found[kv.Key] = kv.Value;
+        }
+        return found;
     }
 }
