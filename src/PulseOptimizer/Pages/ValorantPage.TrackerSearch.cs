@@ -26,7 +26,11 @@ public partial class ValorantPage
     TextBlock _riotText;
     Ellipse _riotDot;
     TextBlock _trHint;
-    static readonly HashSet<string> _namesAsked = new();
+    /// <summary>When names were last asked for each match (asked again after a while if some are still missing).</summary>
+    static readonly Dictionary<string, DateTime> _namesAsked = new();
+    static bool _allNamesAsked;
+    /// <summary>Why names couldn't be loaded, for the scoreboard (null when they could).</summary>
+    static string _namesProblem;
     static bool _allBusy;
 
     /// <summary>Every saved match of the account the tracker shows (the coach only looks at the newest 60).</summary>
@@ -314,16 +318,45 @@ public partial class ValorantPage
     /// <summary>When a match's players have no Riot ID on this PC yet, asks the Riot Client for them once.</summary>
     void LoadMatchNames(VMatch m)
     {
-        if (!_namesAsked.Add(m.Id)) return;
         var missing = m.Players.Where(p => Stats.NameOf(m, p.Id) == null && NameBook.Get(p.Id) == null).Select(p => p.Id).ToList();
         if (missing.Count == 0) return;
+        // Ask again after 20 seconds if the last try failed (the Riot Client may have been closed, or still starting).
+        if (_namesAsked.TryGetValue(m.Id, out var at) && DateTime.UtcNow - at < TimeSpan.FromSeconds(20)) return;
+        _namesAsked[m.Id] = DateTime.UtcNow;
         _ = Task.Run(async () =>
         {
             Dictionary<string, string> found;
-            try { found = await ValorantSearch.NamesFor(missing); } catch { return; }
-            if (found.Count == 0) return;
-            NameBook.Add(found);
+            try { found = await ValorantSearch.NamesFor(missing); } catch { found = new(); }
+            bool signedIn = ValorantMatches.SignedIn != null && ValorantMatches.LastLoginProblem == null;
+            _namesProblem = found.Count > 0 ? null
+                : !signedIn ? Loc.T("Open VALORANT or the Riot Client to see players' Riot IDs.")
+                : Loc.T("Riot didn't send names for these players. They'll load next time you open the match.");
+            if (found.Count > 0)
+            {
+                NameBook.Add(found);
+                FillAllNames();
+            }
             Dispatcher.Invoke(() => { if (_trMatchId == m.Id && MatchLayer.Visibility == Visibility.Visible) ShowMatch(); });
+        });
+    }
+
+    /// <summary>
+    /// Once per session, after a lookup works: names for everyone in your saved matches, so the tracker, encounters and
+    /// every scoreboard show Riot IDs without waiting. Up to 1,000 players (10 quick requests), saved for next time.
+    /// </summary>
+    static void FillAllNames()
+    {
+        if (_allNamesAsked) return;
+        _allNamesAsked = true;
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                var ids = NameBook.Missing(VStore.All.OrderByDescending(x => x.StartUtc).SelectMany(x => x.Players.Select(p => p.Id)));
+                if (ids.Count == 0) return;
+                NameBook.Add(await ValorantSearch.NamesFor(ids));
+            }
+            catch { }
         });
     }
 

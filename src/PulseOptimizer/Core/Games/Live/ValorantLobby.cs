@@ -96,25 +96,53 @@ public static class ValorantLobby
         return Last;
     }
 
-    internal static async Task<Dictionary<string, string>> Names(ValorantMatches.Session s, List<string> puuids)
+    internal static async Task<Dictionary<string, string>> Names(ValorantMatches.Session s, List<string> puuids) =>
+        (await NameLookup(s, puuids)).Names;
+
+    /// <summary>
+    /// Riot IDs for accounts, from Riot's name service (the one the game's own scoreboard uses). It needs the same client
+    /// headers as every other game request: without the platform and version Riot refuses it. Asks 100 at a time.
+    /// Rejected is true when Riot refused the login (it expired), so the caller can sign in again and retry.
+    /// </summary>
+    internal static async Task<(Dictionary<string, string> Names, bool Rejected)> NameLookup(ValorantMatches.Session s, List<string> puuids)
     {
         var map = new Dictionary<string, string>();
-        if (puuids.Count == 0) return map;
+        bool rejected = false;
+        foreach (var chunk in puuids.Where(p => !string.IsNullOrEmpty(p)).Distinct().Chunk(100))
+        {
+            try
+            {
+                using var req = new HttpRequestMessage(HttpMethod.Put, $"https://pd.{s.Shard}.a.pvp.net/name-service/v2/players")
+                {
+                    Content = new StringContent(JsonSerializer.Serialize(chunk), Encoding.UTF8, "application/json"),
+                };
+                req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", s.Access);
+                req.Headers.Add("X-Riot-Entitlements-JWT", s.Entitlement);
+                req.Headers.Add("X-Riot-ClientPlatform", ValorantMatches.ClientPlatform);
+                if (s.Version.Length > 0) req.Headers.Add("X-Riot-ClientVersion", s.Version);
+                using var res = await Http.SendAsync(req);
+                if (res.StatusCode is System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.Forbidden) { rejected = true; break; }
+                if (!res.IsSuccessStatusCode) continue;
+                foreach (var kv in ReadNames(await res.Content.ReadAsStringAsync())) map[kv.Key] = kv.Value;
+            }
+            catch { }
+        }
+        return (map, rejected);
+    }
+
+    /// <summary>Reads the name service's answer: [{ Subject, GameName, TagLine }]. Hidden or empty names are skipped.</summary>
+    internal static Dictionary<string, string> ReadNames(string json)
+    {
+        var map = new Dictionary<string, string>();
         try
         {
-            var req = new HttpRequestMessage(HttpMethod.Put, $"https://pd.{s.Shard}.a.pvp.net/name-service/v2/players")
-            {
-                Content = new StringContent(JsonSerializer.Serialize(puuids), Encoding.UTF8, "application/json"),
-            };
-            req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", s.Access);
-            req.Headers.Add("X-Riot-Entitlements-JWT", s.Entitlement);
-            using var res = await Http.SendAsync(req);
-            if (!res.IsSuccessStatusCode) return map;
-            using var doc = JsonDocument.Parse(await res.Content.ReadAsStringAsync());
+            using var doc = JsonDocument.Parse(json);
+            if (doc.RootElement.ValueKind != JsonValueKind.Array) return map;
             foreach (var p in doc.RootElement.EnumerateArray())
             {
                 var name = p.Str("GameName");
-                if (name.Length > 0) map[p.Str("Subject")] = name + "#" + p.Str("TagLine");
+                var id = p.Str("Subject");
+                if (name.Length > 0 && id.Length > 0) map[id] = p.Str("TagLine") is { Length: > 0 } tag ? name + "#" + tag : name;
             }
         }
         catch { }

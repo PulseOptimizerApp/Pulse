@@ -5110,5 +5110,7 @@
  "crosshair {0} px off": "mira desviada {0} px",
  "{0} peeks, about a minute. Use your mouse.": "{0} espiadas, cerca de um minuto. Use o mouse.",
  "{0}-day streak. Same time tomorrow.": "Sequência de {0} dias. Amanhã no mesmo horário.",
- "🔥 {0}-day streak": "🔥 Sequência de {0} dias"
+ "🔥 {0}-day streak": "🔥 Sequência de {0} dias",
+ "Open VALORANT or the Riot Client to see players' Riot IDs.": "Abra o VALORANT ou o Riot Client para ver os Riot IDs dos jogadores.",
+ "Riot didn't send names for these players. They'll load next time you open the match.": "A Riot não enviou os nomes desses jogadores. Eles vão carregar da próxima vez que você abrir a partida."
 }
