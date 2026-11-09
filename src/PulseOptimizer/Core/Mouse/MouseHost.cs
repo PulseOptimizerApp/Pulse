@@ -24,6 +24,25 @@ public sealed class MouseHost : IDisposable
 
     static int _holds;
 
+    // ───────── diagnostics: what was said to the device (the last 400 lines) ─────────
+
+    static readonly LinkedList<string> Trace = new();
+    static readonly DateTime TraceStart = DateTime.UtcNow;
+
+    public static void Note(string line)
+    {
+        lock (Trace)
+        {
+            Trace.AddLast($"{(DateTime.UtcNow - TraceStart).TotalSeconds,8:0.000}  {line}");
+            while (Trace.Count > 400) Trace.RemoveFirst();
+        }
+    }
+
+    public static List<string> RecentLog() { lock (Trace) return Trace.ToList(); }
+    public static void ClearLog() { lock (Trace) Trace.Clear(); }
+
+    static string Short(string hex) => hex == null ? "" : hex.Length > 40 ? hex[..40] + "…" : hex;
+
     /// <summary>Keeps the engine running while something uses it (the Mouse page, a profile being applied).</summary>
     public static void Hold() { lock (Gate) _holds++; }
 
@@ -137,7 +156,7 @@ public sealed class MouseHost : IDisposable
         readonly MouseHost _h;
         internal HostApi(MouseHost h) => _h = h;
         public void timer(double id, double ms) { lock (_h._timers) _h._timers.Add((DateTime.UtcNow.AddMilliseconds(Math.Max(0, ms)), (int)id)); }
-        public void log(string text) => _h.Log?.Invoke(text);
+        public void log(string text) { Note("driver: " + text); _h.Log?.Invoke(text); }
         public void done(double token, bool ok, string value)
         {
             if (!_h._calls.TryRemove((int)token, out var tcs)) return;
@@ -167,7 +186,13 @@ public sealed class MouseHost : IDisposable
             lock (_h._infos) _h._infos.TryGetValue(key, out info);
             if (info == null) throw new IOException("That device isn't connected any more.");
             var c = new Hid.Connection(info);
-            c.Input += (id, data) => _h.Post(() => _h._engine.Invoke("__pulseInput", key, (int)id, Convert.ToHexString(data).ToLowerInvariant()));
+            int inputs = 0;
+            c.Input += (id, data) =>
+            {
+                if (++inputs <= 40) Note($"in  report {id}: {Short(Convert.ToHexString(data).ToLowerInvariant())}");
+                _h.Post(() => _h._engine.Invoke("__pulseInput", key, (int)id, Convert.ToHexString(data).ToLowerInvariant()));
+            };
+            Note($"opened {key} ({info.Collections.Count} collections: {string.Join(", ", info.Collections.Select(x => $"page {x.UsagePage:X4} in[{string.Join(",", x.InputIds)}] out[{string.Join(",", x.OutputIds)}] feat[{string.Join(",", x.FeatureIds)}]/{x.FeatureLength}"))})");
             _h._open[key] = c;
             return Task.FromResult<string>(null);
         });
@@ -185,27 +210,35 @@ public sealed class MouseHost : IDisposable
         });
 
         public void send(double token, string key, double id, string hex) =>
-            _h.Answer(token, async () => { await _h.Conn(key).SendReport((byte)id, Convert.FromHexString(hex)); return null; });
+            _h.Answer(token, $"out report {id}: {Short(hex)}", async () => { await _h.Conn(key).SendReport((byte)id, Convert.FromHexString(hex)); return null; });
 
         public void setFeature(double token, string key, double id, string hex) =>
-            _h.Answer(token, async () => { await _h.Conn(key).SendFeature((byte)id, Convert.FromHexString(hex)); return null; });
+            _h.Answer(token, $"set feature {id}: {Short(hex)}", async () => { await _h.Conn(key).SendFeature((byte)id, Convert.FromHexString(hex)); return null; });
 
         public void getFeature(double token, string key, double id) =>
-            _h.Answer(token, async () => Convert.ToHexString(await _h.Conn(key).GetFeature((byte)id)).ToLowerInvariant());
+            _h.Answer(token, $"get feature {id}", async () => Convert.ToHexString(await _h.Conn(key).GetFeature((byte)id)).ToLowerInvariant());
     }
 
     Hid.Connection Conn(string key) =>
         _open.TryGetValue(key, out var c) ? c : throw new IOException("The device isn't open.");
 
     /// <summary>Runs <paramref name="work"/> off the script thread, then hands the result back to the script.</summary>
-    void Answer(double token, Func<Task<string>> work) => Task.Run(async () =>
+    void Answer(double token, Func<Task<string>> work) => Answer(token, null, work);
+
+    /// <summary>Same, writing what was asked and what came back to the diagnostics log.</summary>
+    void Answer(double token, string what, Func<Task<string>> work) => Task.Run(async () =>
     {
         try
         {
             var v = await work();
+            if (what != null) Note(v == null ? what : $"{what} → {Short(v)}");
             Post(() => _engine.Invoke("__pulseDone", token, true, v));
         }
-        catch (Exception ex) { Post(() => _engine.Invoke("__pulseDone", token, false, ex.Message)); }
+        catch (Exception ex)
+        {
+            Note($"{what ?? "call"} failed: {ex.Message}");
+            Post(() => _engine.Invoke("__pulseDone", token, false, ex.Message));
+        }
     });
 
     /// <summary>The devices as WebHID describes them (each report as 8-bit items, which is all drivers look at).</summary>
