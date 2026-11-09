@@ -46,6 +46,10 @@ public partial class MousePage
     string _error;
     readonly StackPanel _tabBody = new();
 
+    // A receiver that answered for its mouse is shown as the mouse.
+    string DeviceKind(Found f) =>
+        f.Kind == "Receiver" && Str("name") is { } n && !System.Text.RegularExpressions.Regex.IsMatch(n, "receiver|dongle", System.Text.RegularExpressions.RegexOptions.IgnoreCase) ? "Mouse" : f.Kind;
+
     // ───────── page views ─────────
 
     void View_Checked(object sender, RoutedEventArgs e)
@@ -230,7 +234,7 @@ public partial class MousePage
         if (Str("connectionType") is { } conn) facts.Children.Add(Pill(Loc.T(conn), Res("TextDimBrush") as SolidColorBrush, Inset));
         if (!double.IsNaN(Num("batteryPercent"))) facts.Children.Add(Pill(Loc.F("{0}%", Num("batteryPercent")), Res("TextDimBrush") as SolidColorBrush, Inset));
         left.Children.Add(facts);
-        left.Children.Add(new Border { Height = 280, Margin = new Thickness(0, 10, 0, 0), Child = Picture(f.Kind, 220) });
+        left.Children.Add(new Border { Height = 280, Margin = new Thickness(0, 10, 0, 0), Child = Picture(DeviceKind(f), 220) });
         layout.Children.Add(left);
 
         // Right: tabs and their content.
