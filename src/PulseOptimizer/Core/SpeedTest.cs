@@ -85,32 +85,42 @@ public static class SpeedTest
 
     public enum Phase { Ping, Download, Upload, Loss, Done }
 
-    /// <summary>Progress while testing: the phase, the live number (Mbps or ms) and how far through it is (0–1).</summary>
-    public readonly record struct Progress(Phase Phase, double Value, double Fraction);
+    /// <summary>
+    /// Progress while testing: the phase, the live number (Mbps, or ms while pinging), how far through it is (0–1),
+    /// and the latest ping while the line is busy (0 when there isn't one yet).
+    /// </summary>
+    public readonly record struct Progress(Phase Phase, double Value, double Fraction, double LoadedMs = 0);
 
     public static async Task<SpeedResult> Run(IProgress<Progress> progress, CancellationToken ct)
     {
         var r = new SpeedResult { At = DateTime.Now, Wifi = NetworkCheck.OnWifi() };
         _problems.Clear();
+        _addr = null;
         long bytes = 0;
         var meta = Meta(ct);
 
-        // 1. Idle ping and jitter: 20 tiny requests (the time to the first byte back). The first two open the
-        // connection (DNS, TLS) and are left out, or they'd count as huge jitter.
+        // 1. Idle ping and jitter, the way Speedtest does it: the time a TCP connection takes to open to the test
+        // server (one round trip). It's quick (about a second) and steady, unlike timing whole web requests.
         var idle = new List<double>();
-        for (int i = 0; i < 22; i++)
+        for (int i = 0; i < 16; i++)
         {
             ct.ThrowIfCancellationRequested();
-            var ms = await Rtt(ct);
-            if (ms > 0 && i >= 2) idle.Add(ms);
-            progress?.Report(new Progress(Phase.Ping, idle.Count > 0 ? Median(idle) : 0, (i + 1) / 22.0));
+            var ms = await TcpRtt(ct);
+            if (ms > 0) idle.Add(ms);
+            progress?.Report(new Progress(Phase.Ping, idle.Count > 0 ? Median(idle) : 0, (i + 1) / 16.0));
+            await Task.Delay(40, ct);
         }
-        if (idle.Count == 0) throw new HttpRequestException("The speed test server didn't answer.");
+        if (idle.Count == 0)
+        {
+            // Some networks block plain TCP timing; fall back to timing tiny requests.
+            for (int i = 0; i < 12; i++) { var ms = await Rtt(ct); if (ms > 0 && i >= 2) idle.Add(ms); }
+            if (idle.Count == 0) throw new HttpRequestException("The speed test server didn't answer.");
+        }
         r.IdleMs = Median(idle);
         r.JitterMs = Jitter(idle);
         r.Server = await ServerName(ct);
 
-        // 2. Download: several streams at once for 10 seconds, ping measured alongside.
+        // 2. Download: 8 streams for 10 seconds, ping measured alongside.
         (r.DownMbps, var dl, r.LoadedDownMs) = await Transfer(true, TimeSpan.FromSeconds(10), progress, ct);
         bytes += dl;
 
@@ -128,6 +138,32 @@ public static class SpeedTest
         progress?.Report(new Progress(Phase.Done, 0, 1));
         r.BytesUsed = bytes;
         return r;
+    }
+
+    static IPAddress _addr;
+
+    /// <summary>One round trip to the test server: how long a TCP connection takes to open. -1 if it didn't.</summary>
+    static async Task<double> TcpRtt(CancellationToken ct)
+    {
+        try
+        {
+            if (_addr == null)
+            {
+                var all = await Dns.GetHostAddressesAsync(new Uri(Base).Host, ct);
+                _addr = all.FirstOrDefault(a => a.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork) ?? all.FirstOrDefault();
+                if (_addr == null) return -1;
+            }
+            using var socket = new System.Net.Sockets.Socket(_addr.AddressFamily, System.Net.Sockets.SocketType.Stream, System.Net.Sockets.ProtocolType.Tcp) { NoDelay = true };
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            timeout.CancelAfter(2000);
+            var sw = Stopwatch.StartNew();
+            await socket.ConnectAsync(_addr, 443, timeout.Token);
+            sw.Stop();
+            return sw.Elapsed.TotalMilliseconds;
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested) { return -1; }
+        catch (OperationCanceledException) { throw; }
+        catch { return -1; }
     }
 
     static async Task<double> Rtt(CancellationToken ct)
@@ -157,35 +193,43 @@ public static class SpeedTest
     }
 
     /// <summary>
-    /// Moves data for a while on 6 streams and measures the speed after a short warm-up (the first 2 seconds are left
-    /// out, as connections speed up). Pings every 250 ms meanwhile, for the loaded latency.
+    /// The speed from one-second samples, the way Speedtest reports it: the slowest 30% (the ramp-up and stalls) and
+    /// the fastest 10% (bursts) are left out, and the rest averaged.
+    /// </summary>
+    internal static double Trimmed(List<double> samples)
+    {
+        if (samples.Count == 0) return 0;
+        var o = samples.OrderBy(x => x).ToList();
+        int from = (int)Math.Floor(o.Count * 0.3), to = (int)Math.Ceiling(o.Count * 0.9);
+        if (to - from < 1) return o.Average();
+        return o.Skip(from).Take(to - from).Average();
+    }
+
+    /// <summary>
+    /// Moves data on 8 streams for a while. Every 100 ms it notes how much has moved; the speed over the last second
+    /// is the live number, and the final one comes from those one-second samples (see <see cref="Trimmed"/>), so the
+    /// result matches what the dial showed. Pings the server every 250 ms meanwhile, for the loaded latency.
     /// </summary>
     static async Task<(double Mbps, long Bytes, double LoadedMs)> Transfer(bool down, TimeSpan length, IProgress<Progress> progress, CancellationToken outer)
     {
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(outer);
-        long total = 0, counted = 0;
+        long total = 0;
         var sw = Stopwatch.StartNew();
-        var warm = TimeSpan.FromSeconds(2);
-        double warmAt = -1;
         var phase = down ? Phase.Download : Phase.Upload;
         const int chunk = 25_000_000;
-        const long Cap = 1_200_000_000;
+        long cap = down ? 1_500_000_000 : 900_000_000;
         var upload = new byte[4 * 1024 * 1024];
         Random.Shared.NextBytes(upload);
 
-        void Count(int n)
-        {
-            Interlocked.Add(ref total, n);
-            if (sw.Elapsed >= warm) Interlocked.Add(ref counted, n);
-        }
+        void Count(int n) => Interlocked.Add(ref total, n);
 
         async Task Stream()
         {
-            var buf = new byte[64 * 1024];
+            var buf = new byte[128 * 1024];
             while (!cts.IsCancellationRequested)
             {
                 // Enough data for an accurate number; past this a gigabit line would use gigabytes for nothing.
-                if (Interlocked.Read(ref total) > Cap) { cts.Cancel(); break; }
+                if (Interlocked.Read(ref total) > cap) { cts.Cancel(); break; }
                 try
                 {
                     if (down)
@@ -209,36 +253,51 @@ public static class SpeedTest
         }
 
         var loaded = new List<double>();
+        double lastLoaded = 0;
         async Task Pinger()
         {
-            await Task.Delay(1500);
+            try { await Task.Delay(800, cts.Token); } catch { return; }
             while (!cts.IsCancellationRequested)
             {
-                try { var ms = await Rtt(cts.Token); if (ms > 0) lock (loaded) loaded.Add(ms); }
+                try
+                {
+                    var ms = await TcpRtt(cts.Token);
+                    if (ms > 0) lock (loaded) { loaded.Add(ms); lastLoaded = ms; }
+                    await Task.Delay(250, cts.Token);
+                }
                 catch (OperationCanceledException) { break; }
-                await Task.Delay(250);
             }
         }
 
-        var tasks = Enumerable.Range(0, 6).Select(_ => Stream()).Append(Pinger()).ToList();
+        var tasks = Enumerable.Range(0, 8).Select(_ => Stream()).Append(Pinger()).ToList();
+        // (time, bytes) every 100 ms; the last second of them gives the live speed.
+        var marks = new List<(double T, long Bytes)> { (0, 0) };
+        var samples = new List<double>();
         while (sw.Elapsed < length && !outer.IsCancellationRequested && !cts.IsCancellationRequested)
         {
-            await Task.Delay(200);
-            if (warmAt < 0 && sw.Elapsed >= warm) warmAt = sw.Elapsed.TotalSeconds;
-            double secs = warmAt >= 0 ? sw.Elapsed.TotalSeconds - warmAt : sw.Elapsed.TotalSeconds;
-            double live = warmAt >= 0 && secs > 0.2 ? Interlocked.Read(ref counted) * 8 / secs / 1e6 : Interlocked.Read(ref total) * 8 / Math.Max(0.2, sw.Elapsed.TotalSeconds) / 1e6;
-            progress?.Report(new Progress(phase, live, sw.Elapsed / length));
+            try { await Task.Delay(100, cts.Token); } catch (OperationCanceledException) { }
+            double t = sw.Elapsed.TotalSeconds;
+            long b = Interlocked.Read(ref total);
+            marks.Add((t, b));
+            var from = marks.LastOrDefault(m => m.T <= t - 1.0);
+            if (from == default) from = marks[0];
+            double live = t - from.T > 0.05 ? (b - from.Bytes) * 8 / (t - from.T) / 1e6 : 0;
+            // The first 1.5 seconds are the connections speeding up; they show on the dial but don't count.
+            if (t >= 1.5 && t - from.T >= 0.95) samples.Add(live);
+            double ping;
+            lock (loaded) ping = lastLoaded;
+            progress?.Report(new Progress(phase, live, Math.Min(1, sw.Elapsed / length), ping));
         }
-        double measured = sw.Elapsed.TotalSeconds - Math.Max(0, warmAt);
         cts.Cancel();
         try { await Task.WhenAll(tasks); } catch { }
         outer.ThrowIfCancellationRequested();
-        // Normally the speed after the warm-up; on a line so fast the data cap is reached during the warm-up, all of it.
-        long countedNow = Interlocked.Read(ref counted);
-        double mbps = warmAt >= 0 && measured > 0.5 && countedNow > 0 ? countedNow * 8 / measured / 1e6
-            : Interlocked.Read(ref total) * 8 / Math.Max(0.2, sw.Elapsed.TotalSeconds) / 1e6;
+        double secs = sw.Elapsed.TotalSeconds;
+        // A line so fast it hit the data cap before there were samples: the average of everything.
+        double mbps = samples.Count >= 3 ? Trimmed(samples) : Interlocked.Read(ref total) * 8 / Math.Max(0.2, secs) / 1e6;
         double loadedMs;
         lock (loaded) loadedMs = loaded.Count > 0 ? Median(loaded) : 0;
+        // The final number, so the dial settles on exactly what gets saved.
+        progress?.Report(new Progress(phase, mbps, 1, loadedMs));
         return (mbps, Interlocked.Read(ref total), loadedMs);
     }
 

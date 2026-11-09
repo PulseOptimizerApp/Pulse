@@ -20,10 +20,11 @@ public class LiveSpeedTest
     {
         if (!Live) return;
         var log = new List<string>();
-        var progress = new SyncProgress(p => log.Add($"{p.Phase} {p.Value:0.0} {p.Fraction:0.00}"));
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        var progress = new SyncProgress(p => log.Add($"{sw.Elapsed.TotalSeconds:0.0}s {p.Phase} {p.Value:0.0} {p.Fraction:0.00} loaded {p.LoadedMs:0}"));
         var r = await SpeedTest.Run(progress, CancellationToken.None);
         _out.WriteLine($"down {r.DownMbps:0.0} Mbps · up {r.UpMbps:0.0} Mbps · idle {r.IdleMs:0.0} ms · jitter {r.JitterMs:0.0} · loaded {r.LoadedDownMs:0}/{r.LoadedUpMs:0} ms · loss {r.LossPercent} · server {r.Server} · {r.BytesUsed / 1e6:0} MB · isp {r.Isp} · ip {r.Ip} · city {r.ServerCity} · problems [{r.Problems}]");
-        foreach (var l in log.Where((_, i) => i % 5 == 0)) _out.WriteLine(l);
+        foreach (var l in log.Where((_, i) => i % 3 == 0)) _out.WriteLine(l);
         Assert.True(r.IdleMs > 0, "no ping");
         Assert.True(r.DownMbps > 1, "no download");
         Assert.True(r.UpMbps > 1, "no upload");
