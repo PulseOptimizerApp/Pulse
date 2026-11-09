@@ -7,7 +7,26 @@
         <StackPanel Margin="0,6,0,40">
             <TextBlock Style="{StaticResource H1}" Text="Reaction trainer"/>
             <TextBlock Style="{StaticResource Sub}" Margin="0,6,0,0" MaxWidth="760" HorizontalAlignment="Left"
-                       Text="Short drills that train the reactions games actually use: reacting, choosing, holding back and aiming. Five minutes a day works better than one long session."/>
+                       Text="Drills built like the game: enemies peeking from angles, teammates you mustn't shoot, and holding your crosshair where heads appear. They adapt to keep you at about 80% right, the level where practice actually makes you faster. Five minutes a day beats one long session."/>
+
+            <!-- Daily plan and weekly Benchmark -->
+            <Border x:Name="PlanCard" Style="{StaticResource Card}" Margin="0,20,0,0" ui:Anim.Reveal="True">
+                <Grid>
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Style="{StaticResource CardTitle}" Text="Today's training"/>
+                            <TextBlock x:Name="StreakText" FontSize="12" FontWeight="SemiBold" Foreground="#FFB547" Margin="10,2,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <WrapPanel x:Name="PlanSteps" Margin="0,10,0,0"/>
+                        <TextBlock x:Name="BenchText" FontSize="12" Foreground="{StaticResource TextDimBrush}" Margin="0,10,0,0" TextWrapping="Wrap" MaxWidth="640" HorizontalAlignment="Left"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="16,0,0,0">
+                        <Button x:Name="PlanButton" Style="{StaticResource PrimaryButton}" Content="Start (about 5 min)" Click="StartPlan_Click"/>
+                        <Button x:Name="BenchButton" Style="{StaticResource GhostButton}" Content="Take the Benchmark" Margin="0,8,0,0" Click="Benchmark_Click"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
 
             <!-- Drill picker -->
             <WrapPanel x:Name="ModeChips" Margin="0,22,0,0"/>
@@ -55,6 +74,9 @@
                             <StackPanel Margin="0,0,32,8"><TextBlock Text="Consistency" FontSize="12" Foreground="{StaticResource TextDimBrush}"/><TextBlock x:Name="SpreadText" FontSize="20" FontWeight="SemiBold"/></StackPanel>
                             <StackPanel Margin="0,0,32,8"><TextBlock Text="Mistakes" FontSize="12" Foreground="{StaticResource TextDimBrush}"/><TextBlock x:Name="MistakeText" FontSize="20" FontWeight="SemiBold"/></StackPanel>
                             <StackPanel x:Name="LevelBox" Margin="0,0,32,8"><TextBlock Text="Level reached" FontSize="12" Foreground="{StaticResource TextDimBrush}"/><TextBlock x:Name="LevelText" FontSize="20" FontWeight="SemiBold"/></StackPanel>
+                            <StackPanel x:Name="AccuracyBox" Margin="0,0,32,8"><TextBlock Text="Enemies hit" FontSize="12" Foreground="{StaticResource TextDimBrush}"/><TextBlock x:Name="AccuracyText" FontSize="20" FontWeight="SemiBold"/></StackPanel>
+                            <StackPanel x:Name="HeadBox" Margin="0,0,32,8"><TextBlock Text="Headshots" FontSize="12" Foreground="{StaticResource TextDimBrush}"/><TextBlock x:Name="HeadText" FontSize="20" FontWeight="SemiBold"/></StackPanel>
+                            <StackPanel x:Name="OffsetBox" Margin="0,0,32,8"><TextBlock Text="Crosshair off by" FontSize="12" Foreground="{StaticResource TextDimBrush}"/><TextBlock x:Name="OffsetText" FontSize="20" FontWeight="SemiBold"/></StackPanel>
                         </WrapPanel>
                         <Button Grid.Column="2" Style="{StaticResource PrimaryButton}" Content="Go again" VerticalAlignment="Center" Click="Again_Click"/>
                     </Grid>
@@ -101,7 +123,7 @@
             </Border>
 
             <TextBlock Style="{StaticResource Body}" FontSize="12" Foreground="{StaticResource TextFaintBrush}" Margin="0,20,0,0" MaxWidth="760" HorizontalAlignment="Left" TextWrapping="Wrap"
-                       Text="The delay from your PC, mouse and screen is an estimate from your screen's refresh rate, assuming a 1000 Hz gaming mouse. Your progress graph uses the full measured time, so compare sessions on the same setup. Simple reaction time only improves a little with practice; reacting and choosing in games improves a lot, so mix the drills."/>
+                       Text="Pure reaction time (the plain Reaction drill) only improves a little with practice: it's mostly how your nerves are built. What improves a lot is everything around it in a real fight: spotting, deciding, and having your crosshair already where the head appears. The game drills train those, and the Benchmark, which never changes difficulty, shows whether it's working. The delay from your PC, mouse and screen is an estimate from your screen's refresh rate, assuming a 1000 Hz gaming mouse; compare sessions on the same setup."/>
         </StackPanel>
     </ScrollViewer>
 </UserControl>
