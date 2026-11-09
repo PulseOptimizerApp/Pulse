@@ -56,7 +56,7 @@ public static class MatchArt
 
     static Stream Open(string file)
     {
-        try { return Application.GetResourceStream(new Uri($"pack://application:,,,/Assets/Matches/{file}", UriKind.Absolute))?.Stream; }
+        try { return Application.GetResourceStream(new Uri($"pack://application:,,,/Pulse;component/Assets/Matches/{file}", UriKind.Absolute))?.Stream; }
         catch { return null; }
     }
 

@@ -491,7 +491,7 @@ public partial class ValorantPage
         card.ColumnDefinitions.Add(new ColumnDefinition());
         var portrait = MatchArt.AgentBust(p.Agent) ?? MatchArt.AgentIcon(p.Agent);
         if (portrait != null) card.Children.Add(new Image { Source = portrait, Width = 130, Height = 120, Stretch = Stretch.UniformToFill, Margin = new Thickness(18, 8, 18, 0), VerticalAlignment = VerticalAlignment.Bottom });
-        var info = new StackPanel { Margin = new Thickness(0, 16, 18, 14) };
+        var info = new StackPanel { Margin = new Thickness(portrait == null ? 18 : 0, 16, 18, 14) };
         var nameRow = new StackPanel { Orientation = Orientation.Horizontal };
         if (MatchArt.RankIcon(p.Tier) is { } rnk) nameRow.Children.Add(Pic(rnk, 26, 26, 8));
         var riotId = Stats.NameOf(m, pid) ?? NameBook.Get(pid) ?? p.Agent;
@@ -606,7 +606,7 @@ public partial class ValorantPage
         foreach (var (wid, dmg, kills) in wk)
         {
             weap.RowDefinitions.Add(new RowDefinition { Height = new GridLength(40) });
-            string name = dmg.Equals("Weapon", StringComparison.OrdinalIgnoreCase) ? MapGeo.Weapon(wid) ?? wid : Loc.T(dmg switch { "Ability" => "Ability", "Bomb" => "Spike", "Melee" => "Melee", "Fall" => "Fall", _ => dmg });
+            string name = dmg.Equals("Weapon", StringComparison.OrdinalIgnoreCase) ? MapGeo.Weapon(wid) ?? Loc.T("Weapon") : Loc.T(dmg switch { "Ability" => "Ability", "Bomb" => "Spike", "Melee" => "Melee", "Fall" => "Fall", _ => dmg });
             Cell(weap, wr, 0, Txt(name, 13, TgText, true).Also(x => x.HorizontalAlignment = HorizontalAlignment.Left), TgCard);
             Cell(weap, wr, 1, dmg.Equals("Weapon", StringComparison.OrdinalIgnoreCase) && MatchArt.WeaponIcon(wid) is { } wi ? (UIElement)Pic(wi, 100, 26, 0) : new Border(), TgCard);
             Cell(weap, wr, 2, Txt(kills.ToString(CultureInfo.CurrentCulture), 14, TgText, true), A(TgBlue, 0x26));

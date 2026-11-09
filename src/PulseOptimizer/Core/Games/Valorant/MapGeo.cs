@@ -29,7 +29,7 @@ public static class MapGeo
         _agentIds = new(StringComparer.OrdinalIgnoreCase);
         try
         {
-            var s = Application.GetResourceStream(new Uri("pack://application:,,,/Assets/Matches/meta.json", UriKind.Absolute))?.Stream;
+            var s = Application.GetResourceStream(new Uri("pack://application:,,,/Pulse;component/Assets/Matches/meta.json", UriKind.Absolute))?.Stream;
             if (s == null) return;
             using (s) LoadFrom(JsonDocument.Parse(s).RootElement);
         }
