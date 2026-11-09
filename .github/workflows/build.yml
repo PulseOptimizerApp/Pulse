@@ -28,11 +28,19 @@ jobs:
       - name: Run tests (measurement maths, exact undo, tweak list, safety checks)
         run: dotnet test tests/PulseOptimizer.Tests/PulseOptimizer.Tests.csproj -c Release --logger "console;verbosity=normal"
 
+      # A copy of PresentMon kept between builds, used if Intel's release page can't be reached.
+      - name: Restore cached PresentMon
+        uses: actions/cache@v4
+        with:
+          path: build-cache/presentmon
+          key: presentmon-${{ github.run_id }}
+          restore-keys: presentmon-
+
       - name: Get PresentMon (Intel, MIT license) to carry inside the exe
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
-        run: ./tools/get-presentmon.ps1 -Out src/PulseOptimizer/tools/PresentMon.exe
+        run: ./tools/get-presentmon.ps1 -Out src/PulseOptimizer/tools/PresentMon.exe -Cache build-cache/presentmon
 
       - name: Package FFmpeg for Clips (downloaded by Pulse only when a user turns Clips on)
         shell: pwsh
@@ -99,6 +107,17 @@ jobs:
           $sums = Get-Content dist/SHA256SUMS.txt -Raw
           (Get-Content .github/RELEASE_TEMPLATE.md -Raw).Replace('{{SHA256SUMS}}', $sums.Trim()).Replace('{{REPO}}', '${{ github.repository }}') | Set-Content .github/RELEASE_TEMPLATE.md
 
+      - name: Check every release file is there before publishing
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        run: |
+          foreach ($f in 'Pulse.exe', 'PulseOptimizer.exe', 'ffmpeg-win64.zip', 'SHA256SUMS.txt') {
+            $p = "dist/$f"
+            if (-not (Test-Path $p)) { throw "Release file missing: $f" }
+            if ((Get-Item $p).Length -lt 100) { throw "Release file empty: $f" }
+          }
+          if ((Get-Item dist/Pulse.exe).Length -lt 20mb) { throw "Pulse.exe is suspiciously small" }
+
       - name: Publish release (version tags only)
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
@@ -110,3 +129,16 @@ jobs:
             dist/PulseOptimizer.exe
             dist/SHA256SUMS.txt
             dist/ffmpeg-win64.zip
+
+      # The updater only offers a release once its checksums are attached; this makes a half-uploaded release fail loudly.
+      - name: Confirm the release has all its files
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $names = gh release view $env:GITHUB_REF_NAME --repo $env:GITHUB_REPOSITORY --json assets --jq '.assets[].name'
+          foreach ($f in 'Pulse.exe', 'PulseOptimizer.exe', 'ffmpeg-win64.zip', 'SHA256SUMS.txt') {
+            if ($names -notcontains $f) { throw "The release is missing $f" }
+          }
+          Write-Host "Release has all its files."
