@@ -196,7 +196,7 @@ public static class LobbyOverlay
     static FrameworkElement Brand(string what)
     {
         var sp = new StackPanel { Orientation = Orientation.Horizontal };
-        sp.Children.Add(new Image { Source = new BitmapImage(new Uri("pack://application:,,,/Assets/logo-128.png")), Width = 18, Height = 18 });
+        sp.Children.Add(new Image { Source = new BitmapImage(new Uri("pack://application:,,,/Pulse;component/Assets/logo-128.png")), Width = 18, Height = 18 });
         sp.Children.Add(T("PULSE", 11.5, White).Also(t => { t.Margin = new Thickness(7, 0, 0, 0); t.VerticalAlignment = VerticalAlignment.Center; }));
         sp.Children.Add(T("  ·  " + what.ToUpper(CultureInfo.CurrentCulture), 10.5, Dim).Also(t => t.VerticalAlignment = VerticalAlignment.Center));
         return sp;
