@@ -24,7 +24,9 @@ await esbuild.build({
   entryPoints: [entry],
   bundle: true,
   format: "iife",
-  target: "es2019",
+  // ES2015: esbuild lowers everything newer (optional catch, object rest/spread, class fields, async functions into
+  // generators…), leaving Babel only the generators to rewrite (see below).
+  target: "es2015",
   platform: "neutral",
   minify: true,
   legalComments: "none",
