@@ -60,7 +60,7 @@ public partial class ValorantPage
             AutoDownload();
             return;
         }
-        var report = Coach.Analyze(matches);
+        var report = Memo("coachreport:" + matches.Count + ":" + matches[0].Id, () => Coach.Analyze(matches)); // the same until a match is saved
         if (CS.Focus != null) Root.Children.Add(FocusCard(matches));
         if (report.Rounds < Coach.MinRounds)
         {

@@ -19,6 +19,7 @@ public partial class ValorantPage
     static bool _luFav;
     static Lineup _luEdit;
     static bool _luMine; // false: Pulse's library, true: your own
+    static bool _luShowAll;
 
     void BuildLineups()
     {
@@ -46,7 +47,7 @@ public partial class ValorantPage
             b.Items.Add(new ComboBoxItem { Content = Loc.T(any), Tag = "" });
             foreach (var i in items) b.Items.Add(new ComboBoxItem { Content = label?.Invoke(i) ?? i, Tag = i });
             b.SelectedIndex = Math.Max(0, b.Items.Cast<ComboBoxItem>().ToList().FindIndex(x => (string)x.Tag == sel));
-            b.SelectionChanged += (_, _) => { if (b.SelectedItem is ComboBoxItem ci) { set((string)ci.Tag); Build(); } };
+            b.SelectionChanged += (_, _) => { if (b.SelectedItem is ComboBoxItem ci) { set((string)ci.Tag); _luShowAll = false; Build(); } };
             return b;
         }
         bar.Children.Add(Pick("All maps", Lineups.Maps, _luMap, v => _luMap = v));
@@ -86,8 +87,16 @@ public partial class ValorantPage
             return;
         }
         var wrap = new WrapPanel();
-        foreach (var l in list) wrap.Children.Add(LineupCard(l));
+        // 24 at a time: a page of 60+ cards takes noticeably longer to draw.
+        foreach (var l in list.Take(_luShowAll ? int.MaxValue : 24)) wrap.Children.Add(LineupCard(l));
         Root.Children.Add(wrap);
+        if (!_luShowAll && list.Count > 24)
+        {
+            var more = Btn(Loc.F("Show all {0}", list.Count));
+            more.HorizontalAlignment = HorizontalAlignment.Left;
+            more.Click += (_, _) => { _luShowAll = true; Build(); };
+            Root.Children.Add(more);
+        }
     }
 
     static string DiffName(string d) => d switch { "1" => Loc.T("Easy"), "2" => Loc.T("Medium"), "3" => Loc.T("Hard"), _ => d };

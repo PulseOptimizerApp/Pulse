@@ -5030,5 +5030,6 @@
  "{0} damage": "{0} de dano",
  "{0} of their skills play like {1} or higher, ranked {2}": "{0} das habilidades jogam como {1} ou mais, com elo {2}",
  "No game is running. To clip your desktop too, turn on \"Clip the desktop too\" on the Clips page.": "Nenhum jogo está aberto. Para gravar também a área de trabalho, ative \"Gravar também a área de trabalho\" na página Clipes.",
- "Desktop": "Área de trabalho"
+ "Desktop": "Área de trabalho",
+ "Show all {0}": "Mostrar todos os {0}"
 }

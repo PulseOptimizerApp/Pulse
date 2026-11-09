@@ -337,7 +337,7 @@ public partial class ValorantPage
                 main.Children.Add(ActOverviewGg(p, ms));
                 main.Children.Add(TgHeading(Loc.T("Top agents"), Loc.T("by playtime"), Loc.T("All Agents"), () => { _trView = "agents"; Build(); }));
                 main.Children.Add(AgentsGg(ms, id, 3, false));
-                main.Children.Add(LastMatchesGg(p, ms, 20, true));
+                main.Children.Add(LastMatchesGg(p, ms, 10, true)); // the rest on the Matches tab: a shorter page draws faster
                 var row = new Grid();
                 row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(300) });
                 row.ColumnDefinitions.Add(new ColumnDefinition());
