@@ -5188,5 +5188,13 @@
  "Lower registers clicks sooner; too low can cause accidental double clicks on worn switches.": "Más bajo registra los clics antes; demasiado bajo puede causar dobles clics accidentales con interruptores gastados.",
  "ms": "ms",
  "Sleep after": "Suspender tras",
- "How long the wireless mouse waits, unused, before it sleeps to save battery.": "Cuánto espera el ratón inalámbrico sin usarse antes de suspenderse para ahorrar batería."
+ "How long the wireless mouse waits, unused, before it sleeps to save battery.": "Cuánto espera el ratón inalámbrico sin usarse antes de suspenderse para ahorrar batería.",
+ "Game profiles": "Perfiles por juego",
+ "Pulse switches your mouse when a game starts, and back when it closes. Leave a box empty to keep that setting as it is.": "Pulse cambia tu ratón cuando empieza un juego, y lo devuelve cuando se cierra. Deja una casilla vacía para no cambiar ese ajuste.",
+ "No game running": "Sin juego abierto",
+ "Add game": "Añadir juego",
+ "Warn me when the battery drops below {0}%": "Avisarme cuando la batería baje del {0}%",
+ "Your mouse isn't connected.": "Tu ratón no está conectado.",
+ "{0}: battery {1}%": "{0}: batería {1}%",
+ "Charge it soon.": "Cárgalo pronto."
 }

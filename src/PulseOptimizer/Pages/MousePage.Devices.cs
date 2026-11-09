@@ -68,6 +68,8 @@ public partial class MousePage
             _clientId = opened.GetProperty("id").GetInt32();
             _methods = opened.GetProperty("methods").EnumerateArray().Select(m => m.GetString()).ToHashSet();
             _current = f;
+            Profiles.Device = MouseSettings.DeviceId(f.VendorId, f.ProductId);
+            Core.TweakEngine.Save();
             await ReadStatus();
         }
         catch (Exception ex)
@@ -228,6 +230,98 @@ public partial class MousePage
 
         if (Has("ui") && _status.GetProperty("ui").TryGetProperty("statusNote", out var note) && note.ValueKind == JsonValueKind.String)
             MousePanel.Children.Add(Faint(note.GetString()));
+        ShowProfiles();
+    }
+
+    // ───────── game profiles ─────────
+
+    static MouseSettings Profiles => Core.TweakEngine.State.Mouse ??= new MouseSettings();
+
+    /// <summary>
+    /// DPI and polling rate per game, put on the mouse when the game starts; the "no game" profile when it closes.
+    /// Blank (or "Keep") leaves that setting as it is.
+    /// </summary>
+    void ShowProfiles()
+    {
+        var s = Profiles;
+        var rates = Nums("supportedPollingRates");
+        if (rates.Count == 0) rates = new() { 125, 250, 500, 1000 };
+        bool canDpi = _methods.Contains("setDpi") || _methods.Contains("setDpiStageValue");
+        bool canHz = _methods.Contains("setPollingRate") && !Hint("pollingReadOnly");
+        if (!canDpi && !canHz) return;
+
+        var box = new StackPanel { Margin = new Thickness(0, 22, 0, 0) };
+        box.Children.Add(new TextBlock { Text = Loc.T("Game profiles"), FontSize = 15, FontWeight = FontWeights.Bold, Foreground = (Brush)FindResource("TextBrush") });
+        box.Children.Add(Faint(Loc.T("Pulse switches your mouse when a game starts, and back when it closes. Leave a box empty to keep that setting as it is.")));
+
+        void Save() { Core.TweakEngine.Save(); Ui.GameSessionService.Refresh(); }
+
+        FrameworkElement Line(string title, MouseProfile p, Action remove)
+        {
+            var g = new Grid { Margin = new Thickness(0, 10, 0, 0) };
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(220) });
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            g.Children.Add(new TextBlock { Text = title, FontSize = 13, FontWeight = FontWeights.SemiBold, Foreground = (Brush)FindResource("TextBrush"), VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis });
+            var dpi = new TextBox { Style = (Style)FindResource("SearchBox"), Width = 90, Text = p.Dpi > 0 ? p.Dpi.ToString(CultureInfo.CurrentCulture) : "", IsEnabled = canDpi, ToolTip = Loc.T("DPI") };
+            dpi.LostKeyboardFocus += (_, _) => { p.Dpi = TryNum(dpi.Text, out var v) && v >= 50 && v <= 50000 ? (int)v : 0; dpi.Text = p.Dpi > 0 ? p.Dpi.ToString(CultureInfo.CurrentCulture) : ""; Save(); };
+            Grid.SetColumn(dpi, 1);
+            g.Children.Add(dpi);
+            g.Children.Add(new TextBlock { Text = Loc.T("DPI"), FontSize = 12, Foreground = (Brush)FindResource("TextDimBrush"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 0, 16, 0) }.Also(t => Grid.SetColumn(t, 2)));
+            var hz = new ComboBox { Width = 120, IsEnabled = canHz };
+            hz.Items.Add(new ComboBoxItem { Content = Loc.T("Keep"), Tag = 0 });
+            foreach (var r in rates.Distinct().OrderBy(x => x)) hz.Items.Add(new ComboBoxItem { Content = r >= 1000 ? Loc.F("{0}K Hz", r / 1000) : Loc.F("{0} Hz", r), Tag = (int)r });
+            hz.SelectedItem = hz.Items.Cast<ComboBoxItem>().FirstOrDefault(i => (int)i.Tag == p.PollingHz) ?? hz.Items[0];
+            hz.SelectionChanged += (_, _) => { p.PollingHz = (int)((ComboBoxItem)hz.SelectedItem).Tag; Save(); };
+            var right = new StackPanel { Orientation = Orientation.Horizontal };
+            right.Children.Add(hz);
+            if (remove != null)
+            {
+                var x = new Button { Style = (Style)FindResource("GhostButton"), Content = Loc.T("Remove"), Margin = new Thickness(10, 0, 0, 0) };
+                x.Click += (_, _) => { remove(); Save(); ShowSettings(); };
+                right.Children.Add(x);
+            }
+            Grid.SetColumn(right, 3);
+            g.Children.Add(right);
+            return g;
+        }
+
+        s.Desktop ??= new MouseProfile();
+        box.Children.Add(Line(Loc.T("No game running"), s.Desktop, null));
+        foreach (var p in s.Games.ToList())
+            box.Children.Add(Line(p.Game, p, () => s.Games.Remove(p)));
+
+        // Add a game: Pulse's game list, or type one in.
+        var add = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 14, 0, 0) };
+        var pick = new ComboBox { Width = 220, IsEditable = true };
+        foreach (var name in Core.Games.GameCatalog.All.Select(g => g.Name).Distinct().OrderBy(n => n))
+            if (!s.Games.Any(p => string.Equals(p.Game, name, StringComparison.OrdinalIgnoreCase))) pick.Items.Add(name);
+        if (Ui.GameSessionService.CurrentGame is { } running) pick.Text = running;
+        var addBtn = new Button { Style = (Style)FindResource("GhostButton"), Content = Loc.T("Add game"), Margin = new Thickness(10, 0, 0, 0) };
+        addBtn.Click += (_, _) =>
+        {
+            var name = pick.Text?.Trim();
+            if (string.IsNullOrEmpty(name) || s.Games.Any(p => string.Equals(p.Game, name, StringComparison.OrdinalIgnoreCase))) return;
+            s.Games.Add(new MouseProfile { Game = name, Dpi = (int)(double.IsNaN(Num("dpi")) ? 0 : Num("dpi")), PollingHz = (int)(double.IsNaN(Num("pollingRateHz")) ? 0 : Num("pollingRateHz")) });
+            Save();
+            ShowSettings();
+        };
+        add.Children.Add(pick);
+        add.Children.Add(addBtn);
+        box.Children.Add(add);
+
+        // Battery alert.
+        if (!double.IsNaN(Num("batteryPercent")))
+        {
+            var bat = new CheckBox { Style = (Style)FindResource("Switch"), IsChecked = s.BatteryAlert, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0) };
+            bat.Click += (_, _) => { s.BatteryAlert = bat.IsChecked == true; Core.TweakEngine.Save(); };
+            var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 18, 0, 0) };
+            row.Children.Add(bat);
+            row.Children.Add(new TextBlock { Text = Loc.F("Warn me when the battery drops below {0}%", s.BatteryAlertPercent), FontSize = 13, Foreground = (Brush)FindResource("TextBrush"), VerticalAlignment = VerticalAlignment.Center });
+            box.Children.Add(row);
+        }
+        MousePanel.Children.Add(box);
     }
 
     // ───────── small pieces ─────────

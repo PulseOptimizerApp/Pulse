@@ -100,6 +100,7 @@ g.navigator.hid = {
 // ───────── what Pulse calls ─────────
 
 const clients = new Map();
+const users = new Map();   // how many open clients use each device: it's only closed when the last one is done
 let clientSeq = 1;
 const toJson = (v) => JSON.stringify(v ?? null, (_, x) => (x instanceof Map ? Object.fromEntries(x) : ArrayBuffer.isView(x) ? Array.from(x) : typeof x === "bigint" ? Number(x) : x));
 function methodsOf(o) {
@@ -130,26 +131,31 @@ g.PulseMouse = {
     if (!client) throw new Error("No driver for this device.");
     if (typeof client.open === "function") await client.open(); else await d.open();
     const id = clientSeq++;
-    clients.set(id, client);
+    clients.set(id, { client, key });
+    users.set(key, (users.get(key) ?? 0) + 1);
     let brand = "";
     try { brand = deviceBrand(client); } catch {}
     return toJson({ id, brand, methods: methodsOf(client) });
   },
   async status(id) {
-    const c = clients.get(id);
+    const c = clients.get(id)?.client;
     if (!c) throw new Error("Not open.");
     return toJson(await c.readStatus());
   },
   async call(id, name, argsJson) {
-    const c = clients.get(id);
+    const c = clients.get(id)?.client;
     if (!c) throw new Error("Not open.");
     if (typeof c[name] !== "function") throw new Error(`This mouse can't do ${name}.`);
     return toJson(await c[name](...JSON.parse(argsJson || "[]")));
   },
   async close(id) {
-    const c = clients.get(id);
+    const entry = clients.get(id);
     clients.delete(id);
-    try { if (typeof c?.close === "function") await c.close(); } catch {}
+    if (!entry) return "null";
+    const left = (users.get(entry.key) ?? 1) - 1;
+    if (left > 0) { users.set(entry.key, left); return "null"; }
+    users.delete(entry.key);
+    try { if (typeof entry.client.close === "function") await entry.client.close(); else await devices.get(entry.key)?.close(); } catch {}
     return "null";
   },
 };

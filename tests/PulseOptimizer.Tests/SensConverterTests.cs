@@ -45,3 +45,23 @@ public class SensConverterTests
         Assert.Equal(SensConverter.Games.Count, SensConverter.Games.Select(g => g.Id).Distinct().Count());
     }
 }
+
+public class MouseProfileTests
+{
+    [Fact]
+    public void Picks_the_games_profile_or_the_desktop_one()
+    {
+        var s = new MouseSettings();
+        Assert.False(MouseSettings.WantsGames(s));                      // no mouse picked
+        s.Device = MouseSettings.DeviceId(0x36a7, 0xa887);
+        Assert.Equal("36A7:A887", s.Device);
+        Assert.False(MouseSettings.WantsGames(s));                      // nothing to switch to
+        s.Desktop = new MouseProfile { Dpi = 1600, PollingHz = 1000 };
+        Assert.True(MouseSettings.WantsGames(s));
+        s.Games.Add(new MouseProfile { Game = "VALORANT", Dpi = 800, PollingHz = 4000 });
+        Assert.Equal(800, s.For("valorant").Dpi);                      // ignores case
+        Assert.Equal(1600, s.For("Counter-Strike 2").Dpi);             // no profile: the desktop one
+        Assert.Equal(1600, s.For(null).Dpi);
+        Assert.True(MouseSettings.WantsGames(new MouseSettings { Device = "x", Games = { new MouseProfile { Game = "A" } } }));
+    }
+}

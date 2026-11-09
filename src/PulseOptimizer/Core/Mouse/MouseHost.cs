@@ -22,6 +22,23 @@ public sealed class MouseHost : IDisposable
         get { lock (Gate) return _instance ??= Script() is { } js ? new MouseHost(js) : null; }
     }
 
+    static int _holds;
+
+    /// <summary>Keeps the engine running while something uses it (the Mouse page, a profile being applied).</summary>
+    public static void Hold() { lock (Gate) _holds++; }
+
+    /// <summary>Done with it: when nothing else holds it, the engine stops and its memory is freed.</summary>
+    public static void Release()
+    {
+        lock (Gate)
+        {
+            if (--_holds > 0) return;
+            _holds = 0;
+            _instance?.Dispose();
+            _instance = null;
+        }
+    }
+
     /// <summary>The bundled protocol library, or null.</summary>
     public static string Script()
     {
@@ -39,6 +56,7 @@ public sealed class MouseHost : IDisposable
     readonly ConcurrentDictionary<int, TaskCompletionSource<string>> _calls = new();
     readonly Dictionary<string, Hid.DeviceInfo> _infos = new();
     readonly ConcurrentDictionary<string, Hid.Connection> _open = new();
+    readonly Dictionary<string, int> _users = new();
     readonly TaskCompletionSource<bool> _ready = new(TaskCreationOptions.RunContinuationsAsynchronously);
     Engine _engine;
     int _seq;
@@ -142,6 +160,8 @@ public sealed class MouseHost : IDisposable
 
         public void open(double token, string key) => _h.Answer(token, () =>
         {
+            // The Mouse page and a game profile can use the same mouse at once: count the users of each connection.
+            lock (_h._users) _h._users[key] = _h._users.GetValueOrDefault(key) + 1;
             if (_h._open.ContainsKey(key)) return Task.FromResult<string>(null);
             Hid.DeviceInfo info;
             lock (_h._infos) _h._infos.TryGetValue(key, out info);
@@ -154,6 +174,12 @@ public sealed class MouseHost : IDisposable
 
         public void close(double token, string key) => _h.Answer(token, () =>
         {
+            lock (_h._users)
+            {
+                int left = _h._users.GetValueOrDefault(key) - 1;
+                if (left > 0) { _h._users[key] = left; return Task.FromResult<string>(null); }
+                _h._users.Remove(key);
+            }
             if (_h._open.TryRemove(key, out var c)) c.Dispose();
             return Task.FromResult<string>(null);
         });
@@ -202,6 +228,8 @@ public sealed class MouseHost : IDisposable
     public void Dispose()
     {
         _disposed = true;
+        foreach (var t in _calls.Values) t.TrySetException(new ObjectDisposedException("mouse engine"));
+        _calls.Clear();
         foreach (var c in _open.Values) try { c.Dispose(); } catch { }
         _open.Clear();
         _queue.CompleteAdding();
