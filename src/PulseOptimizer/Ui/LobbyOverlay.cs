@@ -124,7 +124,7 @@ public static class LobbyOverlay
             who.Children.Add(new Border { Width = 38, Height = 38, CornerRadius = new CornerRadius(8), ClipToBounds = true, Background = RowBg, Child = new Image { Source = art }.Also(i => RenderOptions.SetBitmapScalingMode(i, BitmapScalingMode.HighQuality)) });
         var mid = new StackPanel { Margin = new Thickness(10, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
         mid.Children.Add(T($"{s.Agent} · {s.Kills} / {s.Deaths} / {s.Assists}", 13, White));
-        mid.Children.Add(T(Loc.F("#{0} of {1} · ACS {2} · ADR {3} · HS {4}%", s.Place, s.Match.Players.Count, Math.Round(s.Acs), Math.Round(s.Adr), Math.Round(s.HsPct)), 11, Dim, bold: false).Also(t => t.Margin = new Thickness(0, 2, 0, 0)));
+        mid.Children.Add(T(Loc.F("#{0} of {1} · ACS {2} · ADR {3} · HS {4}%", s.Place, s.Match.Players.Count, Math.Round(s.Acs), Math.Round(s.Adr), double.IsNaN(s.HsPct) ? "–" : Math.Round(s.HsPct).ToString(CultureInfo.CurrentCulture)), 11, Dim, bold: false).Also(t => t.Margin = new Thickness(0, 2, 0, 0)));
         Grid.SetColumn(mid, 1);
         who.Children.Add(mid);
         if (!double.IsNaN(s.Score))
