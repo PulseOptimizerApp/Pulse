@@ -146,7 +146,11 @@ g.PulseMouse = {
     users.set(key, (users.get(key) ?? 0) + 1);
     let brand = "";
     try { brand = deviceBrand(client); } catch {}
-    return toJson({ id, brand, methods: methodsOf(client) });
+    // Option lists a driver publishes (sleep timeouts in seconds, debounce choices), as OpenMouse reads them.
+    const list = (name) => { try { const v = typeof client[name] === "function" ? client[name]() : null; return Array.isArray(v) ? [...v] : null; } catch { return null; } };
+    const num = (name) => { try { const v = typeof client[name] === "function" ? client[name]() : null; return typeof v === "number" ? v : null; } catch { return null; } };
+    const options = { sleep: list("getSleepOptions"), debounce: list("getDebounceOptions"), debounceMax: num("getDebounceMaxMs"), canDisableSleep: client.canDisableSleep === true };
+    return toJson({ id, brand, methods: methodsOf(client), options });
   },
   async status(id) {
     const c = clients.get(id)?.client;

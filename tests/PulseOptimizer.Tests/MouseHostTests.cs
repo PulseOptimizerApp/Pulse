@@ -9,6 +9,7 @@ namespace PulseOptimizer.Tests;
 /// The bundled OpenMouse protocol library runs in Pulse's script engine and recognises mice from what Windows reports.
 /// Skipped when the bundle isn't built (it's made by tools/get-mouse-protocol.sh in CI).
 /// </summary>
+[Collection("Mouse engine")]
 public class MouseHostTests
 {
     readonly ITestOutputHelper _out;
@@ -135,6 +136,126 @@ public class MousePageShots
                 enc.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(rtb));
                 using var fs = File.Create(Path.Combine(dir, file));
                 enc.Save(fs);
+        }
+    }
+}
+
+/// <summary>
+/// Every setting the Mouse page changes, end to end through Pulse's own host: the engine, OpenMouse's WLmouse driver,
+/// and the feature reports it sends, answered by a simulated mouse that keeps what it's told (the same rules as
+/// OpenMouse's own WLmouse test). Each change is read back from the "mouse", as the page does.
+/// </summary>
+[Collection("Mouse engine")]
+public class MouseSettingsEndToEndTests
+{
+    readonly ITestOutputHelper _out;
+    public MouseSettingsEndToEndTests(ITestOutputHelper o) => _out = o;
+
+    /// <summary>A WLmouse (compx protocol on feature report 0) that stores what's written and answers reads from it.</summary>
+    sealed class FakeWlMouse : Hid.ILink
+    {
+        readonly Dictionary<(int Page, int Cmd), byte[]> _regs = new()
+        {
+            [(1, 0x01)] = new byte[] { 1, 0x06, 0x40, 0x06, 0x40 },   // one DPI stage: 1600
+            [(1, 0x02)] = new byte[] { 1 },                           // active stage 1
+            [(1, 0x00)] = new byte[] { 0x01 },                        // 1000 Hz
+            [(1, 0x08)] = new byte[] { 0x01 },                        // lift-off: medium
+            [(0, 0x08)] = new byte[] { 0 },                           // debounce 0 ms
+            [(0, 0x07)] = new byte[] { 0, 60 },                       // sleep 60 s
+            [(1, 0x09)] = new byte[] { 0 },                           // motion sync off
+        };
+        byte[] _last = new byte[64];
+        public int Writes;
+#pragma warning disable CS0067
+        public event Action<byte, byte[]> Input;
+#pragma warning restore CS0067
+        public Task SendReport(byte reportId, byte[] data) => Task.CompletedTask;
+        public Task SendFeature(byte reportId, byte[] data) { Assert.Equal(0, reportId); _last = data; return Task.CompletedTask; }
+        public Task<byte[]> GetFeature(byte reportId)
+        {
+            var r = _last;
+            int target = r[2], length = r[3], page = r[4], cmd = r[5];
+            byte[] payload;
+            if (target == 1 && cmd == 0x8b) payload = new byte[] { 0, 0, 0, 0, 0xa8, 0x63 };
+            else if (page == 0 && cmd == 0x85) payload = new byte[] { 1, 0 };
+            else if (page == 0 && cmd == 0x83) payload = new byte[] { 0, 76 };
+            else if ((cmd & 0x80) == 0) { _regs[(page, cmd)] = r[7..(6 + length)]; Writes++; payload = new byte[] { 1, 1 }; }
+            else payload = _regs.TryGetValue((page, cmd & 0x7f), out var v) ? new[] { r[6] }.Concat(v).ToArray() : new byte[] { 1, 1 };
+            var reply = new byte[64];
+            reply[0] = 0xa1; reply[3] = (byte)payload.Length; reply[4] = (byte)page; reply[5] = (byte)cmd;
+            payload.CopyTo(reply, 6);
+            return Task.FromResult(reply);
+        }
+        public void Dispose() { }
+    }
+
+    [Fact]
+    public async Task Dpi_stages_polling_rate_lift_off_debounce_sleep_and_motion_sync_all_change_on_the_mouse()
+    {
+        if (MouseHost.Script() == null) { _out.WriteLine("No bundled protocol library in this build: skipped."); return; }
+        var info = new Hid.DeviceInfo { Key = "fake-wlmouse", VendorId = 0x36a7, ProductId = 0xa863, ProductName = "WLMOUSE 8K RECEIVER" };
+        var c = new Hid.Collection { Path = "fake", UsagePage = 0xff00, Usage = 1, FeatureLength = 65 };
+        c.FeatureIds.Add(0);
+        info.Collections.Add(c);
+        var mouse = new FakeWlMouse();
+        var (list, connect) = (MouseHost.ListDevices, MouseHost.Connect);
+        MouseHost.ListDevices = () => new() { info };
+        MouseHost.Connect = _ => mouse;
+        MouseHost.Hold();
+        try
+        {
+            var host = MouseHost.Instance!;
+            async Task<JsonElement> Run(string method, params object[] args) =>
+                JsonSerializer.Deserialize<JsonElement>(await host.Run(method, args).WaitAsync(TimeSpan.FromSeconds(60)));
+            var found = await Run("scan");
+            Assert.Equal("fake-wlmouse", found[0].GetProperty("key").GetString());
+            var opened = await Run("open", "fake-wlmouse");
+            int id = opened.GetProperty("id").GetInt32();
+            var options = opened.GetProperty("options");
+            Assert.Equal(new[] { 30, 60, 120, 300, 600, 1800 }, options.GetProperty("sleep").EnumerateArray().Select(x => x.GetInt32()));
+            Assert.Equal(15, options.GetProperty("debounceMax").GetInt32());
+
+            var s = await Run("status", id);
+            Assert.Equal(1600, s.GetProperty("dpi").GetInt32());
+            Assert.Equal(1000, s.GetProperty("pollingRateHz").GetInt32());
+
+            async Task Call(string method, params object[] args)
+            {
+                var r = await host.Run("call", id, method, JsonSerializer.Serialize(args)).WaitAsync(TimeSpan.FromSeconds(60));
+                _out.WriteLine($"{method}({string.Join(", ", args)}) -> {r}");
+            }
+            await Call("setDpi", 800);
+            await Call("setDpiStageCount", 3);
+            await Call("setDpiStageValue", 2, 3200);
+            await Call("setActiveDpiStage", 2);
+            await Call("setPollingRate", 500);
+            await Call("setPollingRate", 8000);
+            await Call("setLiftOffDistance", "Low");
+            await Call("setDebounceTime", 4);
+            await Call("setSleepTimeout", 120);
+            await Call("setMotionSync", true);
+
+            s = await Run("status", id);
+            _out.WriteLine(s.ToString());
+            Assert.Equal(new[] { 800, 800, 3200 }, s.GetProperty("dpiStages").EnumerateArray().Select(x => x.GetInt32()));
+            Assert.Equal(2, s.GetProperty("activeDpiStage").GetInt32());
+            Assert.Equal(3200, s.GetProperty("dpi").GetInt32());
+            Assert.Equal(8000, s.GetProperty("pollingRateHz").GetInt32());
+            Assert.Equal("Low", s.GetProperty("liftOffDistance").GetString());
+            Assert.Equal(4, s.GetProperty("debounceMs").GetInt32());
+            Assert.Equal(120, s.GetProperty("sleepTimeout").GetInt32());
+            Assert.True(s.GetProperty("motionSync").GetBoolean());
+            Assert.True(mouse.Writes >= 10);
+
+            // A value the mouse refuses comes back as an error, not a hang.
+            await Assert.ThrowsAnyAsync<Exception>(() => host.Run("call", id, "setDebounceTime", "[99]").WaitAsync(TimeSpan.FromSeconds(30)));
+            await Run("close", id);
+        }
+        finally
+        {
+            MouseHost.ListDevices = list;
+            MouseHost.Connect = connect;
+            MouseHost.Release();
         }
     }
 }

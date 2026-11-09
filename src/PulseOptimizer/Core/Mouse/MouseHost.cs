@@ -24,6 +24,10 @@ public sealed class MouseHost : IDisposable
 
     static int _holds;
 
+    /// <summary>How devices are listed and opened: Windows' HID normally; a simulated mouse in tests.</summary>
+    public static Func<List<Hid.DeviceInfo>> ListDevices = Hid.List;
+    public static Func<Hid.DeviceInfo, Hid.ILink> Connect = info => new Hid.Connection(info);
+
     // ───────── diagnostics: what was said to the device (the last 400 lines) ─────────
 
     static readonly LinkedList<string> Trace = new();
@@ -74,7 +78,7 @@ public sealed class MouseHost : IDisposable
     readonly List<(DateTime Due, int Id)> _timers = new();
     readonly ConcurrentDictionary<int, TaskCompletionSource<string>> _calls = new();
     readonly Dictionary<string, Hid.DeviceInfo> _infos = new();
-    readonly ConcurrentDictionary<string, Hid.Connection> _open = new();
+    readonly ConcurrentDictionary<string, Hid.ILink> _open = new();
     readonly Dictionary<string, int> _users = new();
     readonly TaskCompletionSource<bool> _ready = new(TaskCreationOptions.RunContinuationsAsynchronously);
     Engine _engine;
@@ -172,7 +176,7 @@ public sealed class MouseHost : IDisposable
 
         public string list()
         {
-            var all = Hid.List();
+            var all = ListDevices();
             lock (_h._infos) { _h._infos.Clear(); foreach (var d in all) _h._infos[d.Key] = d; }
             return DevicesJson(all);
         }
@@ -185,7 +189,7 @@ public sealed class MouseHost : IDisposable
             Hid.DeviceInfo info;
             lock (_h._infos) _h._infos.TryGetValue(key, out info);
             if (info == null) throw new IOException("That device isn't connected any more.");
-            var c = new Hid.Connection(info);
+            var c = Connect(info);
             int inputs = 0;
             c.Input += (id, data) =>
             {
@@ -219,7 +223,7 @@ public sealed class MouseHost : IDisposable
             _h.Answer(token, $"get feature {id}", async () => Convert.ToHexString(await _h.Conn(key).GetFeature((byte)id)).ToLowerInvariant());
     }
 
-    Hid.Connection Conn(string key) =>
+    Hid.ILink Conn(string key) =>
         _open.TryGetValue(key, out var c) ? c : throw new IOException("The device isn't open.");
 
     /// <summary>Runs <paramref name="work"/> off the script thread, then hands the result back to the script.</summary>

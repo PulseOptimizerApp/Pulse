@@ -5248,5 +5248,10 @@
  "Open": "Abrir",
  "Open it to read its settings": "Abra para ler as configurações",
  "Plug in your mouse (or its receiver), then scan to adjust its onboard settings.": "Conecte seu mouse (ou o receptor) e procure para ajustar as configurações dele.",
- "Reading its settings… Some wireless mice take up to 30 seconds the first time.": "Lendo as configurações… Alguns mouses sem fio levam até 30 segundos na primeira vez."
+ "Reading its settings… Some wireless mice take up to 30 seconds the first time.": "Lendo as configurações… Alguns mouses sem fio levam até 30 segundos na primeira vez.",
+ "Add a stage": "Adicionar um nível",
+ "Pick a DPI between {0} and {1}.": "Escolha um DPI entre {0} e {1}.",
+ "Pick a debounce between 0 and {0} ms.": "Escolha um debounce entre 0 e {0} ms.",
+ "Remove the last stage": "Remover o último nível",
+ "ms (0–{0})": "ms (0–{0})"
 }
