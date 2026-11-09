@@ -2,6 +2,7 @@
 // Bundled at build time into Assets/Mouse/openmouse.js and run inside Pulse's script engine. Pulse provides a WebHID
 // device made from Windows' HID functions, so OpenMouse's drivers run unchanged, without a browser.
 // @ts-nocheck
+import { deviceImage, deviceImageFilename, UNKNOWN_DEVICE_FILENAME, UNKNOWN_KEYBOARD_FILENAME } from "../../.mouse-app/src/shared/device-images.ts";
 import { createSupportedClient, clientSupportScore, deviceBrand } from "../../.mouse-protocol/src/drivers/registry.ts";
 
 // ───────── what a browser normally provides ─────────
@@ -110,7 +111,17 @@ function methodsOf(o) {
   return [...names].sort();
 }
 
+/** OpenMouse's product picture for a device name, or "" when it has none (then Pulse shows the "?" silhouette). */
+function imageFor(name, kind) {
+  if (!name) return "";
+  const file = deviceImageFilename(name);
+  if (file === UNKNOWN_DEVICE_FILENAME || file === UNKNOWN_KEYBOARD_FILENAME) return "";
+  const url = deviceImage(null, name, kind === "keyboard" ? "keyboard" : "mouse");
+  return url.startsWith("/") ? "https://openmouse.app" + url : url;
+}
+
 g.PulseMouse = {
+  image(name, kind) { return imageFor(name, kind); },
   /** Interfaces OpenMouse has a driver for, best first: [{ key, vendorId, productId, productName, score }]. */
   /** Same as scan, from a device list instead of the PC's devices (for tests). */
   scanList(listJson) { return this.scan(listJson); },
@@ -119,7 +130,7 @@ g.PulseMouse = {
     for (const d of refresh(listJson)) {
       let score = 0;
       try { score = clientSupportScore(d); } catch { score = 0; }
-      if (score > 0) out.push({ key: d.key, vendorId: d.vendorId, productId: d.productId, productName: d.productName, score });
+      if (score > 0) out.push({ key: d.key, vendorId: d.vendorId, productId: d.productId, productName: d.productName, score, image: imageFor(d.productName) });
     }
     out.sort((a, b) => b.score - a.score);
     return toJson(out);

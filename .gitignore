@@ -13,4 +13,5 @@ src/PulseOptimizer/Assets/Drivers/
 
 src/PulseOptimizer/Assets/Mouse/
 .mouse-protocol/
+.mouse-app/
 .mouse-build/

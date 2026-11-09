@@ -4,6 +4,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using Pulse.Core.Mouse;
 using Pulse.Ui;
@@ -17,8 +18,11 @@ namespace Pulse.Pages;
 /// </summary>
 public partial class MousePage
 {
-    sealed record Found(string Key, int VendorId, int ProductId, string Name, double Score)
+    sealed record Found(string Key, int VendorId, int ProductId, string Name, double Score, string Image = null)
     {
+        /// <summary>What OpenMouse calls it on its card: receivers count as the mouse they talk to.</summary>
+        public string Label => Kind is "Keyboard" or "Headset" ? Kind : "Mouse";
+
         public string Kind => Name switch
         {
             var n when System.Text.RegularExpressions.Regex.IsMatch(n, "keyboard|60he|80he|wooting|keychron|\\bk\\d{2}", System.Text.RegularExpressions.RegexOptions.IgnoreCase) => "Keyboard",
@@ -39,16 +43,16 @@ public partial class MousePage
     List<Found> _found = new();
     Found _current;
     int _clientId;
+    string _openKey;   // the device _clientId is connected to: it stays connected while the page is open
+    // What each device said when it was read (name, battery, polling…), its brand and its picture, for its card.
+    readonly Dictionary<string, (JsonElement Status, string Brand, string Image)> _known = new();
+    string _brand = "";
     HashSet<string> _methods = new();
     JsonElement _status;
     bool _busy;
     string _tab = "overview";
     string _error;
     readonly StackPanel _tabBody = new();
-
-    // A receiver that answered for its mouse is shown as the mouse.
-    string DeviceKind(Found f) =>
-        f.Kind == "Receiver" && Str("name") is { } n && !System.Text.RegularExpressions.Regex.IsMatch(n, "receiver|dongle", System.Text.RegularExpressions.RegexOptions.IgnoreCase) ? "Mouse" : f.Kind;
 
     // ───────── page views ─────────
 
@@ -65,6 +69,8 @@ public partial class MousePage
     async void ScanMice()
     {
         _current = null;
+        if (_clientId != 0 && MouseHost.Instance is { } open) { try { await open.Run("close", _clientId).WaitAsync(TimeSpan.FromSeconds(5)); } catch { } }
+        _clientId = 0; _openKey = null; _known.Clear();
         var host = MouseHost.Instance;
         if (host == null) { ShowList(Loc.T("Mouse support isn't included in this build of Pulse.")); return; }
         ShowList(Loc.T("Looking for devices…"));
@@ -74,7 +80,8 @@ public partial class MousePage
             // One card per device: a mouse and its receiver can show up several times; keep the best match of each.
             _found = JsonSerializer.Deserialize<List<JsonElement>>(json)!
                 .Select(e => new Found(e.GetProperty("key").GetString(), e.GetProperty("vendorId").GetInt32(), e.GetProperty("productId").GetInt32(),
-                    e.GetProperty("productName").GetString() ?? "", e.GetProperty("score").GetDouble()))
+                    e.GetProperty("productName").GetString() ?? "", e.GetProperty("score").GetDouble(),
+                    e.TryGetProperty("image", out var img) ? img.GetString() : null))
                 .GroupBy(f => (f.VendorId, f.ProductId)).Select(g => g.OrderByDescending(f => f.Score).First())
                 .OrderBy(f => f.Kind is "Mouse" or "Receiver" ? 0 : 1).ToList();
             ShowList(null);
@@ -104,35 +111,84 @@ public partial class MousePage
         });
     }
 
+    // OpenMouse's showcase picture on the "Add device" card.
+    const string ShowcaseArt = "https://img.openmouse.app/logitech-g502-x-plus.png";
+
     Border DeviceCard(Found f)
     {
-        var sp = new StackPanel();
+        bool connected = f.Key == _openKey && _known.ContainsKey(f.Key);
+        var known = connected ? _known[f.Key] : default;
+        string Get(string name) => connected && known.Status.ValueKind == JsonValueKind.Object && known.Status.TryGetProperty(name, out var v) && v.ValueKind is not (JsonValueKind.Null or JsonValueKind.Undefined) ? v.ToString() : null;
+
+        var sp = new DockPanel { LastChildFill = true };
+        var top = new StackPanel();
         var head = new Grid();
         head.ColumnDefinitions.Add(new ColumnDefinition());
         head.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        head.Children.Add(new TextBlock { Text = Pretty(f.Name), FontSize = 13, FontWeight = FontWeights.Bold, Foreground = Res("TextBrush"), TextTrimming = TextTrimming.CharacterEllipsis });
-        var pill = Pill(Loc.T("Connected"), Green, GreenDim);
+        head.Children.Add(new TextBlock { Text = Pretty(Get("name") ?? f.Name), FontSize = 14, FontWeight = FontWeights.Bold, Foreground = Res("TextBrush"), TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0) });
+        var pill = connected ? Pill("●  " + Loc.T("Connected"), Green, GreenDim) : Pill(Loc.T("Not connected"), Res("TextDimBrush") as SolidColorBrush, Inset);
+        pill.Margin = new Thickness(0);
         Grid.SetColumn(pill, 1);
         head.Children.Add(pill);
-        sp.Children.Add(head);
-        sp.Children.Add(new TextBlock { Text = Loc.T(f.Kind), FontSize = 11.5, Foreground = Res("TextDimBrush"), Margin = new Thickness(0, 3, 0, 0) });
-        sp.Children.Add(new Border { Height = 190, Child = Picture(f.Kind, 150) });
-        var go = new Button { Content = Loc.T("Configure"), Style = (Style)FindResource("PrimaryButton"), Background = Green, BorderBrush = Green, Foreground = Brushes.Black, HorizontalAlignment = HorizontalAlignment.Stretch };
+        top.Children.Add(head);
+        top.Children.Add(new TextBlock
+        {
+            Text = connected && !string.IsNullOrEmpty(known.Brand) ? $"{Pretty(known.Brand)} · {Loc.T(f.Label)}" : Loc.T(f.Label),
+            FontSize = 11.5, Foreground = Res("TextDimBrush"), Margin = new Thickness(0, 6, 0, 0),
+        });
+        if (connected)
+        {
+            var facts = new TextBlock { FontSize = 12, Foreground = Res("TextDimBrush"), Margin = new Thickness(0, 8, 0, 0) };
+            void Add(string text, bool bold)
+            {
+                if (facts.Inlines.Count > 0) facts.Inlines.Add(new System.Windows.Documents.Run("    "));
+                facts.Inlines.Add(new System.Windows.Documents.Run(text) { FontWeight = bold ? FontWeights.Bold : FontWeights.Normal, Foreground = bold ? Res("TextBrush") : Res("TextDimBrush") });
+            }
+            if (Get("connectionType") is { } conn) Add(Loc.T(conn), false);
+            if (double.TryParse(Get("batteryPercent"), NumberStyles.Float, CultureInfo.InvariantCulture, out var bat)) Add(Loc.F("{0}%", Math.Round(bat)), true);
+            if (double.TryParse(Get("pollingRateHz"), NumberStyles.Float, CultureInfo.InvariantCulture, out var hz))
+            {
+                Add(hz.ToString("N0", CultureInfo.CurrentCulture), true);
+                facts.Inlines.Add(new System.Windows.Documents.Run(" " + Loc.T("Hz")));
+            }
+            top.Children.Add(facts);
+        }
+        else top.Children.Add(new TextBlock { Text = Loc.T("Open it to read its settings"), FontSize = 12, Foreground = Res("TextDimBrush"), Margin = new Thickness(0, 8, 0, 0) });
+        DockPanel.SetDock(top, Dock.Top);
+        sp.Children.Add(top);
+
+        var go = connected
+            ? new Button { Content = Loc.T("Configure"), Style = (Style)FindResource("PrimaryButton"), Background = Green, BorderBrush = Green, Foreground = Brushes.Black }
+            : new Button { Content = Loc.T("Open"), Style = (Style)FindResource("GhostButton") };
+        go.HorizontalAlignment = HorizontalAlignment.Stretch;
+        go.Padding = new Thickness(10, 7, 10, 7);
         go.Click += (_, _) => OpenMouse(f);
+        DockPanel.SetDock(go, Dock.Bottom);
         sp.Children.Add(go);
-        return Card(sp, 220);
+        sp.Children.Add(Stage(Art(connected ? known.Image : f.Image, f.Kind, 190), connected));
+
+        var card = Card(sp, 246);
+        card.Height = 430;
+        if (connected) card.BorderBrush = Frozen(Color.FromArgb(0x90, 0x3D, 0xDC, 0x84));
+        return card;
     }
 
     Border ScanCard()
     {
-        var sp = new StackPanel();
-        sp.Children.Add(new TextBlock { Text = Loc.T("Add device"), FontSize = 13, FontWeight = FontWeights.Bold, Foreground = Res("TextBrush") });
-        sp.Children.Add(new TextBlock { Text = Loc.T("Plug it in (or its receiver), then scan."), FontSize = 11.5, Foreground = Res("TextDimBrush"), Margin = new Thickness(0, 3, 0, 0), TextWrapping = TextWrapping.Wrap });
-        sp.Children.Add(new Border { Height = 190, Child = Picture("Mouse", 150, faint: true) });
-        var scan = new Button { Content = Loc.T("Scan again"), Style = (Style)FindResource("GhostButton"), HorizontalAlignment = HorizontalAlignment.Stretch };
+        var sp = new DockPanel();
+        var top = new StackPanel();
+        top.Children.Add(new TextBlock { Text = Loc.T("Add device"), FontSize = 14, FontWeight = FontWeights.Bold, Foreground = Res("TextBrush") });
+        top.Children.Add(new TextBlock { Text = Loc.T("Plug in your mouse (or its receiver), then scan to adjust its onboard settings."), FontSize = 11.5, Foreground = Res("TextDimBrush"), Margin = new Thickness(0, 6, 0, 0), TextWrapping = TextWrapping.Wrap });
+        DockPanel.SetDock(top, Dock.Top);
+        sp.Children.Add(top);
+        var scan = new Button { Content = "+  " + Loc.T("Add device"), Style = (Style)FindResource("GhostButton"), HorizontalAlignment = HorizontalAlignment.Stretch, Padding = new Thickness(10, 7, 10, 7) };
         scan.Click += (_, _) => ScanMice();
+        DockPanel.SetDock(scan, Dock.Bottom);
         sp.Children.Add(scan);
-        return Card(sp, 220);
+        sp.Children.Add(Stage(Art(ShowcaseArt, "Mouse", 150), false));
+        var card = Card(sp, 246);
+        card.Height = 430;
+        return card;
     }
 
     // ───────── a device ─────────
@@ -145,14 +201,28 @@ public partial class MousePage
         _current = f;
         _tab = "overview";
         _error = null;
+        // Already connected (back from its screen): show what was read, then read it again.
+        if (_clientId != 0 && _openKey == f.Key && _known.TryGetValue(f.Key, out var had))
+        {
+            _status = had.Status;
+            ShowDevice(null);
+            try { await ReadStatus(); }
+            catch (Exception ex) { _error = Loc.F("Couldn't connect: {0}", ex is TimeoutException ? Loc.T("no answer") : ex.Message); ShowDevice(null); }
+            finally { _busy = false; }
+            return;
+        }
         _status = default;
         MouseHost.ClearLog();
         ShowDevice(Loc.T("Connecting…"));
         try
         {
             if (_clientId != 0) { try { await host.Run("close", _clientId).WaitAsync(TimeSpan.FromSeconds(5)); } catch { } _clientId = 0; }
+            if (_openKey != null) _known.Remove(_openKey);
+            _openKey = null;
             var opened = JsonSerializer.Deserialize<JsonElement>(await host.Run("open", f.Key).WaitAsync(TimeSpan.FromSeconds(15)));
             _clientId = opened.GetProperty("id").GetInt32();
+            _openKey = f.Key;
+            _brand = opened.TryGetProperty("brand", out var brand) ? brand.GetString() ?? "" : "";
             _methods = opened.GetProperty("methods").EnumerateArray().Select(m => m.GetString()).ToHashSet();
             Profiles.Device = MouseSettings.DeviceId(f.VendorId, f.ProductId);
             Core.TweakEngine.Save();
@@ -172,7 +242,20 @@ public partial class MousePage
 
     async Task ReadStatus()
     {
-        _status = JsonSerializer.Deserialize<JsonElement>(await MouseHost.Instance!.Run("status", _clientId).WaitAsync(TimeSpan.FromSeconds(45)));
+        var host = MouseHost.Instance!;
+        _status = JsonSerializer.Deserialize<JsonElement>(await host.Run("status", _clientId).WaitAsync(TimeSpan.FromSeconds(45)));
+        if (_current != null)
+        {
+            // The picture comes from the name the device gives itself (a receiver only knows its mouse once asked).
+            string image = _current.Image;
+            try
+            {
+                var byName = await host.Run("image", Str("name") ?? _current.Name, _current.Kind == "Keyboard" ? "keyboard" : "mouse").WaitAsync(TimeSpan.FromSeconds(5));
+                if (!string.IsNullOrEmpty(byName)) image = byName;
+            }
+            catch { }
+            _known[_current.Key] = (_status, _brand, image);
+        }
         ShowDevice(null);
     }
 
@@ -211,9 +294,9 @@ public partial class MousePage
         // Breadcrumb: Devices / name
         var crumb = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 14) };
         var back = new Button { Content = Loc.T("Devices"), Style = (Style)FindResource("GhostButton"), Padding = new Thickness(10, 4, 10, 4) };
-        back.Click += async (_, _) =>
+        back.Click += (_, _) =>
         {
-            if (_clientId != 0) { try { await MouseHost.Instance!.Run("close", _clientId); } catch { } _clientId = 0; }
+            // The device stays connected (its card shows it), like OpenMouse; it's closed when another is opened or the page closes.
             _current = null;
             ShowList(null);
         };
@@ -234,7 +317,7 @@ public partial class MousePage
         if (Str("connectionType") is { } conn) facts.Children.Add(Pill(Loc.T(conn), Res("TextDimBrush") as SolidColorBrush, Inset));
         if (!double.IsNaN(Num("batteryPercent"))) facts.Children.Add(Pill(Loc.F("{0}%", Num("batteryPercent")), Res("TextDimBrush") as SolidColorBrush, Inset));
         left.Children.Add(facts);
-        left.Children.Add(new Border { Height = 280, Margin = new Thickness(0, 10, 0, 0), Child = Picture(DeviceKind(f), 220) });
+        left.Children.Add(new Border { Height = 280, Margin = new Thickness(0, 10, 0, 0), Child = Stage(Art(_known.TryGetValue(f.Key, out var k) ? k.Image : f.Image, f.Kind, 220), _error == null && _status.ValueKind == JsonValueKind.Object) });
         layout.Children.Add(left);
 
         // Right: tabs and their content.
@@ -657,20 +740,82 @@ public partial class MousePage
         return System.Text.RegularExpressions.Regex.Replace(t.Replace("Wlmouse", "WLmouse"), @"\b(\d+)k\b", "$1K");
     }
 
-    /// <summary>A clean top-down outline of the device kind (Pulse doesn't ship brands' product photos).</summary>
-    static FrameworkElement Picture(string kind, double size, bool faint = false)
+    /// <summary>
+    /// The device's product picture (from OpenMouse's image server, kept on disk once downloaded), or, like OpenMouse,
+    /// a black silhouette with a question mark when there's no picture for it.
+    /// </summary>
+    static FrameworkElement Art(string url, string kind, double size)
     {
-        var stroke = new SolidColorBrush(Color.FromArgb(faint ? (byte)0x40 : (byte)0xB0, 0xE6, 0xE8, 0xEC));
-        var fill = new LinearGradientBrush(Color.FromArgb(faint ? (byte)0x10 : (byte)0x30, 0xFF, 0xFF, 0xFF), Color.FromArgb(0x06, 0xFF, 0xFF, 0xFF), 90);
-        string data = kind switch
+        var host = new Grid { Width = size, Height = size, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+        if (DeviceArt.Cached(url) is { } file && Show(host, file, size)) return host;
+        host.Children.Add(Unknown(kind, size));
+        if (!string.IsNullOrEmpty(url)) Load(host, url, size);
+        return host;
+
+        static async void Load(Grid host, string url, double size)
         {
-            "Keyboard" => "M4,30 h92 a6,6 0 0 1 6,6 v28 a6,6 0 0 1 -6,6 h-92 a6,6 0 0 1 -6,-6 v-28 a6,6 0 0 1 6,-6 Z M8,36 h10 v8 h-10 Z M21,36 h10 v8 h-10 Z M34,36 h10 v8 h-10 Z M47,36 h10 v8 h-10 Z M60,36 h10 v8 h-10 Z M73,36 h10 v8 h-10 Z M86,36 h10 v8 h-10 Z M8,47 h14 v8 h-14 Z M25,47 h10 v8 h-10 Z M38,47 h10 v8 h-10 Z M51,47 h10 v8 h-10 Z M64,47 h10 v8 h-10 Z M77,47 h19 v8 h-19 Z M20,58 h60 v7 h-60 Z",
-            "Headset" => "M18,62 v-14 a32,32 0 0 1 64,0 v14 M10,56 h14 a4,4 0 0 1 4,4 v22 a4,4 0 0 1 -4,4 h-14 a4,4 0 0 1 -4,-4 v-22 a4,4 0 0 1 4,-4 Z M76,56 h14 a4,4 0 0 1 4,4 v22 a4,4 0 0 1 -4,4 h-14 a4,4 0 0 1 -4,-4 v-22 a4,4 0 0 1 4,-4 Z",
-            "Receiver" => "M40,22 h20 a4,4 0 0 1 4,4 v44 a10,10 0 0 1 -10,10 h-8 a10,10 0 0 1 -10,-10 v-44 a4,4 0 0 1 4,-4 Z M44,10 h12 v12 h-12 Z M47,14 h2 v4 h-2 Z M51,14 h2 v4 h-2 Z M50,60 m-4,0 a4,4 0 1 0 8,0 a4,4 0 1 0 -8,0",
-            _ => "M50,6 C30,6 22,22 22,40 V64 C22,82 34,94 50,94 C66,94 78,82 78,64 V40 C78,22 70,6 50,6 Z M50,6 V38 M22,38 H78 M47,14 h6 a2,2 0 0 1 2,2 v10 a2,2 0 0 1 -2,2 h-6 a2,2 0 0 1 -2,-2 v-10 a2,2 0 0 1 2,-2 Z",
+            if (await DeviceArt.Get(url) is { } got) Show(host, got, size);
+        }
+    }
+
+    static bool Show(Grid host, string file, double size)
+    {
+        try
+        {
+            var bmp = new BitmapImage();
+            bmp.BeginInit();
+            bmp.CacheOption = BitmapCacheOption.OnLoad;
+            bmp.DecodePixelWidth = (int)(size * 2);
+            bmp.UriSource = new Uri(file);
+            bmp.EndInit();
+            bmp.Freeze();
+            host.Children.Clear();
+            host.Children.Add(new Image { Source = bmp, Stretch = Stretch.Uniform });
+            RenderOptions.SetBitmapScalingMode(host, BitmapScalingMode.HighQuality);
+            return true;
+        }
+        catch { return false; }   // a format Windows can't read: keep the silhouette
+    }
+
+    /// <summary>OpenMouse's placeholder: a flat black mouse (or keyboard) with a white question mark.</summary>
+    static FrameworkElement Unknown(string kind, double size)
+    {
+        bool keyboard = kind == "Keyboard";
+        var shape = new System.Windows.Shapes.Path
+        {
+            Data = Geometry.Parse(keyboard
+                ? "M3,0 H97 A3,3 0 0 1 100,3 V30 A3,3 0 0 1 97,33 H3 A3,3 0 0 1 0,30 V3 A3,3 0 0 1 3,0 Z"
+                : "M50,0 C28,0 18,16 18,40 C18,46 15,48 15,54 C15,58 18,60 18,64 C18,86 32,100 50,100 C68,100 82,86 82,64 C82,60 85,58 85,54 C85,48 82,46 82,40 C82,16 72,0 50,0 Z"),
+            Fill = Brushes.Black, Stretch = Stretch.Uniform,
+            Width = keyboard ? size : size * 0.62, Height = keyboard ? size * 0.33 : size,
+            Effect = new System.Windows.Media.Effects.DropShadowEffect { BlurRadius = 24, ShadowDepth = 6, Opacity = 0.5, Color = Colors.Black },
         };
-        var path = new System.Windows.Shapes.Path { Data = Geometry.Parse(data), Stroke = stroke, StrokeThickness = 1.6, Fill = fill, Stretch = Stretch.Uniform, Width = size, Height = size, StrokeLineJoin = PenLineJoin.Round };
-        return new Grid { Children = { path }, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+        var mark = new TextBlock
+        {
+            Text = "?", FontFamily = new FontFamily("Arial"), FontWeight = FontWeights.Bold, Foreground = Brushes.White,
+            FontSize = keyboard ? size * 0.22 : size * 0.3, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(0, keyboard ? 0 : size * 0.12, 0, 0),
+        };
+        return new Grid { Children = { shape, mark }, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+    }
+
+    /// <summary>The picture on a soft floor shadow, with a green glow behind a connected device, as OpenMouse does.</summary>
+    static FrameworkElement Stage(FrameworkElement picture, bool connected)
+    {
+        var g = new Grid { Margin = new Thickness(0, 10, 0, 12), ClipToBounds = false };
+        if (connected)
+            g.Children.Add(new System.Windows.Shapes.Ellipse
+            {
+                Width = 240, Height = 240, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
+                Fill = new RadialGradientBrush(Color.FromArgb(0x30, 0x3D, 0xDC, 0x84), Color.FromArgb(0x00, 0x3D, 0xDC, 0x84)),
+            });
+        g.Children.Add(new System.Windows.Shapes.Ellipse
+        {
+            Width = 150, Height = 18, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Bottom,
+            Fill = new RadialGradientBrush(Color.FromArgb(0x90, 0, 0, 0), Color.FromArgb(0, 0, 0, 0)),
+        });
+        g.Children.Add(picture);
+        return g;
     }
 
     static bool TryNum(string text, out double v) =>

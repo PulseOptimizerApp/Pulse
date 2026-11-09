@@ -90,10 +90,17 @@ public class MousePageShots
                     """));
                 t.GetField("_methods", F)!.SetValue(page, new HashSet<string> { "setDpiStageValue", "setActiveDpiStage", "setPollingRate", "setLiftOffDistance", "setMotionSync", "setAngleSnapping", "setRippleControl", "setDebounceTime", "setSleepTimeout" });
                 var foundType = t.GetNestedType("Found", System.Reflection.BindingFlags.NonPublic)!;
-                object Found(string name, int pid) => Activator.CreateInstance(foundType, "k" + pid, 0x36A7, pid, name, 1.0)!;
+                const string Beast = "https://img.openmouse.app/wlmouse-beast-max.png";
+                object Found(string name, int pid, string image = null) => Activator.CreateInstance(foundType, "k" + pid, 0x36A7, pid, name, 1.0, image)!;
                 var list = (System.Collections.IList)Activator.CreateInstance(typeof(List<>).MakeGenericType(foundType))!;
-                list.Add(Found("WLMOUSE BEAST MAX 8K RECEIVER", 0xA887)); list.Add(Found("WLMOUSE 1K RECEIVER", 0xA888)); list.Add(Found("Wooting 60HE+", 0x1312)); list.Add(Found("G733 Gaming Headset", 0x0AB5));
+                list.Add(Found("WLMOUSE BEAST MAX 8K RECEIVER", 0xA887, Beast)); list.Add(Found("WLMOUSE 1K RECEIVER", 0xA888)); list.Add(Found("Wooting 60HE+", 0x1312));
                 t.GetField("_found", F)!.SetValue(page, list);
+                // The Beast Max is connected; its picture is downloaded the way the page does it.
+                Task.Run(() => Pulse.Core.Mouse.DeviceArt.Get(Beast)).Wait(TimeSpan.FromSeconds(30));
+                Task.Run(() => Pulse.Core.Mouse.DeviceArt.Get("https://img.openmouse.app/logitech-g502-x-plus.png")).Wait(TimeSpan.FromSeconds(30));
+                var status = (JsonElement)t.GetField("_status", F)!.GetValue(page)!;
+                t.GetField("_openKey", F)!.SetValue(page, "k" + 0xA887);
+                ((System.Collections.IDictionary)t.GetField("_known", F)!.GetValue(page)!)["k" + 0xA887] = (status, "WLMouse", Beast);
                 // The list, then a device's overview and performance tabs.
                 Render(page, dir, "mouse-list.png", () => t.GetMethod("ShowList", F)!.Invoke(page, new object[] { null }));
                 t.GetField("_current", F)!.SetValue(page, list[0]);

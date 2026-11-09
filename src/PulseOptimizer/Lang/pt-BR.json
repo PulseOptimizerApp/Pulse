@@ -5243,5 +5243,9 @@
  "Battery": "Bateria",
  "Onboard profile": "Perfil integrado",
  "Bluetooth": "Bluetooth",
- "Discharging": "Descarregando"
+ "Discharging": "Descarregando",
+ "Not connected": "Não conectado",
+ "Open": "Abrir",
+ "Open it to read its settings": "Abra para ler as configurações",
+ "Plug in your mouse (or its receiver), then scan to adjust its onboard settings.": "Conecte seu mouse (ou o receptor) e procure para ajustar as configurações dele."
 }
