@@ -233,7 +233,10 @@ public static class SpeedTest
         cts.Cancel();
         try { await Task.WhenAll(tasks); } catch { }
         outer.ThrowIfCancellationRequested();
-        double mbps = measured > 0 ? Interlocked.Read(ref counted) * 8 / measured / 1e6 : 0;
+        // Normally the speed after the warm-up; on a line so fast the data cap is reached during the warm-up, all of it.
+        long countedNow = Interlocked.Read(ref counted);
+        double mbps = warmAt >= 0 && measured > 0.5 && countedNow > 0 ? countedNow * 8 / measured / 1e6
+            : Interlocked.Read(ref total) * 8 / Math.Max(0.2, sw.Elapsed.TotalSeconds) / 1e6;
         double loadedMs;
         lock (loaded) loadedMs = loaded.Count > 0 ? Median(loaded) : 0;
         return (mbps, Interlocked.Read(ref total), loadedMs);
