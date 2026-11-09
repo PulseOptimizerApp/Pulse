@@ -92,7 +92,7 @@ static class FakeMatches
     }
 }
 
-public class TrackerTests
+public class TrackerGgTests
 {
     [Fact]
     public void Clutches_are_found_when_the_player_is_the_last_one_alive()

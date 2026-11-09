@@ -20,7 +20,7 @@ jobs:
       - name: Render
         env:
           PULSE_SHOTS: ${{ github.workspace }}\shots
-        run: dotnet test tests/PulseOptimizer.Tests/PulseOptimizer.Tests.csproj -c Release --filter "FullyQualifiedName~TrackerTests" --logger "console;verbosity=normal"
+        run: dotnet test tests/PulseOptimizer.Tests/PulseOptimizer.Tests.csproj -c Release --filter "FullyQualifiedName~TrackerGgTests" --logger "console;verbosity=normal"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
