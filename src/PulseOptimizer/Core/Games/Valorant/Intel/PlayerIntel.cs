@@ -7,7 +7,7 @@ static class Util
     public static bool Won(VMatch m, string id)
     {
         var team = m.TeamOf(id);
-        return m.Rounds.Count(r => r.Winner == team) > m.Rounds.Count(r => r.Winner.Length > 0 && r.Winner != team);
+        return m.WonBy(team);
     }
     public static double Mean(IEnumerable<double> v) => v.Where(x => !double.IsNaN(x) && !double.IsInfinity(x)).DefaultIfEmpty(double.NaN).Average();
     public static double Sd(IEnumerable<double> v)
@@ -293,8 +293,8 @@ public static class Career
         foreach (var m in list)
         {
             var team = m.TeamOf(id);
-            int us = m.Rounds.Count(r => r.Winner == team), them = m.Rounds.Count(r => r.Winner.Length > 0 && r.Winner != team);
-            if (us > them) { cw++; cl = 0; } else if (them > us) { cl++; cw = 0; } else { cw = 0; cl = 0; }
+            int res = m.Outcome(team);
+            if (res > 0) { cw++; cl = 0; } else if (res < 0) { cl++; cw = 0; } else { cw = 0; cl = 0; }
             bw = Math.Max(bw, cw); bl = Math.Max(bl, cl);
         }
         var sc = list.Select(m => Tracker.MatchScore(m, id)).ToList();
@@ -411,7 +411,8 @@ public static class Autopsy
         double lobby = m.Players.Where(p => p.Id != id).Select(p => (double)p.Score).DefaultIfEmpty(0).Average() / m.Rounds.Count;
         var place = Stats.PlaceOf(m, id);
         int us = m.Rounds.Count(r => r.Winner == me.Team), them = m.Rounds.Count(r => r.Winner.Length > 0 && r.Winner != me.Team);
-        facts.Add(L.F(us > them ? "Won {0}–{1} on {2} as {3}; #{4} of 10 by combat score." : us < them ? "Lost {0}–{1} on {2} as {3}; #{4} of 10 by combat score." : "Drew {0}–{1} on {2} as {3}; #{4} of 10 by combat score.", us, them, m.Map, me.Agent, place.Place));
+        int res = m.Outcome(me.Team);
+        facts.Add(L.F(res > 0 ? "Won {0}–{1} on {2} as {3}; #{4} of 10 by combat score." : res < 0 ? "Lost {0}–{1} on {2} as {3}; #{4} of 10 by combat score." : "Drew {0}–{1} on {2} as {3}; #{4} of 10 by combat score.", us, them, m.Map, me.Agent, place.Place));
         facts.Add(L.F("{0}/{1}/{2}, {3:0} ACS (lobby average {4:0}), {5:0} ADR, {6:0}% KAST, {7:0}% headshots.", t.Kills, t.Deaths, t.Assists, t.Acs, lobby, t.Adr, t.KastPct, double.IsNaN(t.HeadshotPct) ? 0 : t.HeadshotPct));
         facts.Add(L.F("Opening duels: {0} won, {1} lost. Clutches: {2} of {3}. Multi-kill rounds: {4}. Aces: {5}.", t.FirstKills, t.FirstDeaths, t.ClutchWins, t.ClutchChances, o.MultiKills, o.Aces));
         // Damage per round in blocks of 5.
