@@ -36,7 +36,7 @@ public static class ValorantSearch
         if (ParseRiotId(riotId) is not { } id) return new Result(null, "Type a full Riot ID, like Name#TAG.");
         if (Cache.TryGetValue(riotId.Trim(), out var c) && DateTime.UtcNow - c.At < TimeSpan.FromMinutes(10)) return new Result(c.P, null);
         var s = await ValorantMatches.Login();
-        if (s == null) return new Result(null, "Open VALORANT or the Riot Client first, then try again.");
+        if (s == null) return new Result(null, ValorantMatches.LastLoginProblem ?? "Open VALORANT or the Riot Client first, then try again.");
 
         progress?.Report("Finding the player…");
         string key = $"{id.Name}#{id.Tag}";
@@ -193,7 +193,7 @@ public static class ValorantSearch
     public static async Task<string> More(Profile p, IProgress<string> progress = null, CancellationToken ct = default)
     {
         var s = await ValorantMatches.Login();
-        if (s == null) return "Open VALORANT or the Riot Client first, then try again.";
+        if (s == null) return ValorantMatches.LastLoginProblem ?? "Open VALORANT or the Riot Client first, then try again.";
         // Fill the queue from the next pages of their history until there are 10 matches to read (or it runs out).
         while (p.PendingIds.Count < 10 && !p.HistoryEnd && p.HistoryNext < 200)
         {

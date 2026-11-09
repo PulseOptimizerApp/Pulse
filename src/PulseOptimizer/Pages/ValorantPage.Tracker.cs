@@ -36,7 +36,8 @@ public partial class ValorantPage
     void BuildTracker()
     {
         var matches = CoachMatches();
-        Root.Children.Add(SearchCard());
+        var top = SearchCard();
+        Root.Children.Add(Card(top));
         // Skills need a few matches to measure, and players at several ranks to compare with: fetch your recent ones.
         // Also fetch again matches saved by an older Pulse (no Riot IDs, or an agent it didn't know yet). The Riot Client
         // may not be open the first time, so keep trying every couple of minutes instead of once per session.
@@ -44,12 +45,10 @@ public partial class ValorantPage
         if ((matches.Count < 20 || stale) && !_downloading && DateTime.UtcNow - _trAutoAt > TimeSpan.FromMinutes(2)) { _trAutoAt = DateTime.UtcNow; _ = Download(true); }
         if (_downloading || (_downloadText != null && matches.Count < 20))
         {
-            var dl = new StackPanel();
-            dl.Children.Add(Heading(_downloading ? "Getting your recent matches" : "Your matches"));
-            dl.Children.Add(Dim(Loc.T("Your skills are measured from your last 30 matches, against every player in them. The more matches Pulse has, the more exact your ratings are."), 12, 4));
-            _downloadLabel = Faint(_downloadText ?? Loc.T("Connecting to the Riot Client…"), 11.5, 8);
-            dl.Children.Add(_downloadLabel);
-            Root.Children.Add(Card(dl));
+            // One line in the top card instead of a card of its own.
+            _downloadLabel = Faint((_downloading ? Loc.T("Getting your recent matches…") + " " : "") + (_downloadText ?? Loc.T("Connecting to the Riot Client…")), 11.5, 8);
+            _downloadLabel.ToolTip = Loc.T("Your skills are measured from your last 30 matches, against every player in them. The more matches Pulse has, the more exact your ratings are.");
+            top.Children.Add(_downloadLabel);
         }
         if (matches.Count == 0 && _trSearched == null)
         {
@@ -81,22 +80,30 @@ public partial class ValorantPage
 
         // Who to show.
         var pick = new WrapPanel();
+        var hidden = S.HiddenPeople;
+        people = people.Where(k => !hidden.Contains(k.Puuid)).ToList();
         if (me != null) pick.Children.Add(Chip(NameBook.Get(me) is { } myName ? Loc.T("You") + " · " + myName : Loc.T("You"), "trwho", _trSel == null || _trSel == me, () => { _trSel = me; _trQueue = null; Build(); }));
         if (_trSearched != null)
         {
             var sp = _trSearched;
-            pick.Children.Add(Chip("🔍 " + sp.Name, "trwho", _trSel == sp.Puuid && !sp.FromYourMatches, () => { _trSel = sp.Puuid; _trQueue = null; Build(); }));
+            pick.Children.Add(Removable(Chip("🔍 " + sp.Name, "trwho", _trSel == sp.Puuid && !sp.FromYourMatches, () => { _trSel = sp.Puuid; _trQueue = null; Build(); }),
+                () => { if (_trSel == sp.Puuid) _trSel = null; _trSearched = null; Build(); }));
         }
         foreach (var k in people)
         {
             var id = k.Puuid;
             var label = NameBook.Get(id) ?? $"{k.Agent} · {ValorantMatches.RankName(k.Tier)}".Trim(' ', '·');
-            pick.Children.Add(Chip($"{label}  ×{k.Games}", "trwho", _trSel == id, () => { _trSel = id; _trQueue = null; Build(); }));
+            pick.Children.Add(Removable(Chip($"{label}  ×{k.Games}", "trwho", _trSel == id, () => { _trSel = id; _trQueue = null; Build(); }),
+                () => { if (!S.HiddenPeople.Contains(id)) S.HiddenPeople.Add(id); if (_trSel == id) _trSel = null; TweakEngine.Save(); Build(); }));
         }
-        var pickCard = new StackPanel();
-        pickCard.Children.Add(Label(people.Count > 0 ? "You and the people from your matches" : "Profile"));
-        pickCard.Children.Add(pick);
-        Root.Children.Add(Card(pickCard));
+        if (hidden.Count > 0)
+        {
+            var restore = new Button { Style = (Style)FindResource("LinkButton"), Content = Loc.F("Show {0} hidden", hidden.Count), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(4, 0, 0, 6), FontSize = 12 };
+            restore.Click += (_, _) => { S.HiddenPeople.Clear(); TweakEngine.Save(); Build(); };
+            pick.Children.Add(restore);
+        }
+        top.Children.Add(Label("Players").Also(l => l.Margin = new Thickness(0, 12, 0, 6)));
+        top.Children.Add(pick);
 
         Profile p;
         if (_trSearched != null && _trSel == _trSearched.Puuid && !_trSearched.FromYourMatches) p = _trSearched;
@@ -121,12 +128,10 @@ public partial class ValorantPage
 
     // ───────── search ─────────
 
-    FrameworkElement SearchCard()
+    StackPanel SearchCard()
     {
         var sp = new StackPanel();
-        sp.Children.Add(Heading("Player tracker"));
-        sp.Children.Add(Dim(Loc.T("Ranks, skills and recent form, measured against the players in your own matches."), 12.5, 4));
-        var row = new Grid { Margin = new Thickness(0, 12, 0, 0) };
+        var row = new Grid { Margin = new Thickness(0), ToolTip = Loc.T("Ranks, skills and recent form, measured against the players in your own matches.") };
         row.ColumnDefinitions.Add(new ColumnDefinition { MaxWidth = 380 });
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         var box = new TextBox { Style = (Style)FindResource("SearchBox"), Tag = Loc.T("Search a Riot ID: Name#TAG"), VerticalContentAlignment = VerticalAlignment.Center };
@@ -213,13 +218,16 @@ public partial class ValorantPage
         {
             var recent = new WrapPanel { Margin = new Thickness(0, 10, 0, 0) };
             recent.Children.Add(Faint(Loc.T("Recent:"), 11.5, 0).Also(t => { t.VerticalAlignment = VerticalAlignment.Center; t.Margin = new Thickness(0, 0, 8, 6); }));
-            foreach (var r in S.RecentSearches)
+            foreach (var r in S.RecentSearches.ToList())
             {
                 var b = new Button { Style = (Style)FindResource("GhostButton"), Content = r, Padding = new Thickness(10, 3, 10, 4), Margin = new Thickness(0, 0, 6, 6), FontSize = 12 };
                 var id = r;
                 b.Click += async (_, _) => { box.Text = id; await Run(); };
-                recent.Children.Add(b);
+                recent.Children.Add(Removable(b, () => { S.RecentSearches.Remove(id); TweakEngine.Save(); Build(); }));
             }
+            var clear = new Button { Style = (Style)FindResource("LinkButton"), Content = Loc.T("Clear"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(4, 0, 0, 6), FontSize = 12 };
+            clear.Click += (_, _) => { S.RecentSearches.Clear(); TweakEngine.Save(); Build(); };
+            recent.Children.Add(clear);
             sp.Children.Add(recent);
         }
         _trStatusLabel = Faint(_trStatus ?? "", 11.5, 8);
@@ -231,7 +239,26 @@ public partial class ValorantPage
             off.Click += (_, _) => { S.PlayerSearch = false; _trSearched = null; _trNames.Clear(); TweakEngine.Save(); Build(); };
             sp.Children.Add(off);
         }
-        return Card(sp);
+        return sp;
+    }
+
+    /// <summary>A chip with a small × that shows on hover and removes it.</summary>
+    FrameworkElement Removable(FrameworkElement chip, Action remove)
+    {
+        var g = new Grid { Margin = chip.Margin };
+        chip.Margin = new Thickness(0);
+        g.Children.Add(chip);
+        var x = new Border
+        {
+            Width = 16, Height = 16, CornerRadius = new CornerRadius(8), HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top,
+            Margin = new Thickness(0, -6, -6, 0), Background = B(Color.FromRgb(0x3A, 0x3D, 0x46)), Cursor = Cursors.Hand, Visibility = Visibility.Hidden, ToolTip = Loc.T("Remove"),
+            Child = new TextBlock { Text = "×", FontSize = 12, FontWeight = FontWeights.Bold, Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, -2, 0, 0) },
+        };
+        x.MouseLeftButtonUp += (_, e) => { e.Handled = true; remove(); };
+        g.Children.Add(x);
+        g.MouseEnter += (_, _) => x.Visibility = Visibility.Visible;
+        g.MouseLeave += (_, _) => x.Visibility = Visibility.Hidden;
+        return g;
     }
 
     void SetTrStatus()

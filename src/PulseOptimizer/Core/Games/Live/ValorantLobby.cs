@@ -172,6 +172,7 @@ public static class ValorantLobby
     /// <summary>Every act from the content list, oldest first, each ending when the next begins (UTC).</summary>
     internal static List<(string Id, string Name, DateTime Start, DateTime End, bool Active)> Acts()
     {
+        if (_seasons == null || _seasons.Count == 0) LoadActCache();
         var acts = (_seasons ?? new()).Where(x => x.Act && x.Start != default).OrderBy(x => x.Start).ToList();
         var list = new List<(string, string, DateTime, DateTime, bool)>();
         for (int i = 0; i < acts.Count; i++)
@@ -360,8 +361,62 @@ public static class ValorantLobby
                     var actName = Friendly(a.Name);
                     _actNames[a.Id] = ep.Name is { Length: > 0 } && !actName.StartsWith(Friendly(ep.Name), StringComparison.OrdinalIgnoreCase) ? $"{Friendly(ep.Name)} · {actName}" : actName;
                 }
+                SaveActCache();
             }
         }
         catch { }
+    }
+
+    // Riot's act list, kept on disk so act history and act filters work when the Riot Client isn't open.
+    sealed record CachedAct(string Id, string Name, DateTime Start, bool Active);
+    static string ActCachePath => Path.Combine(TweakEngine.DataDir, "valorant", "acts.json");
+
+    static void SaveActCache()
+    {
+        try
+        {
+            var list = _seasons.Where(x => x.Act && x.Start != default).Select(x => new CachedAct(x.Id, ActName(x.Id), x.Start.ToUniversalTime(), x.Active)).ToList();
+            if (list.Count == 0) return;
+            Directory.CreateDirectory(Path.GetDirectoryName(ActCachePath)!);
+            File.WriteAllText(ActCachePath, System.Text.Json.JsonSerializer.Serialize(list));
+        }
+        catch { }
+    }
+
+    static void LoadActCache()
+    {
+        try
+        {
+            if (!File.Exists(ActCachePath)) return;
+            var list = System.Text.Json.JsonSerializer.Deserialize<List<CachedAct>>(File.ReadAllText(ActCachePath));
+            if (list == null || list.Count == 0) return;
+            // The cached "active" flag can be stale: the newest act that has started is the current one.
+            var started = list.Where(a => a.Start <= DateTime.UtcNow).OrderBy(a => a.Start).ToList();
+            var current = started.LastOrDefault()?.Id;
+            _seasons = list.Select(a => (a.Id, a.Start, true, a.Id == current)).ToList();
+            foreach (var a in list) if (a.Name.Length > 0) _actNames.TryAdd(a.Id, a.Name);
+        }
+        catch { }
+    }
+
+    /// <summary>
+    /// Act by act from Pulse's own saved competitive matches, for when Riot's rank record can't be read: games, wins,
+    /// the rank in the act's last match and the best rank seen at. Only acts with saved matches are listed.
+    /// </summary>
+    public static List<ActLine> ActsFromMatches(IEnumerable<Pulse.Core.Games.Valorant.VMatch> matches, string puuid)
+    {
+        var acts = Acts();
+        var list = new List<ActLine>();
+        var comp = matches.Where(m => m.Queue == "competitive").ToList();
+        foreach (var a in acts)
+        {
+            var inAct = comp.Where(m => m.StartUtc >= a.Start && m.StartUtc < a.End).OrderBy(m => m.StartUtc).ToList();
+            var mine = inAct.Select(m => (m, p: m.Players.FirstOrDefault(x => x.Id == puuid))).Where(x => x.p != null).ToList();
+            if (mine.Count == 0) continue;
+            int wins = mine.Count(x => x.m.Rounds.Count(r => r.Winner == x.p.Team) > x.m.Rounds.Count(r => r.Winner.Length > 0 && r.Winner != x.p.Team));
+            int last = mine[^1].p.Tier, peak = mine.Max(x => x.p.Tier);
+            list.Add(new ActLine(a.Id, a.Name, a.Start, a.End, last, mine.Count, wins, peak, a.Active));
+        }
+        return list.OrderByDescending(x => x.StartUtc).ToList();
     }
 }

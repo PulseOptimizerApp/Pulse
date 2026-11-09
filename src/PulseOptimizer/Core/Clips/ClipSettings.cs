@@ -146,6 +146,8 @@ public class ClipSettings
     public bool PlayerSearch { get; set; }
     /// <summary>Riot IDs searched recently in the tracker, newest first (on this PC only).</summary>
     public List<string> RecentSearches { get; set; } = new();
+    /// <summary>Players removed from the Tracker's player row (Riot account ids).</summary>
+    public List<string> HiddenPeople { get; set; } = new();
     /// <summary>A random password the games' state integrations send, so only they can talk to Pulse's listener.</summary>
     public string GsiToken { get; set; } = "";
 

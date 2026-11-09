@@ -256,6 +256,58 @@ public partial class ValorantPage
         return Flat("Pulse score", sp);
     }
 
+    /// <summary>
+    /// The current act and every earlier one in a row: rank, record and peak. From Riot's rank record when Pulse can
+    /// read it; otherwise from Pulse's own saved competitive matches (and it says so). Click one to filter by it.
+    /// </summary>
+    FrameworkElement ActsStrip(Profile p)
+    {
+        var acts = p.Acts.Where(a => a.Games > 0 || a.Tier >= 3).ToList();
+        bool fromMatches = false;
+        if (acts.Count == 0) { acts = ValorantLobby.ActsFromMatches(p.Matches, p.Puuid); fromMatches = acts.Count > 0; }
+        var sp = new StackPanel();
+        if (acts.Count == 0)
+        {
+            sp.Children.Add(Txt(Loc.T(ValorantLobby.Acts().Count == 0
+                ? "Open VALORANT once and Pulse reads every act: rank, record and peak. After that they show here even when the game is closed."
+                : "No competitive matches saved for this player yet."), 12, TpMuted).Also(t => { t.Margin = new Thickness(12, 10, 12, 12); t.TextWrapping = TextWrapping.Wrap; t.TextTrimming = TextTrimming.None; }));
+            return Flat("Acts", sp);
+        }
+        var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(10, 10, 10, 10) };
+        var cur = acts.FirstOrDefault(a => a.Current) ?? (acts[0].EndUtc > DateTime.UtcNow ? acts[0] : null);
+        foreach (var a in acts.Take(12))
+        {
+            bool isCur = a == cur;
+            var key = isCur ? "current" : a.Id;
+            bool selected = _trAct == key;
+            var c = isCur ? TpGold : TpLine;
+            var tile = new Grid { Width = isCur ? 250 : 168 };
+            tile.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            tile.ColumnDefinitions.Add(new ColumnDefinition());
+            if (MatchArt.RankIcon(a.Tier) is { } ri) tile.Children.Add(Pic(ri, isCur ? 46 : 34, isCur ? 46 : 34, 10));
+            else tile.Children.Add(new Border { Width = isCur ? 46 : 34, Height = isCur ? 46 : 34, Margin = new Thickness(0, 0, 10, 0), CornerRadius = new CornerRadius(6), Background = B(TpLine) });
+            var info = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+            info.Children.Add(Txt(isCur ? Loc.T("Current act") : (a.Name.Length > 0 ? a.Name : Loc.T("Earlier act")), 10.5, isCur ? TpGold : TpMuted, true));
+            info.Children.Add(Txt(a.Tier >= 3 ? ValorantMatches.RankName(a.Tier) : Loc.T("Unrated"), isCur ? 15 : 13, TpInk, true));
+            var rec = a.Games > 0 ? $"{a.Wins}W {a.Games - a.Wins}L · {N(a.WinPct)}%" : "–";
+            info.Children.Add(Txt(rec, 11.5, a.Games > 0 && a.WinPct >= 50 ? TpUp : a.Games > 0 ? TpDown : TpMuted));
+            if (a.Peak >= 3 && a.Peak != a.Tier) info.Children.Add(Txt(Loc.F("peak {0}", ValorantMatches.RankName(a.Peak)), 11, TpMuted));
+            if (isCur && a.Name.Length > 0) info.Children.Add(Txt(a.Name, 10.5, TpMuted));
+            Grid.SetColumn(info, 1); tile.Children.Add(info);
+            var b = new Border
+            {
+                Child = tile, Padding = new Thickness(10, 8, 10, 8), Margin = new Thickness(0, 0, 8, 0), CornerRadius = new CornerRadius(6), Cursor = Cursors.Hand,
+                BorderThickness = new Thickness(1), BorderBrush = B(selected ? TpBlue : c),
+                Background = B(isCur ? Color.FromArgb(0x14, TpGold.R, TpGold.G, TpGold.B) : Color.FromArgb(0x08, 0xFF, 0xFF, 0xFF)),
+                ToolTip = Loc.T(selected ? "Showing this act below · click to show all" : "Show only this act below"),
+            };
+            b.MouseLeftButtonUp += (_, _) => { _trAct = selected ? "all" : key; Build(); };
+            row.Children.Add(b);
+        }
+        sp.Children.Add(new ScrollViewer { HorizontalScrollBarVisibility = ScrollBarVisibility.Auto, VerticalScrollBarVisibility = ScrollBarVisibility.Disabled, Content = row, PanningMode = PanningMode.HorizontalOnly });
+        return Flat("Acts", sp, fromMatches ? Loc.T("from Pulse's saved matches · open VALORANT for Riot's full record") : Loc.F("{0} acts", acts.Count));
+    }
+
     FrameworkElement ActsPanel(Profile p)
     {
         var sp = new StackPanel();
@@ -661,16 +713,29 @@ public partial class ValorantPage
     FrameworkElement PlayerCell(VMatch m, VPlayer p, string viewer, Dictionary<string, Color> parties)
     {
         var who = new StackPanel { Orientation = Orientation.Horizontal };
-        if (MatchArt.AgentIcon(p.Agent) is { } ai) who.Children.Add(Pic(ai, 26, 26, 8));
-        else who.Children.Add(new Border { Width = 26, Height = 26, Margin = new Thickness(0, 0, 8, 0), CornerRadius = new CornerRadius(4), Background = B(TpLine) });
+        if (MatchArt.AgentIcon(p.Agent) is { } ai) who.Children.Add(new Border { Width = 30, Height = 30, CornerRadius = new CornerRadius(5), Margin = new Thickness(0, 0, 9, 0), ClipToBounds = true, Background = new ImageBrush(ai) { Stretch = Stretch.UniformToFill }, ToolTip = p.Agent });
+        else who.Children.Add(new Border { Width = 30, Height = 30, Margin = new Thickness(0, 0, 9, 0), CornerRadius = new CornerRadius(5), Background = B(TpLine), ToolTip = Loc.T("Agent not known yet: saved by an older Pulse. Open VALORANT and Pulse fills it in."),
+            Child = Txt("?", 13, TpMuted, true, HorizontalAlignment.Center).Also(t => t.VerticalAlignment = VerticalAlignment.Center) });
         if (MatchArt.RankIcon(p.Tier) is { } ri) who.Children.Add(Pic(ri, 20, 20, 8).Also(im => im.ToolTip = ValorantMatches.RankName(p.Tier)));
         var names = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-        var name = NameOrAgent(m, p);
+        var riotId = Stats.NameOf(m, p.Id) ?? NameBook.Get(p.Id);
+        var name = riotId ?? (p.Agent.Length > 0 ? p.Agent : Loc.T("Unknown player"));
         var line = new StackPanel { Orientation = Orientation.Horizontal };
         if (parties.TryGetValue(p.Id, out var pc)) line.Children.Add(new System.Windows.Shapes.Ellipse { Width = 7, Height = 7, Fill = B(pc), Margin = new Thickness(0, 0, 6, 0), VerticalAlignment = VerticalAlignment.Center, ToolTip = Loc.T("Queued together") });
-        line.Children.Add(Txt(name, 12.5, p.Id == viewer ? TpGold : TpInk, true));
+        // "Name #TAG": the tag dimmer, like the game shows it.
+        int hash = name.LastIndexOf('#');
+        if (riotId != null && hash > 0)
+        {
+            line.Children.Add(Txt(name[..hash], 13, p.Id == viewer ? TpGold : TpInk, true));
+            line.Children.Add(Txt(" #" + name[(hash + 1)..], 11.5, TpMuted).Also(t => t.VerticalAlignment = VerticalAlignment.Bottom));
+        }
+        else line.Children.Add(Txt(name, 13, p.Id == viewer ? TpGold : TpInk, true));
         names.Children.Add(line);
-        names.Children.Add(Txt(p.Agent + (p.Level > 0 ? " · " + Loc.F("level {0}", p.Level) : ""), 10.5, TpMuted));
+        var sub = new List<string>();
+        if (riotId != null && p.Agent.Length > 0) sub.Add(p.Agent);
+        if (p.Tier >= 3) sub.Add(ValorantMatches.RankName(p.Tier));
+        if (p.Level > 0) sub.Add(Loc.F("level {0}", p.Level));
+        if (sub.Count > 0) names.Children.Add(Txt(string.Join(" · ", sub), 10.5, TpMuted));
         who.Children.Add(names);
         return who;
     }
@@ -709,7 +774,7 @@ public partial class ValorantPage
         var sp = new StackPanel();
         var parties = Parties(m);
         // Rounds strip.
-        var strip = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(12, 12, 12, 4) };
+        var strip = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(12, 10, 12, 2) };
         foreach (var r in m.Rounds.OrderBy(r => r.N))
         {
             bool ours = r.Winner == b.Team;
@@ -720,43 +785,99 @@ public partial class ValorantPage
             strip.Children.Add(cell);
         }
         sp.Children.Add(new ScrollViewer { HorizontalScrollBarVisibility = ScrollBarVisibility.Auto, VerticalScrollBarVisibility = ScrollBarVisibility.Disabled, Content = strip });
-        sp.Children.Add(Txt(Loc.T("E elimination · D spike defused · X spike detonated · T time ran out"), 10.5, TpMuted).Also(t => t.Margin = new Thickness(12, 0, 12, 10)));
+        sp.Children.Add(Txt(Loc.T("E elimination · D spike defused · X spike detonated · T time ran out"), 10.5, TpMuted).Also(t => t.Margin = new Thickness(12, 0, 12, 4)));
 
-        var heads = new[] { "Player", "Score", "ACS", "K", "D", "A", "+/−", "K/D", "DDΔ", "ADR", "HS%", "KAST", "FK", "FD" };
-        var widths = new double[] { 0, 52, 46, 34, 34, 34, 44, 46, 48, 50, 46, 50, 34, 34 };
+        var heads = new[] { "Player", "Pulse", "ACS", "K", "D", "A", "+/−", "K/D", "ADR", "DDΔ", "HS%", "KAST", "FK", "FD" };
+        var tips = new[] { "", "Pulse Score: one match's overall impact (0–1000)", "Average combat score", "Kills", "Deaths", "Assists", "Kills minus deaths", "Kills per death",
+            "Damage per round", "Damage dealt minus taken, per round", "Headshot rate", "Rounds with a kill, assist, survival or trade", "First kills", "First deaths" };
+        var mvp = b.Lines.OrderByDescending(l => l.Totals.Acs).FirstOrDefault()?.Player.Id;
         foreach (bool ourTeam in new[] { true, false })
         {
-            var lines = b.Lines.Where(l => (l.Player.Team == b.Team) == ourTeam).ToList();
+            var lines = b.Lines.Where(l => (l.Player.Team == b.Team) == ourTeam).OrderByDescending(l => l.Totals.Acs).ToList();
             if (lines.Count == 0) continue;
             var c = ourTeam ? TpUp : TpDown;
+            int score = ourTeam ? b.TeamScore : b.EnemyScore, other = ourTeam ? b.EnemyScore : b.TeamScore;
+            var teamMvp = lines[0].Player.Id;
             var ranked = lines.Where(l => l.Player.Tier >= 3).ToList();
-            var bar = new Border { Background = B(Color.FromArgb(0x1C, c.R, c.G, c.B)), BorderBrush = B(c), BorderThickness = new Thickness(3, 0, 0, 0), Padding = new Thickness(12, 6, 12, 6) };
-            var barText = new StackPanel { Orientation = Orientation.Horizontal };
-            barText.Children.Add(Txt(Loc.T(ourTeam ? "Team A" : "Team B") + (ourTeam ? "  ·  " + Loc.T(viewer == m.Me ? "your team" : "their team") : ""), 12, TpInk, true));
-            barText.Children.Add(Txt("   " + (ourTeam ? b.TeamScore : b.EnemyScore), 12.5, c, true));
-            if (ranked.Count > 0) barText.Children.Add(Txt("   " + Loc.F("avg rank {0}", ValorantMatches.RankName((int)Math.Round(ranked.Average(l => l.Player.Tier)))), 11.5, TpMuted));
-            bar.Child = barText;
-            sp.Children.Add(bar);
-            var rows = lines.Select(l =>
+
+            var grid = new Grid { Margin = new Thickness(0, 6, 0, 0) };
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(2.6, GridUnitType.Star), MinWidth = 250 });
+            for (int i = 1; i < heads.Length; i++) grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MinWidth = 44 });
+            int r = 0;
+            // Team bar spanning the table.
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            var bar = new Grid { Background = new LinearGradientBrush(Color.FromArgb(0x30, c.R, c.G, c.B), Color.FromArgb(0x06, c.R, c.G, c.B), 0) };
+            bar.Children.Add(new Border { Width = 3, HorizontalAlignment = HorizontalAlignment.Left, Background = B(c) });
+            var barText = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(14, 8, 14, 8) };
+            barText.Children.Add(Txt(score.ToString(CultureInfo.CurrentCulture), 20, c, true).Also(t => t.Margin = new Thickness(0, 0, 10, 0)));
+            var tn = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+            tn.Children.Add(Txt(Loc.T(score > other ? "Won" : score < other ? "Lost" : "Draw") + " · " + Loc.T(ourTeam ? (viewer == m.Me ? "Your team" : "Their team") : "Enemy team"), 12, TpInk, true));
+            if (ranked.Count > 0) tn.Children.Add(Txt(Loc.F("avg rank {0}", ValorantMatches.RankName((int)Math.Round(ranked.Average(l => l.Player.Tier)))), 10.5, TpMuted));
+            barText.Children.Add(tn);
+            bar.Children.Add(barText);
+            Grid.SetColumnSpan(bar, heads.Length); grid.Children.Add(bar);
+            r++;
+            // Column heads.
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            for (int i = 0; i < heads.Length; i++)
             {
+                var h = Txt(Loc.T(heads[i]), 10.5, TpMuted, true, i == 0 ? HorizontalAlignment.Left : HorizontalAlignment.Center);
+                if (tips[i].Length > 0) h.ToolTip = Loc.T(tips[i]);
+                var host = new Border { Padding = new Thickness(i == 0 ? 14 : 4, 6, 4, 6), Child = h };
+                Grid.SetRow(host, r); Grid.SetColumn(host, i); grid.Children.Add(host);
+            }
+            r++;
+            for (int li = 0; li < lines.Count; li++)
+            {
+                var l = lines[li];
                 var t = l.Totals;
                 int pm = t.Kills - t.Deaths;
-                return new UIElement[]
+                bool you = l.Player.Id == viewer;
+                grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(46) });
+                var line = new Border
                 {
-                    PlayerCell(m, l.Player, viewer, parties),
-                    Txt(N(l.Score), 12.5, double.IsNaN(l.Score) ? TpMuted : l.Score >= 800 ? TpGold : TpInk, true),
-                    Txt(N(t.Acs), 12.5, TpInk, true),
-                    Txt(t.Kills.ToString(CultureInfo.CurrentCulture)), Txt(t.Deaths.ToString(CultureInfo.CurrentCulture)), Txt(t.Assists.ToString(CultureInfo.CurrentCulture)),
-                    Txt(Signed(pm), 12.5, SignColor(pm)),
-                    Txt(N(t.KdRatio, "0.00"), 12.5, KdColor(t.KdRatio), true),
-                    Txt(Signed(t.DamageDelta), 12.5, SignColor(t.DamageDelta)),
-                    Txt(N(t.Adr, "0.0")),
-                    Txt(double.IsNaN(t.HeadshotPct) ? "–" : N(t.HeadshotPct) + "%"),
-                    Txt(N(t.KastPct) + "%"),
-                    Txt(t.FirstKills.ToString(CultureInfo.CurrentCulture)), Txt(t.FirstDeaths.ToString(CultureInfo.CurrentCulture)),
+                    Background = you ? B(Color.FromArgb(0x1A, TpGold.R, TpGold.G, TpGold.B)) : li % 2 == 0 ? B(Color.FromArgb(0x08, 0xFF, 0xFF, 0xFF)) : Brushes.Transparent,
+                    BorderBrush = B(you ? TpGold : Colors.Transparent), BorderThickness = new Thickness(3, 0, 0, 0), Cursor = Cursors.Hand,
                 };
-            }).ToList();
-            sp.Children.Add(Table(heads, widths, rows, null, i => lines[i].Player.Id == viewer, i => OpenPlayer(lines[i].Player.Id)));
+                var normal = line.Background;
+                line.MouseEnter += (_, _) => line.Background = B(Color.FromArgb(0x16, 0xFF, 0xFF, 0xFF));
+                line.MouseLeave += (_, _) => line.Background = normal;
+                var id = l.Player.Id;
+                line.MouseLeftButtonUp += (_, _) => OpenPlayer(id);
+                Grid.SetRow(line, r); Grid.SetColumnSpan(line, heads.Length); grid.Children.Add(line);
+
+                var cellWho = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+                cellWho.Children.Add(PlayerCell(m, l.Player, viewer, parties));
+                if (id == mvp || id == teamMvp)
+                    cellWho.Children.Add(new Border
+                    {
+                        CornerRadius = new CornerRadius(4), Padding = new Thickness(6, 1, 6, 2), Margin = new Thickness(10, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center,
+                        Background = B(Color.FromArgb(0x26, (id == mvp ? TpGold : TpBlue).R, (id == mvp ? TpGold : TpBlue).G, (id == mvp ? TpGold : TpBlue).B)),
+                        Child = Txt(id == mvp ? Loc.T("MATCH MVP") : Loc.T("TEAM MVP"), 9.5, id == mvp ? TpGold : TpBlue, true),
+                    });
+                var cells = new UIElement[]
+                {
+                    cellWho,
+                    Txt(N(l.Score), 13, double.IsNaN(l.Score) ? TpMuted : l.Score >= 800 ? TpGold : TpInk, true),
+                    Txt(N(t.Acs), 13, TpInk, true),
+                    Txt(t.Kills.ToString(CultureInfo.CurrentCulture), 13, TpInk, true), Txt(t.Deaths.ToString(CultureInfo.CurrentCulture), 13, TpBody), Txt(t.Assists.ToString(CultureInfo.CurrentCulture), 13, TpBody),
+                    Txt(Signed(pm), 13, SignColor(pm), true),
+                    Txt(N(t.KdRatio, "0.00"), 13, KdColor(t.KdRatio), true),
+                    Txt(N(t.Adr), 13, TpBody),
+                    Txt(Signed(t.DamageDelta), 13, SignColor(t.DamageDelta)),
+                    Txt(double.IsNaN(t.HeadshotPct) ? "–" : N(t.HeadshotPct) + "%", 13, TpBody),
+                    Txt(N(t.KastPct) + "%", 13, TpBody),
+                    Txt(t.FirstKills.ToString(CultureInfo.CurrentCulture), 13, TpBody), Txt(t.FirstDeaths.ToString(CultureInfo.CurrentCulture), 13, TpBody),
+                };
+                for (int i = 0; i < cells.Length; i++)
+                {
+                    if (cells[i] is FrameworkElement fe) { fe.HorizontalAlignment = i == 0 ? HorizontalAlignment.Left : HorizontalAlignment.Center; fe.VerticalAlignment = VerticalAlignment.Center; }
+                    var host = new Border { Padding = new Thickness(i == 0 ? 11 : 4, 0, 4, 0), Child = cells[i], IsHitTestVisible = false };
+                    Grid.SetRow(host, r); Grid.SetColumn(host, i); grid.Children.Add(host);
+                }
+                r++;
+            }
+            sp.Children.Add(grid);
         }
         sp.Children.Add(Txt(Loc.T("Click a player to open their profile. Dots mark players who queued together."), 11, TpMuted).Also(t => t.Margin = new Thickness(12, 8, 12, 10)));
         return Flat("Scoreboard", sp);

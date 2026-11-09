@@ -109,7 +109,7 @@ public partial class ValorantPage
 
     FrameworkElement GaugeA(string title, string icon, double frac, string value, string unit, Color c, string word, string sub, string why)
     {
-        const double size = 116, stroke = 10;
+        const double size = 94, stroke = 9;
         var sp = new StackPanel();
         var head = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center };
         head.Children.Add(new Border { Width = 20, Height = 20, CornerRadius = new CornerRadius(6), Background = B(A(c, 0x24)), Margin = new Thickness(0, 0, 7, 0), Child = Icon(icon, c, 12) });
@@ -126,13 +126,13 @@ public partial class ValorantPage
             ring.Children.Add(arc);
         }
         var num = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
-        num.Children.Add(new TextBlock { Text = value, FontSize = 30, FontWeight = FontWeights.ExtraBold, Foreground = B(c), FontFamily = (FontFamily)FindResource("DisplayFont"), Effect = Glow(c, 18, 0.5) });
+        num.Children.Add(new TextBlock { Text = value, FontSize = 25, FontWeight = FontWeights.ExtraBold, Foreground = B(c), FontFamily = (FontFamily)FindResource("DisplayFont"), Effect = Glow(c, 18, 0.5) });
         if (unit.Length > 0) num.Children.Add(new TextBlock { Text = unit, FontSize = 13, FontWeight = FontWeights.Bold, Foreground = B(A(c, 0xD9)), VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(2, 0, 0, 5) });
         ring.Children.Add(num);
         sp.Children.Add(ring);
         sp.Children.Add(new TextBlock { Text = Loc.T(word).ToUpper(CultureInfo.CurrentCulture), FontSize = 11.5, FontWeight = FontWeights.ExtraBold, Foreground = B(c), HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, -10, 0, 0) });
         sp.Children.Add(new TextBlock { Text = sub.ToUpper(CultureInfo.CurrentCulture), FontSize = 10, FontWeight = FontWeights.Bold, Foreground = B(Color.FromRgb(0x7C, 0x80, 0x8A)), HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 4, 0, 0) });
-        sp.Children.Add(new TextBlock { Text = why, FontSize = 11, Foreground = B(Color.FromRgb(0x8E, 0x92, 0x9B)), TextWrapping = TextWrapping.Wrap, TextAlignment = TextAlignment.Center, Margin = new Thickness(4, 3, 4, 0), LineHeight = 15, MaxHeight = 30, TextTrimming = TextTrimming.CharacterEllipsis, ToolTip = why });
+        sp.Children.Add(new TextBlock { Text = why, FontSize = 11, Foreground = B(Color.FromRgb(0x8E, 0x92, 0x9B)), TextWrapping = TextWrapping.Wrap, TextAlignment = TextAlignment.Center, Margin = new Thickness(4, 3, 4, 0), LineHeight = 15, MaxHeight = 15, TextTrimming = TextTrimming.CharacterEllipsis, ToolTip = why });
         var card = Card2(sp, c, 12, glow: true);
         card.Margin = new Thickness(0, 0, 10, 10);
         return card;
@@ -147,7 +147,7 @@ public partial class ValorantPage
         g.ColumnDefinitions.Add(new ColumnDefinition());
         g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
-        var face = new Border { Width = 68, Height = 68, CornerRadius = new CornerRadius(13), Margin = new Thickness(0, 0, 16, 0), BorderBrush = B(Color.FromRgb(0x2C, 0x2E, 0x36)), BorderThickness = new Thickness(2) };
+        var face = new Border { Width = 56, Height = 56, CornerRadius = new CornerRadius(13), Margin = new Thickness(0, 0, 16, 0), BorderBrush = B(Color.FromRgb(0x2C, 0x2E, 0x36)), BorderThickness = new Thickness(2) };
         face.Background = MatchArt.AgentIcon(mainAgent) is { } art ? new ImageBrush(art) { Stretch = Stretch.UniformToFill } : B(Color.FromRgb(0x22, 0x22, 0x26));
         face.Effect = new DropShadowEffect { BlurRadius = 24, ShadowDepth = 6, Opacity = 0.5, Color = Colors.Black };
         g.Children.Add(face);
@@ -448,6 +448,7 @@ public partial class ValorantPage
             t.KdRatio >= 1.4 ? "Elite" : t.KdRatio >= 1.2 ? "Strong" : t.KdRatio >= 1.0 ? "Positive" : t.KdRatio >= 0.8 ? "Average" : "Below average", Loc.F("{0} kills · {1} deaths", t.Kills, t.Deaths),
             (acsTop != null && !double.IsNaN(acsTop.TopPercent) ? Loc.F("Top {0:0}% in your matches", acsTop.TopPercent) + " · " : "") + Loc.F("{0:0} ACS", t.Acs)));
         yield return gauges;
+        yield return ActsStrip(p);
 
         // Skills.
         var sk = new StackPanel();
@@ -472,7 +473,6 @@ public partial class ValorantPage
         yield return OverviewPanel(ms, p.Puuid);
         var left = new StackPanel();
         left.Children.Add(ScorePanel(ms, p.Puuid));
-        if (p.Acts.Count > 0) left.Children.Add(ActsPanel(p));
         left.Children.Add(AccuracyPanel(ms, p.Puuid));
         left.Children.Add(RolesPanel(ms, p.Puuid));
         left.Children.Add(WeaponsPanel(ms, p.Puuid));

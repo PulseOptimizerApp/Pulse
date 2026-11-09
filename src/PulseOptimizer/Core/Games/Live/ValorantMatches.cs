@@ -144,31 +144,115 @@ public sealed class ValorantMatches : IDisposable
         return req;
     }
 
+    /// <summary>Why the last login failed, in words for the user (null when it worked).</summary>
+    public static string LastLoginProblem { get; private set; }
+
+    /// <summary>
+    /// Every Riot Client lockfile on this PC, newest first: the current Windows profile first, then the others. Pulse
+    /// runs as administrator, and when that's a different Windows account its own profile has no Riot Client in it.
+    /// </summary>
+    static List<string> Lockfiles()
+    {
+        var rel = Path.Combine("Riot Games", "Riot Client", "Config", "lockfile");
+        var list = new List<string>();
+        var mine = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), rel);
+        if (File.Exists(mine)) list.Add(mine);
+        try
+        {
+            var users = Path.GetDirectoryName(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
+            if (users != null)
+                foreach (var dir in Directory.EnumerateDirectories(users))
+                {
+                    var f = Path.Combine(dir, "AppData", "Local", rel);
+                    try { if (File.Exists(f) && !list.Contains(f, StringComparer.OrdinalIgnoreCase)) list.Add(f); } catch { }
+                }
+        }
+        catch { }
+        return list.Take(1).Concat(list.Skip(1).OrderByDescending(f => { try { return File.GetLastWriteTimeUtc(f); } catch { return DateTime.MinValue; } })).ToList();
+    }
+
+    /// <summary>Riot's platform shard for a region (the pd.*.a.pvp.net host).</summary>
+    internal static string ShardOf(string region) => region?.ToLowerInvariant() switch
+    {
+        "na" or "latam" or "br" or "pbe" => "na",
+        "eu" => "eu",
+        "ap" => "ap",
+        "kr" => "kr",
+        _ => "",
+    };
+
     static async Task<Session> FreshLogin()
     {
-        var lockfile = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Riot Games", "Riot Client", "Config", "lockfile");
-        if (!File.Exists(lockfile)) return null;
-        string text;
-        using (var fs = new FileStream(lockfile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
-        using (var r = new StreamReader(fs)) text = await r.ReadToEndAsync();
-        var parts = text.Split(':');
-        if (parts.Length < 5) return null;
-        using var req = Local(new Session(null, null, null, null, null, parts[2], parts[3]), "/entitlements/v1/token");
-        using var res = await Http.SendAsync(req);
-        if (!res.IsSuccessStatusCode) return null;
-        using var doc = JsonDocument.Parse(await res.Content.ReadAsStringAsync());
-        var root = doc.RootElement;
+        var files = Lockfiles();
+        if (files.Count == 0) { LastLoginProblem = "The Riot Client isn't running. Open VALORANT or the Riot Client, then try again."; return null; }
+        LastLoginProblem = "The Riot Client didn't answer. If it's open, make sure you're signed in, then try again.";
+        foreach (var lockfile in files)
+        {
+            try
+            {
+                string text;
+                using (var fs = new FileStream(lockfile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
+                using (var r = new StreamReader(fs)) text = await r.ReadToEndAsync();
+                var parts = text.Split(':');
+                if (parts.Length < 5) continue;
+                var local = new Session(null, null, null, null, null, parts[2], parts[3]);
+                using var req = Local(local, "/entitlements/v1/token");
+                using var res = await Http.SendAsync(req);
+                if (!res.IsSuccessStatusCode) continue;   // an old lockfile from a client that has closed, or signed out
+                using var doc = JsonDocument.Parse(await res.Content.ReadAsStringAsync());
+                var root = doc.RootElement;
+                if (string.IsNullOrEmpty(root.Str("accessToken"))) continue;
 
-        var log = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "VALORANT", "Saved", "Logs", "ShooterGame.log");
-        if (!File.Exists(log)) return null;
-        string logText;
-        using (var fs = new FileStream(log, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
-        using (var r = new StreamReader(fs)) logText = await r.ReadToEndAsync();
-        var glz = Regex.Match(logText, @"https://glz-([a-z0-9]+)-1\.([a-z0-9]+)\.a\.pvp\.net");
-        var shard = glz.Groups[2].Value;
-        var version = Regex.Match(logText, @"CI server version: (\S+)").Groups[1].Value;
-        if (shard.Length == 0) return null;
-        return new Session(root.Str("subject"), root.Str("accessToken"), root.Str("token"), shard, version, parts[2], parts[3], glz.Groups[1].Value);
+                // Region and version: VALORANT's log in the same Windows profile when it has them, else the Riot Client.
+                string shard = "", region = "", version = "";
+                var profileLocal = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(lockfile)!, "..", "..", ".."));
+                var log = Path.Combine(profileLocal, "VALORANT", "Saved", "Logs", "ShooterGame.log");
+                if (File.Exists(log))
+                {
+                    string logText;
+                    using (var fs = new FileStream(log, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
+                    using (var r = new StreamReader(fs)) logText = await r.ReadToEndAsync();
+                    var glz = Regex.Match(logText, @"https://glz-([a-z0-9]+)-1\.([a-z0-9]+)\.a\.pvp\.net");
+                    if (glz.Success) { region = glz.Groups[1].Value; shard = glz.Groups[2].Value; }
+                    version = Regex.Match(logText, @"CI server version: (\S+)").Groups[1].Value;
+                }
+                if (shard.Length == 0)
+                {
+                    try
+                    {
+                        using var rq = Local(local, "/riotclient/region-locale");
+                        using var rs = await Http.SendAsync(rq);
+                        if (rs.IsSuccessStatusCode)
+                        {
+                            using var rd = JsonDocument.Parse(await rs.Content.ReadAsStringAsync());
+                            region = rd.RootElement.Str("region").ToLowerInvariant();
+                            shard = ShardOf(region);
+                        }
+                    }
+                    catch { }
+                }
+                if (version.Length == 0)
+                {
+                    try
+                    {
+                        using var rq = Local(local, "/product-session/v1/external-sessions");
+                        using var rs = await Http.SendAsync(rq);
+                        if (rs.IsSuccessStatusCode)
+                        {
+                            using var sd = JsonDocument.Parse(await rs.Content.ReadAsStringAsync());
+                            foreach (var p in sd.RootElement.EnumerateObject())
+                                if (p.Value.Str("productId") == "valorant" && p.Value.Str("version") is { Length: > 0 } v) { version = v; break; }
+                        }
+                    }
+                    catch { }
+                }
+                if (shard.Length == 0) { LastLoginProblem = "Pulse couldn't tell which region your account is in. Start VALORANT once, then try again."; continue; }
+                LastLoginProblem = null;
+                return new Session(root.Str("subject"), root.Str("accessToken"), root.Str("token"), shard, version, parts[2], parts[3], region);
+            }
+            catch { }
+        }
+        return null;
     }
 
     /// <summary>
