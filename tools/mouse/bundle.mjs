@@ -75,4 +75,7 @@ if (babel) {
 } else {
   console.warn("Babel not installed: async/await left in the bundle (the mouse engine will hang on the first await).");
 }
-console.log(`${outFile}: ${fs.statSync(outFile).size} bytes`);
+// Pulse embeds it compressed (about a sixth of the size) and unpacks it when the Mouse page first needs it.
+const zlib = await import("node:zlib");
+fs.writeFileSync(outFile + ".gz", zlib.gzipSync(fs.readFileSync(outFile), { level: 9 }));
+console.log(`${outFile}: ${fs.statSync(outFile).size} bytes (${fs.statSync(outFile + ".gz").size} compressed)`);

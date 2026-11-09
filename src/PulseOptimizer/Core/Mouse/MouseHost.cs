@@ -66,10 +66,12 @@ public sealed class MouseHost : IDisposable
     public static string Script()
     {
         var asm = typeof(MouseHost).Assembly;
-        var name = asm.GetManifestResourceNames().FirstOrDefault(n => n.EndsWith("openmouse.js", StringComparison.OrdinalIgnoreCase));
+        // Embedded compressed (about 350 KB instead of 2 MB): unpacked only when the engine starts.
+        var name = asm.GetManifestResourceNames().FirstOrDefault(n => n.EndsWith("openmouse.js.gz", StringComparison.OrdinalIgnoreCase));
         if (name == null) return null;
         using var s = asm.GetManifestResourceStream(name)!;
-        using var r = new StreamReader(s, Encoding.UTF8);
+        using var gz = new System.IO.Compression.GZipStream(s, System.IO.Compression.CompressionMode.Decompress);
+        using var r = new StreamReader(gz, Encoding.UTF8);
         return r.ReadToEnd();
     }
 
@@ -236,8 +238,7 @@ public sealed class MouseHost : IDisposable
         {
             var v = await work();
             if (what != null) Note(v == null ? what : $"{what} → {Short(v)}");
-            Note($"TRACE posting {token} disposed={_disposed} queue={_queue.Count} thread={_thread.ThreadState}");
-            Post(() => { Note($"TRACE delivering {token}"); _engine.Invoke("__pulseDone", (int)token, true, v); Note($"TRACE delivered {token}"); });
+            Post(() => _engine.Invoke("__pulseDone", (int)token, true, v));
         }
         catch (Exception ex)
         {

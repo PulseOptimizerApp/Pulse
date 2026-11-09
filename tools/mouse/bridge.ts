@@ -46,7 +46,6 @@ g.__pulseDone = (token, ok, value) => {
   const key = String(Math.round(Number(token)));
   const p = pending.get(key);
   pending.delete(key);
-  console.log("TRACE done " + key + " found=" + !!p + " ok=" + ok + " pending=" + [...pending.keys()].join(","));
   if (!p) return;
   if (ok) p.resolve(value); else p.reject(new Error(value));
 };
@@ -141,14 +140,11 @@ g.PulseMouse = {
     return toJson(out);
   },
   async open(key) {
-    console.log("TRACE open " + key);
     const d = devices.get(key) ?? refresh().find((x) => x.key === key);
     if (!d) throw new Error("That device isn't connected any more.");
     const client = createSupportedClient(d);
     if (!client) throw new Error("No driver for this device.");
-    console.log("TRACE client " + (client && client.constructor && client.constructor.name));
     if (typeof client.open === "function") await client.open(); else await d.open();
-    console.log("TRACE client opened");
     const id = clientSeq++;
     clients.set(id, { client, key });
     users.set(key, (users.get(key) ?? 0) + 1);
@@ -157,7 +153,6 @@ g.PulseMouse = {
     // Option lists a driver publishes (sleep timeouts in seconds, debounce choices), as OpenMouse reads them.
     const list = (name) => { try { const v = typeof client[name] === "function" ? client[name]() : null; return Array.isArray(v) ? [...v] : null; } catch { return null; } };
     const num = (name) => { try { const v = typeof client[name] === "function" ? client[name]() : null; return typeof v === "number" ? v : null; } catch { return null; } };
-    console.log("TRACE methods " + methodsOf(client).length);
     const options = { sleep: list("getSleepOptions"), debounce: list("getDebounceOptions"), debounceMax: num("getDebounceMaxMs"), canDisableSleep: client.canDisableSleep === true };
     return toJson({ id, brand, methods: methodsOf(client), options });
   },
