@@ -665,7 +665,7 @@ public partial class MousePage
             "Receiver" => "M40,22 h20 a4,4 0 0 1 4,4 v44 a10,10 0 0 1 -10,10 h-8 a10,10 0 0 1 -10,-10 v-44 a4,4 0 0 1 4,-4 Z M44,10 h12 v12 h-12 Z M47,14 h2 v4 h-2 Z M51,14 h2 v4 h-2 Z M50,60 m-4,0 a4,4 0 1 0 8,0 a4,4 0 1 0 -8,0",
             _ => "M50,6 C30,6 22,22 22,40 V64 C22,82 34,94 50,94 C66,94 78,82 78,64 V40 C78,22 70,6 50,6 Z M50,6 V38 M22,38 H78 M47,14 h6 a2,2 0 0 1 2,2 v10 a2,2 0 0 1 -2,2 h-6 a2,2 0 0 1 -2,-2 v-10 a2,2 0 0 1 2,-2 Z",
         };
-        var path = new Path { Data = Geometry.Parse(data), Stroke = stroke, StrokeThickness = 1.6, Fill = fill, Stretch = Stretch.Uniform, Width = size, Height = size, StrokeLineJoin = PenLineJoin.Round };
+        var path = new System.Windows.Shapes.Path { Data = Geometry.Parse(data), Stroke = stroke, StrokeThickness = 1.6, Fill = fill, Stretch = Stretch.Uniform, Width = size, Height = size, StrokeLineJoin = PenLineJoin.Round };
         return new Grid { Children = { path }, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
     }
 
