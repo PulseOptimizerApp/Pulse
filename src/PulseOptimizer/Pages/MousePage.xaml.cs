@@ -20,7 +20,7 @@ public partial class MousePage : UserControl, IPage
         InitializeComponent();
         // The engine runs while this page is open, and stops (freeing its memory) when you leave it.
         Loaded += (_, _) => Core.Mouse.MouseHost.Hold();
-        Unloaded += (_, _) => { _clientId = 0; _current = null; Core.Mouse.MouseHost.Release(); };
+        Unloaded += (_, _) => { _clientId = 0; _openKey = null; _known.Clear(); _current = null; Core.Mouse.MouseHost.Release(); };
         foreach (var box in new[] { FromGame, ToGame })
             foreach (var g in SensConverter.Games) box.Items.Add(new ComboBoxItem { Content = g.Name, Tag = g });
         // Starts from your VALORANT setting (the one the reaction trainer uses), into CS2.

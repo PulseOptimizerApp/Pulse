@@ -12,6 +12,15 @@ for try in 1 2 3 4 5; do
   git clone -q --depth 1 --branch "$VERSION" https://github.com/OpenMouse-Project/mouse-protocol "$SRC" && break
   echo "Clone failed (try $try), retrying…"; sleep $((10 * try))
 done
+# OpenMouse's app (also AGPL-3.0, https://github.com/OpenMouse-Project/openmouse): only its device-name → product
+# picture table (src/shared/device-images.ts) is used, so Pulse shows the same pictures OpenMouse does.
+APP_COMMIT="${OPENMOUSE_APP_COMMIT:-8885e938dcb1d84630c8bcf64abaea477f9e84ef}"
+APP="$ROOT/.mouse-app"
+rm -rf "$APP"; mkdir -p "$APP"
+for try in 1 2 3 4 5; do
+  (cd "$APP" && git init -q && git fetch -q --depth 1 https://github.com/OpenMouse-Project/openmouse "$APP_COMMIT" && git checkout -q FETCH_HEAD) && break
+  echo "Fetch failed (try $try), retrying…"; sleep $((10 * try))
+done
 mkdir -p "$(dirname "$OUT")"
 # esbuild reads the TypeScript directly; ES2019 so the script engine doesn't need the newest syntax.
 BUILD="$ROOT/.mouse-build"

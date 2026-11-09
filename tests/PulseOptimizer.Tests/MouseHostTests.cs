@@ -89,8 +89,39 @@ public class MousePageShots
                       "motionSync": true, "angleSnapping": false, "rippleControl": false, "debounceMs": 2, "sleepTimeout": 60, "activeProfile": 1 }
                     """));
                 t.GetField("_methods", F)!.SetValue(page, new HashSet<string> { "setDpiStageValue", "setActiveDpiStage", "setPollingRate", "setLiftOffDistance", "setMotionSync", "setAngleSnapping", "setRippleControl", "setDebounceTime", "setSleepTimeout" });
-                t.GetMethod("ShowSettings", F)!.Invoke(page, null);
-                var host = new System.Windows.Controls.Border { Width = 1100, Height = 1400, Padding = new System.Windows.Thickness(28), Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x0B, 0x0C, 0x0F)), Child = page };
+                var foundType = t.GetNestedType("Found", System.Reflection.BindingFlags.NonPublic)!;
+                const string Beast = "https://img.openmouse.app/wlmouse-beast-max.png";
+                object Found(string name, int pid, string image = null) => Activator.CreateInstance(foundType, "k" + pid, 0x36A7, pid, name, 1.0, image)!;
+                var list = (System.Collections.IList)Activator.CreateInstance(typeof(List<>).MakeGenericType(foundType))!;
+                list.Add(Found("WLMOUSE BEAST MAX 8K RECEIVER", 0xA887, Beast)); list.Add(Found("WLMOUSE 1K RECEIVER", 0xA888)); list.Add(Found("Wooting 60HE+", 0x1312));
+                t.GetField("_found", F)!.SetValue(page, list);
+                // The Beast Max is connected; its picture is downloaded the way the page does it.
+                Task.Run(() => Pulse.Core.Mouse.DeviceArt.Get(Beast)).Wait(TimeSpan.FromSeconds(30));
+                Task.Run(() => Pulse.Core.Mouse.DeviceArt.Get("https://img.openmouse.app/logitech-g502-x-plus.png")).Wait(TimeSpan.FromSeconds(30));
+                var status = (JsonElement)t.GetField("_status", F)!.GetValue(page)!;
+                t.GetField("_openKey", F)!.SetValue(page, "k" + 0xA887);
+                ((System.Collections.IDictionary)t.GetField("_known", F)!.GetValue(page)!)["k" + 0xA887] = (status, "WLMouse", Beast);
+                // The list, then a device's overview and performance tabs.
+                Render(page, dir, "mouse-list.png", () => t.GetMethod("ShowList", F)!.Invoke(page, new object[] { null }));
+                t.GetField("_current", F)!.SetValue(page, list[0]);
+                Render(page, dir, "mouse.png", () => t.GetMethod("ShowDevice", F)!.Invoke(page, new object[] { null }));
+                t.GetField("_tab", F)!.SetValue(page, "performance");
+                Render(page, dir, "mouse-performance.png", () => t.GetMethod("ShowDevice", F)!.Invoke(page, new object[] { null }));
+            }
+            catch (Exception ex) { error = ex; }
+        });
+        th.SetApartmentState(ApartmentState.STA);
+        th.Start(); th.Join();
+        if (error != null) throw new Exception("Screenshot failed", error);
+    }
+
+    static void Render(Pulse.Pages.MousePage page, string dir, string file, Action show)
+    {
+        show();
+        {
+                var host = new System.Windows.Controls.Border { Width = 1100, Height = 1400, Padding = new System.Windows.Thickness(28), Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x0B, 0x0C, 0x0F)) };
+                if (page.Parent is System.Windows.Controls.Border old) old.Child = null;
+                host.Child = page;
                 host.Measure(new System.Windows.Size(1100, 1400)); host.Arrange(new System.Windows.Rect(0, 0, 1100, 1400)); host.UpdateLayout();
                 void Show(System.Windows.DependencyObject d)
                 {
@@ -102,13 +133,8 @@ public class MousePageShots
                 rtb.Render(host);
                 var enc = new System.Windows.Media.Imaging.PngBitmapEncoder();
                 enc.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(rtb));
-                using var fs = File.Create(Path.Combine(dir, "mouse.png"));
+                using var fs = File.Create(Path.Combine(dir, file));
                 enc.Save(fs);
-            }
-            catch (Exception ex) { error = ex; }
-        });
-        th.SetApartmentState(ApartmentState.STA);
-        th.Start(); th.Join();
-        if (error != null) throw new Exception("Screenshot failed", error);
+        }
     }
 }
