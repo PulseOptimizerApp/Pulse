@@ -28,6 +28,7 @@ public partial class ValorantPage
 
     static string _trView = "overview";
     static bool _trShowMore;
+    static int _trShown = 20; // matches on the Matches tab; more on request (fewer rows draw faster)
 
     // ───────── building blocks ─────────
 
@@ -184,7 +185,7 @@ public partial class ValorantPage
             g.Children.Add(new Border { Height = 3, VerticalAlignment = VerticalAlignment.Bottom, Background = on ? B(TgRed) : Brushes.Transparent });
             g.MouseEnter += (_, _) => { if (!on) t.Foreground = B(TgText); };
             g.MouseLeave += (_, _) => { if (!on) t.Foreground = B(TgDim); };
-            g.MouseLeftButtonUp += (_, _) => { if (go != null) go(); else { _trView = key; Build(); } };
+            g.MouseLeftButtonUp += (_, _) => { if (go != null) go(); else { _trView = key; _trShown = 20; Build(); } };
             bar.Children.Add(g);
         }
         Item("overview", "Overview");
@@ -303,7 +304,7 @@ public partial class ValorantPage
         switch (_trView)
         {
             case "matches":
-                yield return LastMatchesGg(p, ms, int.MaxValue, false);
+                yield return LastMatchesGg(p, ms, _trShown, false);
                 break;
             case "performance":
                 yield return PerformanceTrends(p, ms);
@@ -752,7 +753,15 @@ public partial class ValorantPage
             days.Children.Add(DayHeader(day));
             foreach (var m in day.Matches) days.Children.Add(MatchRowGg(m, id));
         }
-        if (!overview && !p.FromYourMatches && ValorantSearch.HasMore(p))
+        if (!overview && filtered.Count > ms.Count)
+        {
+            var next = Btn(Loc.F("Show {0} more", Math.Min(20, filtered.Count - ms.Count)));
+            next.Margin = new Thickness(0, 8, 0, 4);
+            next.HorizontalAlignment = HorizontalAlignment.Center;
+            next.Click += (_, _) => { _trShown += 20; Build(); };
+            days.Children.Add(next);
+        }
+        else if (!overview && !p.FromYourMatches && ValorantSearch.HasMore(p))
         {
             var more = Btn(_trMoreBusy ? "Loading…" : "Load 10 more matches");
             more.IsEnabled = !_trMoreBusy;
