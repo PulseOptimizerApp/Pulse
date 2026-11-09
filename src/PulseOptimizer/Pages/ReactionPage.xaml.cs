@@ -64,7 +64,7 @@ public partial class ReactionPage : UserControl, IPage
     PeekScene _scene;
     Canvas _figLayer;
     Ellipse _head;
-    Rectangle _body;
+    System.Windows.Shapes.Path _body;
     double _offset = -1;
     double _startLevel;
 
@@ -465,12 +465,27 @@ public partial class ReactionPage : UserControl, IPage
         SmallText.Text = "";
         var stroke = _pt.Enemy ? Enemy : Teammate;
         var pose = _scene.At(_pt, 0);
-        _body = new Rectangle { Width = pose.BodyW, Height = pose.BodyH, RadiusX = pose.R * 0.7, RadiusY = pose.R * 0.7, Fill = FigureFill, Stroke = stroke, StrokeThickness = 2.5 };
+        _body = new System.Windows.Shapes.Path { Data = Silhouette(pose.BodyW, pose.BodyH), Fill = FigureFill, Stroke = stroke, StrokeThickness = 2.5, StrokeLineJoin = PenLineJoin.Round };
         _head = new Ellipse { Width = pose.R * 2, Height = pose.R * 2, Fill = FigureFill, Stroke = stroke, StrokeThickness = 2.5 };
         _figLayer.Children.Add(_body);
         _figLayer.Children.Add(_head);
         Place(pose);
         CompositionTarget.Rendering += PeekFrame;
+    }
+
+    /// <summary>A person's outline (shoulders, arms, legs) inside the body's hitbox, so what you see is what you can hit.</summary>
+    static Geometry Silhouette(double w, double h)
+    {
+        Point P(double x, double y) => new(x * w, y * h);
+        var f = new PathFigure { StartPoint = P(0.2, 0.05), IsClosed = true };
+        f.Segments.Add(new QuadraticBezierSegment(P(0.5, -0.03), P(0.8, 0.05), true));   // shoulders
+        f.Segments.Add(new QuadraticBezierSegment(P(0.98, 0.08), P(1, 0.2), true));
+        foreach (var (x, y) in new[] { (0.97, 0.52), (0.84, 0.53), (0.82, 0.3), (0.8, 0.56), (0.78, 1.0), (0.56, 1.0), (0.5, 0.64), (0.44, 1.0), (0.22, 1.0), (0.2, 0.56), (0.18, 0.3), (0.16, 0.53), (0.03, 0.52), (0, 0.2) })
+            f.Segments.Add(new LineSegment(P(x, y), true));
+        f.Segments.Add(new QuadraticBezierSegment(P(0.02, 0.08), P(0.2, 0.05), true));
+        var g = new PathGeometry(new[] { f });
+        g.Freeze();
+        return g;
     }
 
     void Place(PeekScene.Pose p)
