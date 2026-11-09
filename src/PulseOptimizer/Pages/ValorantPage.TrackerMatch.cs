@@ -104,6 +104,7 @@ public partial class ValorantPage
         var m = _trMatchId == null ? null : FindMatch(_trMatchId);
         if (m == null) { CloseMatch(); return; }
         var viewer = MatchViewer(m);
+        LoadMatchNames(m);
         try
         {
             MatchHead.Content = MatchHeader(m);
@@ -367,8 +368,8 @@ public partial class ValorantPage
                 who.IsHitTestVisible = false;
                 Grid.SetRow(who, r); g.Children.Add(who);
                 int pm = t.Kills - t.Deaths;
-                var pulse = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center };
-                pulse.Children.Add(Icon(IconTrophy, l.Score >= 800 ? TgYellow : l.Score >= 500 ? TgWin : TgDim, 15).Also(i => i.Margin = new Thickness(0, 0, 6, 0)));
+                var pulse = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center, ToolTip = Loc.T("Pulse Score: one match's overall impact (0–1000)") };
+                pulse.Children.Add(ScoreBadge(l.Score, 20).Also(i => i.Margin = new Thickness(0, 0, 7, 0)));
                 pulse.Children.Add(Txt(N(l.Score), 14, TgText, true));
                 var cells = new UIElement[]
                 {
@@ -423,7 +424,7 @@ public partial class ValorantPage
         row.Children.Add(face);
         var names = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
         var riotId = Stats.NameOf(m, p.Id) ?? NameBook.Get(p.Id);
-        var line = new StackPanel { Orientation = Orientation.Horizontal };
+        var line = new StackPanel { Orientation = Orientation.Horizontal, ToolTip = riotId == null ? Loc.T("Name not loaded yet: it shows once the Riot Client is open.") : null };
         int hash = riotId?.LastIndexOf('#') ?? -1;
         if (hash > 0)
         {

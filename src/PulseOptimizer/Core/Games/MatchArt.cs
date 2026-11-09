@@ -30,6 +30,9 @@ public static class MatchArt
     /// <summary>A VALORANT agent's portrait by name.</summary>
     public static ImageSource AgentIcon(string agent) => string.IsNullOrEmpty(agent) ? null : Load($"agent-{Key(agent)}.png", 256);
     /// <summary>A weapon's killfeed silhouette (white on clear) by Riot's weapon id; null when it wasn't embedded.</summary>
+    /// <summary>VALORANT's own role icon (white on transparent), or null when the build couldn't get it.</summary>
+    public static ImageSource RoleIcon(string role) => string.IsNullOrEmpty(role) ? null : Load($"role-{Key(role)}.png", 96);
+
     /// <summary>The agent's bust portrait (the tracker's player card); null when the build couldn't get it.</summary>
     public static ImageSource AgentBust(string agent) => string.IsNullOrEmpty(agent) ? null : Load($"bust-{Key(agent)}.png", 300);
 

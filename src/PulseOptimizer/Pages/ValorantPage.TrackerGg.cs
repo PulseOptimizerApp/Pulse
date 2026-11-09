@@ -125,6 +125,15 @@ public partial class ValorantPage
 
     static FrameworkElement RoleIcon(string role, double size = 30)
     {
+        // VALORANT's own role icon in a dark ring, like the trackers; a drawn one if the build had no art.
+        if (MatchArt.RoleIcon(role) is { } art)
+            return new Border
+            {
+                Width = size + 6, Height = size + 6, CornerRadius = new CornerRadius((size + 6) / 2), Background = B(Color.FromRgb(0x10, 0x13, 0x18)),
+                BorderBrush = B(Color.FromRgb(0x3A, 0x42, 0x4F)), BorderThickness = new Thickness(1.5), Margin = new Thickness(0, 0, 10, 0), VerticalAlignment = VerticalAlignment.Center,
+                Child = new Image { Source = art, Width = size * 0.62, Height = size * 0.62, Stretch = Stretch.Uniform }.Also(i => RenderOptions.SetBitmapScalingMode(i, BitmapScalingMode.HighQuality)),
+                ToolTip = Loc.T(role),
+            };
         var (path, c) = role switch
         {
             "Duelist" => (RoleDuelist, Color.FromRgb(0xFF, 0x7A, 0x59)),
@@ -304,6 +313,7 @@ public partial class ValorantPage
         switch (_trView)
         {
             case "matches":
+                if (p.IsYou) yield return OlderMatchesCard(p.Matches.Count);
                 yield return LastMatchesGg(p, ms, _trShown, false);
                 break;
             case "performance":
@@ -893,7 +903,7 @@ public partial class ValorantPage
         sc.Children.Add(scLine);
         Put(3, sc);
         var trs = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center, ToolTip = Loc.T("Pulse Score: one match's overall impact (0–1000)") };
-        trs.Children.Add(Icon(IconTrophy, score >= 800 ? TgYellow : score >= 500 ? TgWin : TgDim, 18).Also(i => ((FrameworkElement)i).Margin = new Thickness(0, 0, 6, 0)));
+        trs.Children.Add(ScoreBadge(score, 24).Also(i => i.Margin = new Thickness(0, 0, 7, 0)));
         var trsT = new StackPanel();
         trsT.Children.Add(Txt(Loc.T("Pulse"), 10, TgDim));
         trsT.Children.Add(Txt(N(score), 15, TgText, true));

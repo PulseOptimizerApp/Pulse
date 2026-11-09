@@ -55,6 +55,14 @@ def main():
                 continue
             try:
                 save(icon, os.path.join(OUT, f"agent-{k}.png"), (256, 256))  # sharp at 64 px on 200-400% screens
+                # The role icon (Duelist, Controller...), the one trackers show next to role stats.
+                role = a.get("role") or {}
+                rk = key(role.get("displayName"))
+                if rk and role.get("displayIcon") and not os.path.exists(os.path.join(OUT, f"role-{rk}.png")):
+                    try:
+                        save(role["displayIcon"], os.path.join(OUT, f"role-{rk}.png"), (96, 96))
+                    except Exception as e:
+                        print(f"  role {rk}: {e}")
                 # The bust portrait for the tracker's match page (the player card on the Performance tab).
                 bust = a.get("bustPortrait") or a.get("fullPortrait")
                 if bust:

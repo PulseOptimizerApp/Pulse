@@ -216,6 +216,9 @@ public class TrackerGgTests
         foreach (var el in (IEnumerable<FrameworkElement>)Call("ProfileView", profile)) dm.Children.Add(el);
         Save(dm, Path.Combine(dir, "profile-deathmatch.png"), 1440);
 
+        var search = (FrameworkElement)Call("SearchCard");
+        Save(new Border { Background = new SolidColorBrush(Color.FromRgb(0x17, 0x18, 0x1C)), Padding = new Thickness(20), Child = search }, Path.Combine(dir, "search.png"), 900);
+
         var match = real[0];
         foreach (var tab in new[] { "scoreboard", "performance", "economy", "rounds", "duels", "autopsy" })
         {
