@@ -180,5 +180,6 @@ public class SafetyTests
     public void Registry_writes_go_through_the_backup_helper() =>
         AssertNotUsed(@"\.SetValue\(|\.DeleteValue\(|CreateSubKey\(",
             "every registry change must go through Reg.cs, which is used by actions that back up first",
-            "Reg.cs", "Controls.cs" /* WPF DependencyObject.SetValue, not the registry */);
+            "Reg.cs", "Controls.cs" /* WPF DependencyObject.SetValue, not the registry */,
+            "MouseHost.cs" /* the script engine's globals, not the registry */);
 }

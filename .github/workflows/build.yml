@@ -25,6 +25,10 @@ jobs:
         with:
           dotnet-version: 8.0.x
 
+      - name: Get the mouse protocol library (OpenMouse, AGPL-3.0, pinned release) for the Mouse page
+        shell: bash
+        run: ./tools/get-mouse-protocol.sh
+
       - name: Run tests (measurement maths, exact undo, tweak list, safety checks)
         run: dotnet test tests/PulseOptimizer.Tests/PulseOptimizer.Tests.csproj -c Release --logger "console;verbosity=normal"
 
