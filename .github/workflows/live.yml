@@ -1,0 +1,23 @@
+name: Live check
+
+# Runs the parts of Pulse that talk to real servers (the speed test) on a real Windows PC, and prints what happened.
+# Run by hand. Nothing is published.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  live:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Live tests
+        env:
+          PULSE_LIVE: "1"
+        run: dotnet test tests/PulseOptimizer.Tests/PulseOptimizer.Tests.csproj -c Release --filter "FullyQualifiedName~LiveSpeedTest" --logger "console;verbosity=detailed"
