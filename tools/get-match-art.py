@@ -144,6 +144,28 @@ def main():
     except Exception as e:
         print(f"Weapons: {e}")
 
+    # Abilities that work like guns: Riot lists their kills as weapon kills (or ultimates), but they aren't in the
+    # weapon list. Their ability icon stands in for a weapon picture. Ids match VMatch's constants.
+    ability_weapons = {
+        ("Chamber", "Headhunter"): "856d9a7e-4b06-dc37-15dc-9d809c37cb90",
+        ("Chamber", "Tour De Force"): "39099fb5-4293-def4-1e09-2e9080ce7456",
+        ("Neon", "Overdrive"): "95336ae4-45d4-1032-cfaf-6bad01910607",
+        ("Jett", "Blade Storm"): "ability-blade-storm",
+        ("Raze", "Showstopper"): "ability-showstopper",
+    }
+    try:
+        for a in get(f"{API}/agents?isPlayableCharacter=true")["data"]:
+            for ab in a.get("abilities") or []:
+                uid = ability_weapons.get((a.get("displayName"), ab.get("displayName")))
+                if uid and ab.get("displayIcon"):
+                    try:
+                        save(ab["displayIcon"], os.path.join(OUT, f"weapon-{uid}.png"), (64, 64))
+                        done["weapons"] += 1
+                    except Exception as e:
+                        print(f"  ability weapon {ab['displayName']}: {e}")
+    except Exception as e:
+        print(f"Ability weapons: {e}")
+
     meta["count"] = done
     with open(os.path.join(OUT, "meta.json"), "w", encoding="utf-8") as f:
         json.dump(meta, f, indent=1)
