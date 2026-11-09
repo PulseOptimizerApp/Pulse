@@ -30,14 +30,18 @@ public partial class ValorantPage
     static List<int> _trRr;
     string _trAgent;
     static readonly Dictionary<string, (int Tier, int Peak)> _trPeaks = new();
-    static bool _trPeaksBusy, _trAutoTried, _trNamesTried;
+    static bool _trPeaksBusy, _trNamesTried;
+    static DateTime _trAutoAt;
 
     void BuildTracker()
     {
         var matches = CoachMatches();
         Root.Children.Add(SearchCard());
         // Skills need a few matches to measure, and players at several ranks to compare with: fetch your recent ones.
-        if (matches.Count < 20 && !_downloading && !_trAutoTried) { _trAutoTried = true; _ = Download(true); }
+        // Also fetch again matches saved by an older Pulse (no Riot IDs, or an agent it didn't know yet). The Riot Client
+        // may not be open the first time, so keep trying every couple of minutes instead of once per session.
+        bool stale = matches.Take(30).Any(m => VStore.Incomplete(m.Id));
+        if ((matches.Count < 20 || stale) && !_downloading && DateTime.UtcNow - _trAutoAt > TimeSpan.FromMinutes(2)) { _trAutoAt = DateTime.UtcNow; _ = Download(true); }
         if (_downloading || (_downloadText != null && matches.Count < 20))
         {
             var dl = new StackPanel();

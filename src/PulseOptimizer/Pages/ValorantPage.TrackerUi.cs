@@ -155,7 +155,7 @@ public partial class ValorantPage
         var mid = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
         Grid.SetColumn(mid, 1);
         var nameRow = new WrapPanel();
-        nameRow.Children.Add(new TextBlock { Text = p.Name.Length > 0 ? p.Name : mainAgent ?? "?", FontSize = 22, FontWeight = FontWeights.Bold, Foreground = Res("TextBrush"), FontFamily = (FontFamily)FindResource("DisplayFont"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 12, 0) });
+        nameRow.Children.Add(new TextBlock { Text = p.Name.Length > 0 ? p.Name : mainAgent ?? Loc.T("Unknown player"), FontSize = 22, FontWeight = FontWeights.Bold, Foreground = Res("TextBrush"), FontFamily = (FontFamily)FindResource("DisplayFont"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 12, 0) });
         Border Tag(string t, Color c) => new()
         {
             CornerRadius = new CornerRadius(5), Padding = new Thickness(8, 3, 8, 3), Margin = new Thickness(0, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center,
@@ -176,6 +176,11 @@ public partial class ValorantPage
             if (p.Against > 0) sub.Add(Loc.F("you went {0}–{1} against them", p.AgainstWins, p.Against - p.AgainstWins));
         }
         mid.Children.Add(new TextBlock { Text = string.Join(" · ", sub), FontSize = 12, Foreground = Res("TextDimBrush"), Margin = new Thickness(0, 2, 0, 0) });
+        if (p.Name.Length == 0 && p.FromYourMatches && p.Matches.Any(m => VStore.Incomplete(m.Id)))
+            mid.Children.Add(new TextBlock { Text = Loc.T(mainAgent == null
+                    ? "Saved by an older Pulse that didn't keep Riot IDs or know this agent yet. Open VALORANT and Pulse downloads the match again with both."
+                    : "Saved by an older Pulse that didn't keep Riot IDs. Open VALORANT and Pulse downloads the match again with their name."),
+                FontSize = 11.5, Foreground = Res("TextFaintBrush"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 3, 0, 0) });
         var chips = new WrapPanel { Margin = new Thickness(0, 6, 0, 0) };
         void Chip2(string label, string value)
         {

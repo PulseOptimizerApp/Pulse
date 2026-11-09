@@ -4810,5 +4810,8 @@
  "Round timer expired": "O tempo da rodada acabou",
  "Surrendered": "Rendição",
  "Show Pulse in the Start menu": "Mostrar o Pulse no menu Iniciar",
- "Adds a Pulse shortcut to your Start menu, so searching Windows for Pulse finds it as an app, like Discord. Pulse keeps it pointing at wherever Pulse.exe is.": "Adiciona um atalho do Pulse ao seu menu Iniciar, para que ao pesquisar Pulse no Windows ele apareça como um app, como o Discord. O Pulse mantém o atalho apontando para onde o Pulse.exe estiver."
+ "Adds a Pulse shortcut to your Start menu, so searching Windows for Pulse finds it as an app, like Discord. Pulse keeps it pointing at wherever Pulse.exe is.": "Adiciona um atalho do Pulse ao seu menu Iniciar, para que ao pesquisar Pulse no Windows ele apareça como um app, como o Discord. O Pulse mantém o atalho apontando para onde o Pulse.exe estiver.",
+ "Unknown player": "Jogador desconhecido",
+ "Saved by an older Pulse that didn't keep Riot IDs or know this agent yet. Open VALORANT and Pulse downloads the match again with both.": "Salva por um Pulse antigo que não guardava Riot IDs nem conhecia este agente. Abra o VALORANT e o Pulse baixa a partida de novo com os dois.",
+ "Saved by an older Pulse that didn't keep Riot IDs. Open VALORANT and Pulse downloads the match again with their name.": "Salva por um Pulse antigo que não guardava Riot IDs. Abra o VALORANT e o Pulse baixa a partida de novo com o nome."
 }
