@@ -63,6 +63,7 @@ if (babel) {
     "@babel/plugin-transform-parameters",
     "@babel/plugin-transform-for-of",
     "@babel/plugin-transform-block-scoping",
+    "@babel/plugin-transform-template-literals",
   ]), ["@babel/plugin-transform-regenerator"]);
   const checked = await esbuild.transform(lowered, {
     minify: true, legalComments: "none", target: "es2019",
