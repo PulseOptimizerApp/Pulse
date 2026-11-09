@@ -384,6 +384,7 @@ public partial class ValorantPage
     {
         bool on = m.Id == _storyMatch;
         int us = m.Rounds.Count(r => r.Winner == m.MyTeam), them = m.Rounds.Count(r => r.Winner.Length > 0 && r.Winner != m.MyTeam);
+        int res = m.Outcome(m.MyTeam);
         var g = new Grid { Width = 150, Height = 64 };
         if (MatchArt.MapPicture(m.Map) is { } pic) g.Children.Add(new Border { Background = new ImageBrush(pic) { Stretch = Stretch.UniformToFill } });
         g.Children.Add(new Border { Background = new LinearGradientBrush(Color.FromArgb(0x60, 0, 0, 0), Color.FromArgb(0xE6, 0, 0, 0), 0) });
@@ -392,7 +393,7 @@ public partial class ValorantPage
         var t = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
         t.Children.Add(new TextBlock { Text = m.Map, FontSize = 13, FontWeight = FontWeights.Bold, Foreground = Brushes.White });
         var sc = new StackPanel { Orientation = Orientation.Horizontal };
-        sc.Children.Add(new TextBlock { Text = $"{us}–{them}", FontSize = 12.5, FontWeight = FontWeights.Bold, Foreground = B(us > them ? YouColor : us < them ? EnemyColor : Color.FromRgb(0xB0, 0xB3, 0xBB)) });
+        sc.Children.Add(new TextBlock { Text = $"{us}–{them}", FontSize = 12.5, FontWeight = FontWeights.Bold, Foreground = B(res > 0 ? YouColor : res < 0 ? EnemyColor : Color.FromRgb(0xB0, 0xB3, 0xBB)) });
         sc.Children.Add(new TextBlock { Text = "  " + Ago(m.StartUtc), FontSize = 10.5, Foreground = B(Color.FromRgb(0xB0, 0xB3, 0xBB)), VerticalAlignment = VerticalAlignment.Center });
         t.Children.Add(sc);
         row.Children.Add(t);

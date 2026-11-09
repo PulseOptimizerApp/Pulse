@@ -129,5 +129,5 @@ public static class Panels
             ranked.Count > 0 ? ranked.Average(p => p.Tier) : 0);
     }
 
-    static bool WonBy(VMatch m, string team) => m.Rounds.Count(r => r.Winner == team) > m.Rounds.Count(r => r.Winner.Length > 0 && r.Winner != team);
+    static bool WonBy(VMatch m, string team) => m.WonBy(team);
 }

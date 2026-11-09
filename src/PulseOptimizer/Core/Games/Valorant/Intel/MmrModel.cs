@@ -77,7 +77,8 @@ public static class MmrModel
             double own = (4 * team + r) / 5;
             double e = Expect(own, opp);
             int us = m.Rounds.Count(x => x.Winner == me.Team), them = m.Rounds.Count(x => x.Winner.Length > 0 && x.Winner != me.Team);
-            double result = us > them ? 1 : us < them ? 0 : 0.5;
+            int res = m.Outcome(me.Team);
+            double result = res > 0 ? 1 : res < 0 ? 0 : 0.5;
             double lobby = m.Players.Average(p => (double)p.Score);
             double q = lobby > 0 ? me.Score / lobby : 1;
             double s = 0.6 * result + 0.4 * Math.Clamp(0.5 + (q - 1), 0, 1);
