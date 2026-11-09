@@ -137,6 +137,15 @@ public static class ValorantStore
         return sf.Bundle != null ? sf with { Bundle = await One(sf.Bundle, true) } : sf;
     }
 
+    /// <summary>
+    /// A player card's picture, downloaded once from the community mirror's picture host and kept on this PC: "small"
+    /// (the square profile picture) or "wide" (the banner). Only the card's id is sent.
+    /// </summary>
+    public static Task<string> CardArt(string cardId, bool wide) =>
+        Guid.TryParse(cardId, out var g)
+            ? Picture($"card-{g:D}-{(wide ? "wide" : "small")}", $"https://media.valorant-api.com/playercards/{g:D}/{(wide ? "wideart" : "smallart")}.png")
+            : Task.FromResult<string>(null);
+
     static async Task<string> Picture(string id, string url)
     {
         if (string.IsNullOrEmpty(url)) return null;

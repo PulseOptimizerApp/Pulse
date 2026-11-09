@@ -31,6 +31,8 @@ public sealed class VPlayer
     public int Tier { get; set; }
     /// <summary>Ability uses over the whole match: C (grenade slot), Q, E, X. Null when Riot didn't say.</summary>
     public int[] Casts { get; set; }
+    /// <summary>The player card they had equipped (Riot's id), for their profile picture and banner. Null in older saves.</summary>
+    public string Card { get; set; }
 }
 
 public sealed class VPos
@@ -121,8 +123,11 @@ public sealed class VMatch
     /// <summary>The team that attacked in the first round ("Red" or "Blue").</summary>
     public string FirstAttack { get; set; } = "Red";
     public int Version { get; set; } = 1;
-    /// <summary>Matches saved before this version lack Riot IDs, parties and round ceremonies, and are downloaded again.</summary>
-    public const int CurrentVersion = 2;
+    /// <summary>
+    /// Matches saved before this version are downloaded again: version 2 added Riot IDs, parties and round ceremonies;
+    /// version 3 the players' cards.
+    /// </summary>
+    public const int CurrentVersion = 3;
     /// <summary>Riot IDs from the match record, kept in memory only (never saved): for the after-match lobby.</summary>
     [System.Text.Json.Serialization.JsonIgnore] public Dictionary<string, string> Names { get; set; }
 
@@ -247,6 +252,7 @@ public sealed class VMatch
                     Agent = agents != null && agents.TryGetValue(charId, out var a) && !string.IsNullOrEmpty(a) ? a : ValorantMatches.AgentName(charId),
                     Kills = p.Int("stats", "kills"), Deaths = p.Int("stats", "deaths"), Assists = p.Int("stats", "assists"),
                     Score = p.Int("stats", "score"), Rounds = p.Int("stats", "roundsPlayed"), Tier = p.Int("competitiveTier"), Casts = casts,
+                    Card = p.Str("playerCard") is { Length: > 0 } card ? card : null,
                 });
             }
         if (m.Players.All(p => p.Id != me)) return null;
