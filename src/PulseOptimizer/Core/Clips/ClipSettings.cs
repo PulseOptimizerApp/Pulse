@@ -135,6 +135,12 @@ public class ClipSettings
     public List<string> ImportedNames { get; set; } = new();
     /// <summary>Clip big plays on their own: CS2 3K/4K/ACE, League triples to pentas and aces, Dota 2 triples and up.</summary>
     public bool AutoClip { get; set; } = true;
+
+    /// <summary>
+    /// VALORANT auto-highlights: keep each match in a temporary file and, when it ends, clip its aces, 4Ks, 3Ks and
+    /// clutches (1v2 or harder). Off by default: the file can take ~18 GB an hour at 40 Mbps while the match runs.
+    /// </summary>
+    public bool ValorantHighlights { get; set; }
     /// <summary>After each match, a recap like Medal's: map, agent or champion, result, K/D/A, headshots, rank.</summary>
     public bool MatchRecaps { get; set; } = true;
     /// <summary>VALORANT live lobby: when you load into a match, offer to show both teams' ranks (opt-in, see its risk).</summary>
@@ -142,6 +148,9 @@ public class ClipSettings
     public bool LiveLobbyRisksAccepted { get; set; }
     /// <summary>VALORANT after-match lobby: when a match ends, offer both teams' ranks, peaks and smurf signs (no risk: after the match).</summary>
     public bool AfterMatchLobby { get; set; } = true;
+
+    /// <summary>VALORANT: a summary a few seconds after each match (result, your numbers, the one thing that mattered most).</summary>
+    public bool PostMatchSummary { get; set; } = true;
     /// <summary>VALORANT tracker: searching any Riot ID (off until the user accepts the risk).</summary>
     public bool PlayerSearch { get; set; }
     /// <summary>Riot IDs searched recently in the tracker, newest first (on this PC only).</summary>

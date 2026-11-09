@@ -68,6 +68,16 @@ public partial class ReactionPage : UserControl, IPage
     double _offset = -1;
     double _startLevel;
 
+    // "Move like VALORANT": raw mouse counts turned into the game's camera angles, drawn as a crosshair.
+    RawMouse _raw;
+    bool _feel;
+    double _yaw, _pitch, _focal;
+    FrameworkElement _cross;
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")] static extern bool ClipCursor(ref RECT r);
+    [System.Runtime.InteropServices.DllImport("user32.dll", EntryPoint = "ClipCursor")] static extern bool UnclipCursor(IntPtr none);
+    struct RECT { public int Left, Top, Right, Bottom; }
+
     // Daily plan: the drills left today, or null when not running the plan.
     List<ReactionMode> _plan;
     int _planIndex;
@@ -79,7 +89,12 @@ public partial class ReactionPage : UserControl, IPage
         _timer.Tick += Timer_Tick;
         PreviewKeyDown += Page_KeyDown;
         _ = Task.Run(() => { var hz = ScreenHz(); Dispatcher.Invoke(() => _hz = hz); });
-        Unloaded += (_, _) => { _timer.Stop(); StopFrames(); _plan = null; Reset(); };
+        Unloaded += (_, _) => { _timer.Stop(); StopFrames(); FeelStop(); _plan = null; Reset(); };
+        Arena.LostMouseCapture += (_, _) => { if (_feel) { FeelStop(); _plan = null; Reset(); } };   // Alt-Tab etc.: stop cleanly
+        FeelSwitch.IsChecked = S.GameFeel;
+        SensBox.Text = S.GameSensitivity.ToString("0.###", CultureInfo.CurrentCulture);
+        DpiBox.Text = S.MouseDpi.ToString(CultureInfo.CurrentCulture);
+        ShowFeel();
         foreach (var (mode, label, _) in Modes)
         {
             var rb = new RadioButton { Style = (Style)FindResource("Chip"), Content = Loc.T(label), GroupName = "reaction-mode", Tag = mode, Margin = new Thickness(0, 3, 6, 3), IsChecked = mode == _mode };
@@ -101,6 +116,7 @@ public partial class ReactionPage : UserControl, IPage
     {
         _timer.Stop();
         StopFrames();
+        FeelStop();
         _trainer = null;
         _peek = null;
         _phase = Phase.Idle;
@@ -161,6 +177,7 @@ public partial class ReactionPage : UserControl, IPage
             _trainer = new ReactionTrainer(_mode, startLevel: (int)_startLevel);
             _peek = null;
         }
+        FeelStart();
         ResultCard.Visibility = Visibility.Collapsed;
         PopCard.Visibility = Visibility.Collapsed;
         NextTrial();
@@ -168,6 +185,7 @@ public partial class ReactionPage : UserControl, IPage
 
     void NextTrial()
     {
+        if (_feel && _mode == ReactionMode.Flick) { _yaw = _pitch = 0; PlaceCross(); }   // flicks start from the centre
         if (_peek != null) { NextPeek(); return; }
         if (_trainer.Finished) { Finish(); return; }
         ClearField();
@@ -251,11 +269,11 @@ public partial class ReactionPage : UserControl, IPage
     {
         Focus();
         if (_phase == Phase.Idle) { Start(); return; }
-        if (_peek != null) { PeekClick(e.GetPosition(Field)); return; }
+        if (_peek != null) { PeekClick(_feel ? CrossPoint : e.GetPosition(Field)); return; }
         int side = e.GetPosition(Arena).X < Arena.ActualWidth / 2 ? -1 : 1;
         if (_mode == ReactionMode.Flick && _phase == Phase.Signal && _target != null)
         {
-            var p = e.GetPosition(Field);
+            var p = _feel ? CrossPoint : e.GetPosition(Field);
             double cx = Canvas.GetLeft(_target) + _target.Width / 2, cy = Canvas.GetTop(_target) + _target.Height / 2;
             if (Math.Pow(p.X - cx, 2) + Math.Pow(p.Y - cy, 2) > Math.Pow(_target.Width / 2 + 4, 2)) return; // missed the target: keep going
         }
@@ -264,6 +282,7 @@ public partial class ReactionPage : UserControl, IPage
 
     void Page_KeyDown(object sender, KeyEventArgs e)
     {
+        if (e.Key == Key.Escape && _phase != Phase.Idle) { e.Handled = true; _plan = null; Reset(); return; }
         int side = e.Key switch { Key.A or Key.Left => -1, Key.D or Key.Right => 1, Key.Space or Key.Enter => 0, _ => 2 };
         if (side == 2) return;
         e.Handled = true;
@@ -305,6 +324,7 @@ public partial class ReactionPage : UserControl, IPage
     {
         _phase = Phase.Idle;
         StopFrames();
+        FeelStop();
         var s = _peek != null ? _peek.Summary() : _trainer.Summary();
         double endLevel = _peek != null ? _peek.Difficulty : _trainer.Level;
         bool adaptive = _mode is not (ReactionMode.Simple or ReactionMode.Choice or ReactionMode.Benchmark);
@@ -502,7 +522,7 @@ public partial class ReactionPage : UserControl, IPage
         {
             // Time from the first frame the peek is drawn. Where's the crosshair right now? That's the placement score.
             _shownAt = Now;
-            var m = Mouse.GetPosition(Field);
+            var m = _feel ? CrossPoint : Mouse.GetPosition(Field);
             var (hx, hy) = _scene.HoldHead(_pt);
             _offset = Math.Sqrt((m.X - hx) * (m.X - hx) + (m.Y - hy) * (m.Y - hy));
         }
@@ -795,4 +815,123 @@ public partial class ReactionPage : UserControl, IPage
             Chart.Children.Add(dot);
         }
     }
+
+    // ───────── move like VALORANT ─────────
+
+    GameSens Sens => new(S.GameSensitivity, S.MouseDpi);
+    bool FeelWanted => S.GameFeel && Sens.Valid && (IsPeek || _mode == ReactionMode.Flick);
+
+    /// <summary>Where the crosshair is, in the field's coordinates.</summary>
+    Point CrossPoint
+    {
+        get
+        {
+            var (x, y) = GameSens.Project(_yaw, _pitch, _focal);
+            return new Point(Field.ActualWidth / 2 + x, Field.ActualHeight / 2 + y);
+        }
+    }
+
+    void FeelStart()
+    {
+        if (!FeelWanted || _feel) return;
+        try { _raw = new RawMouse(); }
+        catch { _raw = null; SmallText.Text = Loc.T("Couldn't read the mouse directly, so this run uses the normal cursor."); return; }
+        _raw.Moved += OnRaw;
+        _focal = GameSens.Focal(SystemParameters.PrimaryScreenWidth, SystemParameters.PrimaryScreenHeight);
+        _yaw = _pitch = 0;
+        _feel = true;
+        Arena.Cursor = Cursors.None;
+        Arena.CaptureMouse();
+        try
+        {
+            // Keep the (hidden) cursor inside the drill so clicks always land in it.
+            var a = Arena.PointToScreen(new Point(0, 0));
+            var b = Arena.PointToScreen(new Point(Arena.ActualWidth, Arena.ActualHeight));
+            var r = new RECT { Left = (int)a.X, Top = (int)a.Y, Right = (int)b.X, Bottom = (int)b.Y };
+            ClipCursor(ref r);
+        }
+        catch { }
+        DrawCross();
+    }
+
+    void FeelStop()
+    {
+        if (_raw == null && !_feel) return;
+        _feel = false;   // first, so losing the capture below doesn't come back here
+        if (_raw != null) { _raw.Moved -= OnRaw; _raw.Dispose(); _raw = null; }
+        try { UnclipCursor(IntPtr.Zero); } catch { }
+        if (Arena.IsMouseCaptured) Arena.ReleaseMouseCapture();
+        CrossLayer.Children.Clear();
+        _cross = null;
+        Arena.Cursor = IsPeek ? Cursors.Cross : Cursors.Hand;
+    }
+
+    void OnRaw(int dx, int dy)
+    {
+        if (!_feel) return;
+        double deg = Sens.DegreesPerCount;
+        _yaw += dx * deg;
+        _pitch += dy * deg;
+        // Stay inside the drill.
+        double maxYaw = GameSens.Unproject(Field.ActualWidth / 2 - 4, 0, _focal).Yaw;
+        double maxPitch = GameSens.Unproject(0, Field.ActualHeight / 2 - 4, _focal).Pitch;
+        _yaw = Math.Clamp(_yaw, -maxYaw, maxYaw);
+        _pitch = Math.Clamp(_pitch, -maxPitch, maxPitch);
+        PlaceCross();
+    }
+
+    /// <summary>A small crosshair like VALORANT's default: four lines and a gap, white with a dark outline.</summary>
+    void DrawCross()
+    {
+        CrossLayer.Children.Clear();
+        var c = new Canvas { Width = 0, Height = 0, RenderTransform = new TranslateTransform() };
+        foreach (var (x, y, w, h) in new[] { (-10.0, -1.0, 6.0, 2.0), (4.0, -1.0, 6.0, 2.0), (-1.0, -10.0, 2.0, 6.0), (-1.0, 4.0, 2.0, 6.0) })
+        {
+            var r = new Rectangle { Width = w, Height = h, Fill = Brushes.White, Stroke = new SolidColorBrush(Color.FromArgb(0xC0, 0, 0, 0)), StrokeThickness = 0.6 };
+            Canvas.SetLeft(r, x); Canvas.SetTop(r, y);
+            c.Children.Add(r);
+        }
+        _cross = c;
+        CrossLayer.Children.Add(c);
+        PlaceCross();
+    }
+
+    void PlaceCross()
+    {
+        if (_cross?.RenderTransform is not TranslateTransform t) return;
+        var p = CrossPoint;
+        t.X = p.X; t.Y = p.Y;
+    }
+
+    void ShowFeel()
+    {
+        var g = Sens;
+        FeelText.Text = !g.Valid
+            ? Loc.T("Enter your VALORANT sensitivity and your mouse's DPI.")
+            : S.GameFeel
+                ? Loc.F("On: {0} cm per 360°, same as in game. Flick and the peek drills lock the mouse to the drill and draw your crosshair; Esc stops.", g.Cm360.ToString("0.#", CultureInfo.CurrentCulture))
+                : Loc.F("Train with your in-game sensitivity ({0} cm per 360°) instead of the Windows cursor.", g.Cm360.ToString("0.#", CultureInfo.CurrentCulture));
+    }
+
+    void Feel_Changed(object sender, RoutedEventArgs e)
+    {
+        S.GameFeel = FeelSwitch.IsChecked == true;
+        if (TryNumber(SensBox.Text, out var sens) && sens > 0 && sens <= 20) S.GameSensitivity = sens;
+        if (TryNumber(DpiBox.Text, out var dpi) && dpi >= 100 && dpi <= 32000) S.MouseDpi = (int)Math.Round(dpi);
+        SensBox.Text = S.GameSensitivity.ToString("0.###", CultureInfo.CurrentCulture);
+        DpiBox.Text = S.MouseDpi.ToString(CultureInfo.CurrentCulture);
+        TweakEngine.Save();
+        ShowFeel();
+    }
+
+    void FeelBox_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Enter) return;
+        e.Handled = true;
+        Feel_Changed(sender, e);
+    }
+
+    static bool TryNumber(string text, out double v) =>
+        double.TryParse(text, NumberStyles.Float, CultureInfo.CurrentCulture, out v) ||
+        double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out v);
 }

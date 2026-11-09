@@ -183,7 +183,7 @@ public static class Tracker
     {
         var o = new Dictionary<string, double>();
         var t = Analysis.Totals(m, p.Id);
-        double avgAcs = m.Players.Select(x => (double)x.Score).DefaultIfEmpty(0).Average() / Math.Max(1, m.Rounds.Count);
+        double avgAcs = m.Players.Select(x => (double)x.Score / Math.Max(1, m.PlayedRounds(x.Id))).DefaultIfEmpty(0).Average();
         if (avgAcs > 0 && !double.IsNaN(t.Acs)) o["rating"] = t.Acs / avgAcs;
         if (t.Rounds >= 5)
         {
@@ -692,7 +692,7 @@ public static class Tracker
     }
 
     static bool WonFor(VMatch m, string team) =>
-        m.Rounds.Count(r => r.Winner == team) > m.Rounds.Count(r => r.Winner.Length > 0 && r.Winner != team);
+        m.WonBy(team);
 
     /// <summary>The best players on one agent in the saved matches, by combat score per round (you included).</summary>
     public static List<TopPlayer> TopOn(string agent, IReadOnlyList<VMatch> all, string me, int take = 10)

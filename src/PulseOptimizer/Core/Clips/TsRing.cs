@@ -143,8 +143,10 @@ public sealed class TsRing : IDisposable
     long _bytes;
     Group _current;
     double _lastVideo = -1, _lastKeyframe = -1;
-    Stream _tap;          // a long recording being written to disk as it happens
-    bool _tapWaitsForKey; // it starts at the next keyframe so the file plays from its first frame
+    // Long recordings being written to disk as they happen (the session hotkey, a VALORANT match kept for highlights).
+    // Each starts at the next keyframe so its file plays from its first frame.
+    sealed class Tap { public Stream Out; public bool WaitsForKey = true; public double FirstKey = -1; }
+    readonly List<Tap> _taps = new();
 
     /// <summary>
     /// Also writes everything from the next keyframe on to <paramref name="output"/> (a long recording), until
@@ -154,17 +156,37 @@ public sealed class TsRing : IDisposable
     {
         lock (_gate)
         {
-            _tap = output;
-            _tapWaitsForKey = true;
+            _taps.Add(new Tap { Out = output });
             if (_pat != null) output.Write(_pat);
             if (_pmt != null) output.Write(_pmt);
         }
     }
 
-    /// <summary>Stops the long recording and returns its stream (the caller closes it).</summary>
+    /// <summary>Stops the oldest long recording and returns its stream (the caller closes it).</summary>
     public Stream StopTap()
     {
-        lock (_gate) { var t = _tap; _tap = null; return t; }
+        lock (_gate)
+        {
+            if (_taps.Count == 0) return null;
+            var t = _taps[0];
+            _taps.RemoveAt(0);
+            return t.Out;
+        }
+    }
+
+    /// <summary>
+    /// Stops the long recording writing to <paramref name="output"/>. Returns the ring-clock time of its first keyframe
+    /// (where its file starts), or -1 if nothing was written.
+    /// </summary>
+    public double StopTap(Stream output)
+    {
+        lock (_gate)
+        {
+            var t = _taps.FirstOrDefault(x => x.Out == output);
+            if (t == null) return -1;
+            _taps.Remove(t);
+            return t.FirstKey;
+        }
     }
 
     /// <summary>The ring-clock time where the clip <see cref="SaveTo"/> would start (its first keyframe), or -1.</summary>
@@ -244,11 +266,12 @@ public sealed class TsRing : IDisposable
             _lastVideo = now;
             if (IsKeyframeStart(p)) { key = true; _lastKeyframe = now; Flush(); _groups.AddLast(_current = new Group { Time = now }); }
         }
-        if (_tap != null)
+        for (int t = _taps.Count - 1; t >= 0; t--)
         {
-            if (key) _tapWaitsForKey = false;
-            if (!_tapWaitsForKey || pid == PatPid || pid == _pmtPid)
-                try { _tap.Write(p); } catch { _tap = null; } // disk full or removed: the replay keeps working
+            var tap = _taps[t];
+            if (key && tap.WaitsForKey) { tap.WaitsForKey = false; tap.FirstKey = now; }
+            if (!tap.WaitsForKey)
+                try { tap.Out.Write(p); } catch { _taps.RemoveAt(t); } // disk full or removed: the replay keeps working
         }
         if (_current == null) return; // nothing useful before the first keyframe
         // No keyframe for a long time means the picture stopped: don't keep piling sound onto the last frame,

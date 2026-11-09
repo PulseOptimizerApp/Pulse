@@ -416,6 +416,7 @@ public partial class ClipsPage : UserControl, IPage, IReleasable
         SoundSwitch.IsChecked = S.PlaySound;
         PopupSwitch.IsChecked = S.ShowSavedPopup;
         AutoClipSwitch.IsChecked = S.AutoClip;
+        HighlightsSwitch.IsChecked = S.ValorantHighlights;
         RecapSwitch.IsChecked = S.MatchRecaps;
         OpenAfterSwitch.IsChecked = S.OpenClipsAfterClip;
         FolderText.Text = S.ClipsFolder;
@@ -483,13 +484,15 @@ public partial class ClipsPage : UserControl, IPage, IReleasable
         S.PlaySound = SoundSwitch.IsChecked == true;
         S.ShowSavedPopup = PopupSwitch.IsChecked == true;
         S.AutoClip = AutoClipSwitch.IsChecked == true;
+        S.ValorantHighlights = HighlightsSwitch.IsChecked == true;
+        if (!S.ValorantHighlights) ClipsService.DropMatchTape();
         S.MatchRecaps = RecapSwitch.IsChecked == true;
         S.OpenClipsAfterClip = OpenAfterSwitch.IsChecked == true;
         S.QuickClip = QuickSwitch.IsChecked == true;
         S.Screenshot = ShotSwitch.IsChecked == true;
         S.SessionHotkey = SessionSwitch.IsChecked == true;
         S.BookmarkHotkey = MarkSwitch.IsChecked == true;
-        Changed(restart: sender != TraySwitch && sender != SoundSwitch && sender != PopupSwitch && sender != AutoClipSwitch && sender != RecapSwitch);
+        Changed(restart: sender != TraySwitch && sender != SoundSwitch && sender != PopupSwitch && sender != AutoClipSwitch && sender != HighlightsSwitch && sender != RecapSwitch);
     }
 
     void Changed(bool restart)

@@ -738,7 +738,8 @@ public partial class ValorantPage
         {
             var team = m.TeamOf(id);
             int us = m.Rounds.Count(r => r.Winner == team), them = m.Rounds.Count(r => r.Winner.Length > 0 && r.Winner != team);
-            var c = us > them ? TgWin : us < them ? TgLoss : TgDim;
+            int res = m.Outcome(team);
+            var c = res > 0 ? TgWin : res < 0 ? TgLoss : TgDim;
             var t = TotalsOf(m, id);
             var tile = new StackPanel { Margin = new Thickness(4, 8, 4, 8) };
             tile.Children.Add(Txt(AgoShort(m.StartUtc), 10, TgDim, false, HorizontalAlignment.Center));
@@ -749,7 +750,7 @@ public partial class ValorantPage
             tile.Children.Add(score);
             tile.Children.Add(Txt("K/D " + N(t.KdRatio, "0.0"), 11.5, TgSub, true, HorizontalAlignment.Center));
             var b = new Border { Child = tile, Margin = new Thickness(0, 0, 4, 0), BorderBrush = B(c), BorderThickness = new Thickness(0, 0, 0, 2), CornerRadius = new CornerRadius(4), Cursor = Cursors.Hand, ToolTip = m.Map };
-            Hover(b, us > them ? Color.FromRgb(0x1C, 0x33, 0x33) : TgCard, TgHead);
+            Hover(b, res > 0 ? Color.FromRgb(0x1C, 0x33, 0x33) : TgCard, TgHead);
             var mid = m.Id;
             b.MouseLeftButtonUp += (_, _) => OpenMatch(mid);
             strip.Children.Add(b);
@@ -859,7 +860,8 @@ public partial class ValorantPage
         var me = m.Players.FirstOrDefault(x => x.Id == id);
         var team = m.TeamOf(id);
         int us = m.Rounds.Count(r => r.Winner == team), them = m.Rounds.Count(r => r.Winner.Length > 0 && r.Winner != team);
-        bool won = us > them, draw = us == them;
+        int res = m.Outcome(team);
+        bool won = res > 0, draw = res == 0;
         bool dm = m.Queue == "deathmatch";
         var c = draw || dm ? TgDim : won ? TgWin : TgLoss;
         var t = TotalsOf(m, id);
