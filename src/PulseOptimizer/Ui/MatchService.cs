@@ -38,11 +38,12 @@ public static class MatchService
         MatchEvents.Finished += OnFinished;
         MatchEvents.Moments += list => MomentLog.Add(list);
         ValorantMatches.InGame += () => { if (LobbyOn) LobbyOverlay.MatchFound(); };
-        // After-match lobby: a few seconds after the recap, offer both teams (no risk: the match is over).
+        // After the match: a few seconds after the recap, the match summary and (if on) both teams (no risk: it's over).
         ValorantMatches.MatchSaved += vm =>
         {
-            if (S?.AfterMatchLobby != true) return;
-            _ = Task.Delay(6000).ContinueWith(_ => LobbyOverlay.AfterMatch(vm));
+            bool summary = S?.PostMatchSummary == true, lobby = S?.AfterMatchLobby == true;
+            if (!summary && !lobby) return;
+            _ = Task.Delay(6000).ContinueWith(_ => LobbyOverlay.AfterMatch(vm, summary, lobby));
         };
         _watch = new System.Threading.Timer(_ => Watch(), null, 3000, 5000);
     }
@@ -58,7 +59,7 @@ public static class MatchService
     static bool Wanted => S is { Enabled: true } && (S.AutoClip || S.MatchRecaps);
     static bool LobbyOn => S is { LiveLobby: true, LiveLobbyRisksAccepted: true };
     /// <summary>VALORANT's match watcher is needed for the live warnings and the after-match lobby.</summary>
-    static bool ValorantWatch => LobbyOn || S is { AfterMatchLobby: true };
+    static bool ValorantWatch => LobbyOn || S is { AfterMatchLobby: true } || S is { PostMatchSummary: true };
 
     /// <summary>Every 5 seconds: start or stop the game integrations.</summary>
     static void Watch()
