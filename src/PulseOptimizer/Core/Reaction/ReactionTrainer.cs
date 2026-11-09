@@ -11,6 +11,14 @@ public enum ReactionMode
     GoNoGo,
     /// <summary>A target appears somewhere: move and click it. Reaction plus aim.</summary>
     Flick,
+    /// <summary>An enemy swings out from behind a wall: hit the head before they hide. Reaction, decision and aim at once.</summary>
+    Peek,
+    /// <summary>Enemies and teammates peek: shoot only enemies. Trains deciding fast without shooting the wrong thing.</summary>
+    FriendOrFoe,
+    /// <summary>Hold an angle at head height; scored on how far your crosshair had to move. The habit that wins most duels.</summary>
+    Crosshair,
+    /// <summary>A fixed test that never changes difficulty, taken once a week, so progress is measured honestly.</summary>
+    Benchmark,
 }
 
 /// <summary>One finished session, kept for the progress graph.</summary>
@@ -28,11 +36,29 @@ public class ReactionSession
     public int Mistakes { get; set; }
     /// <summary>The difficulty level reached (Go/No-go and Flick adapt to you).</summary>
     public int Level { get; set; }
+
+    // Peek drills and the Benchmark.
+    /// <summary>Difficulty reached (1 to 20), kept so the next session starts near it.</summary>
+    public double Difficulty { get; set; }
+    /// <summary>Share of enemies hit (0 to 1).</summary>
+    public double Accuracy { get; set; }
+    /// <summary>Share of hits that were headshots (0 to 1).</summary>
+    public double HeadshotShare { get; set; }
+    /// <summary>Median distance (px) from the crosshair to where the head stopped, at the moment the peek started.</summary>
+    public double OffsetPx { get; set; }
+    /// <summary>Shots that hit nothing.</summary>
+    public int MissedShots { get; set; }
+    /// <summary>Benchmark score: median time to the hit, made worse by each mistake. Lower is better.</summary>
+    public double Score { get; set; }
 }
 
 public class ReactionSettings
 {
     public List<ReactionSession> History { get; set; } = new();
+    /// <summary>The difficulty each adaptive drill reached last time, by drill name.</summary>
+    public Dictionary<string, double> Levels { get; set; } = new();
+    /// <summary>Days the daily training plan was finished.</summary>
+    public List<DateTime> PlanDays { get; set; } = new();
 }
 
 /// <summary>What the screen should show for the next try.</summary>
@@ -76,9 +102,11 @@ public sealed class ReactionTrainer
     public bool InWarmUp => _done < WarmUp;
     public IReadOnlyList<double> Times => _times;
 
-    public ReactionTrainer(ReactionMode mode, int seed = 0)
+    public ReactionTrainer(ReactionMode mode, int seed = 0, int startLevel = 1)
     {
+        if (PeekTrainer.IsPeekDrill(mode)) throw new ArgumentException("Use PeekTrainer for this drill", nameof(mode));
         Mode = mode;
+        if (mode is ReactionMode.GoNoGo or ReactionMode.Flick) Level = Math.Clamp(startLevel, 1, 10);
         _rng = seed == 0 ? new Random() : new Random(seed);
     }
 
@@ -117,7 +145,8 @@ public sealed class ReactionTrainer
         return r;
     }
 
-    // Up a level after three good tries in a row, down after a mistake: keeps you at the edge of what you can do.
+    // Up a level after three good tries in a row, down after a mistake (a "3-up 1-down" staircase): settles where you
+    // get about 80% right, the edge of what you can do.
     int _streak;
     void Adapt(TrialResult r)
     {
