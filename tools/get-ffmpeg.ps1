@@ -25,6 +25,7 @@ function Use-PreviousRelease([string]$why) {
 
 $headers = @{ 'User-Agent' = 'PulseOptimizer-build' }
 if ($env:GH_TOKEN) { $headers['Authorization'] = "Bearer $env:GH_TOKEN" }
+if ($env:PULSE_TEST_FALLBACK -eq '1') { Use-PreviousRelease 'test' }   # lets CI check the fallback path
 $release = $null
 for ($try = 1; -not $release; $try++) {
     try { $release = Invoke-RestMethod -Uri 'https://api.github.com/repos/BtbN/FFmpeg-Builds/releases/tags/latest' -Headers $headers }

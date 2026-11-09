@@ -14,6 +14,7 @@ function Use-Cache([string]$why) {
     Copy-Item $cached.FullName $Out -Force
     exit 0
 }
+if ($env:PULSE_TEST_FALLBACK -eq '1') { Use-Cache 'test' }   # lets CI check the fallback path
 $release = $null
 for ($try = 1; -not $release; $try++) {
     try { $release = Invoke-RestMethod -Uri 'https://api.github.com/repos/GameTechDev/PresentMon/releases/latest' -Headers $headers }
