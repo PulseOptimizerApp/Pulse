@@ -56,7 +56,6 @@ public partial class ValorantPage
             return;
         }
         var me = matches.Count > 0 ? matches[0].Me : null;
-        var people = Memo("people:" + matches.Count, () => Tracker.People(matches).Take(14).ToList());
         // Riot IDs for players in matches saved before Pulse kept them: one lookup per session.
         if (!_trNamesTried && !_trBusy && matches.Count > 0)
         {
@@ -80,27 +79,19 @@ public partial class ValorantPage
 
         // Who to show.
         var pick = new WrapPanel();
-        var hidden = S.HiddenPeople;
-        people = people.Where(k => !hidden.Contains(k.Puuid)).ToList();
+        // Only you and the players you looked up: not everyone from your matches.
         if (me != null) pick.Children.Add(Chip(NameBook.Get(me) is { } myName ? Loc.T("You") + " · " + myName : Loc.T("You"), "trwho", _trSel == null || _trSel == me, () => { _trSel = me; _trQueue = null; Build(); }));
         if (_trSearched != null)
         {
             var sp = _trSearched;
-            pick.Children.Add(Removable(Chip("🔍 " + sp.Name, "trwho", _trSel == sp.Puuid && !sp.FromYourMatches, () => { _trSel = sp.Puuid; _trQueue = null; Build(); }),
+            pick.Children.Add(Removable(Chip("🔍 " + sp.Name, "trwho", _trSel == sp.Puuid, () => { _trSel = sp.Puuid; _trQueue = null; Build(); }),
                 () => { if (_trSel == sp.Puuid) _trSel = null; _trSearched = null; Build(); }));
         }
-        foreach (var k in people)
+        // A player opened from a scoreboard shows while open, so you can see who it is and close it.
+        if (_trSel != null && _trSel != me && _trSel != _trSearched?.Puuid)
         {
-            var id = k.Puuid;
-            var label = NameBook.Get(id) ?? $"{k.Agent} · {ValorantMatches.RankName(k.Tier)}".Trim(' ', '·');
-            pick.Children.Add(Removable(Chip($"{label}  ×{k.Games}", "trwho", _trSel == id, () => { _trSel = id; _trQueue = null; Build(); }),
-                () => { if (!S.HiddenPeople.Contains(id)) S.HiddenPeople.Add(id); if (_trSel == id) _trSel = null; TweakEngine.Save(); Build(); }));
-        }
-        if (hidden.Count > 0)
-        {
-            var restore = new Button { Style = (Style)FindResource("LinkButton"), Content = Loc.F("Show {0} hidden", hidden.Count), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(4, 0, 0, 6), FontSize = 12 };
-            restore.Click += (_, _) => { S.HiddenPeople.Clear(); TweakEngine.Save(); Build(); };
-            pick.Children.Add(restore);
+            var id = _trSel;
+            pick.Children.Add(Removable(Chip(NameBook.Get(id) ?? Loc.T("Player from your matches"), "trwho", true, () => { }), () => { _trSel = null; Build(); }));
         }
         top.Children.Add(Label("Players").Also(l => l.Margin = new Thickness(0, 12, 0, 6)));
         top.Children.Add(pick);

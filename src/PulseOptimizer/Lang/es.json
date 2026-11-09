@@ -4845,5 +4845,6 @@
  "this act": "este acto",
  "No saved matches from this act": "No hay partidas guardadas de este acto",
  "Riot shares only the rank, record and peak for earlier acts (shown above), not the matches themselves. Pulse keeps every match you play from now on, so future acts get the full breakdown.": "Riot solo comparte el rango, el récord y el máximo de los actos anteriores (arriba), no las partidas. Pulse guarda cada partida que juegues desde ahora, así que los próximos actos tendrán el desglose completo.",
- "Show all matches": "Mostrar todas las partidas"
+ "Show all matches": "Mostrar todas las partidas",
+ "Player from your matches": "Jugador de tus partidas"
 }
