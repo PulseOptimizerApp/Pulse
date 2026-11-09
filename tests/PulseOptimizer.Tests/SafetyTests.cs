@@ -146,7 +146,7 @@ public class SafetyTests
             "deleting files is only allowed in the cleanup engine (and Pulse's own temporary script/state files)",
             "Cleaner.cs", "Shell.cs", "AbTest.cs",
             "ClipLibrary.cs" /* the user's own clips, when they delete one or the storage limit is reached */,
-            "Ffmpeg.cs" /* its own download */, "Lineups.cs" /* the picture Pulse copied for a lineup the user deletes */, "ReplayRecorder.cs" /* its own temporary file */);
+            "Ffmpeg.cs" /* its own download */, "StartMenu.cs" /* its own Start menu shortcut, when the user turns it off */, "Lineups.cs" /* the picture Pulse copied for a lineup the user deletes */, "ReplayRecorder.cs" /* its own temporary file */);
 
     [Fact]
     public void Never_deletes_whole_registry_keys() =>

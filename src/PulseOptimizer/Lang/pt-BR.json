@@ -4808,5 +4808,7 @@
  "Bomb detonated": "Spike detonada",
  "Bomb defused": "Spike desarmada",
  "Round timer expired": "O tempo da rodada acabou",
- "Surrendered": "Rendição"
+ "Surrendered": "Rendição",
+ "Show Pulse in the Start menu": "Mostrar o Pulse no menu Iniciar",
+ "Adds a Pulse shortcut to your Start menu, so searching Windows for Pulse finds it as an app, like Discord. Pulse keeps it pointing at wherever Pulse.exe is.": "Adiciona um atalho do Pulse ao seu menu Iniciar, para que ao pesquisar Pulse no Windows ele apareça como um app, como o Discord. O Pulse mantém o atalho apontando para onde o Pulse.exe estiver."
 }

@@ -73,6 +73,8 @@ public partial class App : Application
         if (Core.Updater.ResumeSwap()) { Shutdown(); return; }
         Core.Updater.TidyAfterUpdate();
         WriteInstanceInfo();
+        // Show up in the Start menu and Windows Search like an installed app (Pulse has no installer to do it).
+        _ = Task.Run(() => { try { if (Core.TweakEngine.State.Settings.InStartMenu) Core.StartMenu.Ensure(); } catch { } });
         ShutdownMode = ShutdownMode.OnExplicitShutdown;
 
         try { Ui.Loc.Init(Core.TweakEngine.State.Settings.Language); } catch { }

@@ -38,6 +38,8 @@ public class AppSettings
     public bool StartupCardDismissed { get; set; }
     /// <summary>Asked once (on first open, or the first open after updating) whether to start with Windows.</summary>
     public bool AskedStartWithWindows { get; set; }
+    /// <summary>Keep a Pulse shortcut in the Start menu so Windows Search lists it as an app (see StartMenu).</summary>
+    public bool InStartMenu { get; set; } = true;
 }
 
 public class AppState

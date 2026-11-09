@@ -57,6 +57,14 @@ public partial class SettingsPage : UserControl, IPage
                     return true;
                 }),
             tray,
+            SwitchRow("Show Pulse in the Start menu", "Adds a Pulse shortcut to your Start menu, so searching Windows for Pulse finds it as an app, like Discord. Pulse keeps it pointing at wherever Pulse.exe is.", st.InStartMenu && StartMenu.Exists,
+                v =>
+                {
+                    st.InStartMenu = v; TweakEngine.Save();
+                    if (v && !StartMenu.Ensure()) { MainWindow.Instance.Toast(Loc.T("Windows didn't allow it."), ToastKind.Warning); return false; }
+                    if (!v) StartMenu.Remove();
+                    return true;
+                }),
             SwitchRow("Open without the admin prompt", "Pulse needs admin rights to change system settings, so Windows asks each time you open it. With this on, Pulse opens with them straight away through a Windows Task Scheduler entry.", Elevation.IsOn(),
                 v =>
                 {
