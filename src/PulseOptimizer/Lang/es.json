@@ -5112,5 +5112,11 @@
  "{0}-day streak. Same time tomorrow.": "Racha de {0} días. Mañana a la misma hora.",
  "🔥 {0}-day streak": "🔥 Racha de {0} días",
  "Open VALORANT or the Riot Client to see players' Riot IDs.": "Abre VALORANT o el cliente de Riot para ver los Riot ID de los jugadores.",
- "Riot didn't send names for these players. They'll load next time you open the match.": "Riot no envió los nombres de estos jugadores. Se cargarán la próxima vez que abras la partida."
+ "Riot didn't send names for these players. They'll load next time you open the match.": "Riot no envió los nombres de estos jugadores. Se cargarán la próxima vez que abras la partida.",
+ "Move like VALORANT": "Mover como en VALORANT",
+ "DPI": "DPI",
+ "Couldn't read the mouse directly, so this run uses the normal cursor.": "No se pudo leer el ratón directamente, así que esta ronda usa el cursor normal.",
+ "Enter your VALORANT sensitivity and your mouse's DPI.": "Escribe tu sensibilidad de VALORANT y los DPI de tu ratón.",
+ "On: {0} cm per 360°, same as in game. Flick and the peek drills lock the mouse to the drill and draw your crosshair; Esc stops.": "Activado: {0} cm por 360°, igual que en el juego. Flick y los ejercicios de asomada bloquean el ratón en el ejercicio y dibujan tu mira; Esc para.",
+ "Train with your in-game sensitivity ({0} cm per 360°) instead of the Windows cursor.": "Entrena con tu sensibilidad del juego ({0} cm por 360°) en lugar del cursor de Windows."
 }
