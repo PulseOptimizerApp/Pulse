@@ -43,6 +43,9 @@ public partial class MousePage
     List<Found> _found = new();
     Found _current;
     int _clientId;
+    // Bumped whenever the page starts over (a new scan, a device opened, the page closed): an answer that arrives for an
+    // older one is ignored instead of drawing over what's on screen now.
+    int _gen;
     string _openKey;   // the device _clientId is connected to: it stays connected while the page is open
     // What each device said when it was read (name, battery, polling…), its brand and its picture, for its card.
     readonly Dictionary<string, (JsonElement Status, string Brand, string Image)> _known = new();
@@ -68,6 +71,8 @@ public partial class MousePage
 
     async void ScanMice()
     {
+        int gen = ++_gen;
+        _busy = false;
         _current = null;
         if (_clientId != 0 && MouseHost.Instance is { } open) { try { await open.Run("close", _clientId).WaitAsync(TimeSpan.FromSeconds(5)); } catch { } }
         _clientId = 0; _openKey = null; _known.Clear();
@@ -77,6 +82,7 @@ public partial class MousePage
         try
         {
             var json = await host.Run("scan").WaitAsync(TimeSpan.FromSeconds(20));
+            if (gen != _gen) return;
             // One card per device: a mouse and its receiver can show up several times; keep the best match of each.
             _found = JsonSerializer.Deserialize<List<JsonElement>>(json)!
                 .Select(e => new Found(e.GetProperty("key").GetString(), e.GetProperty("vendorId").GetInt32(), e.GetProperty("productId").GetInt32(),
@@ -86,7 +92,7 @@ public partial class MousePage
                 .OrderBy(f => f.Kind is "Mouse" or "Receiver" ? 0 : 1).ToList();
             ShowList(null);
         }
-        catch (Exception ex) { ShowList(Loc.F("Couldn't look for devices: {0}", ex.Message)); }
+        catch (Exception ex) { if (gen == _gen) ShowList(Loc.F("Couldn't look for devices: {0}", ex.Message)); }
     }
 
     void ShowList(string message)
@@ -197,6 +203,7 @@ public partial class MousePage
     {
         var host = MouseHost.Instance;
         if (host == null || _busy) return;
+        int gen = ++_gen;
         _busy = true;
         _current = f;
         _tab = "overview";
@@ -206,9 +213,10 @@ public partial class MousePage
         {
             _status = had.Status;
             ShowDevice(null);
-            try { await ReadStatus(); }
-            catch (Exception ex) { _error = Loc.F("Couldn't connect: {0}", ex is TimeoutException ? Loc.T("no answer") : ex.Message); ShowDevice(null); }
-            finally { _busy = false; }
+            try { await ReadStatus(gen); }
+            catch (Exception ex) when (gen == _gen) { _error = Loc.F("Couldn't connect: {0}", ex is TimeoutException ? Loc.T("no answer") : ex.Message); ShowDevice(null); }
+            catch { }
+            finally { if (gen == _gen) _busy = false; }
             return;
         }
         _status = default;
@@ -219,16 +227,19 @@ public partial class MousePage
             if (_clientId != 0) { try { await host.Run("close", _clientId).WaitAsync(TimeSpan.FromSeconds(5)); } catch { } _clientId = 0; }
             if (_openKey != null) _known.Remove(_openKey);
             _openKey = null;
-            var opened = JsonSerializer.Deserialize<JsonElement>(await host.Run("open", f.Key).WaitAsync(TimeSpan.FromSeconds(15)));
+            var openedJson = await host.Run("open", f.Key).WaitAsync(TimeSpan.FromSeconds(15));
+            if (gen != _gen) return;
+            var opened = JsonSerializer.Deserialize<JsonElement>(openedJson);
             _clientId = opened.GetProperty("id").GetInt32();
             _openKey = f.Key;
             _brand = opened.TryGetProperty("brand", out var brand) ? brand.GetString() ?? "" : "";
             _methods = opened.GetProperty("methods").EnumerateArray().Select(m => m.GetString()).ToHashSet();
             Profiles.Device = MouseSettings.DeviceId(f.VendorId, f.ProductId);
             Core.TweakEngine.Save();
-            ShowDevice(Loc.T("Reading its settings…"));
-            await ReadStatus();
+            ShowDevice(Loc.T("Reading its settings… Some wireless mice take up to 30 seconds the first time."));
+            await ReadStatus(gen);
         }
+        catch (Exception) when (gen != _gen) { }   // the page moved on (closed, rescanned, another device opened)
         catch (TimeoutException)
         {
             _error = f.Kind == "Receiver" || f.Name.Contains("receiver", StringComparison.OrdinalIgnoreCase)
@@ -237,13 +248,15 @@ public partial class MousePage
             ShowDevice(null);
         }
         catch (Exception ex) { _error = Loc.F("Couldn't connect: {0}", ex.Message); ShowDevice(null); }
-        finally { _busy = false; }
+        finally { if (gen == _gen) _busy = false; }
     }
 
-    async Task ReadStatus()
+    async Task ReadStatus(int gen)
     {
         var host = MouseHost.Instance!;
-        _status = JsonSerializer.Deserialize<JsonElement>(await host.Run("status", _clientId).WaitAsync(TimeSpan.FromSeconds(45)));
+        var json = await host.Run("status", _clientId).WaitAsync(TimeSpan.FromSeconds(30));
+        if (gen != _gen) return;
+        _status = JsonSerializer.Deserialize<JsonElement>(json);
         if (_current != null)
         {
             // The picture comes from the name the device gives itself (a receiver only knows its mouse once asked).
@@ -254,6 +267,7 @@ public partial class MousePage
                 if (!string.IsNullOrEmpty(byName)) image = byName;
             }
             catch { }
+            if (gen != _gen || _current == null) return;
             _known[_current.Key] = (_status, _brand, image);
         }
         ShowDevice(null);
@@ -263,14 +277,17 @@ public partial class MousePage
     async void Set(string method, params object[] args)
     {
         if (_busy || _clientId == 0) return;
+        int gen = _gen;
         _busy = true;
         try
         {
             await MouseHost.Instance!.Run("call", _clientId, method, JsonSerializer.Serialize(args)).WaitAsync(TimeSpan.FromSeconds(20));
-            await ReadStatus();
+            if (gen != _gen) return;
+            await ReadStatus(gen);
         }
+        catch (Exception) when (gen != _gen) { }
         catch (Exception ex) { _error = Loc.F("The device didn't take that: {0}", ex is TimeoutException ? Loc.T("no answer") : ex.Message); ShowDevice(null); }
-        finally { _busy = false; }
+        finally { if (gen == _gen) _busy = false; }
     }
 
     // ───────── reading the status ─────────
@@ -287,9 +304,9 @@ public partial class MousePage
 
     void ShowDevice(string working)
     {
-        DevicesView.Children.Clear();
         var f = _current;
-        if (f == null) return;
+        if (f == null) { ShowList(null); return; }   // never leave the page empty
+        DevicesView.Children.Clear();
 
         // Breadcrumb: Devices / name
         var crumb = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 14) };

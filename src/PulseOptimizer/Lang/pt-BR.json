@@ -5247,5 +5247,6 @@
  "Not connected": "Não conectado",
  "Open": "Abrir",
  "Open it to read its settings": "Abra para ler as configurações",
- "Plug in your mouse (or its receiver), then scan to adjust its onboard settings.": "Conecte seu mouse (ou o receptor) e procure para ajustar as configurações dele."
+ "Plug in your mouse (or its receiver), then scan to adjust its onboard settings.": "Conecte seu mouse (ou o receptor) e procure para ajustar as configurações dele.",
+ "Reading its settings… Some wireless mice take up to 30 seconds the first time.": "Lendo as configurações… Alguns mouses sem fio levam até 30 segundos na primeira vez."
 }
