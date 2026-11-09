@@ -63,28 +63,14 @@ public partial class ValorantPage
             if (missing.Count > 0) { _trNamesTried = true; _ = LoadNames(missing.Take(100).ToList()); }
         }
 
-        // A match page replaces the profile while it's open.
-        if (_trMatchId != null)
-        {
-            var open = (_trSearched?.Matches ?? new()).Concat(VStore.All).FirstOrDefault(m => m.Id == _trMatchId);
-            if (open != null)
-            {
-                string viewer = _trSearched != null && _trSel == _trSearched.Puuid && !_trSearched.FromYourMatches ? _trSearched.Puuid : _trSel ?? me ?? open.Me;
-                if (open.Players.All(x => x.Id != viewer)) viewer = open.Me;
-                foreach (var e in MatchPage(open, viewer)) Root.Children.Add(e);
-                return;
-            }
-            _trMatchId = null;
-        }
-
         // Who to show.
         var pick = new WrapPanel();
         // Only you and the players you looked up: not everyone from your matches.
-        if (me != null) pick.Children.Add(Chip(NameBook.Get(me) is { } myName ? Loc.T("You") + " · " + myName : Loc.T("You"), "trwho", _trSel == null || _trSel == me, () => { _trSel = me; _trQueue = null; Build(); }));
+        if (me != null) pick.Children.Add(Chip(NameBook.Get(me) is { } myName ? Loc.T("You") + " · " + myName : Loc.T("You"), "trwho", _trSel == null || _trSel == me, () => { _trSel = me; _trQueue = null; _trView = "overview"; Build(); }));
         if (_trSearched != null)
         {
             var sp = _trSearched;
-            pick.Children.Add(Removable(Chip("🔍 " + sp.Name, "trwho", _trSel == sp.Puuid, () => { _trSel = sp.Puuid; _trQueue = null; Build(); }),
+            pick.Children.Add(Removable(Chip("🔍 " + sp.Name, "trwho", _trSel == sp.Puuid, () => { _trSel = sp.Puuid; _trQueue = null; _trView = "overview"; Build(); }),
                 () => { if (_trSel == sp.Puuid) _trSel = null; _trSearched = null; Build(); }));
         }
         // A player opened from a scoreboard shows while open, so you can see who it is and close it.
@@ -117,6 +103,8 @@ public partial class ValorantPage
         }
         else return;
         foreach (var e in ProfileView(p)) Root.Children.Add(e);
+        // A match opens in a panel over the profile (kept open when the page rebuilds behind it).
+        if (_trMatchId != null) ShowMatch(); else if (MatchLayer.Visibility == Visibility.Visible) CloseMatch();
     }
 
     // ───────── search ─────────
@@ -166,7 +154,7 @@ public partial class ValorantPage
             _trBusy = false;
             if (r.Profile != null)
             {
-                _trSearched = r.Profile; _trSel = r.Profile.Puuid; _trQueue = null; _trAct = "all"; _trMatchId = null;
+                _trSearched = r.Profile; _trSel = r.Profile.Puuid; _trQueue = null; _trAct = "all"; _trMatchId = null; _trView = "overview";
                 S.RecentSearches.RemoveAll(x => x.Equals(r.Profile.Name, StringComparison.OrdinalIgnoreCase));
                 S.RecentSearches.Insert(0, r.Profile.Name);
                 if (S.RecentSearches.Count > 8) S.RecentSearches.RemoveRange(8, S.RecentSearches.Count - 8);

@@ -14,5 +14,21 @@
         <ScrollViewer x:Name="Scroller" Grid.Row="1" Margin="0,18,0,0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
             <StackPanel x:Name="Root" Margin="0,0,8,32"/>
         </ScrollViewer>
+
+        <!-- The tracker's match details: a panel over the page (like tracker.gg), so the profile stays where it was. -->
+        <Grid x:Name="MatchLayer" Grid.RowSpan="2" Visibility="Collapsed">
+            <Border x:Name="MatchDim" Background="#C4080A0E"/>
+            <Border x:Name="MatchPanel" MaxWidth="1180" Margin="18,14,18,14" CornerRadius="8" Background="#191E25"
+                    BorderBrush="#2B323D" BorderThickness="1" ClipToBounds="True">
+                <Grid>
+                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                    <ContentControl x:Name="MatchHead" Focusable="False"/>
+                    <ContentControl x:Name="MatchTabs" Grid.Row="1" Focusable="False"/>
+                    <ScrollViewer x:Name="MatchScroll" Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+                        <ContentControl x:Name="MatchBody" Focusable="False"/>
+                    </ScrollViewer>
+                </Grid>
+            </Border>
+        </Grid>
     </Grid>
 </UserControl>

@@ -382,9 +382,13 @@ public sealed class ValorantMatches : IDisposable
                 if (history.RootElement.Get("History") is not { ValueKind: JsonValueKind.Array } h) break;
                 got = h.GetArrayLength();
                 scanned += got;
-                foreach (var x in h.EnumerateArray().Where(x => Pulse.Core.Games.Valorant.VMatch.Counts(x.Str("QueueID"))))
+                foreach (var x in h.EnumerateArray())
                 {
-                    seen++;
+                    // Deathmatch is kept too, for the tracker's Deathmatch playlist, but doesn't use up the count of real matches.
+                    var queue = x.Str("QueueID");
+                    bool real = Pulse.Core.Games.Valorant.VMatch.Counts(queue);
+                    if (!real && queue != "deathmatch") continue;
+                    if (real) seen++;
                     var id = x.Str("MatchID");
                     if (id.Length > 0 && (!Pulse.Core.Games.Valorant.VStore.Has(id) || Pulse.Core.Games.Valorant.VStore.Incomplete(id)) && !ids.Contains(id)) ids.Add(id);
                 }

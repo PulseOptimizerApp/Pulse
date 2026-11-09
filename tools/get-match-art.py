@@ -55,6 +55,13 @@ def main():
                 continue
             try:
                 save(icon, os.path.join(OUT, f"agent-{k}.png"), (256, 256))  # sharp at 64 px on 200-400% screens
+                # The bust portrait for the tracker's match page (the player card on the Performance tab).
+                bust = a.get("bustPortrait") or a.get("fullPortrait")
+                if bust:
+                    try:
+                        save(bust, os.path.join(OUT, f"bust-{k}.png"), (300, 300))
+                    except Exception as e:
+                        print(f"  bust {k}: {e}")
                 colors = a.get("backgroundGradientColors") or []
                 if colors:
                     meta["agents"][k] = colors[0][:6]

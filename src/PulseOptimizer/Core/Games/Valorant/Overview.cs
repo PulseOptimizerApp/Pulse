@@ -3,8 +3,9 @@ namespace Pulse.Core.Games.Valorant;
 /// <summary>Which matches a profile counts: one playlist (or all) and, optionally, only since a date (this act).</summary>
 public sealed record TrackerFilter(string Queue = "all", DateTime? SinceUtc = null, DateTime? UntilUtc = null)
 {
+    /// <summary>"All" means the real matches (not Deathmatch); Deathmatch shows only when it's picked, like the trackers.</summary>
     public IEnumerable<VMatch> Apply(IEnumerable<VMatch> matches) =>
-        matches.Where(m => VMatch.Counts(m.Queue) && (Queue == "all" || m.Queue == Queue) && (SinceUtc is not { } s || m.StartUtc >= s) && (UntilUtc is not { } u || m.StartUtc < u));
+        matches.Where(m => (Queue == "all" ? VMatch.Counts(m.Queue) : m.Queue == Queue) && (SinceUtc is not { } s || m.StartUtc >= s) && (UntilUtc is not { } u || m.StartUtc < u));
 }
 
 /// <summary>
@@ -157,6 +158,169 @@ public static class Stats
         var byId = m.Players.ToDictionary(p => p.Id);
         return m.Rounds.OrderBy(r => r.N).Select(r => new RoundFeed(r, m.Kills.Where(k => k.Round == r.N).OrderBy(k => k.RoundMs)
             .Select(k => new FeedKill(k.RoundMs, byId.GetValueOrDefault(k.Killer), byId.GetValueOrDefault(k.Victim), k.Weapon, k.DamageType)).ToList())).ToList();
+    }
+
+    // ───────── tracker extras: clutches, multi-kills, encounters, map sides, one player's match ─────────
+
+    /// <summary>A round where the player was the last one alive on their team, against <see cref="Vs"/> enemies.</summary>
+    public sealed record Clutch(int Round, int Vs, bool Won);
+
+    /// <summary>Every clutch situation the player had in a match (the first moment they were left alone, each round).</summary>
+    public static List<Clutch> Clutches(VMatch m, string id)
+    {
+        var list = new List<Clutch>();
+        var team = m.TeamOf(id);
+        var mates = m.Players.Where(p => p.Team == team).Select(p => p.Id).ToList();
+        var foes = m.Players.Where(p => p.Team.Length > 0 && p.Team != team).Select(p => p.Id).ToList();
+        if (team.Length == 0 || mates.Count < 2 || foes.Count == 0) return list;
+        foreach (var r in m.Rounds.OrderBy(r => r.N))
+        {
+            var aliveMates = new HashSet<string>(mates);
+            var aliveFoes = new HashSet<string>(foes);
+            foreach (var k in m.Kills.Where(k => k.Round == r.N).OrderBy(k => k.RoundMs))
+            {
+                aliveMates.Remove(k.Victim);
+                aliveFoes.Remove(k.Victim);
+                if (!aliveMates.Contains(id)) break;
+                if (aliveMates.Count == 1 && aliveFoes.Count > 0)
+                {
+                    list.Add(new Clutch(r.N, aliveFoes.Count, r.Winner == team));
+                    break;
+                }
+            }
+        }
+        return list;
+    }
+
+    /// <summary>How many rounds the player got exactly 2, 3, 4 and 5+ kills in: [2] = 2k rounds… [5] = aces.</summary>
+    public static int[] MultiKills(VMatch m, string id)
+    {
+        var n = new int[6];
+        foreach (var r in m.Rounds)
+        {
+            int k = RoundKills(m, r.N, id);
+            if (k >= 2) n[Math.Min(5, k)]++;
+        }
+        return n;
+    }
+
+    /// <summary>Someone the player has met: as a teammate, as an enemy, and how those games went.</summary>
+    public sealed record Encounter(string Id, string Name, string Agent, int Tier, int With, int WithWins, int Against, int AgainstWins, DateTime Last);
+
+    /// <summary>Everyone the player has played with or against in these matches, most met first.</summary>
+    public static List<Encounter> Encounters(IEnumerable<VMatch> matches, string id)
+    {
+        var map = new Dictionary<string, (string Name, string Agent, int Tier, int With, int WithWins, int Against, int AgainstWins, DateTime Last)>();
+        foreach (var m in matches.OrderBy(m => m.StartUtc))
+        {
+            var me = m.Players.FirstOrDefault(p => p.Id == id);
+            if (me == null || me.Team.Length == 0 || m.Players.Count(p => p.Team == me.Team) < 2) continue;
+            int us = m.Rounds.Count(r => r.Winner == me.Team), them = m.Rounds.Count(r => r.Winner.Length > 0 && r.Winner != me.Team);
+            bool won = us > them;
+            foreach (var p in m.Players)
+            {
+                if (p.Id == id || p.Id.Length == 0) continue;
+                var e = map.GetValueOrDefault(p.Id);
+                e.Name = NameOf(m, p.Id) ?? e.Name;
+                if (p.Agent.Length > 0) e.Agent = p.Agent;
+                if (p.Tier >= 3) e.Tier = p.Tier;
+                if (p.Team == me.Team) { e.With++; if (won) e.WithWins++; }
+                else { e.Against++; if (won) e.AgainstWins++; }
+                e.Last = m.StartUtc;
+                map[p.Id] = e;
+            }
+        }
+        return map.Select(kv => new Encounter(kv.Key, kv.Value.Name, kv.Value.Agent ?? "", kv.Value.Tier, kv.Value.With, kv.Value.WithWins, kv.Value.Against, kv.Value.AgainstWins, kv.Value.Last))
+            .OrderByDescending(e => e.With + e.Against).ThenByDescending(e => e.Last).ToList();
+    }
+
+    /// <summary>A map's record for one player, with rounds won on attack and on defense.</summary>
+    public sealed record MapDetail(string Map, int Wins, int Losses, int AtkWon, int AtkPlayed, int DefWon, int DefPlayed, PlayerTotals Totals)
+    {
+        public int Matches => Wins + Losses;
+        public double WinPct => Matches > 0 ? 100.0 * Wins / Matches : double.NaN;
+        public double AtkPct => AtkPlayed > 0 ? 100.0 * AtkWon / AtkPlayed : double.NaN;
+        public double DefPct => DefPlayed > 0 ? 100.0 * DefWon / DefPlayed : double.NaN;
+    }
+
+    public static List<MapDetail> MapDetails(IEnumerable<VMatch> matches, string id)
+    {
+        var list = new List<MapDetail>();
+        foreach (var g in matches.Where(m => m.Map.Length > 0 && m.Players.Any(p => p.Id == id)).GroupBy(m => m.Map))
+        {
+            int w = 0, l = 0, aw = 0, ap = 0, dw = 0, dp = 0;
+            var tot = new PlayerTotals();
+            foreach (var m in g)
+            {
+                var team = m.TeamOf(id);
+                int us = m.Rounds.Count(r => r.Winner == team), them = m.Rounds.Count(r => r.Winner.Length > 0 && r.Winner != team);
+                if (us > them) w++; else if (them > us) l++;
+                foreach (var r in m.Rounds.Where(r => r.Winner.Length > 0))
+                {
+                    if (m.Attacking(team, r.N)) { ap++; if (r.Winner == team) aw++; }
+                    else { dp++; if (r.Winner == team) dw++; }
+                }
+                tot.Add(Analysis.Totals(m, id));
+            }
+            list.Add(new MapDetail(g.Key, w, l, aw, ap, dw, dp, tot));
+        }
+        return list.OrderByDescending(x => x.Matches).ThenByDescending(x => x.WinPct).ToList();
+    }
+
+    /// <summary>One side of a match for one player: kills, assists and deaths on attack or defense.</summary>
+    public sealed record SideLine(int Kills, int Assists, int Deaths)
+    {
+        public double Kd => Deaths > 0 ? (double)Kills / Deaths : Kills;
+    }
+
+    public static (SideLine Attack, SideLine Defense) Sides(VMatch m, string id)
+    {
+        var team = m.TeamOf(id);
+        SideLine Of(bool atk)
+        {
+            var ks = m.Kills.Where(k => m.Attacking(team, k.Round) == atk).ToList();
+            return new SideLine(ks.Count(k => k.Killer == id && k.Victim != id && m.TeamOf(k.Victim) != team),
+                ks.Count(k => k.Assists.Contains(id)), ks.Count(k => k.Victim == id));
+        }
+        return (Of(true), Of(false));
+    }
+
+    /// <summary>One enemy, from a player's side: kills on them, deaths to them, damage dealt and received.</summary>
+    public sealed record VersusLine(VPlayer Enemy, int Kills, int Deaths, int Dealt, int Received);
+
+    public static List<VersusLine> Versus(VMatch m, string id)
+    {
+        var team = m.TeamOf(id);
+        return m.Players.Where(p => p.Team.Length > 0 && p.Team != team).Select(e => new VersusLine(e,
+            m.Kills.Count(k => k.Killer == id && k.Victim == e.Id), m.Kills.Count(k => k.Killer == e.Id && k.Victim == id),
+            m.Rounds.Sum(r => r.Damage.Where(d => d.From == id && d.To == e.Id).Sum(d => d.Amount)),
+            m.Rounds.Sum(r => r.Damage.Where(d => d.From == e.Id && d.To == id).Sum(d => d.Amount))))
+            .OrderByDescending(v => v.Kills).ThenBy(v => v.Deaths).ToList();
+    }
+
+    /// <summary>Kills per weapon for one player in one match (weapon id, kills), most first.</summary>
+    public static List<(string Weapon, string DamageType, int Kills)> WeaponKills(VMatch m, string id) =>
+        m.Kills.Where(k => k.Killer == id && k.Victim != id && m.TeamOf(k.Victim) != m.TeamOf(id))
+            .GroupBy(k => (k.Weapon ?? "", k.DamageType ?? "")).Select(g => (g.Key.Item1, g.Key.Item2, g.Count())).OrderByDescending(x => x.Item3).ToList();
+
+    /// <summary>A rivalry: how often <see cref="A"/> killed <see cref="B"/> and the other way round.</summary>
+    public sealed record Rivalry(VPlayer A, VPlayer B, int AKills, int BKills);
+
+    /// <summary>
+    /// The duels tab's three headline pairs: the pair with the most kills between them, the one where Team A's player
+    /// most outdid Team B's, and the other way round.
+    /// </summary>
+    public static (Rivalry Top, Rivalry MismatchA, Rivalry MismatchB) Rivalries(VMatch m, string teamA)
+    {
+        var d = Duels(m);
+        int K(string a, string b) => d.TryGetValue(a, out var row) ? row.GetValueOrDefault(b) : 0;
+        var pairs = (from a in m.Players.Where(p => p.Team == teamA)
+                     from b in m.Players.Where(p => p.Team.Length > 0 && p.Team != teamA)
+                     select new Rivalry(a, b, K(a.Id, b.Id), K(b.Id, a.Id))).Where(r => r.AKills + r.BKills > 0).ToList();
+        if (pairs.Count == 0) return (null, null, null);
+        return (pairs.OrderByDescending(r => r.AKills + r.BKills).ThenBy(r => Math.Abs(r.AKills - r.BKills)).First(),
+            pairs.OrderByDescending(r => r.AKills - r.BKills).ThenByDescending(r => r.AKills).First(),
+            pairs.OrderByDescending(r => r.BKills - r.AKills).ThenByDescending(r => r.BKills).First());
     }
 
     /// <summary>A player's Riot ID when the match has it, else null.</summary>
