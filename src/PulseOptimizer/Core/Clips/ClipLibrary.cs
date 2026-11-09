@@ -458,7 +458,18 @@ public static class ClipLibrary
         if (total <= 0) throw new InvalidOperationException("Couldn't read the clip's length.");
         if (to <= from) { from = 0; to = total; }
         double secs = to - from;
-        var dest = Sibling(clip, "Discord");
+        // One Discord copy per clip: the same request again hands back the copy already made, and a different part
+        // of the clip replaces it instead of piling up "(Discord) 2", "(Discord) 3"...
+        var info = new FileInfo(clip);
+        string key = string.Join("|", Secs(from), Secs(to), string.Join(",", audioTracks ?? new[] { 0 }), burn != null ? "1" : "0", info.Length, info.LastWriteTimeUtc.Ticks);
+        var cache = DiscordCopies();
+        LastDiscordReused = false;
+        if (cache.TryGetValue(clip, out var made) && made.Length == 2 && made[0] == key && File.Exists(made[1]) && new FileInfo(made[1]).Length is > 0 and <= DiscordLimitBytes)
+        {
+            LastDiscordReused = true;
+            return made[1];
+        }
+        var dest = made is { Length: 2 } && File.Exists(made[1]) ? made[1] : DiscordName(clip);
         int kbps = DiscordVideoKbps(secs);
         var cut = $"-ss {from.ToString("0.###", CultureInfo.InvariantCulture)} -t {secs.ToString("0.###", CultureInfo.InvariantCulture)}";
         for (int attempt = 0; attempt < 3; attempt++)
@@ -470,10 +481,55 @@ public static class ClipLibrary
             var audio = AudioArgs(audioTracks ?? new[] { 0 }).Replace("-b:a 256k", "-b:a 160k");
             var (code, err) = await Ffmpeg.Run($"-hide_banner -loglevel error -y {cut} -i \"{clip}\" {OverlayInput(burn)} {VideoArgs(burn, h)} {codec} {rate} {audio} -movflags +faststart \"{dest}\"", ct);
             if (code != 0) throw new InvalidOperationException("Making the Discord copy didn't work: " + err.Trim());
-            if (new FileInfo(dest).Length <= DiscordLimitBytes) return dest;
+            if (new FileInfo(dest).Length <= DiscordLimitBytes) break;
             kbps = kbps * 80 / 100; // the encoder overshot: try again a bit smaller
         }
+        cache[clip] = new[] { key, dest };
+        SaveDiscordCopies(cache);
         return dest;
+    }
+
+    /// <summary>True when the last <see cref="ForDiscord"/> handed back a copy made earlier instead of making one.</summary>
+    public static bool LastDiscordReused { get; private set; }
+
+    static string DiscordCopiesFile => System.IO.Path.Combine(TweakEngine.DataDir, "clips", "discord-copies.json");
+    static readonly object DiscordGate = new();
+
+    /// <summary>Clip path → [what was asked for, the copy's path].</summary>
+    static Dictionary<string, string[]> DiscordCopies()
+    {
+        lock (DiscordGate)
+        {
+            try
+            {
+                if (File.Exists(DiscordCopiesFile))
+                    return System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string[]>>(File.ReadAllText(DiscordCopiesFile)) is { } d
+                        ? new Dictionary<string, string[]>(d.Where(kv => File.Exists(kv.Key)), StringComparer.OrdinalIgnoreCase) : new(StringComparer.OrdinalIgnoreCase);
+            }
+            catch { }
+            return new(StringComparer.OrdinalIgnoreCase);
+        }
+    }
+
+    static void SaveDiscordCopies(Dictionary<string, string[]> d)
+    {
+        lock (DiscordGate)
+        {
+            try
+            {
+                Directory.CreateDirectory(System.IO.Path.GetDirectoryName(DiscordCopiesFile)!);
+                File.WriteAllText(DiscordCopiesFile, System.Text.Json.JsonSerializer.Serialize(d));
+            }
+            catch { }
+        }
+    }
+
+    /// <summary>"Clip (Discord).mp4", or the next free name when a file of that name isn't one Pulse made.</summary>
+    static string DiscordName(string clip)
+    {
+        var dir = System.IO.Path.GetDirectoryName(clip)!;
+        var path = System.IO.Path.Combine(dir, System.IO.Path.GetFileNameWithoutExtension(clip) + " (Discord).mp4");
+        return File.Exists(path) ? Sibling(clip, "Discord") : path;
     }
 
     internal static string H264Of(Encoder e) => e.Codec == "h264" ? e.Name : "h264_" + e.Name[(e.Name.IndexOf('_') + 1)..];

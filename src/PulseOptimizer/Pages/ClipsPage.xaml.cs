@@ -394,7 +394,7 @@ public partial class ClipsPage : UserControl, IPage, IReleasable
         if (heavy) QualityText.Text += "\n" + Loc.F("That's a lot for a PC with {0} GB. A shorter replay or Light quality keeps games from running short on memory.", Math.Round(ramGb));
         GameAudioSwitch.IsChecked = S.GameAudio;
         MicSwitch.IsChecked = S.Microphone;
-        OnlyGamingSwitch.IsChecked = S.OnlyWhileGaming;
+        OnlyGamingSwitch.IsChecked = !S.OnlyWhileGaming; // the switch reads "clip the desktop too"
         DiskSwitch.IsChecked = S.ReplayOnDisk;
         TraySwitch.IsChecked = S.KeepRunningInTray;
         StartupSwitch.IsChecked = S.StartWithWindows;
@@ -464,7 +464,7 @@ public partial class ClipsPage : UserControl, IPage, IReleasable
         if (_loading) return;
         S.GameAudio = GameAudioSwitch.IsChecked == true;
         S.Microphone = MicSwitch.IsChecked == true;
-        S.OnlyWhileGaming = OnlyGamingSwitch.IsChecked == true;
+        S.OnlyWhileGaming = OnlyGamingSwitch.IsChecked != true;
         S.ReplayOnDisk = DiskSwitch.IsChecked == true;
         S.KeepRunningInTray = TraySwitch.IsChecked == true;
         S.SeparateMicTrack = SeparateMicSwitch.IsChecked == true;
@@ -1341,13 +1341,15 @@ public partial class ClipsPage : UserControl, IPage, IReleasable
             bool whole = Timeline.Start <= 0.01 && Timeline.End >= Timeline.Duration - 0.05;
             var burn = await PrepareInputBurn(_open.Clip.Path, whole ? 0 : Timeline.Start, whole ? Timeline.Duration : Timeline.End);
             var path = await ClipLibrary.ForDiscord(_open.Clip.Path, enc, whole ? 0 : Timeline.Start, whole ? 0 : Timeline.End, ChosenTracks(), burn);
-            await ClipLibrary.MakeThumbnail(path);
+            if (!ClipLibrary.LastDiscordReused) await ClipLibrary.MakeThumbnail(path);
             steps[0].Finish(Format.Bytes(new FileInfo(path).Length));
             // Put the file on the clipboard so it can be pasted straight into Discord.
             try { Clipboard.SetFileDropList(new System.Collections.Specialized.StringCollection { path }); } catch { }
             await MainWindow.Instance.FinishSteps("Ready for Discord",
-                Loc.F("{0} is copied: paste it into a Discord chat with Ctrl+V.", Path.GetFileName(path)));
-            LoadLibrary();
+                ClipLibrary.LastDiscordReused
+                    ? Loc.F("Using the Discord copy you already made ({0}). It's copied: paste it into a Discord chat with Ctrl+V.", Path.GetFileName(path))
+                    : Loc.F("{0} is copied: paste it into a Discord chat with Ctrl+V.", Path.GetFileName(path)));
+            if (!ClipLibrary.LastDiscordReused) LoadLibrary();
         }
         catch (Exception ex)
         {

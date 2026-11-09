@@ -540,7 +540,9 @@ public static class Tracker
     /// <summary>
     /// How likely the account is a smurf, from what gives smurfs away: a win rate far above 50%, a high K/D, a low
     /// account level, and KAST (being useful in almost every round). Plus RR per win from the account itself: big RR
-    /// gains are Riot saying the hidden rating is well above the rank. One sign alone never says "likely".
+    /// gains are Riot saying the hidden rating is well above the rank. And how they play: impact far above their own
+    /// lobbies, skills that play two ranks higher, a new account already doing that, and a sudden jump in combat
+    /// score or headshot rate. One sign alone never says "likely".
     /// </summary>
     /// <summary>The account level: Riot's lookup when known, else the highest in their matches (0 if unknown).</summary>
     static int LevelOf(Profile p) => p.Level > 0 ? p.Level : p.Matches.Select(m => m.Players.FirstOrDefault(x => x.Id == p.Puuid)?.Level ?? 0).DefaultIfEmpty(0).Max();
@@ -574,8 +576,59 @@ public static class Tracker
             if (level <= 30) { score += 25; signs.Add(Pulse.Ui.Loc.F("New account (level {0}) in ranked", level)); }
             else if (level <= 60) { score += 15; signs.Add(Pulse.Ui.Loc.F("Fairly new account (level {0})", level)); }
         }
+        // How they actually play against their rank, not only their record.
+        int rank = p.Tier >= 3 ? p.Tier : p.CompareTier;
+        bool strong = false;
+        if (p.Rating is { } rating && !double.IsNaN(rating.Overall) && t.Matches >= 5)
+        {
+            if (rating.Overall >= 1.35) { score += 25; strong = true; signs.Add(Pulse.Ui.Loc.F("Impact {0:0.00} in their own lobbies (1.00 is average)", rating.Overall)); }
+            else if (rating.Overall >= 1.2) { score += 12; strong = true; signs.Add(Pulse.Ui.Loc.F("Impact {0:0.00} in their own lobbies (1.00 is average)", rating.Overall)); }
+        }
+        if (rank >= 3)
+        {
+            // Skills that play two ranks (six divisions) or more above the account's rank.
+            var above = p.Skills.Where(k => k.PlaysLikeTier >= rank + 6).ToList();
+            if (above.Count >= 3)
+            {
+                score += 20; strong = true;
+                signs.Add(Pulse.Ui.Loc.F("{0} of their skills play like {1} or higher, ranked {2}", above.Count, ValorantMatches.RankName(above.Min(k => k.PlaysLikeTier)), ValorantMatches.RankName(rank)));
+            }
+        }
+        // A new account that's already this strong: the clearest smurf there is.
+        int lvl = LevelOf(p);
+        if (strong && lvl > 0 && lvl <= 60 && rank >= 3)
+        {
+            score += 20;
+            signs.Add(Pulse.Ui.Loc.F("New account (level {0}) already playing well above its rank", lvl));
+        }
+        // A sudden jump: the last few matches far better than the ones before (a new owner, or a better player on it).
+        if (Jump(p) is { } jump) { score += jump.Points; signs.Add(jump.Sign); }
+
         if (signs.Count == 1) score = Math.Min(score, 40);
         return new Smurf(Math.Min(100, score), signs);
+    }
+
+    /// <summary>
+    /// The last 4 matches against the 6–16 before them: combat score up by 40% or more, or headshot rate up by 12
+    /// points or more. After a month or more without playing, it says so (accounts that change hands often do that).
+    /// </summary>
+    internal static (int Points, string Sign)? Jump(Profile p)
+    {
+        var ms = p.Matches.Where(m => VMatch.Counts(m.Queue)).OrderByDescending(m => m.StartUtc).ToList();
+        if (ms.Count < 10) return null;
+        var recent = ms.Take(4).ToList();
+        var before = ms.Skip(4).Take(16).ToList();
+        var r = Analysis.For(recent, p.Puuid);
+        var b = Analysis.For(before, p.Puuid);
+        if (r.Rounds < 40 || b.Rounds < 80) return null;
+        var gap = recent[^1].StartUtc - before[0].StartUtc;
+        string after = gap.TotalDays >= 30 ? " " + Pulse.Ui.Loc.F("after {0:0} days without playing", gap.TotalDays) : "";
+        int bonus = gap.TotalDays >= 30 ? 10 : 0;
+        if (!double.IsNaN(r.Acs) && !double.IsNaN(b.Acs) && b.Acs > 0 && r.Acs >= b.Acs * 1.4 && r.Acs >= 230)
+            return (25 + bonus, Pulse.Ui.Loc.F("Combat score jumped from {0:0} to {1:0} in the last 4 matches", b.Acs, r.Acs) + after);
+        if (!double.IsNaN(r.HeadshotPct) && !double.IsNaN(b.HeadshotPct) && r.HeadshotPct - b.HeadshotPct >= 12)
+            return (20 + bonus, Pulse.Ui.Loc.F("Headshot rate jumped from {0:0}% to {1:0}% in the last 4 matches", b.HeadshotPct, r.HeadshotPct) + after);
+        return null;
     }
 
     // ───────── agents: how well you play them, a tier list from your lobbies, the best players you've met ─────────

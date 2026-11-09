@@ -1,0 +1,28 @@
+name: Performance check
+
+# Times how fast the heavy pages build and draw, and checks memory doesn't keep growing, on a real Windows machine.
+# Runs on every pull request (and by hand). Results are in the run's summary.
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  perf:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Get VALORANT art (so pages draw what users see)
+        run: |
+          python -m pip install pillow --quiet
+          python tools/get-match-art.py src/PulseOptimizer/Assets/Matches
+      - name: Measure
+        env:
+          PULSE_PERF: "1"
+        run: dotnet test tests/PulseOptimizer.Tests/PulseOptimizer.Tests.csproj -c Release --filter "FullyQualifiedName~PerfTests" --logger "console;verbosity=detailed"

@@ -40,6 +40,7 @@
     <!-- Translations: English text → translated text, one file per language. -->
     <EmbeddedResource Include="Lang\*.json" LogicalName="Lang.%(Filename).json" />
     <EmbeddedResource Include="Core\Guide\guide.json" LogicalName="guide.json" />
+    <EmbeddedResource Include="Assets\Lineups\library.json" LogicalName="lineups.json" />
     <!-- Mouse drivers: OpenMouse mouse-protocol (AGPL-3.0-or-later), built by CI from drivers/ -->
     <Resource Include="Assets\Games\*.png" />
     <!-- VALORANT agent, map and rank art for match recaps, fetched by tools/get-match-art.py at build time (not committed). -->

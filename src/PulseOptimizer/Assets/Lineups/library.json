@@ -1,0 +1,967 @@
+[
+ {
+  "Agent": "Sova",
+  "Map": "Ascent",
+  "Title": "B Main to B site front and cubby",
+  "Ability": "Recon Bolt",
+  "Side": "Attack",
+  "Site": "B",
+  "Difficulty": 1,
+  "Steps": [
+   "Stand: In the first section of B Main, roughly in the middle.",
+   "Aim: Just above the giraffe's nose on the wall.",
+   "Full charge (3 bars), no bounce."
+  ],
+  "SourceName": "Dignitas",
+  "Source": "https://dignitas.gg/articles/easy-ascent-recon-bolt-lineups-valorant"
+ },
+ {
+  "Agent": "Sova",
+  "Map": "Ascent",
+  "Title": "B Main to the plant spots",
+  "Ability": "Recon Bolt",
+  "Side": "Attack",
+  "Site": "B",
+  "Difficulty": 1,
+  "Steps": [
+   "Stand: At the end of the metal shutter on the right wall of B Main.",
+   "Aim: The furthest window on the left, looking up.",
+   "No charge (a single click), no bounce.",
+   "Doesn't cover the sewers part."
+  ],
+  "SourceName": "Dignitas",
+  "Source": "https://dignitas.gg/articles/easy-ascent-recon-bolt-lineups-valorant"
+ },
+ {
+  "Agent": "Sova",
+  "Map": "Ascent",
+  "Title": "Mid, both sides of the mid wall",
+  "Ability": "Recon Bolt",
+  "Side": "Attack",
+  "Site": "Mid",
+  "Difficulty": 1,
+  "Steps": [
+   "Stand: Roughly behind the top Mid box.",
+   "Aim: The furthest window on the left.",
+   "Full charge, no bounce."
+  ],
+  "SourceName": "Dignitas",
+  "Source": "https://dignitas.gg/articles/easy-ascent-recon-bolt-lineups-valorant"
+ },
+ {
+  "Agent": "Sova",
+  "Map": "Ascent",
+  "Title": "Fast B: B Main, switch, market and logs",
+  "Ability": "Recon Bolt",
+  "Side": "Attack",
+  "Site": "B",
+  "Difficulty": 1,
+  "Steps": [
+   "Stand: Hug the box near the B Main orb.",
+   "Aim: The mouth of the swordfish portrait.",
+   "Full charge, 1 bounce."
+  ],
+  "SourceName": "DiamondLobby",
+  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/"
+ },
+ {
+  "Agent": "Sova",
+  "Map": "Ascent",
+  "Title": "A Main to A Tree and A Garden",
+  "Ability": "Recon Bolt",
+  "Side": "Attack",
+  "Site": "A",
+  "Difficulty": 1,
+  "Steps": [
+   "Stand: In A Main.",
+   "Aim: The lower-left corner of the window frame.",
+   "Full charge, 1 bounce."
+  ],
+  "SourceName": "DiamondLobby",
+  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/"
+ },
+ {
+  "Agent": "Sova",
+  "Map": "Ascent",
+  "Title": "A Lobby to the back of generators",
+  "Ability": "Recon Bolt",
+  "Side": "Attack",
+  "Site": "A",
+  "Difficulty": 2,
+  "Steps": [
+   "Stand: In front of the small box in A Lobby.",
+   "Aim: The middle of the curve of the white crystal.",
+   "About two bars (60–65%), no bounce."
+  ],
+  "SourceName": "DiamondLobby",
+  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/"
+ },
+ {
+  "Agent": "Sova",
+  "Map": "Ascent",
+  "Title": "B site to B Main and B Lobby (through the wall)",
+  "Ability": "Recon Bolt",
+  "Side": "Defense",
+  "Site": "B",
+  "Difficulty": 1,
+  "Steps": [
+   "Stand: On B site.",
+   "Aim: Left or right side of the two boxes, just below the window.",
+   "Full charge, 1 bounce (2 also works)."
+  ],
+  "SourceName": "DiamondLobby",
+  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/"
+ },
+ {
+  "Agent": "Sova",
+  "Map": "Ascent",
+  "Title": "A Generator post-plant: shot 1",
+  "Ability": "Shock Bolt",
+  "Side": "Attack",
+  "Site": "A",
+  "Difficulty": 3,
+  "Steps": [
+   "Stand: A Main, centred on the orange door.",
+   "Aim: The top-left tip of the odd-shaped cloud.",
+   "Two bars, no bounce. Fire shot 2 about two seconds later: aim at the second charge line on the crystal spike on the cloud, one bar, no bounce."
+  ],
+  "SourceName": "DiamondLobby",
+  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/"
+ },
+ {
+  "Agent": "Sova",
+  "Map": "Bind",
+  "Title": "B Link to B Hookah",
+  "Ability": "Recon Bolt",
+  "Side": "Attack",
+  "Site": "B",
+  "Difficulty": 2,
+  "Steps": [
+   "Stand: Near the stairs in B Link.",
+   "Aim: The line below the round timer, lined up with the wall.",
+   "Two bars, no bounce."
+  ],
+  "SourceName": "DiamondLobby",
+  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/"
+ },
+ {
+  "Agent": "Sova",
+  "Map": "Bind",
+  "Title": "B site to B Main and Fountain, fast info",
+  "Ability": "Recon Bolt",
+  "Side": "Defense",
+  "Site": "B",
+  "Difficulty": 1,
+  "Steps": [
+   "Stand: Jump on top of the box on B site.",
+   "Aim: The wall in front.",
+   "Full charge, 1 bounce."
+  ],
+  "SourceName": "DiamondLobby",
+  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/"
+ },
+ {
+  "Agent": "Sova",
+  "Map": "Bind",
+  "Title": "B Labs to B site retake",
+  "Ability": "Recon Bolt",
+  "Side": "Defense",
+  "Site": "B",
+  "Difficulty": 2,
+  "Steps": [
+   "Stand: In B Labs.",
+   "Aim: The start of the wire near the tip of the wall.",
+   "Two bars, 1 bounce."
+  ],
+  "SourceName": "DiamondLobby",
+  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/"
+ },
+ {
+  "Agent": "Sova",
+  "Map": "Bind",
+  "Title": "A Lobby to A default plant (post-plant)",
+  "Ability": "Shock Bolt",
+  "Side": "Attack",
+  "Site": "A",
+  "Difficulty": 3,
+  "Steps": [
+   "Stand: Up the ledge in A Lobby, hugging the corner.",
+   "Aim: Where the wire crosses the top of the wall.",
+   "Two bars, 1 bounce. Then turn fully to the small slanted edge and fire an instant second dart (no charge, no bounce)."
+  ],
+  "SourceName": "DiamondLobby",
+  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/"
+ },
+ {
+  "Agent": "Sova",
+  "Map": "Bind",
+  "Title": "Defender spawn to B default plant",
+  "Ability": "Shock Bolt",
+  "Side": "Defense",
+  "Site": "B",
+  "Difficulty": 3,
+  "Steps": [
+   "Stand: Defender spawn, hugging the corner that slants toward B site, centred on the wall gap.",
+   "Aim: The first line of the panel, looking up at its corner.",
+   "Two bars, no bounce; second dart two lines lower beside the panel, one bar, about two seconds later."
+  ],
+  "SourceName": "DiamondLobby",
+  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/"
+ },
+ {
+  "Agent": "Sova",
+  "Map": "Breeze",
+  "Title": "Defender spawn to B site (retake)",
+  "Ability": "Recon Bolt",
+  "Side": "Defense",
+  "Site": "B",
+  "Difficulty": 3,
+  "Steps": [
+   "Stand: Defender spawn, hugging the corner near the first arches.",
+   "Aim: High on the wall toward A Bridge.",
+   "Full charge, 2 bounces."
+  ],
+  "SourceName": "DiamondLobby",
+  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/"
+ },
+ {
+  "Agent": "Sova",
+  "Map": "Breeze",
+  "Title": "A Bridge to the roof above A Halls",
+  "Ability": "Recon Bolt",
+  "Side": "Defense",
+  "Site": "A",
+  "Difficulty": 2,
+  "Steps": [
+   "Stand: Next to the rope on A Bridge, lower-left corner; don't jump on the ledge.",
+   "Aim: The small tower.",
+   "Two bars, no bounce."
+  ],
+  "SourceName": "DiamondLobby",
+  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/"
+ },
+ {
+  "Agent": "Sova",
+  "Map": "Breeze",
+  "Title": "Mid Cannon to the back of B site",
+  "Ability": "Recon Bolt",
+  "Side": "Attack",
+  "Site": "B",
+  "Difficulty": 2,
+  "Steps": [
+   "Stand: Mid Cannon, by the corner next to the B Window entrance.",
+   "Aim: The first red tower, bottom of the square panel.",
+   "Full charge, 1 bounce."
+  ],
+  "SourceName": "DiamondLobby",
+  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/"
+ },
+ {
+  "Agent": "Sova",
+  "Map": "Fracture",
+  "Title": "B Tree to B site",
+  "Ability": "Recon Bolt",
+  "Side": "Attack",
+  "Site": "B",
+  "Difficulty": 1,
+  "Steps": [
+   "Stand: The corner of the big box on B Tree, hugging the wall.",
+   "Aim: The first bar left of the pipe.",
+   "Full charge, 1 bounce.",
+   "High angle: scans B site except the tower."
+  ],
+  "SourceName": "DiamondLobby",
+  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/"
+ },
+ {
+  "Agent": "Sova",
+  "Map": "Fracture",
+  "Title": "B Generator to B Bench and B Arcade",
+  "Ability": "Recon Bolt",
+  "Side": "Attack",
+  "Site": "B",
+  "Difficulty": 1,
+  "Steps": [
+   "Stand: The corner of the generator.",
+   "Aim: The railing on the broken panel above B Generator.",
+   "Full charge, 1 bounce."
+  ],
+  "SourceName": "DiamondLobby",
+  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/"
+ },
+ {
+  "Agent": "Sova",
+  "Map": "Fracture",
+  "Title": "A Gate to A site before the push",
+  "Ability": "Recon Bolt",
+  "Side": "Attack",
+  "Site": "A",
+  "Difficulty": 2,
+  "Steps": [
+   "Stand: Right side of A Gate.",
+   "Aim: The metal plating above the Kingdom logo.",
+   "One bar, no bounce."
+  ],
+  "SourceName": "DiamondLobby",
+  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/"
+ },
+ {
+  "Agent": "Sova",
+  "Map": "Fracture",
+  "Title": "B Link to B site retake",
+  "Ability": "Recon Bolt",
+  "Side": "Defense",
+  "Site": "B",
+  "Difficulty": 1,
+  "Steps": [
+   "Stand: Where the lamp is barely visible on the wall corner.",
+   "Aim: The bottom of the lamp.",
+   "Full charge, 1 bounce."
+  ],
+  "SourceName": "DiamondLobby",
+  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/"
+ },
+ {
+  "Agent": "Sova",
+  "Map": "Haven",
+  "Title": "A Long to A site (shows B rotations via A Link)",
+  "Ability": "Recon Bolt",
+  "Side": "Attack",
+  "Site": "A",
+  "Difficulty": 2,
+  "Steps": [
+   "Stand: The corner in A Long.",
+   "Aim: The white line on the wall in front, at the rooftop corner.",
+   "One bar, no bounce."
+  ],
+  "SourceName": "DiamondLobby",
+  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/"
+ },
+ {
+  "Agent": "Sova",
+  "Map": "Haven",
+  "Title": "C Long to the back of C site",
+  "Ability": "Recon Bolt",
+  "Side": "Attack",
+  "Site": "C",
+  "Difficulty": 2,
+  "Steps": [
+   "Stand: The corner of C Long.",
+   "Aim: The second bar on the wooden door frame, at the corner of the leaf.",
+   "Two bars, no bounce."
+  ],
+  "SourceName": "DiamondLobby",
+  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/"
+ },
+ {
+  "Agent": "Sova",
+  "Map": "Haven",
+  "Title": "C site to C Long (smoke-bang info)",
+  "Ability": "Recon Bolt",
+  "Side": "Defense",
+  "Site": "C",
+  "Difficulty": 1,
+  "Steps": [
+   "Stand: Hug the box at the C site entry.",
+   "Aim: The C Garage door entry.",
+   "One bar, no bounce."
+  ],
+  "SourceName": "DiamondLobby",
+  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/"
+ },
+ {
+  "Agent": "Sova",
+  "Map": "Haven",
+  "Title": "B site to B Window and Mid (through the wall)",
+  "Ability": "Recon Bolt",
+  "Side": "Defense",
+  "Site": "B",
+  "Difficulty": 2,
+  "Steps": [
+   "Stand: Hug the corner of B site.",
+   "Aim: The red panel on the wall in front.",
+   "Full charge, 2 bounces."
+  ],
+  "SourceName": "DiamondLobby",
+  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/"
+ },
+ {
+  "Agent": "Sova",
+  "Map": "Haven",
+  "Title": "C Link to C default plant",
+  "Ability": "Shock Bolt",
+  "Side": "Attack",
+  "Site": "C",
+  "Difficulty": 3,
+  "Steps": [
+   "Stand: The corner of C Link (watch for C Garage pushes).",
+   "Aim: The wooden plank on the rooftop.",
+   "One bar, no bounce; second dart instant at the top of the wall. Lands about three seconds later."
+  ],
+  "SourceName": "DiamondLobby",
+  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/"
+ },
+ {
+  "Agent": "Sova",
+  "Map": "Icebox",
+  "Title": "Mid Boiler to B Green (B push support)",
+  "Ability": "Recon Bolt",
+  "Side": "Attack",
+  "Site": "B",
+  "Difficulty": 2,
+  "Steps": [
+   "Stand: On top of the small barrels in Mid Boiler.",
+   "Aim: Below the hinge on the container.",
+   "One and a half bars, no bounce."
+  ],
+  "SourceName": "DiamondLobby",
+  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/"
+ },
+ {
+  "Agent": "Sova",
+  "Map": "Icebox",
+  "Title": "Mid Blue to A Screens and half of A site",
+  "Ability": "Recon Bolt",
+  "Side": "Attack",
+  "Site": "A",
+  "Difficulty": 3,
+  "Steps": [
+   "Stand: On top of the small box in Mid Blue.",
+   "Aim: The white line on the silver container.",
+   "Two bars, 2 bounces."
+  ],
+  "SourceName": "DiamondLobby",
+  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/"
+ },
+ {
+  "Agent": "Sova",
+  "Map": "Icebox",
+  "Title": "B Hut to B site retake",
+  "Ability": "Recon Bolt",
+  "Side": "Defense",
+  "Site": "B",
+  "Difficulty": 2,
+  "Steps": [
+   "Stand: Lower-right corner of B Hut.",
+   "Aim: The generators in front.",
+   "One and a half bars, no bounce."
+  ],
+  "SourceName": "DiamondLobby",
+  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/"
+ },
+ {
+  "Agent": "Sova",
+  "Map": "Icebox",
+  "Title": "Mid Boiler to A default plant",
+  "Ability": "Shock Bolt",
+  "Side": "Attack",
+  "Site": "A",
+  "Difficulty": 3,
+  "Steps": [
+   "Stand: Mid Boiler, next to the small box out of sight of Mid.",
+   "Aim: Where the rope meets the A Nest wall.",
+   "Two and a half bars, 2 bounces."
+  ],
+  "SourceName": "DiamondLobby",
+  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/"
+ },
+ {
+  "Agent": "Sova",
+  "Map": "Pearl",
+  "Title": "A Main to A site",
+  "Ability": "Recon Bolt",
+  "Side": "Attack",
+  "Site": "A",
+  "Difficulty": 2,
+  "Steps": [
+   "Stand: The corner of A Main behind the box; jump.",
+   "Aim: The tiny light on the dome pillar, a little lower.",
+   "No charge (tap) while jumping, no bounce.",
+   "Misses the A Dugout corner and cubby."
+  ],
+  "SourceName": "DiamondLobby",
+  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/"
+ },
+ {
+  "Agent": "Sova",
+  "Map": "Pearl",
+  "Title": "B Link to inside B Tower",
+  "Ability": "Recon Bolt",
+  "Side": "Attack",
+  "Site": "B",
+  "Difficulty": 2,
+  "Steps": [
+   "Stand: The box on B Link.",
+   "Aim: The pillar, or the top corner of the box.",
+   "Tap (no charge), no bounce."
+  ],
+  "SourceName": "DiamondLobby",
+  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/"
+ },
+ {
+  "Agent": "Sova",
+  "Map": "Pearl",
+  "Title": "Defender spawn to B site (quick retake)",
+  "Ability": "Recon Bolt",
+  "Side": "Defense",
+  "Site": "B",
+  "Difficulty": 1,
+  "Steps": [
+   "Stand: The corner of the small box near defender spawn.",
+   "Aim: Between the pillar and the leaf.",
+   "Tap (no charge), no bounce."
+  ],
+  "SourceName": "DiamondLobby",
+  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/"
+ },
+ {
+  "Agent": "Sova",
+  "Map": "Split",
+  "Title": "A Lobby to A Rafters and site",
+  "Ability": "Recon Bolt",
+  "Side": "Attack",
+  "Site": "A",
+  "Difficulty": 1,
+  "Steps": [
+   "Stand: On top of the A Lobby planters.",
+   "Aim: The A Rafters door.",
+   "Full charge, no bounce.",
+   "Can be blocked by a smoke."
+  ],
+  "SourceName": "DiamondLobby",
+  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/"
+ },
+ {
+  "Agent": "Sova",
+  "Map": "Split",
+  "Title": "A Ramps to B Garage (B support)",
+  "Ability": "Recon Bolt",
+  "Side": "Attack",
+  "Site": "B",
+  "Difficulty": 3,
+  "Steps": [
+   "Stand: The corner of A Ramps.",
+   "Aim: The lower-right corner of the building window.",
+   "Full charge, 2 bounces."
+  ],
+  "SourceName": "DiamondLobby",
+  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/"
+ },
+ {
+  "Agent": "Sova",
+  "Map": "Split",
+  "Title": "B Lobby to the back of B site",
+  "Ability": "Recon Bolt",
+  "Side": "Attack",
+  "Site": "B",
+  "Difficulty": 1,
+  "Steps": [
+   "Stand: Hug the corner where fights start in B Lobby.",
+   "Aim: The top-right corner of the roof.",
+   "Full charge, 1 bounce."
+  ],
+  "SourceName": "DiamondLobby",
+  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/"
+ },
+ {
+  "Agent": "Sova",
+  "Map": "Split",
+  "Title": "A Rafters to A Lobby and A Main (smoke-bang info)",
+  "Ability": "Recon Bolt",
+  "Side": "Defense",
+  "Site": "A",
+  "Difficulty": 2,
+  "Steps": [
+   "Stand: The corner of A Rafters overlooking A site.",
+   "Aim: Slightly right of the tip of the building.",
+   "One and a half bars, no bounce."
+  ],
+  "SourceName": "DiamondLobby",
+  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/"
+ },
+ {
+  "Agent": "Sova",
+  "Map": "Lotus",
+  "Title": "A site to A Rubble and A Root",
+  "Ability": "Recon Bolt",
+  "Side": "Defense",
+  "Site": "A",
+  "Difficulty": 2,
+  "Steps": [
+   "Stand: Next to the single-stack box on A site.",
+   "Aim: Line the lower HUD up with the lotus marking on the wall at A Tree.",
+   "Two bars, 2 bounces."
+  ],
+  "SourceName": "ONE Esports",
+  "Source": "https://www.oneesports.gg/valorant/best-sova-lineups-lotus-three-sites/"
+ },
+ {
+  "Agent": "Sova",
+  "Map": "Lotus",
+  "Title": "A site to A Door (lands near A Link)",
+  "Ability": "Recon Bolt",
+  "Side": "Defense",
+  "Site": "A",
+  "Difficulty": 1,
+  "Steps": [
+   "Stand: Back against the wall between A Tree and A Main.",
+   "Aim: The wall of A Hut nearest A Main.",
+   "Full charge, 1 bounce.",
+   "Lands on the far side of the wall, so it's hard to shoot."
+  ],
+  "SourceName": "ONE Esports",
+  "Source": "https://www.oneesports.gg/valorant/best-sova-lineups-lotus-three-sites/"
+ },
+ {
+  "Agent": "Sova",
+  "Map": "Lotus",
+  "Title": "A default plant (post-plant)",
+  "Ability": "Shock Bolt",
+  "Side": "Attack",
+  "Site": "A",
+  "Difficulty": 3,
+  "Steps": [
+   "Stand: Toward A Stairs and A Main.",
+   "Aim: The plant spot at the edge of A site.",
+   "Full charge, 2 bounces."
+  ],
+  "SourceName": "ONE Esports",
+  "Source": "https://www.oneesports.gg/valorant/best-sova-lineups-lotus-three-sites/"
+ },
+ {
+  "Agent": "Sova",
+  "Map": "Lotus",
+  "Title": "C site high-ground plant (double dart)",
+  "Ability": "Shock Bolt",
+  "Side": "Attack",
+  "Site": "C",
+  "Difficulty": 3,
+  "Steps": [
+   "Stand: Top of the ramp up the C Hall ledge.",
+   "Aim: First dart at the roof of C Hall; second at the gap between two wooden boards on the C site wall.",
+   "First: no charge, no bounce. Second: no charge, 1 bounce."
+  ],
+  "SourceName": "ONE Esports",
+  "Source": "https://www.oneesports.gg/valorant/best-sova-lineups-lotus-three-sites/"
+ },
+ {
+  "Agent": "Sova",
+  "Map": "Sunset",
+  "Title": "Mid Top to Mid Bottom",
+  "Ability": "Recon Bolt",
+  "Side": "Defense",
+  "Site": "Mid",
+  "Difficulty": 1,
+  "Steps": [
+   "Stand: Mid Top.",
+   "Aim: The red tile roof.",
+   "Full charge.",
+   "Pair it with a smoke on the Mid Bottom choke."
+  ],
+  "SourceName": "ONE Esports",
+  "Source": "https://www.oneesports.gg/valorant/sunset-sova-lineups/"
+ },
+ {
+  "Agent": "Sova",
+  "Map": "Sunset",
+  "Title": "A Lobby to A Main",
+  "Ability": "Recon Bolt",
+  "Side": "Attack",
+  "Site": "A",
+  "Difficulty": 1,
+  "Steps": [
+   "Stand: A Lobby.",
+   "Aim: One of the two small windows in A Lobby.",
+   "One bar or full charge, 1 bounce. The same works with Shock Bolt for damage."
+  ],
+  "SourceName": "ONE Esports",
+  "Source": "https://www.oneesports.gg/valorant/sunset-sova-lineups/"
+ },
+ {
+  "Agent": "Sova",
+  "Map": "Sunset",
+  "Title": "A Link to A site retake",
+  "Ability": "Recon Bolt",
+  "Side": "Defense",
+  "Site": "A",
+  "Difficulty": 1,
+  "Steps": [
+   "Stand: A Link.",
+   "Aim: The corner of the overpass above A site.",
+   "Two bars."
+  ],
+  "SourceName": "ONE Esports",
+  "Source": "https://www.oneesports.gg/valorant/sunset-sova-lineups/"
+ },
+ {
+  "Agent": "Sova",
+  "Map": "Sunset",
+  "Title": "B post-plant in front of B Main (double dart)",
+  "Ability": "Shock Bolt",
+  "Side": "Attack",
+  "Site": "B",
+  "Difficulty": 3,
+  "Steps": [
+   "Stand: B Lobby.",
+   "Aim: Between the second and third rows of wall tiles.",
+   "First dart two bars; second dart slightly lower, one bar."
+  ],
+  "SourceName": "ONE Esports",
+  "Source": "https://www.oneesports.gg/valorant/sunset-sova-lineups/"
+ },
+ {
+  "Agent": "Viper",
+  "Map": "Ascent",
+  "Title": "Wall off the A side door",
+  "Ability": "Toxic Screen",
+  "Side": "Attack",
+  "Site": "A",
+  "Difficulty": 1,
+  "Steps": [
+   "Stand: Behind the boxes in A Main, facing the site.",
+   "Aim: Toward the site so the screen covers the side door."
+  ],
+  "SourceName": "Sportskeeda",
+  "Source": "https://www.sportskeeda.com/valorant/valorant-episode-4-act-3-viper-guide-most-useful-lineups-attack-defence-every-map"
+ },
+ {
+  "Agent": "Viper",
+  "Map": "Ascent",
+  "Title": "Heaven screen against Mid",
+  "Ability": "Toxic Screen",
+  "Side": "Defense",
+  "Site": "A",
+  "Difficulty": 1,
+  "Steps": [
+   "Stand: On Heaven, lined up with the box there.",
+   "Aim: Toward Mid.",
+   "Then play Hell and pick off anyone dropping from Heaven."
+  ],
+  "SourceName": "Sportskeeda",
+  "Source": "https://www.sportskeeda.com/valorant/valorant-episode-4-act-3-viper-guide-most-useful-lineups-attack-defence-every-map"
+ },
+ {
+  "Agent": "Viper",
+  "Map": "Ascent",
+  "Title": "One-way on A Main",
+  "Ability": "Poison Cloud",
+  "Side": "Defense",
+  "Site": "A",
+  "Difficulty": 1,
+  "Steps": [
+   "Aim: The A site main entrance."
+  ],
+  "SourceName": "Sportskeeda",
+  "Source": "https://www.sportskeeda.com/valorant/valorant-episode-4-act-3-viper-guide-most-useful-lineups-attack-defence-every-map"
+ },
+ {
+  "Agent": "Viper",
+  "Map": "Haven",
+  "Title": "Screen A Main, A Short and B Main at once",
+  "Ability": "Toxic Screen",
+  "Side": "Defense",
+  "Site": "A",
+  "Difficulty": 1,
+  "Steps": [
+   "Stand: Directly under the flower pot on A site.",
+   "Aim: Straight toward B."
+  ],
+  "SourceName": "Sportskeeda",
+  "Source": "https://www.sportskeeda.com/valorant/valorant-episode-4-act-3-viper-guide-most-useful-lineups-attack-defence-every-map"
+ },
+ {
+  "Agent": "Viper",
+  "Map": "Haven",
+  "Title": "Split A site diagonally",
+  "Ability": "Toxic Screen",
+  "Side": "Attack",
+  "Site": "A",
+  "Difficulty": 1,
+  "Steps": [
+   "Aim: Diagonally across the site.",
+   "Blocks the A entrance and Hell."
+  ],
+  "SourceName": "Sportskeeda",
+  "Source": "https://www.sportskeeda.com/valorant/valorant-episode-4-act-3-viper-guide-most-useful-lineups-attack-defence-every-map"
+ },
+ {
+  "Agent": "Viper",
+  "Map": "Haven",
+  "Title": "Cloud Heaven from A Short",
+  "Ability": "Poison Cloud",
+  "Side": "Attack",
+  "Site": "A",
+  "Difficulty": 1,
+  "Steps": [
+   "Stand: Through the A Short corridor.",
+   "Aim: Into Heaven."
+  ],
+  "SourceName": "Sportskeeda",
+  "Source": "https://www.sportskeeda.com/valorant/valorant-episode-4-act-3-viper-guide-most-useful-lineups-attack-defence-every-map"
+ },
+ {
+  "Agent": "Viper",
+  "Map": "Split",
+  "Title": "Screen into A site from attacker side",
+  "Ability": "Toxic Screen",
+  "Side": "Attack",
+  "Site": "A",
+  "Difficulty": 1,
+  "Steps": [
+   "Stand: Attacker side, entering the site.",
+   "Aim: Into A site.",
+   "Then put the cloud on Heaven to block the Tower."
+  ],
+  "SourceName": "Sportskeeda",
+  "Source": "https://www.sportskeeda.com/valorant/valorant-episode-4-act-3-viper-guide-most-useful-lineups-attack-defence-every-map"
+ },
+ {
+  "Agent": "Viper",
+  "Map": "Split",
+  "Title": "Block A Main",
+  "Ability": "Toxic Screen",
+  "Side": "Defense",
+  "Site": "A",
+  "Difficulty": 1,
+  "Steps": [
+   "Stand: Defender spawn area.",
+   "Aim: Toward the A Main entrance."
+  ],
+  "SourceName": "Sportskeeda",
+  "Source": "https://www.sportskeeda.com/valorant/valorant-episode-4-act-3-viper-guide-most-useful-lineups-attack-defence-every-map"
+ },
+ {
+  "Agent": "Viper",
+  "Map": "Bind",
+  "Title": "Screen from the Baths door",
+  "Ability": "Toxic Screen",
+  "Side": "Attack",
+  "Site": "A",
+  "Difficulty": 1,
+  "Steps": [
+   "Stand: Lined up with the stone bricks at the Baths door.",
+   "Aim: Toward the A Teleporter."
+  ],
+  "SourceName": "Sportskeeda",
+  "Source": "https://www.sportskeeda.com/valorant/valorant-episode-4-act-3-viper-guide-most-useful-lineups-attack-defence-every-map"
+ },
+ {
+  "Agent": "Viper",
+  "Map": "Bind",
+  "Title": "B site screen from below Window",
+  "Ability": "Toxic Screen",
+  "Side": "Defense",
+  "Site": "B",
+  "Difficulty": 1,
+  "Steps": [
+   "Stand: On the boxes below the Window.",
+   "Aim: Toward Pallet."
+  ],
+  "SourceName": "Sportskeeda",
+  "Source": "https://www.sportskeeda.com/valorant/valorant-episode-4-act-3-viper-guide-most-useful-lineups-attack-defence-every-map"
+ },
+ {
+  "Agent": "Viper",
+  "Map": "Bind",
+  "Title": "Cloud the B Hall entrance",
+  "Ability": "Poison Cloud",
+  "Side": "Defense",
+  "Site": "B",
+  "Difficulty": 1,
+  "Steps": [
+   "Aim: The B Hall entrance."
+  ],
+  "SourceName": "Sportskeeda",
+  "Source": "https://www.sportskeeda.com/valorant/valorant-episode-4-act-3-viper-guide-most-useful-lineups-attack-defence-every-map"
+ },
+ {
+  "Agent": "Viper",
+  "Map": "Icebox",
+  "Title": "Flush Generator and Maze",
+  "Ability": "Snake Bite",
+  "Side": "Attack",
+  "Site": "A",
+  "Difficulty": 1,
+  "Steps": [
+   "Stand: Up the ramps from attacker spawn.",
+   "Aim: Generator and Maze."
+  ],
+  "SourceName": "Sportskeeda",
+  "Source": "https://www.sportskeeda.com/valorant/valorant-episode-4-act-3-viper-guide-most-useful-lineups-attack-defence-every-map"
+ },
+ {
+  "Agent": "Viper",
+  "Map": "Icebox",
+  "Title": "Block the Maze",
+  "Ability": "Toxic Screen",
+  "Side": "Defense",
+  "Site": "A",
+  "Difficulty": 1,
+  "Steps": [
+   "Stand: Beside the box near the Generator.",
+   "Aim: Diagonally through the Maze."
+  ],
+  "SourceName": "Sportskeeda",
+  "Source": "https://www.sportskeeda.com/valorant/valorant-episode-4-act-3-viper-guide-most-useful-lineups-attack-defence-every-map"
+ },
+ {
+  "Agent": "Viper",
+  "Map": "Fracture",
+  "Title": "Clear A Door and A Ropes",
+  "Ability": "Snake Bite",
+  "Side": "Attack",
+  "Site": "A",
+  "Difficulty": 1,
+  "Steps": [
+   "Stand: Pushing through A Main.",
+   "Aim: A Door or A Ropes."
+  ],
+  "SourceName": "Sportskeeda",
+  "Source": "https://www.sportskeeda.com/valorant/valorant-episode-4-act-3-viper-guide-most-useful-lineups-attack-defence-every-map"
+ },
+ {
+  "Agent": "Viper",
+  "Map": "Fracture",
+  "Title": "Hold B from the Tower",
+  "Ability": "Poison Cloud",
+  "Side": "Defense",
+  "Site": "B",
+  "Difficulty": 1,
+  "Steps": [
+   "Stand: The Tower.",
+   "Aim: Onto Arcade."
+  ],
+  "SourceName": "Sportskeeda",
+  "Source": "https://www.sportskeeda.com/valorant/valorant-episode-4-act-3-viper-guide-most-useful-lineups-attack-defence-every-map"
+ },
+ {
+  "Agent": "Viper",
+  "Map": "Breeze",
+  "Title": "Split B for a plant at B back",
+  "Ability": "Toxic Screen",
+  "Side": "Attack",
+  "Site": "B",
+  "Difficulty": 1,
+  "Steps": [
+   "Stand: From B Main.",
+   "Aim: Straight across the B pillar."
+  ],
+  "SourceName": "Sportskeeda",
+  "Source": "https://www.sportskeeda.com/valorant/valorant-episode-4-act-3-viper-guide-most-useful-lineups-attack-defence-every-map"
+ },
+ {
+  "Agent": "Viper",
+  "Map": "Breeze",
+  "Title": "Block A from A Cave",
+  "Ability": "Toxic Screen",
+  "Side": "Defense",
+  "Site": "A",
+  "Difficulty": 1,
+  "Steps": [
+   "Stand: A Cave.",
+   "Aim: Diagonally toward A Hall."
+  ],
+  "SourceName": "Sportskeeda",
+  "Source": "https://www.sportskeeda.com/valorant/valorant-episode-4-act-3-viper-guide-most-useful-lineups-attack-defence-every-map"
+ }
+]

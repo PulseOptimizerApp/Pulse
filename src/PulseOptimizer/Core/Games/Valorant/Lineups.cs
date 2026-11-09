@@ -25,6 +25,11 @@ public sealed class Lineup
     /// <summary>Your rating, 0 (none) to 5.</summary>
     public int Rating { get; set; }
     public DateTime AddedUtc { get; set; } = DateTime.UtcNow;
+    /// <summary>Where a lineup from Pulse's library was written up (credited on its card), or empty for your own.</summary>
+    public string Source { get; set; } = "";
+    public string SourceName { get; set; } = "";
+    /// <summary>True for lineups from Pulse's built-in library (they can be copied to yours, not edited).</summary>
+    [System.Text.Json.Serialization.JsonIgnore] public bool BuiltIn { get; set; }
 }
 
 /// <summary>
@@ -39,7 +44,48 @@ public static class Lineups
     static List<Lineup> _all;
     static readonly object Gate = new();
 
-    public static readonly string[] Maps = { "Abyss", "Ascent", "Bind", "Breeze", "Corrode", "Fracture", "Haven", "Icebox", "Lotus", "Pearl", "Split", "Sunset" };
+    public static readonly string[] Maps = { "Abyss", "Ascent", "Bind", "Breeze", "Corrode", "Fracture", "Haven", "Icebox", "Lotus", "Pearl", "Plummet", "Split", "Sunset" };
+
+    /// <summary>Agents whose kit has real lineups (thrown or shot abilities); the others play setups, not lineups.</summary>
+    public static readonly string[] LineupAgents = { "Sova", "Viper", "Brimstone", "KAY/O", "Killjoy", "Fade", "Gekko", "Tejo", "Raze", "Cypher", "Astra", "Harbor", "Deadlock", "Vyse", "Breach", "Omen", "Clove", "Skye", "Phoenix" };
+
+    static List<Lineup> _library;
+
+    /// <summary>
+    /// Pulse's built-in library: lineups written up by guide sites (each card credits its source), built into the
+    /// app. Video opens a YouTube search for that exact lineup, since the exact aim spot is easiest to see.
+    /// </summary>
+    public static IReadOnlyList<Lineup> Library
+    {
+        get
+        {
+            if (_library != null) return _library;
+            var list = new List<Lineup>();
+            try
+            {
+                using var s = typeof(Lineups).Assembly.GetManifestResourceStream("lineups.json");
+                if (s != null)
+                {
+                    var items = JsonSerializer.Deserialize<List<Lineup>>(s) ?? new();
+                    for (int i = 0; i < items.Count; i++)
+                    {
+                        var l = items[i];
+                        l.Id = "lib-" + i;
+                        l.BuiltIn = true;
+                        l.AddedUtc = DateTime.MinValue;
+                        l.Video = VideoSearch(l.Agent, l.Map, l.Title);
+                        list.Add(l);
+                    }
+                }
+            }
+            catch { }
+            return _library = list;
+        }
+    }
+
+    /// <summary>A YouTube search for a lineup (opened in the browser; Pulse itself doesn't go online for it).</summary>
+    public static string VideoSearch(string agent, string map, string what = "") =>
+        "https://www.youtube.com/results?search_query=" + Uri.EscapeDataString(string.Join(" ", new[] { "valorant", agent, map, what, "lineup" }.Where(x => !string.IsNullOrWhiteSpace(x))));
     public static readonly string[] Agents = { "Brimstone", "Viper", "Sova", "KAY/O", "Killjoy", "Cypher", "Fade", "Gekko", "Breach", "Skye", "Astra", "Harbor", "Deadlock", "Omen", "Clove", "Vyse", "Tejo", "Raze", "Chamber", "Waylay", "Sage", "Phoenix", "Jett", "Reyna", "Yoru", "Neon", "Iso" };
     public static readonly string[] Sites = { "A", "B", "C", "Mid" };
 
@@ -116,10 +162,10 @@ public static class Lineups
     public static bool SafeLink(string url) => Uri.TryCreate(url?.Trim(), UriKind.Absolute, out var u) && (u.Scheme == Uri.UriSchemeHttps || u.Scheme == Uri.UriSchemeHttp);
 
     /// <summary>Lineups matching the filters (empty filter = any) and search text, favorites first, then by rating.</summary>
-    public static List<Lineup> Find(string map, string agent, string site, string side, int difficulty, bool favoritesOnly, string text)
+    public static List<Lineup> Find(string map, string agent, string site, string side, int difficulty, bool favoritesOnly, string text, bool library = false)
     {
         text = (text ?? "").Trim();
-        return All.Where(l => (map.Length == 0 || l.Map == map) && (agent.Length == 0 || l.Agent == agent) && (site.Length == 0 || l.Site == site)
+        return (library ? Library : All).Where(l => (map.Length == 0 || l.Map == map) && (agent.Length == 0 || l.Agent == agent) && (site.Length == 0 || l.Site == site)
                 && (side.Length == 0 || l.Side == side) && (difficulty == 0 || l.Difficulty == difficulty) && (!favoritesOnly || l.Favorite)
                 && (text.Length == 0 || l.Title.Contains(text, StringComparison.OrdinalIgnoreCase) || l.Ability.Contains(text, StringComparison.OrdinalIgnoreCase)
                     || l.Steps.Any(s => s.Contains(text, StringComparison.OrdinalIgnoreCase))))

@@ -25,7 +25,11 @@ public partial class SpeedTestPage : UserControl, IPage
     // What the ring shows while running.
     SpeedTest.Phase _phase;
     double _value, _frac;
-    double _down = -1, _up = -1, _ping = -1;
+    double _down = -1, _up = -1, _ping = -1, _pingDown = -1, _pingUp = -1;
+    // Provider, IP and server city: looked up as soon as a test starts, shown as soon as they're known.
+    static string _isp = "", _ip = "", _city = "";
+    TextBlock _pingIdleText, _pingDownText, _pingUpText, _ispText, _ipText, _cityText;
+    TimeSpan _lastFrame;
 
     public SpeedTestPage() => InitializeComponent();
 
@@ -152,9 +156,9 @@ public partial class SpeedTestPage : UserControl, IPage
         var pings = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 14, 0, 0) };
         pings.Children.Add(new TextBlock { Text = Loc.T("Ping") + " ms", FontSize = 13, Foreground = Res("TextDimBrush"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 18, 0) });
         double idle = _running ? _ping : _last?.IdleMs ?? -1;
-        pings.Children.Add(PingChip("⇋", Yellow, idle, Loc.T("Idle ping: nothing else using the connection")));
-        pings.Children.Add(PingChip("↓", Cyan, _running ? -1 : _last?.LoadedDownMs ?? -1, Loc.T("Ping while downloading")));
-        pings.Children.Add(PingChip("↑", Purple, _running ? -1 : _last?.LoadedUpMs ?? -1, Loc.T("Ping while uploading")));
+        pings.Children.Add(PingChip("⇋", Yellow, idle, Loc.T("Idle ping: nothing else using the connection"), out _pingIdleText));
+        pings.Children.Add(PingChip("↓", Cyan, _running ? _pingDown : _last?.LoadedDownMs ?? -1, Loc.T("Ping while downloading"), out _pingDownText));
+        pings.Children.Add(PingChip("↑", Purple, _running ? _pingUp : _last?.LoadedUpMs ?? -1, Loc.T("Ping while uploading"), out _pingUpText));
         col.Children.Add(pings);
 
         col.Children.Add(Dial());
@@ -181,9 +185,9 @@ public partial class SpeedTestPage : UserControl, IPage
         var who = new Grid { Margin = new Thickness(0, 22, 0, 2) };
         who.ColumnDefinitions.Add(new ColumnDefinition());
         who.ColumnDefinitions.Add(new ColumnDefinition());
-        string isp = _last?.Isp ?? "", ip = _last?.Ip ?? "", city = _last?.ServerCity ?? "";
-        who.Children.Add(Who("👤", isp.Length > 0 ? isp : Loc.T("Your provider"), ip.Length > 0 ? ip : _running ? Loc.T("Looking up…") : Loc.T("Shown after a test"), HorizontalAlignment.Right));
-        var srv = Who("🖧", "Cloudflare", city.Length > 0 ? city : _last?.Server is { Length: > 0 } code ? code : Loc.T("Nearest server"), HorizontalAlignment.Left); Grid.SetColumn(srv, 1); who.Children.Add(srv);
+        string isp = _isp.Length > 0 ? _isp : _last?.Isp ?? "", ip = _ip.Length > 0 ? _ip : _last?.Ip ?? "", city = _city.Length > 0 ? _city : _last?.ServerCity ?? "";
+        who.Children.Add(Who("👤", isp.Length > 0 ? isp : Loc.T("Your provider"), ip.Length > 0 ? ip : _running ? Loc.T("Looking up…") : Loc.T("Shown after a test"), HorizontalAlignment.Right, out _ispText, out _ipText));
+        var srv = Who("🖧", "Cloudflare", city.Length > 0 ? city : _last?.Server is { Length: > 0 } code ? code : Loc.T("Nearest server"), HorizontalAlignment.Left, out _, out _cityText); Grid.SetColumn(srv, 1); who.Children.Add(srv);
         col.Children.Add(who);
 
         UpdateDial(snap: true);
@@ -208,23 +212,26 @@ public partial class SpeedTestPage : UserControl, IPage
 
     static string Fmt(double v) => v.ToString(v >= 100 ? "0.0" : "0.00", CultureInfo.CurrentCulture);
 
-    FrameworkElement PingChip(string icon, Color c, double ms, string tip)
+    FrameworkElement PingChip(string icon, Color c, double ms, string tip, out TextBlock value)
     {
         var sp = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 22, 0), ToolTip = tip };
         sp.Children.Add(new Border { Width = 18, Height = 18, CornerRadius = new CornerRadius(9), BorderThickness = new Thickness(1.5), BorderBrush = B(c), Margin = new Thickness(0, 0, 7, 0),
             Child = new TextBlock { Text = icon, FontSize = 10.5, FontWeight = FontWeights.Bold, Foreground = B(c), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, -2, 0, 0) } });
-        sp.Children.Add(new TextBlock { Text = ms > 0 ? ms.ToString("0", CultureInfo.CurrentCulture) : "—", FontSize = 14, Foreground = Res("TextBrush"), VerticalAlignment = VerticalAlignment.Center });
+        value = new TextBlock { Text = ms > 0 ? ms.ToString("0", CultureInfo.CurrentCulture) : "—", FontSize = 14, Foreground = Res("TextBrush"), VerticalAlignment = VerticalAlignment.Center, MinWidth = 22 };
+        sp.Children.Add(value);
         return sp;
     }
 
-    FrameworkElement Who(string icon, string title, string sub, HorizontalAlignment align)
+    FrameworkElement Who(string icon, string title, string sub, HorizontalAlignment align, out TextBlock titleText, out TextBlock subText)
     {
         var sp = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = align, Margin = new Thickness(16, 0, 16, 0) };
         sp.Children.Add(new Border { Width = 38, Height = 38, CornerRadius = new CornerRadius(19), BorderThickness = new Thickness(1), BorderBrush = Res("BorderBrush"), Margin = new Thickness(0, 0, 10, 0),
             Child = new TextBlock { Text = icon, FontSize = 15, Foreground = Res("TextDimBrush"), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center } });
         var t = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-        t.Children.Add(new TextBlock { Text = title, FontSize = 16, Foreground = Res("TextBrush"), TextTrimming = TextTrimming.CharacterEllipsis, MaxWidth = 210 });
-        t.Children.Add(new TextBlock { Text = sub, FontSize = 12.5, Foreground = Res("TextDimBrush") });
+        titleText = new TextBlock { Text = title, FontSize = 16, Foreground = Res("TextBrush"), TextTrimming = TextTrimming.CharacterEllipsis, MaxWidth = 210 };
+        subText = new TextBlock { Text = sub, FontSize = 12.5, Foreground = Res("TextDimBrush") };
+        t.Children.Add(titleText);
+        t.Children.Add(subText);
         sp.Children.Add(t);
         return sp;
     }
@@ -292,19 +299,21 @@ public partial class SpeedTestPage : UserControl, IPage
     }
 
     /// <summary>Moves the needle, arc and number toward the live value (smoothly while running).</summary>
-    void UpdateDial(bool snap = false)
+    void UpdateDial(bool snap = false, double dt = 1 / 30.0)
     {
         if (_arc == null) return;
         bool speed = _running && _phase is SpeedTest.Phase.Download or SpeedTest.Phase.Upload;
         _target = _running ? (speed ? _value : 0) : _last?.DownMbps ?? 0;
         if (snap && !_running) _shown = _target;
-        else _shown += (_target - _shown) * 0.18;
+        // Glide toward the live number at the same pace whatever the frame rate (about 90% of the way in 0.3 s).
+        else _shown += (_target - _shown) * (1 - Math.Exp(-dt * 7.5));
+        if (Math.Abs(_target - _shown) < 0.05) _shown = _target;
         double f = DialFrac(_shown);
         _arc.Data = f > 0.001 ? ArcGeometry(f) : null;
         _needleTurn.Angle = 135 + 270 * f;
         if (_number != null)
         {
-            if (_running && _phase == SpeedTest.Phase.Ping) { _number.Text = _value > 0 ? _value.ToString("0", CultureInfo.CurrentCulture) : "…"; _unitText.Text = Loc.T("ms ping"); }
+            if (_running && _phase == SpeedTest.Phase.Ping) { _number.Text = "—"; _unitText.Text = Loc.T("Connecting…"); }
             else if (_running && _phase == SpeedTest.Phase.Loss) { _number.Text = "…"; _unitText.Text = Loc.T("checking packet loss"); }
             else { _number.Text = Fmt(_shown); _unitText.Text = (Uploading ? "↑ " : "↓ ") + "Mbps"; }
         }
@@ -321,12 +330,26 @@ public partial class SpeedTestPage : UserControl, IPage
     {
         if (_running) return;
         _running = true;
-        _phase = SpeedTest.Phase.Ping; _value = 0; _frac = 0; _down = _up = _ping = -1; _shown = 0;
+        _phase = SpeedTest.Phase.Ping; _value = 0; _frac = 0; _down = _up = _ping = _pingDown = _pingUp = -1; _shown = 0;
+        _isp = _ip = _city = "";
         _cts = new CancellationTokenSource();
         Build();
-        _anim ??= new System.Windows.Threading.DispatcherTimer(System.Windows.Threading.DispatcherPriority.Render) { Interval = TimeSpan.FromMilliseconds(33) };
-        _anim.Tick -= AnimTick; _anim.Tick += AnimTick;
-        _anim.Start();
+        // The dial moves every frame the screen draws (smooth like Speedtest), only while a test runs.
+        _lastFrame = TimeSpan.Zero;
+        CompositionTarget.Rendering -= OnFrame;
+        CompositionTarget.Rendering += OnFrame;
+        var token = _cts.Token;
+        _ = Task.Run(() => SpeedTest.Meta(token)).ContinueWith(t =>
+        {
+            if (t.Status != TaskStatus.RanToCompletion) return;
+            (_isp, _ip, _city) = t.Result;
+            Dispatcher.Invoke(() =>
+            {
+                if (_isp.Length > 0 && _ispText != null) _ispText.Text = _isp;
+                if (_ip.Length > 0 && _ipText != null) _ipText.Text = _ip;
+                if (_city.Length > 0 && _cityText != null) _cityText.Text = _city;
+            });
+        }, TaskScheduler.Default);
         var progress = new Progress<SpeedTest.Progress>(p =>
         {
             bool newPhase = p.Phase != _phase;
@@ -337,6 +360,9 @@ public partial class SpeedTestPage : UserControl, IPage
                 if (_phase == SpeedTest.Phase.Upload) _up = _value;
             }
             _phase = p.Phase; _value = p.Value; _frac = p.Fraction;
+            if (p.Phase == SpeedTest.Phase.Ping && p.Value > 0) { _ping = p.Value; if (_pingIdleText != null) _pingIdleText.Text = p.Value.ToString("0", CultureInfo.CurrentCulture); }
+            if (p.LoadedMs > 0 && p.Phase == SpeedTest.Phase.Download) { _pingDown = p.LoadedMs; if (_pingDownText != null) _pingDownText.Text = p.LoadedMs.ToString("0", CultureInfo.CurrentCulture); }
+            if (p.LoadedMs > 0 && p.Phase == SpeedTest.Phase.Upload) { _pingUp = p.LoadedMs; if (_pingUpText != null) _pingUpText.Text = p.LoadedMs.ToString("0", CultureInfo.CurrentCulture); }
             if (newPhase && _running) { Build(); if (p.Phase is SpeedTest.Phase.Download or SpeedTest.Phase.Upload) _shown = 0; }
         });
         try
@@ -355,13 +381,20 @@ public partial class SpeedTestPage : UserControl, IPage
         finally
         {
             _running = false;
-            _anim?.Stop();
+            CompositionTarget.Rendering -= OnFrame;
             _cts?.Dispose(); _cts = null;
             Build();
         }
     }
 
-    void AnimTick(object s, EventArgs e) => UpdateDial();
+    void OnFrame(object s, EventArgs e)
+    {
+        var now = e is RenderingEventArgs re ? re.RenderingTime : TimeSpan.Zero;
+        if (now == _lastFrame) return; // WPF can call this more than once per frame
+        double dt = _lastFrame == TimeSpan.Zero ? 1 / 60.0 : Math.Clamp((now - _lastFrame).TotalSeconds, 0.001, 0.1);
+        _lastFrame = now;
+        UpdateDial(false, dt);
+    }
 
     // ───────── results ─────────
 
