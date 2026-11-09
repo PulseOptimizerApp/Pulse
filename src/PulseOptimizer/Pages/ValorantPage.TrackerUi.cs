@@ -111,6 +111,10 @@ public partial class ValorantPage
         };
     }
 
+    /// <summary><paramref name="baseColor"/> with <paramref name="amount"/> of <paramref name="tint"/> blended in (both opaque).</summary>
+    static Color Mix(Color baseColor, Color tint, double amount) => Color.FromRgb(
+        (byte)(baseColor.R + (tint.R - baseColor.R) * amount), (byte)(baseColor.G + (tint.G - baseColor.G) * amount), (byte)(baseColor.B + (tint.B - baseColor.B) * amount));
+
     /// <summary>Spreads capitals out a little (WPF has no letter spacing): "WIN RATE" → "W I N  R A T E" with hair spaces.</summary>
     static string Spaced(string caps) => string.Join("\u200A", caps.ToCharArray());
 
@@ -154,7 +158,7 @@ public partial class ValorantPage
             Child = sp, Padding = new Thickness(14, 16, 14, 16), Margin = new Thickness(0, 0, 10, 10), CornerRadius = new CornerRadius(12),
             BorderBrush = B(Color.FromRgb(0x22, 0x2B, 0x36)), BorderThickness = new Thickness(1),
             // A soft light behind the gauge, the only tint on the card.
-            Background = new RadialGradientBrush(A(c, 0x12), Color.FromRgb(0x10, 0x16, 0x1E)) { Center = new Point(0.5, 0.36), GradientOrigin = new Point(0.5, 0.36), RadiusX = 0.55, RadiusY = 0.5 },
+            Background = new RadialGradientBrush(Mix(Color.FromRgb(0x10, 0x16, 0x1E), c, 0.07), Color.FromRgb(0x10, 0x16, 0x1E)) { Center = new Point(0.5, 0.36), GradientOrigin = new Point(0.5, 0.36), RadiusX = 0.5, RadiusY = 0.45 },
         };
     }
 
