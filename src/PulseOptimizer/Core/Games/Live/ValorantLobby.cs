@@ -239,8 +239,8 @@ public static class ValorantLobby
             int matchTier = p.Tier >= 3 ? p.Tier : tier;
             string name = names.TryGetValue(p.Id, out var n) ? n : null;
             string agent = p.Agent.Length > 0 ? p.Agent : ValorantMatches.AgentName(p.AgentId);
-            list.Add(new LobbyPlayer(p.Id, p.Team == vm.MyTeam, me, agent, name, false, 0, tier >= 3 ? tier : p.Tier, rr, Math.Max(peak, tier), ActName(peakAct),
-                win, games, me ? Smurf.None : SmurfSigns(0, tier, peak, win, games, gains))
+            list.Add(new LobbyPlayer(p.Id, p.Team == vm.MyTeam, me, agent, name, false, p.Level, tier >= 3 ? tier : p.Tier, rr, Math.Max(peak, tier), ActName(peakAct),
+                win, games, me ? Smurf.None : WithMatch(SmurfSigns(p.Level, tier, peak, win, games, gains), p.Level, t, matchTier))
             {
                 Extra = $"{t.Kills}/{t.Deaths}/{p.Assists} · {t.Acs:0} ACS",
                 Unusual = me ? Smurf.None : Pulse.Core.Games.Valorant.Tracker.UnusualInMatch(vm, p.Id, matchTier),
@@ -324,6 +324,18 @@ public static class ValorantLobby
         // A single sign on its own is weak: cap it so one alone never says "likely".
         if (signs.Count == 1) score = Math.Min(score, 40);
         return new Smurf(Math.Min(100, score), signs);
+    }
+
+    /// <summary>
+    /// After a match: a new account (level 60 or under) that just played far above its rank in that match (270+ ACS or a
+    /// K/D of 1.6+) is the clearest smurf sign there is, so it adds to the account's signs.
+    /// </summary>
+    internal static Smurf WithMatch(Smurf account, int level, Pulse.Core.Games.Valorant.PlayerTotals t, int tier)
+    {
+        if (level <= 0 || level > 60 || tier < 3 || t.Rounds < 10) return account;
+        if (!(t.Acs >= 270 || t.KdRatio >= 1.6)) return account;
+        var signs = new List<string>(account.Signs) { Pulse.Ui.Loc.F("New account (level {0}) with {1:0} ACS and a {2:0.00} K/D this match", level, t.Acs, t.KdRatio) };
+        return new Smurf(Math.Min(100, account.Score + 25), signs);
     }
 
     /// <summary>Agent names and the list of acts (with start dates) from Riot's content service.</summary>
