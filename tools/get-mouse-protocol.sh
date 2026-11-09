@@ -25,6 +25,8 @@ mkdir -p "$(dirname "$OUT")"
 # esbuild reads the TypeScript directly; ES2019 so the script engine doesn't need the newest syntax.
 BUILD="$ROOT/.mouse-build"
 mkdir -p "$BUILD"
-npm install --silent --no-audit --no-fund --prefix "$BUILD" esbuild@0.24.0
+npm install --silent --no-audit --no-fund --prefix "$BUILD" esbuild@0.24.0 \
+  @babel/core@7.26.0 @babel/plugin-transform-async-to-generator@7.25.9 \
+  @babel/plugin-transform-regenerator@7.25.9 @babel/plugin-transform-async-generator-functions@7.25.9
 node "$ROOT/tools/mouse/bundle.mjs" "$BUILD" "$SRC" "$ROOT/tools/mouse/bridge.ts" "$OUT"
 echo "openmouse.js: $(wc -c < "$OUT") bytes from mouse-protocol $VERSION"
