@@ -144,6 +144,9 @@ public sealed class ValorantMatches : IDisposable
         return req;
     }
 
+    /// <summary>The Riot account the Riot Client was last signed in to (null until Pulse has connected once this session).</summary>
+    public static string SignedIn { get; private set; }
+
     /// <summary>Why the last login failed, in words for the user (null when it worked).</summary>
     public static string LastLoginProblem { get; private set; }
 
@@ -248,6 +251,7 @@ public sealed class ValorantMatches : IDisposable
                 }
                 if (shard.Length == 0) { LastLoginProblem = "Pulse couldn't tell which region your account is in. Start VALORANT once, then try again."; continue; }
                 LastLoginProblem = null;
+                SignedIn = root.Str("subject");
                 return new Session(root.Str("subject"), root.Str("accessToken"), root.Str("token"), shard, version, parts[2], parts[3], region);
             }
             catch { }

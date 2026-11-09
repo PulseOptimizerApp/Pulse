@@ -265,47 +265,102 @@ public partial class ValorantPage
         var acts = p.Acts.Where(a => a.Games > 0 || a.Tier >= 3).ToList();
         bool fromMatches = false;
         if (acts.Count == 0) { acts = ValorantLobby.ActsFromMatches(p.Matches, p.Puuid); fromMatches = acts.Count > 0; }
-        var sp = new StackPanel();
         if (acts.Count == 0)
-        {
-            sp.Children.Add(Txt(Loc.T(ValorantLobby.Acts().Count == 0
+            return Flat("Competitive acts", Txt(Loc.T(ValorantLobby.Acts().Count == 0
                 ? "Open VALORANT once and Pulse reads every act: rank, record and peak. After that they show here even when the game is closed."
                 : "No competitive matches saved for this player yet."), 12, TpMuted).Also(t => { t.Margin = new Thickness(12, 10, 12, 12); t.TextWrapping = TextWrapping.Wrap; t.TextTrimming = TextTrimming.None; }));
-            return Flat("Acts", sp);
-        }
-        var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(10, 10, 10, 10) };
+
         var cur = acts.FirstOrDefault(a => a.Current) ?? (acts[0].EndUtc > DateTime.UtcNow ? acts[0] : null);
-        foreach (var a in acts.Take(12))
+        string KeyOf(ValorantLobby.ActLine a) => a == cur ? "current" : a.Id;
+        var sel = acts.FirstOrDefault(a => KeyOf(a) == _trAct) ?? cur ?? acts[0];
+
+        var g = new Grid { Margin = new Thickness(12) };
+        g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(330) });
+        g.ColumnDefinitions.Add(new ColumnDefinition());
+
+        // The selected act, big.
+        var rc = RankColor(sel.Tier);
+        var card = new StackPanel();
+        var top = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 10) };
+        top.Children.Add(Txt(sel.Name.Length > 0 ? sel.Name : Loc.T("Earlier act"), 12.5, TpInk, true));
+        if (sel == cur) top.Children.Add(new Border { CornerRadius = new CornerRadius(4), Padding = new Thickness(6, 1, 6, 2), Margin = new Thickness(8, 0, 0, 0), Background = B(Color.FromArgb(0x2A, TpUp.R, TpUp.G, TpUp.B)), Child = Txt(Loc.T("CURRENT"), 9.5, TpUp, true) });
+        card.Children.Add(top);
+        var rankRow = new Grid();
+        rankRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        rankRow.ColumnDefinitions.Add(new ColumnDefinition());
+        rankRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        if (MatchArt.RankIcon(sel.Tier) is { } big) rankRow.Children.Add(Pic(big, 68, 68, 14));
+        else rankRow.Children.Add(new Border { Width = 68, Height = 68, Margin = new Thickness(0, 0, 14, 0), CornerRadius = new CornerRadius(34), Background = B(TpLine) });
+        var rn = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+        rn.Children.Add(Txt(Loc.T(sel == cur ? "Rating" : "Final rank"), 10.5, TpMuted, true));
+        rn.Children.Add(Txt(sel.Tier >= 3 ? ValorantMatches.RankName(sel.Tier) : Loc.T("Unrated"), 20, sel.Tier >= 3 ? rc : TpMuted, true));
+        if (sel == cur && p.IsYou && p.Tier >= 3) rn.Children.Add(Txt($"{p.Rr} RR", 12, TpBody));
+        Grid.SetColumn(rn, 1); rankRow.Children.Add(rn);
+        if (sel.Peak >= 3)
         {
-            bool isCur = a == cur;
-            var key = isCur ? "current" : a.Id;
-            bool selected = _trAct == key;
-            var c = isCur ? TpGold : TpLine;
-            var tile = new Grid { Width = isCur ? 250 : 168 };
-            tile.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            tile.ColumnDefinitions.Add(new ColumnDefinition());
-            if (MatchArt.RankIcon(a.Tier) is { } ri) tile.Children.Add(Pic(ri, isCur ? 46 : 34, isCur ? 46 : 34, 10));
-            else tile.Children.Add(new Border { Width = isCur ? 46 : 34, Height = isCur ? 46 : 34, Margin = new Thickness(0, 0, 10, 0), CornerRadius = new CornerRadius(6), Background = B(TpLine) });
-            var info = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-            info.Children.Add(Txt(isCur ? Loc.T("Current act") : (a.Name.Length > 0 ? a.Name : Loc.T("Earlier act")), 10.5, isCur ? TpGold : TpMuted, true));
-            info.Children.Add(Txt(a.Tier >= 3 ? ValorantMatches.RankName(a.Tier) : Loc.T("Unrated"), isCur ? 15 : 13, TpInk, true));
-            var rec = a.Games > 0 ? $"{a.Wins}W {a.Games - a.Wins}L · {N(a.WinPct)}%" : "–";
-            info.Children.Add(Txt(rec, 11.5, a.Games > 0 && a.WinPct >= 50 ? TpUp : a.Games > 0 ? TpDown : TpMuted));
-            if (a.Peak >= 3 && a.Peak != a.Tier) info.Children.Add(Txt(Loc.F("peak {0}", ValorantMatches.RankName(a.Peak)), 11, TpMuted));
-            if (isCur && a.Name.Length > 0) info.Children.Add(Txt(a.Name, 10.5, TpMuted));
-            Grid.SetColumn(info, 1); tile.Children.Add(info);
-            var b = new Border
-            {
-                Child = tile, Padding = new Thickness(10, 8, 10, 8), Margin = new Thickness(0, 0, 8, 0), CornerRadius = new CornerRadius(6), Cursor = Cursors.Hand,
-                BorderThickness = new Thickness(1), BorderBrush = B(selected ? TpBlue : c),
-                Background = B(isCur ? Color.FromArgb(0x14, TpGold.R, TpGold.G, TpGold.B) : Color.FromArgb(0x08, 0xFF, 0xFF, 0xFF)),
-                ToolTip = Loc.T(selected ? "Showing this act below · click to show all" : "Show only this act below"),
-            };
-            b.MouseLeftButtonUp += (_, _) => { _trAct = selected ? "all" : key; Build(); };
-            row.Children.Add(b);
+            var pk = new StackPanel { VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Right };
+            pk.Children.Add(Txt(Loc.T("Peak"), 10.5, TpMuted, true, HorizontalAlignment.Center));
+            if (MatchArt.RankIcon(sel.Peak) is { } pi) pk.Children.Add(Pic(pi, 34, 34, 0).Also(i => { i.HorizontalAlignment = HorizontalAlignment.Center; i.Margin = new Thickness(0, 2, 0, 2); }));
+            pk.Children.Add(Txt(ValorantMatches.RankName(sel.Peak), 11, RankColor(sel.Peak), true, HorizontalAlignment.Center));
+            Grid.SetColumn(pk, 2); rankRow.Children.Add(pk);
         }
-        sp.Children.Add(new ScrollViewer { HorizontalScrollBarVisibility = ScrollBarVisibility.Auto, VerticalScrollBarVisibility = ScrollBarVisibility.Disabled, Content = row, PanningMode = PanningMode.HorizontalOnly });
-        return Flat("Acts", sp, fromMatches ? Loc.T("from Pulse's saved matches · open VALORANT for Riot's full record") : Loc.F("{0} acts", acts.Count));
+        card.Children.Add(rankRow);
+        var nums = new UniformGrid { Columns = 3, Margin = new Thickness(0, 12, 0, 6) };
+        void Num(string label, string value, Color c)
+        {
+            var n = new StackPanel();
+            n.Children.Add(Txt(Loc.T(label), 10.5, TpMuted, true));
+            n.Children.Add(Txt(value, 16, c, true));
+            nums.Children.Add(n);
+        }
+        Num("Matches", sel.Games.ToString(CultureInfo.CurrentCulture), TpInk);
+        Num("Wins", $"{sel.Wins}–{sel.Games - sel.Wins}", TpInk);
+        Num("Win %", sel.Games > 0 ? N(sel.WinPct, "0.0") + "%" : "–", sel.Games == 0 ? TpMuted : sel.WinPct >= 50 ? TpUp : TpDown);
+        card.Children.Add(nums);
+        var bar = new Grid { Height = 5 };
+        bar.Children.Add(new Border { CornerRadius = new CornerRadius(3), Background = B(Color.FromArgb(0x50, TpDown.R, TpDown.G, TpDown.B)) });
+        if (sel.Games > 0) bar.Children.Add(new Border { CornerRadius = new CornerRadius(3), Background = B(TpUp), HorizontalAlignment = HorizontalAlignment.Left, Width = Math.Max(4, 290 * sel.Wins / (double)sel.Games) });
+        card.Children.Add(bar);
+        g.Children.Add(new Border
+        {
+            Child = card, Padding = new Thickness(16, 14, 16, 16), CornerRadius = new CornerRadius(8), Margin = new Thickness(0, 0, 12, 0),
+            BorderThickness = new Thickness(1), BorderBrush = B(Color.FromArgb(0x60, rc.R, rc.G, rc.B)),
+            Background = new LinearGradientBrush(Color.FromArgb(0x26, rc.R, rc.G, rc.B), Color.FromArgb(0x06, rc.R, rc.G, rc.B), 90),
+        });
+
+        // Every act, newest first: click one to see it (and filter the page to it).
+        var grid = new WrapPanel();
+        foreach (var a in acts.Take(16))
+        {
+            var key = KeyOf(a);
+            bool on = a == sel;
+            var ac = RankColor(a.Tier);
+            var t = new Grid { Width = 176 };
+            t.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            t.ColumnDefinitions.Add(new ColumnDefinition());
+            if (MatchArt.RankIcon(a.Tier) is { } ri) t.Children.Add(Pic(ri, 30, 30, 10));
+            else t.Children.Add(new Border { Width = 30, Height = 30, Margin = new Thickness(0, 0, 10, 0), CornerRadius = new CornerRadius(15), Background = B(TpLine) });
+            var info = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+            info.Children.Add(Txt(a == cur ? Loc.T("Current act") : (a.Name.Length > 0 ? a.Name : Loc.T("Earlier act")), 10.5, a == cur ? TpUp : TpMuted, true));
+            info.Children.Add(Txt(a.Tier >= 3 ? ValorantMatches.RankName(a.Tier) : Loc.T("Unrated"), 12.5, a.Tier >= 3 ? ac : TpMuted, true));
+            info.Children.Add(Txt(a.Games > 0 ? $"{a.Wins}W {a.Games - a.Wins}L · {N(a.WinPct)}%" : Loc.T("no games"), 10.5, TpBody));
+            Grid.SetColumn(info, 1); t.Children.Add(info);
+            var tile = new Border
+            {
+                Child = t, Padding = new Thickness(10, 7, 10, 7), Margin = new Thickness(0, 0, 8, 8), CornerRadius = new CornerRadius(6), Cursor = Cursors.Hand,
+                BorderThickness = new Thickness(1), BorderBrush = B(on ? TpBlue : Color.FromRgb(0x2A, 0x2D, 0x35)),
+                Background = B(on ? Color.FromArgb(0x1E, TpBlue.R, TpBlue.G, TpBlue.B) : Color.FromArgb(0x0A, 0xFF, 0xFF, 0xFF)),
+            };
+            tile.MouseEnter += (_, _) => { if (!on) tile.BorderBrush = B(Color.FromRgb(0x44, 0x48, 0x52)); };
+            tile.MouseLeave += (_, _) => { if (!on) tile.BorderBrush = B(Color.FromRgb(0x2A, 0x2D, 0x35)); };
+            tile.MouseLeftButtonUp += (_, _) => { _trAct = key; Build(); };
+            grid.Children.Add(tile);
+        }
+        Grid.SetColumn(grid, 1);
+        g.Children.Add(grid);
+        var note = fromMatches ? Loc.T("from Pulse's saved matches · open VALORANT for Riot's full record")
+            : _trAct != "all" ? Loc.F("{0} acts · the page below shows {1}", acts.Count, sel.Name.Length > 0 ? sel.Name : Loc.T("this act")) : Loc.F("{0} acts", acts.Count);
+        return Flat("Competitive acts", g, note);
     }
 
     FrameworkElement ActsPanel(Profile p)

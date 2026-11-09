@@ -23,12 +23,32 @@ public partial class ValorantPage
     static string _downloadText;
 
     /// <summary>Your matches for the coach: the account of your newest match (so a second account doesn't mix in).</summary>
-    static List<VMatch> CoachMatches()
+    /// <remarks>
+    /// With more than one Riot account on this PC: the one signed in to the Riot Client, when Pulse has its matches;
+    /// otherwise the account with the newest match. Kept until a match is saved, so the page doesn't redo it per click.
+    /// </remarks>
+    static List<VMatch> CoachMatches() => Memo("coach:" + ValorantMatches.SignedIn, () =>
     {
         var all = VStore.ForCoach();
         if (all.Count == 0) return all;
-        var me = all[0].Me;
+        var me = ValorantMatches.SignedIn is { } signed && all.Any(m => m.Me == signed) ? signed : all[0].Me;
         return all.Where(m => m.Me == me).Take(60).ToList();
+    });
+
+    static readonly Dictionary<string, object> _memo = new();
+    static int _memoVersion = -1;
+
+    /// <summary>Something worked out from the saved matches, kept until a match is saved.</summary>
+    internal static T Memo<T>(string key, Func<T> make)
+    {
+        lock (_memo)
+        {
+            if (_memoVersion != VStore.Version) { _memo.Clear(); _memoVersion = VStore.Version; }
+            if (_memo.TryGetValue(key, out var v) && v is T t) return t;
+        }
+        var made = make();
+        lock (_memo) _memo[key] = made;
+        return made;
     }
 
     void BuildCoach()

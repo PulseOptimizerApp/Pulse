@@ -4836,5 +4836,14 @@
  "Damage dealt minus taken, per round": "Daño hecho menos recibido, por ronda",
  "The Riot Client isn't running. Open VALORANT or the Riot Client, then try again.": "El cliente de Riot no está abierto. Abre VALORANT o el cliente de Riot e inténtalo de nuevo.",
  "The Riot Client didn't answer. If it's open, make sure you're signed in, then try again.": "El cliente de Riot no respondió. Si está abierto, comprueba que has iniciado sesión e inténtalo de nuevo.",
- "Pulse couldn't tell which region your account is in. Start VALORANT once, then try again.": "Pulse no pudo saber en qué región está tu cuenta. Inicia VALORANT una vez e inténtalo de nuevo."
+ "Pulse couldn't tell which region your account is in. Start VALORANT once, then try again.": "Pulse no pudo saber en qué región está tu cuenta. Inicia VALORANT una vez e inténtalo de nuevo.",
+ "Competitive acts": "Actos competitivos",
+ "CURRENT": "ACTUAL",
+ "Rating": "Rango",
+ "no games": "sin partidas",
+ "{0} acts · the page below shows {1}": "{0} actos · abajo se muestra {1}",
+ "this act": "este acto",
+ "No saved matches from this act": "No hay partidas guardadas de este acto",
+ "Riot shares only the rank, record and peak for earlier acts (shown above), not the matches themselves. Pulse keeps every match you play from now on, so future acts get the full breakdown.": "Riot solo comparte el rango, el récord y el máximo de los actos anteriores (arriba), no las partidas. Pulse guarda cada partida que juegues desde ahora, así que los próximos actos tendrán el desglose completo.",
+ "Show all matches": "Mostrar todas las partidas"
 }

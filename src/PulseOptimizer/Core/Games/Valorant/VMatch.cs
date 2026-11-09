@@ -307,11 +307,16 @@ public static class VStore
                     JsonSerializer.Serialize(gz, m);
                 File.Move(file + ".tmp", file, true);
                 if (_cache != null) { _cache.RemoveAll(x => x.Id == m.Id); _cache.Add(m); _cache.Sort((a, b) => b.StartUtc.CompareTo(a.StartUtc)); }
+                Interlocked.Increment(ref _version);
             }
             catch { }
         }
         try { Changed?.Invoke(); } catch { }
     }
+
+    static int _version;
+    /// <summary>Goes up every time a match is saved: anything worked out from the saved matches can be kept until it changes.</summary>
+    public static int Version => _version;
 
     /// <summary>Every saved match, newest first (read once, then kept in memory).</summary>
     public static List<VMatch> All

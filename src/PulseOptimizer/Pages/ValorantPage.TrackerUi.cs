@@ -24,7 +24,11 @@ public partial class ValorantPage
 
     static Color A(Color c, byte a) => Color.FromArgb(a, c.R, c.G, c.B);
     static SolidColorBrush B(Color c) { var b = new SolidColorBrush(c); b.Freeze(); return b; }
-    static DropShadowEffect Glow(Color c, double blur = 18, double opacity = 0.65) => new() { Color = c, BlurRadius = blur, ShadowDepth = 0, Opacity = opacity };
+    /// <summary>
+    /// Was a soft glow (a blur effect). Effects are redrawn on every frame while scrolling and made the page lag, so it's
+    /// off: the colored gradients carry the look instead.
+    /// </summary>
+    static DropShadowEffect Glow(Color c, double blur = 18, double opacity = 0.65) => null;
 
     /// <summary>The color VALORANT uses for each rank.</summary>
     static Color RankColor(int tier) => tier switch
@@ -149,7 +153,6 @@ public partial class ValorantPage
 
         var face = new Border { Width = 56, Height = 56, CornerRadius = new CornerRadius(13), Margin = new Thickness(0, 0, 16, 0), BorderBrush = B(Color.FromRgb(0x2C, 0x2E, 0x36)), BorderThickness = new Thickness(2) };
         face.Background = MatchArt.AgentIcon(mainAgent) is { } art ? new ImageBrush(art) { Stretch = Stretch.UniformToFill } : B(Color.FromRgb(0x22, 0x22, 0x26));
-        face.Effect = new DropShadowEffect { BlurRadius = 24, ShadowDepth = 6, Opacity = 0.5, Color = Colors.Black };
         g.Children.Add(face);
 
         var mid = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
@@ -470,6 +473,20 @@ public partial class ValorantPage
         // The tracker.
         yield return FilterBar(p);
         var ms = CurrentFilter(p).Apply(p.Matches).OrderByDescending(m => m.StartUtc).ToList();
+        if (ms.Count == 0 && _trAct != "all")
+        {
+            // An act from before Pulse saved matches: Riot keeps only the rank and record (shown in the acts card).
+            var none = new StackPanel();
+            none.Children.Add(Heading("No saved matches from this act"));
+            none.Children.Add(Dim(Loc.T("Riot shares only the rank, record and peak for earlier acts (shown above), not the matches themselves. Pulse keeps every match you play from now on, so future acts get the full breakdown."), 12.5, 6));
+            var all = Btn("Show all matches");
+            all.Margin = new Thickness(0, 12, 0, 0);
+            all.HorizontalAlignment = HorizontalAlignment.Left;
+            all.Click += (_, _) => { _trAct = "all"; Build(); };
+            none.Children.Add(all);
+            yield return Card2(none, Grey);
+            yield break;
+        }
         yield return OverviewPanel(ms, p.Puuid);
         var left = new StackPanel();
         left.Children.Add(ScorePanel(ms, p.Puuid));
@@ -488,13 +505,13 @@ public partial class ValorantPage
         if (p.IsYou)
         {
             yield return SectionHead("Pulse insights", Loc.T("What only Pulse works out")).Also(h => h.Margin = new Thickness(0, 14, 0, 10));
-            var opp = Tracker.Against(mine);
+            var opp = Memo("against:" + mine.Count, () => Tracker.Against(mine));
             yield return opp != null ? OppositionCard(opp) : Card2(Waiting("Who you're up against", "Shows the ranks of your enemies and teammates once you have a match saved where most players are ranked."), Red);
             yield return MmrCard(mmr, p);
             var all = VStore.All;
-            var yours = Tracker.YourAgents(mine, all);
+            var yours = Memo("youragents:" + mine.Count, () => Tracker.YourAgents(mine, all));
             yield return yours.Count > 0 ? YourAgentsCard(yours, all, p.Puuid) : Card2(Waiting("How you play your agents", "Play an agent in two matches to see how you compare with everyone else on it."), Blue);
-            var tiers = Tracker.TierList(all);
+            var tiers = Memo("tiers", () => Tracker.TierList(all));
             int counted = all.Count(m => VMatch.Counts(m.Queue));
             yield return tiers.Count >= 4 ? TierListCard(tiers, counted) : Card2(Waiting("Agent tier list in your lobbies", Loc.F("Needs about 8 games per agent across your saved matches. You have {0} matches so far.", counted)), Yellow);
         }

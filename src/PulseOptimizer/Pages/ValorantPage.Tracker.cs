@@ -56,7 +56,7 @@ public partial class ValorantPage
             return;
         }
         var me = matches.Count > 0 ? matches[0].Me : null;
-        var people = Tracker.People(matches).Take(14).ToList();
+        var people = Memo("people:" + matches.Count, () => Tracker.People(matches).Take(14).ToList());
         // Riot IDs for players in matches saved before Pulse kept them: one lookup per session.
         if (!_trNamesTried && !_trBusy && matches.Count > 0)
         {
@@ -109,7 +109,8 @@ public partial class ValorantPage
         if (_trSearched != null && _trSel == _trSearched.Puuid && !_trSearched.FromYourMatches) p = _trSearched;
         else if (me != null)
         {
-            p = Tracker.FromYourMatches(matches, _trSel ?? me);
+            var who = _trSel ?? me;
+            p = Memo("profile:" + who + ":" + matches.Count, () => Tracker.FromYourMatches(matches, who));
             p.Name = NameBook.Get(p.Puuid) ?? (p.IsYou ? Loc.T("You") : "");
             if (p.IsYou)
             {
@@ -117,7 +118,8 @@ public partial class ValorantPage
                 {
                     p.Tier = r.Tier; p.Rr = r.Rr; p.Peak = Math.Max(r.Peak, r.Tier); p.PeakAct = r.PeakAct; p.ActWinPct = r.Win; p.ActGames = r.Games;
                     p.LastTier = r.LastTier; p.Level = r.Level; p.Acts = r.Acts ?? new();
-                    Tracker.Finish(p, ValorantLobby.SmurfSigns(r.Level, r.Tier, r.Peak, r.Win, r.Games, r.RrChanges ?? new()));
+                    var prof = p;
+                    Memo("finished:" + who + ":" + matches.Count + ":" + _trMyRankAt.Ticks, () => { Tracker.Finish(prof, ValorantLobby.SmurfSigns(r.Level, r.Tier, r.Peak, r.Win, r.Games, r.RrChanges ?? new())); return true; });
                 }
                 if (DateTime.UtcNow - _trMyRankAt > TimeSpan.FromMinutes(5)) _ = LoadMyRank();
             }
