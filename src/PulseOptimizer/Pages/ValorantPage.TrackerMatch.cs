@@ -295,7 +295,7 @@ public partial class ValorantPage
     {
         var sp = new StackPanel();
         var parties = Parties(m);
-        var rows = m.Players.Select(p => new SbRow(p, Analysis.Totals(m, p.Id), Tracker.MatchScore(m, p.Id), Stats.MultiKills(m, p.Id).Skip(3).Sum())).ToList();
+        var rows = Memo("sbrows:" + m.Id, () => m.Players.Select(p => new SbRow(p, TotalsOf(m, p.Id), ScoreOf(m, p.Id), Stats.MultiKills(m, p.Id).Skip(3).Sum())).ToList());
         var mvp = rows.OrderByDescending(r => r.P.Score).FirstOrDefault()?.P.Id;
         var cols = new (string Key, string Head, string Tip, double W)[]
         {
@@ -485,7 +485,7 @@ public partial class ValorantPage
 
         // The player card.
         var tc = TeamColor(p.Team);
-        var t = Analysis.Totals(m, pid);
+        var t = TotalsOf(m, pid);
         var card = new Grid { Background = new LinearGradientBrush(A(tc, 0x26), A(tc, 0x08), 0) };
         card.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         card.ColumnDefinitions.Add(new ColumnDefinition());

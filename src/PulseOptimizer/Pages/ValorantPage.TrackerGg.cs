@@ -151,6 +151,12 @@ public partial class ValorantPage
         return Ago(utc);
     }
 
+    // Per-match numbers, worked out once (until a match is saved) instead of on every redraw.
+    static PlayerTotals TotalsOf(VMatch m, string id) => Memo("tot:" + m.Id + ":" + id, () => Analysis.Totals(m, id));
+    static double ScoreOf(VMatch m, string id) => Memo("score:" + m.Id + ":" + id, () => (object)Tracker.MatchScore(m, id)) is double d ? d : double.NaN;
+    static List<(string Text, Color C)> BadgesOf(VMatch m, string id) => Memo("badges:" + m.Id + ":" + id, () => Badges(m, id));
+    static Overview OverviewOf(List<VMatch> ms, string id) => Memo("ovr:" + id + ":" + ms.Count + ":" + string.Join(",", ms.Select(m => m.Id)).GetHashCode(), () => Stats.Of(ms, id));
+
     // ───────── which matches ─────────
 
     /// <summary>The profile's matches plus its Deathmatch games (kept for the Deathmatch playlist only).</summary>
@@ -419,7 +425,7 @@ public partial class ValorantPage
             Small("4K", o.FourK.ToString(CultureInfo.CurrentCulture));
             Small("Rounds", o.Rounds.ToString("N0", CultureInfo.CurrentCulture));
             Small("Damage", Short(o.Damage));
-            Small("Pulse score", N(ms.Select(m => Tracker.MatchScore(m, p.Puuid)).Where(x => !double.IsNaN(x)).DefaultIfEmpty(double.NaN).Average()), tip: "One match's overall impact (0–1000), averaged.");
+            Small("Pulse score", N(ms.Select(m => ScoreOf(m, p.Puuid)).Where(x => !double.IsNaN(x)).DefaultIfEmpty(double.NaN).Average()), tip: "One match's overall impact (0–1000), averaged.");
         }
         body.Children.Add(grid);
         sp.Children.Add(TgBox(body, 14));
@@ -684,7 +690,7 @@ public partial class ValorantPage
         }
 
         // Summary: record, K/D and ADR, and the top three agents.
-        var o = Stats.Of(ms, id);
+        var o = OverviewOf(ms, id);
         var sum = new Grid { Margin = new Thickness(12) };
         sum.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         sum.ColumnDefinitions.Add(new ColumnDefinition());
@@ -722,7 +728,7 @@ public partial class ValorantPage
             var team = m.TeamOf(id);
             int us = m.Rounds.Count(r => r.Winner == team), them = m.Rounds.Count(r => r.Winner.Length > 0 && r.Winner != team);
             var c = us > them ? TgWin : us < them ? TgLoss : TgDim;
-            var t = Analysis.Totals(m, id);
+            var t = TotalsOf(m, id);
             var tile = new StackPanel { Margin = new Thickness(4, 8, 4, 8) };
             tile.Children.Add(Txt(AgoShort(m.StartUtc), 10, TgDim, false, HorizontalAlignment.Center));
             var score = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 3, 0, 4) };
@@ -741,7 +747,7 @@ public partial class ValorantPage
 
         // Day by day.
         var days = new StackPanel { Margin = new Thickness(10, 4, 10, 10) };
-        foreach (var day in Stats.Days(ms, id))
+        foreach (var day in Memo("days:" + id + ":" + ms.Count + ":" + string.Join(",", ms.Select(m => m.Id)).GetHashCode(), () => Stats.Days(ms, id)))
         {
             days.Children.Add(DayHeader(day));
             foreach (var m in day.Matches) days.Children.Add(MatchRowGg(m, id));
@@ -822,7 +828,7 @@ public partial class ValorantPage
         if (mk[5] > 0) list.Insert(0, (Loc.T("Ace") + (mk[5] > 1 ? $" x{mk[5]}" : ""), TgYellow));
         if (mk[4] > 0) list.Add(("4k" + (mk[4] > 1 ? $" x{mk[4]}" : ""), TgYellow));
         if (mk[3] > 0) list.Add(("3k" + (mk[3] > 1 ? $" x{mk[3]}" : ""), TgYellow));
-        var t = Analysis.Totals(m, id);
+        var t = TotalsOf(m, id);
         if (t.Rounds >= 10 && t.KastPct >= 90) list.Add((Loc.T("High KAST"), TgYellow));
         return list;
     }
@@ -837,9 +843,9 @@ public partial class ValorantPage
         bool won = us > them, draw = us == them;
         bool dm = m.Queue == "deathmatch";
         var c = draw || dm ? TgDim : won ? TgWin : TgLoss;
-        var t = Analysis.Totals(m, id);
+        var t = TotalsOf(m, id);
         var place = Stats.PlaceOf(m, id);
-        double score = Tracker.MatchScore(m, id);
+        double score = ScoreOf(m, id);
 
         var g = new Grid { Margin = new Thickness(12, 6, 6, 6) };
         g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(52) });
@@ -885,7 +891,7 @@ public partial class ValorantPage
         trs.Children.Add(trsT);
         Put(4, trs);
         var badges = new WrapPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 0, 6, 0) };
-        foreach (var (text, bc) in Badges(m, id).Take(4))
+        foreach (var (text, bc) in BadgesOf(m, id).Take(4))
             badges.Children.Add(new Border { CornerRadius = new CornerRadius(3), BorderBrush = B(A(bc, 0xA0)), BorderThickness = new Thickness(1), Background = B(A(bc, 0x14)), Padding = new Thickness(5, 1, 5, 2), Margin = new Thickness(0, 2, 5, 2), Child = Txt(text, 10, bc, true) });
         Put(5, badges);
         var kda = me != null && me.Deaths > 0 ? (double)(me.Kills + me.Assists) / me.Deaths : (me?.Kills ?? 0) + (me?.Assists ?? 0);
@@ -922,14 +928,14 @@ public partial class ValorantPage
             sp.Children.Add(TgBox(Txt(Loc.T("Needs two or more matches."), 12.5, TgDim).Also(t => t.Margin = new Thickness(14))));
             return sp;
         }
-        var totals = list.Select(m => Analysis.Totals(m, id)).ToList();
+        var totals = list.Select(m => TotalsOf(m, id)).ToList();
         var grid = new UniformGrid { Columns = 2, Margin = new Thickness(0, 0, -12, 0) };
         void Chart(string title, IEnumerable<double> values, string fmt, Color c, string tip)
         {
             var v = values.ToList();
             grid.Children.Add(TrendChart(title, v, fmt, c, tip).Also(x => x.Margin = new Thickness(0, 0, 12, 12)));
         }
-        Chart("Pulse score", list.Select(m => Tracker.MatchScore(m, id)), "0", TgYellow, "One match's overall impact (0–1000). 500 is average.");
+        Chart("Pulse score", list.Select(m => ScoreOf(m, id)), "0", TgYellow, "One match's overall impact (0–1000). 500 is average.");
         Chart("K/D Ratio", totals.Select(t => t.KdRatio), "0.00", TgWin, "Kills per death in each match.");
         Chart("ACS", totals.Select(t => t.Acs), "0", Color.FromRgb(0x4D, 0xA3, 0xFF), "Average combat score in each match.");
         Chart("Damage/Round", totals.Select(t => t.Adr), "0", Color.FromRgb(0xC9, 0xA2, 0xFF), "Damage per round in each match.");
