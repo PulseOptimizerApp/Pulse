@@ -24,6 +24,10 @@ public sealed class MouseHost : IDisposable
 
     static int _holds;
 
+    /// <summary>How devices are listed and opened: Windows' HID normally; a simulated mouse in tests.</summary>
+    public static Func<List<Hid.DeviceInfo>> ListDevices = Hid.List;
+    public static Func<Hid.DeviceInfo, Hid.ILink> Connect = info => new Hid.Connection(info);
+
     // ───────── diagnostics: what was said to the device (the last 400 lines) ─────────
 
     static readonly LinkedList<string> Trace = new();
@@ -62,10 +66,12 @@ public sealed class MouseHost : IDisposable
     public static string Script()
     {
         var asm = typeof(MouseHost).Assembly;
-        var name = asm.GetManifestResourceNames().FirstOrDefault(n => n.EndsWith("openmouse.js", StringComparison.OrdinalIgnoreCase));
+        // Embedded compressed (about 350 KB instead of 2 MB): unpacked only when the engine starts.
+        var name = asm.GetManifestResourceNames().FirstOrDefault(n => n.EndsWith("openmouse.js.gz", StringComparison.OrdinalIgnoreCase));
         if (name == null) return null;
         using var s = asm.GetManifestResourceStream(name)!;
-        using var r = new StreamReader(s, Encoding.UTF8);
+        using var gz = new System.IO.Compression.GZipStream(s, System.IO.Compression.CompressionMode.Decompress);
+        using var r = new StreamReader(gz, Encoding.UTF8);
         return r.ReadToEnd();
     }
 
@@ -74,7 +80,7 @@ public sealed class MouseHost : IDisposable
     readonly List<(DateTime Due, int Id)> _timers = new();
     readonly ConcurrentDictionary<int, TaskCompletionSource<string>> _calls = new();
     readonly Dictionary<string, Hid.DeviceInfo> _infos = new();
-    readonly ConcurrentDictionary<string, Hid.Connection> _open = new();
+    readonly ConcurrentDictionary<string, Hid.ILink> _open = new();
     readonly Dictionary<string, int> _users = new();
     readonly TaskCompletionSource<bool> _ready = new(TaskCreationOptions.RunContinuationsAsynchronously);
     Engine _engine;
@@ -138,7 +144,7 @@ public sealed class MouseHost : IDisposable
                 foreach (var id in due) _engine.Invoke("__pulseFire", id);
                 _engine.Advanced.ProcessTasks();
             }
-            catch (Exception ex) { Log?.Invoke(ex.Message); }
+            catch (Exception ex) { Note("engine error: " + ex.Message); Log?.Invoke(ex.Message); }
         }
     }
 
@@ -172,12 +178,12 @@ public sealed class MouseHost : IDisposable
 
         public string list()
         {
-            var all = Hid.List();
+            var all = ListDevices();
             lock (_h._infos) { _h._infos.Clear(); foreach (var d in all) _h._infos[d.Key] = d; }
             return DevicesJson(all);
         }
 
-        public void open(double token, string key) => _h.Answer(token, () =>
+        public void open(double token, string key) => _h.Answer(token, "open " + key, () =>
         {
             // The Mouse page and a game profile can use the same mouse at once: count the users of each connection.
             lock (_h._users) _h._users[key] = _h._users.GetValueOrDefault(key) + 1;
@@ -185,7 +191,7 @@ public sealed class MouseHost : IDisposable
             Hid.DeviceInfo info;
             lock (_h._infos) _h._infos.TryGetValue(key, out info);
             if (info == null) throw new IOException("That device isn't connected any more.");
-            var c = new Hid.Connection(info);
+            var c = Connect(info);
             int inputs = 0;
             c.Input += (id, data) =>
             {
@@ -197,7 +203,7 @@ public sealed class MouseHost : IDisposable
             return Task.FromResult<string>(null);
         });
 
-        public void close(double token, string key) => _h.Answer(token, () =>
+        public void close(double token, string key) => _h.Answer(token, "close " + key, () =>
         {
             lock (_h._users)
             {
@@ -219,7 +225,7 @@ public sealed class MouseHost : IDisposable
             _h.Answer(token, $"get feature {id}", async () => Convert.ToHexString(await _h.Conn(key).GetFeature((byte)id)).ToLowerInvariant());
     }
 
-    Hid.Connection Conn(string key) =>
+    Hid.ILink Conn(string key) =>
         _open.TryGetValue(key, out var c) ? c : throw new IOException("The device isn't open.");
 
     /// <summary>Runs <paramref name="work"/> off the script thread, then hands the result back to the script.</summary>
@@ -232,12 +238,12 @@ public sealed class MouseHost : IDisposable
         {
             var v = await work();
             if (what != null) Note(v == null ? what : $"{what} → {Short(v)}");
-            Post(() => _engine.Invoke("__pulseDone", token, true, v));
+            Post(() => _engine.Invoke("__pulseDone", (int)token, true, v));
         }
         catch (Exception ex)
         {
             Note($"{what ?? "call"} failed: {ex.Message}");
-            Post(() => _engine.Invoke("__pulseDone", token, false, ex.Message));
+            Post(() => _engine.Invoke("__pulseDone", (int)token, false, ex.Message));
         }
     });
 

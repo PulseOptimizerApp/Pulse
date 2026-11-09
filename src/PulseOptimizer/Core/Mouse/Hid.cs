@@ -174,11 +174,22 @@ public static class Hid
     /// An interface opened for settings. Each collection that can be opened read/write is; Windows keeps the pointer
     /// and keyboard collections for itself, so those stay closed (drivers don't need them).
     /// </summary>
-    public sealed class Connection : IDisposable
+    /// <summary>An opened device as the mouse engine uses it (a real <see cref="Connection"/>, or a simulated mouse in tests).</summary>
+    public interface ILink : IDisposable
+    {
+        event Action<byte, byte[]> Input;
+        Task SendReport(byte reportId, byte[] data);
+        Task SendFeature(byte reportId, byte[] data);
+        Task<byte[]> GetFeature(byte reportId);
+    }
+
+    public sealed class Connection : ILink
     {
         readonly DeviceInfo _info;
         readonly Dictionary<Collection, FileStream> _open = new();
         readonly CancellationTokenSource _stop = new();
+        // Where each feature report was last sent: its answer is read back from the same collection.
+        readonly System.Collections.Concurrent.ConcurrentDictionary<byte, Collection> _featureCol = new();
 
         /// <summary>An input report arrived: report ID and its data (without the ID).</summary>
         public event Action<byte, byte[]> Input;
@@ -203,16 +214,25 @@ public static class Hid
             if (_open.Count == 0) throw new IOException("Windows didn't let Pulse open this device's settings channel.");
         }
 
-        FileStream For(Func<Collection, List<byte>> ids, byte reportId, out Collection col)
+        /// <summary>
+        /// The collection that takes this report. Without report IDs several collections can all take "report 0": then
+        /// the one whose report is the size being sent wins (Windows refuses a report of the wrong length), then the
+        /// vendor-defined one (where settings live).
+        /// </summary>
+        FileStream For(Func<Collection, List<byte>> ids, byte reportId, out Collection col, Func<Collection, int> length = null, int wanted = 0)
         {
-            foreach (var (c, fs) in _open)
-                if (ids(c).Contains(reportId)) { col = c; return fs; }
-            throw new IOException($"No collection on this device takes report {reportId}.");
+            var hits = _open.Where(x => ids(x.Key).Contains(reportId))
+                .OrderByDescending(x => length != null && wanted > 0 && length(x.Key) == wanted)
+                .ThenByDescending(x => x.Key.UsagePage >= 0xFF00)
+                .ToList();
+            if (hits.Count == 0) throw new IOException($"No collection on this device takes report {reportId}.");
+            col = hits[0].Key;
+            return hits[0].Value;
         }
 
         public async Task SendReport(byte reportId, byte[] data)
         {
-            var fs = For(c => c.OutputIds, reportId, out var col);
+            var fs = For(c => c.OutputIds, reportId, out var col, c => c.OutputLength, data.Length + 1);
             var buf = new byte[Math.Max(col.OutputLength, data.Length + 1)];
             buf[0] = reportId;
             Array.Copy(data, 0, buf, 1, Math.Min(data.Length, buf.Length - 1));
@@ -221,7 +241,8 @@ public static class Hid
 
         public Task SendFeature(byte reportId, byte[] data) => Task.Run(() =>
         {
-            var fs = For(c => c.FeatureIds, reportId, out var col);
+            var fs = For(c => c.FeatureIds, reportId, out var col, c => c.FeatureLength, data.Length + 1);
+            _featureCol[reportId] = col;
             var buf = new byte[Math.Max(col.FeatureLength, data.Length + 1)];
             buf[0] = reportId;
             Array.Copy(data, 0, buf, 1, Math.Min(data.Length, buf.Length - 1));
@@ -231,7 +252,10 @@ public static class Hid
         /// <summary>A feature report, with its ID as the first byte (as Chrome returns it), unless the device uses no IDs.</summary>
         public Task<byte[]> GetFeature(byte reportId) => Task.Run(() =>
         {
-            var fs = For(c => c.FeatureIds, reportId, out var col);
+            Collection col;
+            FileStream fs;
+            if (_featureCol.TryGetValue(reportId, out var sent) && _open.TryGetValue(sent, out var same)) { col = sent; fs = same; }
+            else fs = For(c => c.FeatureIds, reportId, out col);
             var buf = new byte[Math.Max(col.FeatureLength, 2)];
             buf[0] = reportId;
             if (!HidD_GetFeature(fs.SafeFileHandle, buf, buf.Length)) throw new IOException($"The device didn't answer feature report {reportId} (error {Marshal.GetLastWin32Error()}).");

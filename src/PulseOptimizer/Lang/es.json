@@ -5247,5 +5247,11 @@
  "Not connected": "Sin conectar",
  "Open": "Abrir",
  "Open it to read its settings": "Ábrelo para leer sus ajustes",
- "Plug in your mouse (or its receiver), then scan to adjust its onboard settings.": "Conecta tu ratón (o su receptor) y busca para ajustar su configuración integrada."
+ "Plug in your mouse (or its receiver), then scan to adjust its onboard settings.": "Conecta tu ratón (o su receptor) y busca para ajustar su configuración integrada.",
+ "Reading its settings… Some wireless mice take up to 30 seconds the first time.": "Leyendo sus ajustes… Algunos ratones inalámbricos tardan hasta 30 segundos la primera vez.",
+ "Add a stage": "Añadir un nivel",
+ "Pick a DPI between {0} and {1}.": "Elige un DPI entre {0} y {1}.",
+ "Pick a debounce between 0 and {0} ms.": "Elige un debounce entre 0 y {0} ms.",
+ "Remove the last stage": "Quitar el último nivel",
+ "ms (0–{0})": "ms (0–{0})"
 }

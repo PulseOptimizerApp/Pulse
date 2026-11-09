@@ -11,11 +11,12 @@ const g = globalThis;
 g.window = g;
 let timerSeq = 1;
 const timers = new Map();
-g.setTimeout = (fn, ms, ...args) => { const id = timerSeq++; timers.set(id, () => fn(...args)); __pulseHost.timer(id, Number(ms) || 0); return id; };
-g.clearTimeout = (id) => { timers.delete(id); };
+// Timers are keyed by text too (see host() below).
+g.setTimeout = (fn, ms, ...args) => { const id = timerSeq++; timers.set(String(id), () => fn(...args)); __pulseHost.timer(id, Number(ms) || 0); return id; };
+g.clearTimeout = (id) => { timers.delete(String(id)); };
 g.setInterval = (fn, ms) => { let id; const tick = () => { fn(); id = g.setTimeout(tick, ms); }; id = g.setTimeout(tick, ms); return { cancel: () => g.clearTimeout(id) }; };
 g.clearInterval = (h) => h?.cancel?.();
-g.__pulseFire = (id) => { const f = timers.get(id); timers.delete(id); if (f) f(); };
+g.__pulseFire = (id) => { const key = String(Math.round(Number(id))); const f = timers.get(key); timers.delete(key); if (f) f(); };
 g.performance = g.performance ?? { now: () => Date.now() };
 g.crypto = g.crypto ?? { getRandomValues: (a) => { for (let i = 0; i < a.length; i++) a[i] = Math.floor(Math.random() * 256); return a; } };
 g.structuredClone = g.structuredClone ?? ((v) => (v === undefined ? v : JSON.parse(JSON.stringify(v))));
@@ -35,13 +36,16 @@ const pending = new Map();
 function host(method, ...args) {
   return new Promise((resolve, reject) => {
     const token = callSeq++;
-    pending.set(token, { resolve, reject });
+    // Keyed by text: the script engine can hand a number back as 1.0 where it was stored as 1, and a Map treats
+    // those as different keys, so the answer would never find its call (the "Connecting…" that never ended).
+    pending.set(String(token), { resolve, reject });
     __pulseHid[method](token, ...args);
   });
 }
 g.__pulseDone = (token, ok, value) => {
-  const p = pending.get(token);
-  pending.delete(token);
+  const key = String(Math.round(Number(token)));
+  const p = pending.get(key);
+  pending.delete(key);
   if (!p) return;
   if (ok) p.resolve(value); else p.reject(new Error(value));
 };
@@ -146,7 +150,11 @@ g.PulseMouse = {
     users.set(key, (users.get(key) ?? 0) + 1);
     let brand = "";
     try { brand = deviceBrand(client); } catch {}
-    return toJson({ id, brand, methods: methodsOf(client) });
+    // Option lists a driver publishes (sleep timeouts in seconds, debounce choices), as OpenMouse reads them.
+    const list = (name) => { try { const v = typeof client[name] === "function" ? client[name]() : null; return Array.isArray(v) ? [...v] : null; } catch { return null; } };
+    const num = (name) => { try { const v = typeof client[name] === "function" ? client[name]() : null; return typeof v === "number" ? v : null; } catch { return null; } };
+    const options = { sleep: list("getSleepOptions"), debounce: list("getDebounceOptions"), debounceMax: num("getDebounceMaxMs"), canDisableSleep: client.canDisableSleep === true };
+    return toJson({ id, brand, methods: methodsOf(client), options });
   },
   async status(id) {
     const c = clients.get(id)?.client;

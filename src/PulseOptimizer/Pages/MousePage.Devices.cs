@@ -43,15 +43,20 @@ public partial class MousePage
     List<Found> _found = new();
     Found _current;
     int _clientId;
+    // Bumped whenever the page starts over (a new scan, a device opened, the page closed): an answer that arrives for an
+    // older one is ignored instead of drawing over what's on screen now.
+    int _gen;
     string _openKey;   // the device _clientId is connected to: it stays connected while the page is open
     // What each device said when it was read (name, battery, polling…), its brand and its picture, for its card.
     readonly Dictionary<string, (JsonElement Status, string Brand, string Image)> _known = new();
     string _brand = "";
+    JsonElement _options;   // what the driver publishes: sleep timeouts (seconds), debounce choices and ceiling
     HashSet<string> _methods = new();
     JsonElement _status;
     bool _busy;
     string _tab = "overview";
     string _error;
+    string _hint;   // a typed value that's out of range: shown once, doesn't mark the device as not answering
     readonly StackPanel _tabBody = new();
 
     // ───────── page views ─────────
@@ -68,6 +73,8 @@ public partial class MousePage
 
     async void ScanMice()
     {
+        int gen = ++_gen;
+        _busy = false;
         _current = null;
         if (_clientId != 0 && MouseHost.Instance is { } open) { try { await open.Run("close", _clientId).WaitAsync(TimeSpan.FromSeconds(5)); } catch { } }
         _clientId = 0; _openKey = null; _known.Clear();
@@ -77,6 +84,7 @@ public partial class MousePage
         try
         {
             var json = await host.Run("scan").WaitAsync(TimeSpan.FromSeconds(20));
+            if (gen != _gen) return;
             // One card per device: a mouse and its receiver can show up several times; keep the best match of each.
             _found = JsonSerializer.Deserialize<List<JsonElement>>(json)!
                 .Select(e => new Found(e.GetProperty("key").GetString(), e.GetProperty("vendorId").GetInt32(), e.GetProperty("productId").GetInt32(),
@@ -86,7 +94,7 @@ public partial class MousePage
                 .OrderBy(f => f.Kind is "Mouse" or "Receiver" ? 0 : 1).ToList();
             ShowList(null);
         }
-        catch (Exception ex) { ShowList(Loc.F("Couldn't look for devices: {0}", ex.Message)); }
+        catch (Exception ex) { if (gen == _gen) ShowList(Loc.F("Couldn't look for devices: {0}", ex.Message)); }
     }
 
     void ShowList(string message)
@@ -197,6 +205,7 @@ public partial class MousePage
     {
         var host = MouseHost.Instance;
         if (host == null || _busy) return;
+        int gen = ++_gen;
         _busy = true;
         _current = f;
         _tab = "overview";
@@ -206,9 +215,10 @@ public partial class MousePage
         {
             _status = had.Status;
             ShowDevice(null);
-            try { await ReadStatus(); }
-            catch (Exception ex) { _error = Loc.F("Couldn't connect: {0}", ex is TimeoutException ? Loc.T("no answer") : ex.Message); ShowDevice(null); }
-            finally { _busy = false; }
+            try { await ReadStatus(gen); }
+            catch (Exception ex) when (gen == _gen) { _error = Loc.F("Couldn't connect: {0}", ex is TimeoutException ? Loc.T("no answer") : ex.Message); ShowDevice(null); }
+            catch { }
+            finally { if (gen == _gen) _busy = false; }
             return;
         }
         _status = default;
@@ -219,16 +229,20 @@ public partial class MousePage
             if (_clientId != 0) { try { await host.Run("close", _clientId).WaitAsync(TimeSpan.FromSeconds(5)); } catch { } _clientId = 0; }
             if (_openKey != null) _known.Remove(_openKey);
             _openKey = null;
-            var opened = JsonSerializer.Deserialize<JsonElement>(await host.Run("open", f.Key).WaitAsync(TimeSpan.FromSeconds(15)));
+            var openedJson = await host.Run("open", f.Key).WaitAsync(TimeSpan.FromSeconds(15));
+            if (gen != _gen) return;
+            var opened = JsonSerializer.Deserialize<JsonElement>(openedJson);
             _clientId = opened.GetProperty("id").GetInt32();
             _openKey = f.Key;
             _brand = opened.TryGetProperty("brand", out var brand) ? brand.GetString() ?? "" : "";
             _methods = opened.GetProperty("methods").EnumerateArray().Select(m => m.GetString()).ToHashSet();
+            _options = opened.TryGetProperty("options", out var opts) ? opts.Clone() : default;
             Profiles.Device = MouseSettings.DeviceId(f.VendorId, f.ProductId);
             Core.TweakEngine.Save();
-            ShowDevice(Loc.T("Reading its settings…"));
-            await ReadStatus();
+            ShowDevice(Loc.T("Reading its settings… Some wireless mice take up to 30 seconds the first time."));
+            await ReadStatus(gen);
         }
+        catch (Exception) when (gen != _gen) { }   // the page moved on (closed, rescanned, another device opened)
         catch (TimeoutException)
         {
             _error = f.Kind == "Receiver" || f.Name.Contains("receiver", StringComparison.OrdinalIgnoreCase)
@@ -237,13 +251,15 @@ public partial class MousePage
             ShowDevice(null);
         }
         catch (Exception ex) { _error = Loc.F("Couldn't connect: {0}", ex.Message); ShowDevice(null); }
-        finally { _busy = false; }
+        finally { if (gen == _gen) _busy = false; }
     }
 
-    async Task ReadStatus()
+    async Task ReadStatus(int gen)
     {
         var host = MouseHost.Instance!;
-        _status = JsonSerializer.Deserialize<JsonElement>(await host.Run("status", _clientId).WaitAsync(TimeSpan.FromSeconds(45)));
+        var json = await host.Run("status", _clientId).WaitAsync(TimeSpan.FromSeconds(30));
+        if (gen != _gen) return;
+        _status = JsonSerializer.Deserialize<JsonElement>(json);
         if (_current != null)
         {
             // The picture comes from the name the device gives itself (a receiver only knows its mouse once asked).
@@ -254,6 +270,7 @@ public partial class MousePage
                 if (!string.IsNullOrEmpty(byName)) image = byName;
             }
             catch { }
+            if (gen != _gen || _current == null) return;
             _known[_current.Key] = (_status, _brand, image);
         }
         ShowDevice(null);
@@ -263,14 +280,18 @@ public partial class MousePage
     async void Set(string method, params object[] args)
     {
         if (_busy || _clientId == 0) return;
+        int gen = _gen;
         _busy = true;
+        _error = null;
         try
         {
             await MouseHost.Instance!.Run("call", _clientId, method, JsonSerializer.Serialize(args)).WaitAsync(TimeSpan.FromSeconds(20));
-            await ReadStatus();
+            if (gen != _gen) return;
+            await ReadStatus(gen);
         }
+        catch (Exception) when (gen != _gen) { }
         catch (Exception ex) { _error = Loc.F("The device didn't take that: {0}", ex is TimeoutException ? Loc.T("no answer") : ex.Message); ShowDevice(null); }
-        finally { _busy = false; }
+        finally { if (gen == _gen) _busy = false; }
     }
 
     // ───────── reading the status ─────────
@@ -283,13 +304,41 @@ public partial class MousePage
         ? _status.GetProperty(name).EnumerateArray().Where(x => x.ValueKind == JsonValueKind.Number).Select(x => x.GetDouble()).ToList() : new();
     bool Hint(string name) => Has("ui") && _status.GetProperty("ui").TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.True;
 
+    List<int> Option(string name) => _options.ValueKind == JsonValueKind.Object && _options.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.Array
+        ? v.EnumerateArray().Where(x => x.ValueKind == JsonValueKind.Number).Select(x => (int)x.GetDouble()).ToList() : null;
+    double OptionNum(string name) => _options.ValueKind == JsonValueKind.Object && _options.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.Number ? v.GetDouble() : double.NaN;
+
+    /// <summary>The driver's DPI range and step (its stage editor), or a safe default.</summary>
+    (int Min, int Max, int Step, int MaxStages, bool CountEditable) DpiRange()
+    {
+        int min = 50, max = 30000, step = 50, stages = 0; bool count = false;
+        if (Has("ui") && _status.GetProperty("ui").TryGetProperty("dpiStageEditor", out var e) && e.ValueKind == JsonValueKind.Object)
+        {
+            int Int(string n, int d) => e.TryGetProperty(n, out var v) && v.ValueKind == JsonValueKind.Number ? (int)v.GetDouble() : d;
+            min = Int("minDpi", min); max = Int("maxDpi", max); step = Math.Max(1, Int("stepDpi", step)); stages = Int("maxStages", 0);
+            count = e.TryGetProperty("countEditable", out var c) && c.ValueKind == JsonValueKind.True;
+        }
+        return (min, max, step, stages, count);
+    }
+
+    /// <summary>A typed DPI, snapped to the driver's step and range; false (with a message) when it's out of range.</summary>
+    bool ValidDpi(double typed, out int dpi)
+    {
+        var r = DpiRange();
+        dpi = (int)(Math.Round(typed / r.Step) * r.Step);
+        if (typed >= r.Min && typed <= r.Max) return true;
+        _hint = Loc.F("Pick a DPI between {0} and {1}.", r.Min.ToString("N0", CultureInfo.CurrentCulture), r.Max.ToString("N0", CultureInfo.CurrentCulture));
+        ShowDevice(null);
+        return false;
+    }
+
     // ───────── the device screen ─────────
 
     void ShowDevice(string working)
     {
-        DevicesView.Children.Clear();
         var f = _current;
-        if (f == null) return;
+        if (f == null) { ShowList(null); return; }   // never leave the page empty
+        DevicesView.Children.Clear();
 
         // Breadcrumb: Devices / name
         var crumb = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 14) };
@@ -347,7 +396,8 @@ public partial class MousePage
                 tabs.Children.Add(t);
             }
             right.Children.Add(tabs);
-            if (_error != null) right.Children.Add(new TextBlock { Text = _error, FontSize = 12.5, Foreground = Res("BadBrush"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 10) });
+            if ((_error ?? _hint) is { } problem) right.Children.Add(new TextBlock { Text = problem, FontSize = 12.5, Foreground = Res("BadBrush"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 10) });
+            _hint = null;
             switch (_tab)
             {
                 case "performance": PerformanceTab(right); break;
@@ -416,11 +466,28 @@ public partial class MousePage
             int stage = i;
             var box = new TextBox { Style = (Style)FindResource("SearchBox"), Width = 78, Text = stages[i].ToString("0", CultureInfo.CurrentCulture), ToolTip = Loc.F("Stage {0}", i + 1), FontWeight = i == active ? FontWeights.Bold : FontWeights.Normal };
             box.GotKeyboardFocus += (_, _) => { if (stage != active && _methods.Contains("setActiveDpiStage")) Set("setActiveDpiStage", stage); };
-            box.KeyDown += (_, e) => { if (e.Key == System.Windows.Input.Key.Enter && TryNum(box.Text, out var v)) Set("setDpiStageValue", stage, (int)v); };
+            box.KeyDown += (_, e) => { if (e.Key == System.Windows.Input.Key.Enter && TryNum(box.Text, out var v) && ValidDpi(v, out var dpi)) Set("setDpiStageValue", stage, dpi); };
             var cell = new StackPanel { Margin = new Thickness(0, 0, 6, 6) };
             cell.Children.Add(box);
             cell.Children.Add(new Border { Height = 3, CornerRadius = new CornerRadius(2), Margin = new Thickness(12, 4, 12, 0), Background = i == active ? Green : Brushes.Transparent });
             row.Children.Add(cell);
+        }
+        // Add or remove a stage, where the driver allows it (as OpenMouse's stage editor does).
+        var range = DpiRange();
+        if (range.CountEditable && _methods.Contains("setDpiStageCount"))
+        {
+            if (range.MaxStages == 0 || stages.Count < range.MaxStages)
+            {
+                var add = new Button { Content = "+", ToolTip = Loc.T("Add a stage"), Style = (Style)FindResource("GhostButton"), Width = 34, Height = 34, Margin = new Thickness(0, 0, 6, 6), VerticalAlignment = VerticalAlignment.Top };
+                add.Click += (_, _) => Set("setDpiStageCount", stages.Count + 1);
+                row.Children.Add(add);
+            }
+            if (stages.Count > 1)
+            {
+                var remove = new Button { Content = "−", ToolTip = Loc.T("Remove the last stage"), Style = (Style)FindResource("GhostButton"), Width = 34, Height = 34, Margin = new Thickness(0, 0, 6, 6), VerticalAlignment = VerticalAlignment.Top };
+                remove.Click += (_, _) => Set("setDpiStageCount", stages.Count - 1);
+                row.Children.Add(remove);
+            }
         }
         return row;
     }
@@ -433,7 +500,7 @@ public partial class MousePage
         if (Nums("dpiStages").Count == 0 && !double.IsNaN(Num("dpi")) && _methods.Contains("setDpi"))
         {
             var box = new TextBox { Style = (Style)FindResource("SearchBox"), Width = 100, Text = Num("dpi").ToString("0", CultureInfo.CurrentCulture) };
-            box.KeyDown += (_, e) => { if (e.Key == System.Windows.Input.Key.Enter && TryNum(box.Text, out var v)) Set("setDpi", (int)v); };
+            box.KeyDown += (_, e) => { if (e.Key == System.Windows.Input.Key.Enter && TryNum(box.Text, out var v) && ValidDpi(v, out var dpi)) Set("setDpi", dpi); };
             sp.Children.Add(Field(Loc.T("DPI"), box, Loc.T("Type a value and press Enter.")));
         }
         if (!double.IsNaN(Num("pollingRateHz")))
@@ -623,18 +690,40 @@ public partial class MousePage
         var sp = new StackPanel();
         if (!double.IsNaN(Num("debounceMs")) && _methods.Contains("setDebounceTime"))
         {
-            var row = new StackPanel { Orientation = Orientation.Horizontal };
-            var box = new TextBox { Style = (Style)FindResource("SearchBox"), Width = 70, Text = Num("debounceMs").ToString("0.#", CultureInfo.CurrentCulture) };
-            box.KeyDown += (_, e) => { if (e.Key == System.Windows.Input.Key.Enter && TryNum(box.Text, out var v)) Set("setDebounceTime", v); };
-            row.Children.Add(box);
-            row.Children.Add(new TextBlock { Text = Loc.T("ms"), FontSize = 12.5, Foreground = Res("TextDimBrush"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 0, 0, 0) });
-            sp.Children.Add(Field(Loc.T("Click debounce"), row, Loc.T("Lower registers clicks sooner; too low can cause accidental double clicks on worn switches.")));
+            const string help = "Lower registers clicks sooner; too low can cause accidental double clicks on worn switches.";
+            if (Option("debounce") is { Count: > 0 } choices)
+            {
+                // The driver lists the values it takes: offer exactly those.
+                var row = new WrapPanel();
+                foreach (var ms in choices)
+                    row.Children.Add(Choice(Loc.F("{0} ms", ms), (int)Num("debounceMs") == ms, true, () => Set("setDebounceTime", ms)));
+                sp.Children.Add(Field(Loc.T("Click debounce"), row, Loc.T(help)));
+            }
+            else
+            {
+                double max = OptionNum("debounceMax");
+                var row = new StackPanel { Orientation = Orientation.Horizontal };
+                var box = new TextBox { Style = (Style)FindResource("SearchBox"), Width = 70, Text = Num("debounceMs").ToString("0", CultureInfo.CurrentCulture) };
+                box.KeyDown += (_, e) =>
+                {
+                    if (e.Key != System.Windows.Input.Key.Enter || !TryNum(box.Text, out var v)) return;
+                    int ms = (int)Math.Round(v);
+                    if (ms < 0 || (!double.IsNaN(max) && ms > max)) { _hint = Loc.F("Pick a debounce between 0 and {0} ms.", double.IsNaN(max) ? 30 : max); ShowDevice(null); return; }
+                    Set("setDebounceTime", ms);
+                };
+                row.Children.Add(box);
+                row.Children.Add(new TextBlock { Text = double.IsNaN(max) ? Loc.T("ms") : Loc.F("ms (0–{0})", max), FontSize = 12.5, Foreground = Res("TextDimBrush"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 0, 0, 0) });
+                sp.Children.Add(Field(Loc.T("Click debounce"), row, Loc.T(help)));
+            }
         }
-        if (!double.IsNaN(Num("sleepTimeout")) && _methods.Contains("setSleepTimeout") && !Hint("hideSleepCard"))
+        if (_methods.Contains("setSleepTimeout") && !Hint("hideSleepCard") && SleepChoices() is { } sleep)
         {
+            // Drivers count this differently: most publish their timeouts in seconds; the Pulsar family takes
+            // tens of seconds and publishes none. Other drivers' units aren't known, so (like OpenMouse) no card.
             var row = new WrapPanel();
-            foreach (var sec in new[] { 30, 60, 120, 300, 600, 900 })
-                row.Children.Add(Choice(sec < 60 ? Loc.F("{0} s", sec) : Loc.F("{0} min", sec / 60), (int)Num("sleepTimeout") == sec, true, () => Set("setSleepTimeout", sec)));
+            double now = Num("sleepTimeout");
+            foreach (var (value, seconds) in sleep)
+                row.Children.Add(Choice(seconds < 60 ? Loc.F("{0} s", seconds) : Loc.F("{0} min", seconds / 60), !double.IsNaN(now) && (int)now == value, true, () => Set("setSleepTimeout", value)));
             sp.Children.Add(Field(Loc.T("Auto sleep"), row, Loc.T("How long the wireless mouse waits, unused, before it sleeps to save battery.")));
         }
         if (!double.IsNaN(Num("batteryPercent")))
@@ -644,6 +733,16 @@ public partial class MousePage
         }
         if (sp.Children.Count > 0) to.Children.Add(Panel(Loc.T("Advanced"), sp));
         to.Children.Add(Panel(Loc.T("Diagnostics"), Diagnostics()));
+    }
+
+    /// <summary>The auto-sleep choices as (value the driver takes, seconds), or null when the driver's units aren't known.</summary>
+    List<(int Value, int Seconds)> SleepChoices()
+    {
+        if (Option("sleep") is { Count: > 0 } published) return published.Select(s => (s, s)).ToList();
+        var family = (Has("ui") && _status.GetProperty("ui").TryGetProperty("family", out var f) ? f.GetString() : null) ?? _brand;
+        if (family is not null && (family.Equals("pulsar", StringComparison.OrdinalIgnoreCase) || family.Equals("vgn", StringComparison.OrdinalIgnoreCase)))
+            return new[] { 1, 3, 6, 12, 30, 60, 180 }.Select(u => (u, u * 10)).ToList();
+        return null;
     }
 
     /// <summary>What Pulse and the driver said to the device, to copy and send when something doesn't work.</summary>
