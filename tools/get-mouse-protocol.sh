@@ -14,6 +14,8 @@ for try in 1 2 3 4 5; do
 done
 mkdir -p "$(dirname "$OUT")"
 # esbuild reads the TypeScript directly; ES2019 so the script engine doesn't need the newest syntax.
-npx --yes esbuild@0.24.0 "$ROOT/tools/mouse/bridge.ts" --bundle --format=iife --target=es2019 --platform=neutral --minify \
-  --legal-comments=none --outfile="$OUT"
+BUILD="$ROOT/.mouse-build"
+mkdir -p "$BUILD"
+npm install --silent --no-audit --no-fund --prefix "$BUILD" esbuild@0.24.0
+node "$ROOT/tools/mouse/bundle.mjs" "$BUILD" "$SRC" "$ROOT/tools/mouse/bridge.ts" "$OUT"
 echo "openmouse.js: $(wc -c < "$OUT") bytes from mouse-protocol $VERSION"
