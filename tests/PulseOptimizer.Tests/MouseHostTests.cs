@@ -59,3 +59,56 @@ public class MouseHostTests
         Assert.Contains("\"usagePage\":65280", json);
     }
 }
+
+public class MousePageShots
+{
+    /// <summary>The Mouse page with a sample mouse's settings, for a person to look at. Only with PULSE_SHOTS.</summary>
+    [Fact]
+    public void Screenshot()
+    {
+        var dir = Environment.GetEnvironmentVariable("PULSE_SHOTS");
+        if (string.IsNullOrEmpty(dir)) return;
+        Directory.CreateDirectory(dir);
+        Exception error = null;
+        var th = new Thread(() =>
+        {
+            try
+            {
+                if (System.Windows.Application.Current == null)
+                {
+                    var app = new System.Windows.Application();
+                    app.Resources.MergedDictionaries.Add(new System.Windows.ResourceDictionary { Source = new Uri("pack://application:,,,/Pulse;component/Themes/Theme.xaml") });
+                }
+                var page = new Pulse.Pages.MousePage();
+                var t = page.GetType();
+                const System.Reflection.BindingFlags F = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
+                t.GetField("_status", F)!.SetValue(page, JsonSerializer.Deserialize<JsonElement>("""
+                    { "name": "WLmouse Beast Max", "connectionType": "Wireless", "connectionDetail": "8K receiver", "batteryPercent": 76, "batteryState": "Discharging",
+                      "firmware": ["Mouse 2.11", "Dongle 2.7"], "dpi": 1600, "dpiStages": [400, 800, 1600, 3200, 6400], "activeDpiStage": 2,
+                      "pollingRateHz": 4000, "supportedPollingRates": [125, 250, 500, 1000, 2000, 4000, 8000], "liftOffDistance": "Low",
+                      "motionSync": true, "angleSnapping": false, "rippleControl": false, "debounceMs": 2, "sleepTimeout": 60, "activeProfile": 1 }
+                    """));
+                t.GetField("_methods", F)!.SetValue(page, new HashSet<string> { "setDpiStageValue", "setActiveDpiStage", "setPollingRate", "setLiftOffDistance", "setMotionSync", "setAngleSnapping", "setRippleControl", "setDebounceTime", "setSleepTimeout" });
+                t.GetMethod("ShowSettings", F)!.Invoke(page, null);
+                var host = new System.Windows.Controls.Border { Width = 1100, Height = 1400, Padding = new System.Windows.Thickness(28), Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x0B, 0x0C, 0x0F)), Child = page };
+                host.Measure(new System.Windows.Size(1100, 1400)); host.Arrange(new System.Windows.Rect(0, 0, 1100, 1400)); host.UpdateLayout();
+                void Show(System.Windows.DependencyObject d)
+                {
+                    if (d is System.Windows.FrameworkElement fe && Pulse.Ui.Anim.GetReveal(fe)) { fe.BeginAnimation(System.Windows.UIElement.OpacityProperty, null); fe.Opacity = 1; }
+                    for (int i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(d); i++) Show(System.Windows.Media.VisualTreeHelper.GetChild(d, i));
+                }
+                Show(host); host.UpdateLayout();
+                var rtb = new System.Windows.Media.Imaging.RenderTargetBitmap(1100, 1400, 96, 96, System.Windows.Media.PixelFormats.Pbgra32);
+                rtb.Render(host);
+                var enc = new System.Windows.Media.Imaging.PngBitmapEncoder();
+                enc.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(rtb));
+                using var fs = File.Create(Path.Combine(dir, "mouse.png"));
+                enc.Save(fs);
+            }
+            catch (Exception ex) { error = ex; }
+        });
+        th.SetApartmentState(ApartmentState.STA);
+        th.Start(); th.Join();
+        if (error != null) throw new Exception("Screenshot failed", error);
+    }
+}

@@ -6,7 +6,23 @@
         <StackPanel Margin="0,6,0,40">
             <TextBlock Style="{StaticResource H1}" Text="Mouse"/>
             <TextBlock Style="{StaticResource Sub}" Margin="0,6,0,0" MaxWidth="760" HorizontalAlignment="Left"
-                       Text="Your sensitivity in every game, matched exactly."/>
+                       Text="Your mouse's settings without its brand's app, and your sensitivity in every game, matched exactly."/>
+
+            <!-- Your mice: settings through OpenMouse's drivers -->
+            <Border Style="{StaticResource Card}" Margin="0,20,0,0" ui:Anim.Reveal="True">
+                <StackPanel>
+                    <Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <TextBlock Style="{StaticResource CardTitle}" Text="Your mice"/>
+                        <Button x:Name="ScanButton" Grid.Column="1" Style="{StaticResource GhostButton}" Content="Scan again" Click="Scan_Click"/>
+                    </Grid>
+                    <TextBlock x:Name="MiceStatus" Style="{StaticResource Body}" FontSize="12.5" Foreground="{StaticResource TextDimBrush}" Margin="0,4,0,0" TextWrapping="Wrap" MaxWidth="720" HorizontalAlignment="Left"/>
+                    <WrapPanel x:Name="MiceList" Margin="0,12,0,0"/>
+                    <StackPanel x:Name="MousePanel" Margin="0,8,0,0"/>
+                    <TextBlock Style="{StaticResource Body}" FontSize="11" Foreground="{StaticResource TextFaintBrush}" Margin="0,12,0,0" TextWrapping="Wrap" MaxWidth="720" HorizontalAlignment="Left"
+                               Text="Mouse support comes from OpenMouse's open-source drivers (about 60 brands). Changes are saved on the mouse itself, so they work everywhere, even without Pulse running."/>
+                </StackPanel>
+            </Border>
 
             <!-- Sensitivity converter -->
             <Border Style="{StaticResource Card}" Margin="0,20,0,0" ui:Anim.Reveal="True">

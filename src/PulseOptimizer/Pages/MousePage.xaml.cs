@@ -29,7 +29,14 @@ public partial class MousePage : UserControl, IPage
         Update();
     }
 
-    public void OnShown(object parameter) { }
+    bool _scanned;
+
+    public void OnShown(object parameter)
+    {
+        if (_scanned) return;
+        _scanned = true;
+        ScanMice();
+    }
 
     SensConverter.Game From => (FromGame.SelectedItem as ComboBoxItem)?.Tag as SensConverter.Game;
     SensConverter.Game To => (ToGame.SelectedItem as ComboBoxItem)?.Tag as SensConverter.Game;
