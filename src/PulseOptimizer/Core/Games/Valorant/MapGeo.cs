@@ -79,6 +79,7 @@ public static class MapGeo
     public static string WeaponCategory(string id)
     {
         Load();
+        if (id != null && AbilityWeapons.TryGetValue(id, out var ab)) return ab.Category;
         return id != null && _weaponCats.TryGetValue(id, out var c) ? c switch { "Sidearm" => "Sidearm", "SMG" => "SMG", "Shotgun" => "Shotgun", "Rifle" => "Rifle", "Sniper" => "Sniper", "Heavy" => "Machine gun", "Melee" => "Melee", var x => x } : "";
     }
 
@@ -109,8 +110,19 @@ public static class MapGeo
     public static string Weapon(string id)
     {
         Load();
-        return id != null && _weapons.TryGetValue(id, out var n) ? n : null;
+        if (id == null) return null;
+        return _weapons.TryGetValue(id, out var n) ? n : AbilityWeapons.TryGetValue(id, out var a) ? a.Name : null;
     }
+
+    /// <summary>Abilities that work like guns (not in the game's weapon list): their names and how trackers group them.</summary>
+    static readonly Dictionary<string, (string Name, string Category)> AbilityWeapons = new(StringComparer.OrdinalIgnoreCase)
+    {
+        [VMatch.Headhunter] = ("Headhunter", "Ability"),
+        [VMatch.TourDeForce] = ("Tour De Force", "Ability"),
+        [VMatch.Overdrive] = ("Overdrive", "Ability"),
+        [VMatch.BladeStorm] = ("Blade Storm", "Ability"),
+        [VMatch.Showstopper] = ("Showstopper", "Ability"),
+    };
 
     /// <summary>For tests.</summary>
     internal static void Reset() { _maps = null; _weapons = null; _weaponCats = null; _agentIds = null; }

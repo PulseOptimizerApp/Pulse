@@ -153,6 +153,30 @@ public sealed class VMatch
 
     public bool WonBy(string team) => Outcome(team) > 0;
 
+    // Abilities that work like guns. Riot lists their kills as "Weapon" kills with an id that isn't in the game's weapon
+    // list (Chamber, Neon), or as "Ultimate" kills with no id (Jett, Raze); older Tour De Force kills have no id at all.
+    public const string Headhunter = "856d9a7e-4b06-dc37-15dc-9d809c37cb90";
+    public const string TourDeForce = "39099fb5-4293-def4-1e09-2e9080ce7456";
+    public const string Overdrive = "95336ae4-45d4-1032-cfaf-6bad01910607";
+    public const string BladeStorm = "ability-blade-storm";
+    public const string Showstopper = "ability-showstopper";
+
+    /// <summary>Gives kills by gun-like abilities a weapon id, so they show by name in weapons and kill feeds.</summary>
+    public void NameAbilityWeapons()
+    {
+        foreach (var k in Kills)
+        {
+            string agent = Players.FirstOrDefault(p => p.Id == k.Killer)?.Agent ?? "";
+            bool weapon = k.DamageType.Equals("Weapon", StringComparison.OrdinalIgnoreCase);
+            if (weapon && string.IsNullOrEmpty(k.Weapon) && agent == "Chamber") k.Weapon = TourDeForce;
+            else if (k.DamageType.Equals("Ultimate", StringComparison.OrdinalIgnoreCase) || k.Weapon == "Ultimate")
+            {
+                string id = agent switch { "Jett" => BladeStorm, "Raze" => Showstopper, _ => null };
+                if (id != null) { k.DamageType = "Weapon"; k.Weapon = id; }
+            }
+        }
+    }
+
     /// <summary>Rounds actually played: a surrender ends the match with a "round" nobody plays.</summary>
     public int PlayableRounds => Rounds.Count(r => r.Result != "Surrendered");
 
@@ -293,6 +317,7 @@ public sealed class VMatch
         // The same kill can be listed both at the top and per round in older data: keep one of each.
         m.Kills = m.Kills.GroupBy(k => (k.GameMs, k.Killer, k.Victim)).Select(g => g.First()).OrderBy(k => k.GameMs).ToList();
         m.FirstAttack = GuessFirstAttack(m);
+        m.NameAbilityWeapons();
         // Riot's own result: teams[].won. Neither team won = a draw ("").
         if (root.Get("teams") is { ValueKind: JsonValueKind.Array } teams && teams.GetArrayLength() > 0)
         {
@@ -385,6 +410,7 @@ public static class VStore
                                     {
                                         // Agents newer than the Pulse that saved the match: name them now.
                                         foreach (var p in m.Players.Where(p => p.Agent.Length == 0 && p.AgentId.Length > 0)) p.Agent = ValorantMatches.AgentName(p.AgentId);
+                                        m.NameAbilityWeapons();
                                         _cache.Add(m);
                                     }
                                 }
