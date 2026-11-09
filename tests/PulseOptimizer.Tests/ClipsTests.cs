@@ -650,6 +650,6 @@ public class VideoNeverWaitsOnSoundTests
         Assert.Contains("resize_mode=scale:width=1920:height=1080", a);
         Assert.DoesNotContain("scale_aspect", a);
         // A game in a window keeps its own shape.
-        Assert.Contains("resize_mode=scale_aspect", Pulse.Core.Clips.ReplayRecorder.Arguments(new ClipSettings(), Nvenc, null, null, (IntPtr)0x1234));
+        Assert.Contains("resize_mode=scale_aspect", Pulse.Core.Clips.ReplayRecorder.Arguments(new ClipSettings(), new Encoder("h264_nvenc", "h264", "NVIDIA", true), null, null, (IntPtr)0x1234));
     }
 }
