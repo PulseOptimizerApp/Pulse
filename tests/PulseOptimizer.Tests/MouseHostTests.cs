@@ -202,9 +202,11 @@ public class MouseSettingsEndToEndTests
         MouseHost.ListDevices = () => new() { info };
         MouseHost.Connect = _ => mouse;
         MouseHost.Hold();
+        MouseHost.ClearLog();
         try
         {
             var host = MouseHost.Instance!;
+            host.Log += line => _out.WriteLine("engine: " + line);
             async Task<JsonElement> Run(string method, params object[] args) =>
                 JsonSerializer.Deserialize<JsonElement>(await host.Run(method, args).WaitAsync(TimeSpan.FromSeconds(60)));
             var found = await Run("scan");
@@ -253,6 +255,8 @@ public class MouseSettingsEndToEndTests
         }
         finally
         {
+            _out.WriteLine("── what was said to the device ──");
+            foreach (var line in MouseHost.RecentLog()) _out.WriteLine(line);
             MouseHost.ListDevices = list;
             MouseHost.Connect = connect;
             MouseHost.Release();

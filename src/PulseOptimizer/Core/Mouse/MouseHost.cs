@@ -142,7 +142,7 @@ public sealed class MouseHost : IDisposable
                 foreach (var id in due) _engine.Invoke("__pulseFire", id);
                 _engine.Advanced.ProcessTasks();
             }
-            catch (Exception ex) { Log?.Invoke(ex.Message); }
+            catch (Exception ex) { Note("engine error: " + ex.Message); Log?.Invoke(ex.Message); }
         }
     }
 
@@ -181,7 +181,7 @@ public sealed class MouseHost : IDisposable
             return DevicesJson(all);
         }
 
-        public void open(double token, string key) => _h.Answer(token, () =>
+        public void open(double token, string key) => _h.Answer(token, "open " + key, () =>
         {
             // The Mouse page and a game profile can use the same mouse at once: count the users of each connection.
             lock (_h._users) _h._users[key] = _h._users.GetValueOrDefault(key) + 1;
@@ -201,7 +201,7 @@ public sealed class MouseHost : IDisposable
             return Task.FromResult<string>(null);
         });
 
-        public void close(double token, string key) => _h.Answer(token, () =>
+        public void close(double token, string key) => _h.Answer(token, "close " + key, () =>
         {
             lock (_h._users)
             {
