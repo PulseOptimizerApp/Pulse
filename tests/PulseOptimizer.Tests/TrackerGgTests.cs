@@ -246,3 +246,55 @@ public class TrackerGgTests
         enc.Save(f);
     }
 }
+
+public class ReworkTests
+{
+    [Fact]
+    public void Speed_is_the_trimmed_mean_of_one_second_samples()
+    {
+        // Ramp-up (slow) and a burst (fast) are left out, like Speedtest.
+        var samples = new List<double> { 50, 300, 900, 920, 930, 925, 935, 915, 940, 2000 };
+        double v = Pulse.Core.SpeedTest.Trimmed(samples);
+        Assert.InRange(v, 900, 945);
+        Assert.Equal(0, Pulse.Core.SpeedTest.Trimmed(new List<double>()));
+    }
+
+    [Fact]
+    public void A_sudden_jump_in_combat_score_is_a_smurf_sign()
+    {
+        var ms = FakeMatches.Make(20).Where(m => VMatch.Counts(m.Queue)).OrderByDescending(m => m.StartUtc).ToList();
+        // Make "me" far better in the newest four matches.
+        foreach (var m in ms.Take(4)) { var me = m.Players.First(p => p.Id == "me"); me.Score *= 6; }
+        foreach (var m in ms.Skip(4)) { var me = m.Players.First(p => p.Id == "me"); me.Score = Math.Max(1, me.Score / 2); }
+        var p = new Profile { Puuid = "me", Matches = ms, Tier = 12 };
+        var jump = Tracker.Jump(p);
+        Assert.NotNull(jump);
+        Assert.Contains("Combat score jumped", jump.Value.Sign);
+    }
+
+    [Fact]
+    public void A_new_account_with_big_match_stats_adds_a_sign()
+    {
+        var t = new PlayerTotals { Rounds = 20, Kills = 30, Deaths = 12, Score = 6000 };
+        var s = Pulse.Core.Games.Live.ValorantLobby.WithMatch(Pulse.Core.Games.Live.Smurf.None, 25, t, 12);
+        Assert.Equal(25, s.Score);
+        Assert.Single(s.Signs);
+        Assert.Same(Pulse.Core.Games.Live.Smurf.None, Pulse.Core.Games.Live.ValorantLobby.WithMatch(Pulse.Core.Games.Live.Smurf.None, 200, t, 12));
+    }
+
+    [Fact]
+    public void The_lineup_library_is_built_in_and_complete()
+    {
+        var lib = Pulse.Core.Games.Valorant.Lineups.Library;
+        Assert.True(lib.Count >= 50, $"only {lib.Count}");
+        Assert.All(lib, l =>
+        {
+            Assert.True(l.BuiltIn);
+            Assert.Contains(l.Map, Pulse.Core.Games.Valorant.Lineups.Maps);
+            Assert.Contains(l.Agent, Pulse.Core.Games.Valorant.Lineups.Agents);
+            Assert.NotEmpty(l.Steps);
+            Assert.StartsWith("https://", l.Source);
+            Assert.StartsWith("https://www.youtube.com/results?search_query=", l.Video);
+        });
+    }
+}
