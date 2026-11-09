@@ -5112,5 +5112,9 @@
  "{0}-day streak. Same time tomorrow.": "Racha de {0} días. Mañana a la misma hora.",
  "🔥 {0}-day streak": "🔥 Racha de {0} días",
  "Open VALORANT or the Riot Client to see players' Riot IDs.": "Abre VALORANT o el cliente de Riot para ver los Riot ID de los jugadores.",
- "Riot didn't send names for these players. They'll load next time you open the match.": "Riot no envió los nombres de estos jugadores. Se cargarán la próxima vez que abras la partida."
+ "Riot didn't send names for these players. They'll load next time you open the match.": "Riot no envió los nombres de estos jugadores. Se cargarán la próxima vez que abras la partida.",
+ "With you: {0} games, {1} won": "Contigo: {0} partidas, {1} ganadas",
+ "Against you: {0} games, you won {1}": "Contra ti: {0} partidas, ganaste {1}",
+ "Last: {0}": "Última: {0}",
+ "Met {0}×": "Visto {0}×"
 }

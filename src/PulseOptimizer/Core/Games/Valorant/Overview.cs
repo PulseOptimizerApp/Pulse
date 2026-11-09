@@ -207,6 +207,15 @@ public static class Stats
     /// <summary>Someone the player has met: as a teammate, as an enemy, and how those games went.</summary>
     public sealed record Encounter(string Id, string Name, string Agent, int Tier, int With, int WithWins, int Against, int AgainstWins, DateTime Last);
 
+    /// <summary>
+    /// For lobbies: who you've met before in your saved matches, by player id. Leaves out one match (the one the lobby is
+    /// for). Only reads matches already on this PC: no requests to Riot.
+    /// </summary>
+    public static Dictionary<string, Encounter> MetBefore(IEnumerable<VMatch> matches, string me, string skipMatchId = null) =>
+        string.IsNullOrEmpty(me) ? new()
+        : Encounters(matches.Where(m => m.Id != skipMatchId && m.Players.Any(p => p.Id == me)), me)
+            .Where(e => e.Id != me && e.With + e.Against > 0).GroupBy(e => e.Id).ToDictionary(g => g.Key, g => g.First());
+
     /// <summary>Everyone the player has played with or against in these matches, most met first.</summary>
     public static List<Encounter> Encounters(IEnumerable<VMatch> matches, string id)
     {

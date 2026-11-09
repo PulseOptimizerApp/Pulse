@@ -267,8 +267,18 @@ public static class LobbyOverlay
         return sp;
     }
 
+    /// <summary>Who in this lobby you've met before (from your saved matches), while the panel is built.</summary>
+    static Dictionary<string, Pulse.Core.Games.Valorant.Stats.Encounter> _met = new();
+
     static FrameworkElement Panel(Application app, Lobby l, string title, bool after)
     {
+        try
+        {
+            var all = Pulse.Core.Games.Valorant.VStore.All;
+            var me = l.Players.FirstOrDefault(p => p.Me)?.Puuid ?? all.FirstOrDefault()?.Me;
+            _met = Pulse.Core.Games.Valorant.Stats.MetBefore(all, me, after ? _after?.Id : null);
+        }
+        catch { _met = new(); }
         var sp = new StackPanel { Margin = new Thickness(16, 12, 16, 16) };
         sp.Children.Add(Header(app, after ? title : string.IsNullOrEmpty(l.Map) ? Loc.T("Live lobby") : Loc.T("Live lobby") + " · " + l.Map));
         var cols = new Grid { Margin = new Thickness(0, 12, 0, 0) };
@@ -331,6 +341,21 @@ public static class LobbyOverlay
                 Child = T(Loc.T("Unusual stats").ToUpper(CultureInfo.CurrentCulture), 9, Enemy),
                 ToolTip = Loc.T("Signs, not proof:") + "\n• " + string.Join("\n• ", u.Signs),
             });
+        if (!p.Me && p.Puuid != null && _met.TryGetValue(p.Puuid, out var met))
+        {
+            // Played with or against them before: from your own saved matches only.
+            var tip = new List<string>();
+            if (met.With > 0) tip.Add(Loc.F("With you: {0} games, {1} won", met.With, met.WithWins));
+            if (met.Against > 0) tip.Add(Loc.F("Against you: {0} games, you won {1}", met.Against, met.AgainstWins));
+            tip.Add(Loc.F("Last: {0}", met.Last.ToLocalTime().ToString("d", CultureInfo.CurrentCulture)));
+            nameRow.Children.Add(new Border
+            {
+                CornerRadius = new CornerRadius(999), Padding = new Thickness(6, 0, 6, 1), Margin = new Thickness(6, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center,
+                Background = new SolidColorBrush(Color.FromArgb(0x30, 0x6F, 0xA8, 0xFF)),
+                Child = T(Loc.F("Met {0}×", met.With + met.Against).ToUpper(CultureInfo.CurrentCulture), 9, new SolidColorBrush(Color.FromRgb(0x8F, 0xBE, 0xFF))),
+                ToolTip = string.Join("\n", tip),
+            });
+        }
         who.Children.Add(nameRow);
         var sub = new List<string>();
         if (!string.IsNullOrEmpty(p.Extra)) sub.Add(p.Extra);
