@@ -236,7 +236,8 @@ public sealed class MouseHost : IDisposable
         {
             var v = await work();
             if (what != null) Note(v == null ? what : $"{what} → {Short(v)}");
-            Post(() => _engine.Invoke("__pulseDone", (int)token, true, v));
+            Note($"TRACE posting {token} disposed={_disposed} queue={_queue.Count} thread={_thread.ThreadState}");
+            Post(() => { Note($"TRACE delivering {token}"); _engine.Invoke("__pulseDone", (int)token, true, v); Note($"TRACE delivered {token}"); });
         }
         catch (Exception ex)
         {
