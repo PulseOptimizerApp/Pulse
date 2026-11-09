@@ -353,10 +353,10 @@ public sealed class ValorantMatches : IDisposable
     /// so, so the stats have something to work with from the first day. Only your own match history is read. Runs off
     /// the UI thread; progress reports the step ("list", "match") and how far it is.
     /// </summary>
-    public static Task<BackfillResult> Backfill(int count, IProgress<(string Step, int Done, int Total)> progress = null, CancellationToken ct = default) =>
-        Task.Run(() => BackfillCore(count, progress, ct), ct);
+    public static Task<BackfillResult> Backfill(int count, IProgress<(string Step, int Done, int Total)> progress = null, CancellationToken ct = default, int maxScan = 100) =>
+        Task.Run(() => BackfillCore(count, progress, ct, maxScan), ct);
 
-    static async Task<BackfillResult> BackfillCore(int count, IProgress<(string Step, int Done, int Total)> progress, CancellationToken ct)
+    static async Task<BackfillResult> BackfillCore(int count, IProgress<(string Step, int Done, int Total)> progress, CancellationToken ct, int maxScan)
     {
         Session s;
         try { s = await Login(); }
@@ -367,7 +367,8 @@ public sealed class ValorantMatches : IDisposable
         // Your history mixes every mode (Deathmatch, Team Deathmatch…); page back up to 100 games to find enough real matches.
         var ids = new List<string>();
         int seen = 0, scanned = 0;
-        for (int start = 0; start < 100 && seen < count; start += 20)
+        // maxScan 100 normally; "Get all my older matches" pages back as far as Riot keeps the history.
+        for (int start = 0; start < maxScan && seen < count; start += 20)
         {
             var (history, code) = await GetStatus(s, $"https://pd.{s.Shard}.a.pvp.net/match-history/v1/history/{s.Puuid}?startIndex={start}&endIndex={start + 20}");
             if (history == null)

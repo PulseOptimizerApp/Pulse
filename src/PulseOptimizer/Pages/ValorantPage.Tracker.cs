@@ -35,7 +35,7 @@ public partial class ValorantPage
 
     void BuildTracker()
     {
-        var matches = CoachMatches();
+        var matches = TrackerMatches();
         var top = SearchCard();
         Root.Children.Add(Card(top));
         // Skills need a few matches to measure, and players at several ranks to compare with: fetch your recent ones.
@@ -67,7 +67,7 @@ public partial class ValorantPage
         var pick = new WrapPanel();
         // Only you and the players you looked up: not everyone from your matches.
         if (me != null) pick.Children.Add(Chip(NameBook.Get(me) is { } myName ? Loc.T("You") + " · " + myName : Loc.T("You"), "trwho", _trSel == null || _trSel == me, () => { _trSel = me; _trQueue = null; _trView = "overview"; Build(); }));
-        if (_trSearched != null)
+        if (_trSearched != null && _trSearched.Puuid != me)
         {
             var sp = _trSearched;
             pick.Children.Add(Removable(Chip("🔍 " + sp.Name, "trwho", _trSel == sp.Puuid, () => { _trSel = sp.Puuid; _trQueue = null; _trView = "overview"; Build(); }),
@@ -88,6 +88,8 @@ public partial class ValorantPage
         {
             var who = _trSel ?? me;
             p = Memo("profile:" + who + ":" + matches.Count, () => Tracker.FromYourMatches(matches, who));
+            // Searching yourself shows your own profile, not a second copy of it.
+            if (_trSearched?.Puuid == me && _trSel == me) _trSearched = null;
             p.Name = NameBook.Get(p.Puuid) ?? (p.IsYou ? Loc.T("You") : "");
             if (p.IsYou)
             {
@@ -108,120 +110,6 @@ public partial class ValorantPage
     }
 
     // ───────── search ─────────
-
-    StackPanel SearchCard()
-    {
-        var sp = new StackPanel();
-        var row = new Grid { Margin = new Thickness(0), ToolTip = Loc.T("Ranks, skills and recent form, measured against the players in your own matches.") };
-        row.ColumnDefinitions.Add(new ColumnDefinition { MaxWidth = 380 });
-        row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        var box = new TextBox { Style = (Style)FindResource("SearchBox"), Tag = Loc.T("Search a Riot ID: Name#TAG"), VerticalContentAlignment = VerticalAlignment.Center };
-        row.Children.Add(box);
-        var go = Btn("Search", true);
-        go.Margin = new Thickness(10, 0, 0, 0);
-        Grid.SetColumn(go, 1);
-        row.Children.Add(go);
-        sp.Children.Add(row);
-        // Someone from your own matches opens straight away, with nothing asked of Riot.
-        bool OpenKnown(string text)
-        {
-            var hit = NameBook.Find(text.Trim(), 50).FirstOrDefault(x => x.Name.Equals(text.Trim(), StringComparison.OrdinalIgnoreCase));
-            if (hit.Puuid == null || !CoachMatches().Any(m => m.Players.Any(x => x.Id == hit.Puuid))) return false;
-            OpenPlayer(hit.Puuid);
-            return true;
-        }
-        async Task Run()
-        {
-            if (_trBusy) return;
-            if (OpenKnown(box.Text)) return;
-            if (!S.PlayerSearch) { await TurnOnSearch(); if (!S.PlayerSearch) return; }
-            _trBusy = true;
-            _trStatus = Loc.T("Searching…");
-            SetTrStatus();
-            var progress = new Progress<string>(m =>
-            {
-                _trStatus = m.StartsWith("match:", StringComparison.Ordinal) && m.Split(':') is { Length: 3 } a ? Loc.F("Reading match {0} of {1}…", a[1], a[2]) : Loc.T(m);
-                SetTrStatus();
-            });
-            ValorantSearch.Result r;
-            var riotId = box.Text; // read on the UI thread; the search itself runs in the background
-            try { r = await Task.Run(() => ValorantSearch.Search(riotId, progress)); }
-            catch (Exception ex)
-            {
-                TweakEngine.AddLog("valorant", "Tracker search failed: " + ex.GetType().Name + ": " + ex.Message);
-                r = new ValorantSearch.Result(null, "Search failed. Try again in a minute.");
-            }
-            _trBusy = false;
-            if (r.Profile != null)
-            {
-                _trSearched = r.Profile; _trSel = r.Profile.Puuid; _trQueue = null; _trAct = "all"; _trMatchId = null; _trView = "overview";
-                S.RecentSearches.RemoveAll(x => x.Equals(r.Profile.Name, StringComparison.OrdinalIgnoreCase));
-                S.RecentSearches.Insert(0, r.Profile.Name);
-                if (S.RecentSearches.Count > 8) S.RecentSearches.RemoveRange(8, S.RecentSearches.Count - 8);
-                TweakEngine.Save();
-            }
-            _trStatus = r.Error != null ? Loc.T(r.Error) : null;
-            if (r.Profile != null) TweakEngine.AddLog("valorant", "Tracker search");
-            if (_tab == "tracker") Build();
-        }
-        async Task TurnOnSearch()
-        {
-            bool ok = await MainWindow.Instance.Confirm(Loc.T("Turn on player search?"),
-                Loc.T("Players from your own matches open without this. Searching anyone else reads that player's rank and recent matches through the Riot Client's login on your PC, the way tracker apps do. It isn't an official Riot feature, and Riot's own rules only let trackers show players who opted in, so it carries a risk to your account, like the live lobby. Pulse saves nothing that identifies the players you search: only anonymous numbers (rank and stats) that make skill comparisons more accurate."),
-                Loc.T("Turn it on"), Loc.T("Cancel"));
-            if (!ok) return;
-            S.PlayerSearch = true;
-            TweakEngine.AddLog("valorant", "VALORANT player search turned on (risk accepted)");
-            TweakEngine.Save();
-        }
-        go.Click += async (_, _) => await Run();
-        _trSearchFor = async riotId => { box.Text = riotId; await Run(); };
-        // Suggestions while typing: everyone in your matches whose Riot ID matches.
-        var pop = new Popup { PlacementTarget = box, Placement = PlacementMode.Bottom, StaysOpen = false, AllowsTransparency = true };
-        var list = new StackPanel();
-        pop.Child = new Border { Background = B(Color.FromRgb(0x1B, 0x1E, 0x24)), BorderBrush = B(Color.FromRgb(0x2C, 0x30, 0x38)), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(6), Padding = new Thickness(4), MinWidth = 300, Child = list };
-        box.TextChanged += (_, _) =>
-        {
-            var text = box.Text.Trim();
-            list.Children.Clear();
-            if (text.Length < 2) { pop.IsOpen = false; return; }
-            foreach (var (id, name) in NameBook.Find(text, 8))
-            {
-                var item = new Button { Style = (Style)FindResource("GhostButton"), HorizontalContentAlignment = HorizontalAlignment.Left, Padding = new Thickness(10, 6, 10, 6), Margin = new Thickness(0, 1, 0, 1), Content = name };
-                var pick = name;
-                item.Click += async (_, _) => { pop.IsOpen = false; box.Text = pick; await Run(); };
-                list.Children.Add(item);
-            }
-            pop.IsOpen = list.Children.Count > 0 && box.IsKeyboardFocused;
-        };
-        box.KeyDown += async (_, e) => { if (e.Key == Key.Enter) { pop.IsOpen = false; await Run(); } };
-        if (S.RecentSearches.Count > 0)
-        {
-            var recent = new WrapPanel { Margin = new Thickness(0, 10, 0, 0) };
-            recent.Children.Add(Faint(Loc.T("Recent:"), 11.5, 0).Also(t => { t.VerticalAlignment = VerticalAlignment.Center; t.Margin = new Thickness(0, 0, 8, 6); }));
-            foreach (var r in S.RecentSearches.ToList())
-            {
-                var b = new Button { Style = (Style)FindResource("GhostButton"), Content = r, Padding = new Thickness(10, 3, 10, 4), Margin = new Thickness(0, 0, 6, 6), FontSize = 12 };
-                var id = r;
-                b.Click += async (_, _) => { box.Text = id; await Run(); };
-                recent.Children.Add(Removable(b, () => { S.RecentSearches.Remove(id); TweakEngine.Save(); Build(); }));
-            }
-            var clear = new Button { Style = (Style)FindResource("LinkButton"), Content = Loc.T("Clear"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(4, 0, 0, 6), FontSize = 12 };
-            clear.Click += (_, _) => { S.RecentSearches.Clear(); TweakEngine.Save(); Build(); };
-            recent.Children.Add(clear);
-            sp.Children.Add(recent);
-        }
-        _trStatusLabel = Faint(_trStatus ?? "", 11.5, 8);
-        _trStatusLabel.Visibility = _trStatus != null ? Visibility.Visible : Visibility.Collapsed;
-        sp.Children.Add(_trStatusLabel);
-        if (S.PlayerSearch)
-        {
-            var off = new Button { Style = (Style)FindResource("LinkButton"), Content = Loc.T("Turn off player search"), HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 8, 0, 0) };
-            off.Click += (_, _) => { S.PlayerSearch = false; _trSearched = null; _trNames.Clear(); TweakEngine.Save(); Build(); };
-            sp.Children.Add(off);
-        }
-        return sp;
-    }
 
     /// <summary>A chip with a small × that shows on hover and removes it.</summary>
     FrameworkElement Removable(FrameworkElement chip, Action remove)

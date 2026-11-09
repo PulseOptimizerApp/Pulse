@@ -166,7 +166,9 @@ public partial class ValorantPage
         g.ColumnDefinitions.Add(new ColumnDefinition());
 
         // The selected act, big.
-        var rc = RankColor(sel.Tier);
+        // Peak first, like the trackers: the best rank reached that act, with where it ended underneath.
+        int Best(ValorantLobby.ActLine a) => a.Peak >= 3 ? a.Peak : a.Tier;
+        var rc = RankColor(Best(sel));
         var card = new StackPanel();
         var top = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 10) };
         top.Children.Add(Txt(sel.Name.Length > 0 ? sel.Name : Loc.T("Earlier act"), 12.5, TpInk, true));
@@ -176,19 +178,20 @@ public partial class ValorantPage
         rankRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         rankRow.ColumnDefinitions.Add(new ColumnDefinition());
         rankRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        if (MatchArt.RankIcon(sel.Tier) is { } big) rankRow.Children.Add(Pic(big, 68, 68, 14));
+        if (MatchArt.RankIcon(Best(sel)) is { } big) rankRow.Children.Add(Pic(big, 68, 68, 14));
         else rankRow.Children.Add(new Border { Width = 68, Height = 68, Margin = new Thickness(0, 0, 14, 0), CornerRadius = new CornerRadius(34), Background = B(TpLine) });
         var rn = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-        rn.Children.Add(Txt(Loc.T(sel == cur ? "Rating" : "Final rank"), 10.5, TpMuted, true));
-        rn.Children.Add(Txt(sel.Tier >= 3 ? ValorantMatches.RankName(sel.Tier) : Loc.T("Unrated"), 20, sel.Tier >= 3 ? rc : TpMuted, true));
-        if (sel == cur && p.IsYou && p.Tier >= 3) rn.Children.Add(Txt($"{p.Rr} RR", 12, TpBody));
+        rn.Children.Add(Txt(Loc.T("Peak rank"), 10.5, TpMuted, true));
+        rn.Children.Add(Txt(Best(sel) >= 3 ? ValorantMatches.RankName(Best(sel)) : Loc.T("Unrated"), 20, Best(sel) >= 3 ? rc : TpMuted, true));
+        if (sel.Tier >= 3 && sel.Tier != Best(sel)) rn.Children.Add(Txt(Loc.F(sel == cur ? "Now {0}" : "Ended {0}", ValorantMatches.RankName(sel.Tier)) + (sel == cur && p.IsYou && p.Tier >= 3 ? $" · {p.Rr} RR" : ""), 12, TpBody));
+        else if (sel == cur && p.IsYou && p.Tier >= 3) rn.Children.Add(Txt($"{p.Rr} RR", 12, TpBody));
         Grid.SetColumn(rn, 1); rankRow.Children.Add(rn);
-        if (sel.Peak >= 3)
+        if (sel.Peak >= 3 && sel.Tier >= 3 && sel.Peak != sel.Tier)
         {
             var pk = new StackPanel { VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Right };
-            pk.Children.Add(Txt(Loc.T("Peak"), 10.5, TpMuted, true, HorizontalAlignment.Center));
-            if (MatchArt.RankIcon(sel.Peak) is { } pi) pk.Children.Add(Pic(pi, 34, 34, 0).Also(i => { i.HorizontalAlignment = HorizontalAlignment.Center; i.Margin = new Thickness(0, 2, 0, 2); }));
-            pk.Children.Add(Txt(ValorantMatches.RankName(sel.Peak), 11, RankColor(sel.Peak), true, HorizontalAlignment.Center));
+            pk.Children.Add(Txt(Loc.T(sel == cur ? "Now" : "Ended"), 10.5, TpMuted, true, HorizontalAlignment.Center));
+            if (MatchArt.RankIcon(sel.Tier) is { } pi) pk.Children.Add(Pic(pi, 34, 34, 0).Also(i => { i.HorizontalAlignment = HorizontalAlignment.Center; i.Margin = new Thickness(0, 2, 0, 2); }));
+            pk.Children.Add(Txt(ValorantMatches.RankName(sel.Tier), 11, RankColor(sel.Tier), true, HorizontalAlignment.Center));
             Grid.SetColumn(pk, 2); rankRow.Children.Add(pk);
         }
         card.Children.Add(rankRow);
@@ -221,15 +224,15 @@ public partial class ValorantPage
         {
             var key = KeyOf(a);
             bool on = a == sel;
-            var ac = RankColor(a.Tier);
+            var ac = RankColor(Best(a));
             var t = new Grid { Width = 176 };
             t.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             t.ColumnDefinitions.Add(new ColumnDefinition());
-            if (MatchArt.RankIcon(a.Tier) is { } ri) t.Children.Add(Pic(ri, 30, 30, 10));
+            if (MatchArt.RankIcon(Best(a)) is { } ri) t.Children.Add(Pic(ri, 30, 30, 10).Also(im => im.ToolTip = Loc.T("Peak rank that act")));
             else t.Children.Add(new Border { Width = 30, Height = 30, Margin = new Thickness(0, 0, 10, 0), CornerRadius = new CornerRadius(15), Background = B(TpLine) });
             var info = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
             info.Children.Add(Txt(a == cur ? Loc.T("Current act") : (a.Name.Length > 0 ? a.Name : Loc.T("Earlier act")), 10.5, a == cur ? TpUp : TpMuted, true));
-            info.Children.Add(Txt(a.Tier >= 3 ? ValorantMatches.RankName(a.Tier) : Loc.T("Unrated"), 12.5, a.Tier >= 3 ? ac : TpMuted, true));
+            info.Children.Add(Txt(Best(a) >= 3 ? ValorantMatches.RankName(Best(a)) : Loc.T("Unrated"), 12.5, Best(a) >= 3 ? ac : TpMuted, true).Also(x => x.ToolTip = a.Tier >= 3 && a.Tier != Best(a) ? Loc.F("Peak · ended {0}", ValorantMatches.RankName(a.Tier)) : Loc.T("Peak rank that act")));
             info.Children.Add(Txt(a.Games > 0 ? $"{a.Wins}W {a.Games - a.Wins}L · {N(a.WinPct)}%" : Loc.T("no games"), 10.5, TpBody));
             Grid.SetColumn(info, 1); t.Children.Add(info);
             var tile = new Border
@@ -324,21 +327,34 @@ public partial class ValorantPage
         return map;
     }
 
-    /// <summary>Opens a player's profile: from your matches when they're in them, else by searching their Riot ID.</summary>
+    /// <summary>
+    /// Opens a player's tracker. With player search on (and their Riot ID known) it's their full tracker, looked up
+    /// like a search; otherwise what your own matches say about them. A Riot ID not on this PC yet is asked for first.
+    /// </summary>
     void OpenPlayer(string id)
     {
-        if (!CoachMatches().Any(m => m.Players.Any(x => x.Id == id)))
+        var me = TrackerMatches().FirstOrDefault()?.Me;
+        if (id == me) { OpenLocal(id); return; }
+        string name = NameBook.Get(id) ?? _trSearched?.Matches.SelectMany(m => m.Players).FirstOrDefault(x => x.Id == id)?.Name
+            ?? VStore.All.Select(m => Stats.NameOf(m, id)).FirstOrDefault(n => n != null);
+        bool inMine = TrackerMatches().Any(m => m.Players.Any(x => x.Id == id));
+        if (name != null && _trSearchFor != null && (S.PlayerSearch || !inMine))
         {
-            if (NameBook.Get(id) is { } riotId && _trSearchFor != null) { CloseMatch(); _trView = "overview"; _ = _trSearchFor(riotId); }
-            else if (_trSearched?.Matches.SelectMany(m => m.Players).FirstOrDefault(x => x.Id == id)?.Name is { } n && _trSearchFor != null) { CloseMatch(); _trView = "overview"; _ = _trSearchFor(n); }
+            CloseMatch();
+            _trView = "overview";
+            Scroller.ScrollToTop();
+            _ = _trSearchFor(name);
             return;
         }
-        CloseMatch();
-        _trSel = id;
-        _trQueue = null;
-        _trView = "overview";
-        Build();
-        Scroller.ScrollToTop();
+        if (inMine) { OpenLocal(id); return; }
+        // No Riot ID yet: ask the Riot Client for it, then open.
+        _ = Task.Run(async () =>
+        {
+            Dictionary<string, string> found;
+            try { found = await ValorantSearch.NamesFor(new List<string> { id }); } catch { return; }
+            NameBook.Add(found);
+            if (found.TryGetValue(id, out var n) && !string.IsNullOrEmpty(n)) Dispatcher.Invoke(() => { CloseMatch(); _ = _trSearchFor?.Invoke(n); });
+        });
     }
 
     static string BuyName(Stats.Buy b) => b switch { Stats.Buy.Eco => "Eco", Stats.Buy.SemiEco => "Semi-eco", Stats.Buy.SemiBuy => "Semi-buy", _ => "Full buy" };
