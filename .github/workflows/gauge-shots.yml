@@ -1,0 +1,37 @@
+name: Tracker screenshots
+
+# Temporary (pulse-rework only): renders the tracker with made-up matches for a visual check.
+on:
+  push:
+    branches: [gauges]
+
+permissions:
+  contents: write
+
+jobs:
+  shots:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Get VALORANT art
+        run: |
+          python -m pip install pillow --quiet
+          python tools/get-match-art.py src/PulseOptimizer/Assets/Matches
+      - name: Render
+        env:
+          PULSE_SHOTS: ${{ github.workspace }}\shots
+        run: dotnet test tests/PulseOptimizer.Tests/PulseOptimizer.Tests.csproj -c Release --filter "FullyQualifiedName~TrackerGgTests.Screenshots" --logger "console;verbosity=normal"
+      - name: Push the pictures to a scratch branch
+        if: always()
+        shell: bash
+        run: |
+          cd shots
+          git init -q -b gauge-shots
+          git config user.name "shots"
+          git config user.email "shots@users.noreply.github.com"
+          git add -A
+          git commit -qm "Tracker screenshots ${{ github.sha }}"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" gauge-shots

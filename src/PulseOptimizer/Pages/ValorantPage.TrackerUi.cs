@@ -111,35 +111,51 @@ public partial class ValorantPage
         };
     }
 
+    /// <summary>Spreads capitals out a little (WPF has no letter spacing): "WIN RATE" → "W I N  R A T E" with hair spaces.</summary>
+    static string Spaced(string caps) => string.Join("\u200A", caps.ToCharArray());
+
+    /// <summary>
+    /// A stat gauge: a plain dark card, the title in spaced capitals, a thick 270° arc on a faint track of its own colour
+    /// with the number and an icon inside, then the verdict, a short line and why. No glows or tinted cards: the colour
+    /// is only on the arc, the number and the verdict.
+    /// </summary>
     FrameworkElement GaugeA(string title, string icon, double frac, string value, string unit, Color c, string word, string sub, string why)
     {
-        const double size = 94, stroke = 9;
+        const double size = 118, stroke = 13;
         var sp = new StackPanel();
-        var head = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center };
-        head.Children.Add(new Border { Width = 20, Height = 20, CornerRadius = new CornerRadius(6), Background = B(A(c, 0x24)), Margin = new Thickness(0, 0, 7, 0), Child = Icon(icon, c, 12) });
-        head.Children.Add(new TextBlock { Text = Loc.T(title).ToUpper(CultureInfo.CurrentCulture), FontSize = 10.5, FontWeight = FontWeights.ExtraBold, Foreground = B(Color.FromRgb(0xB0, 0xB3, 0xBB)), VerticalAlignment = VerticalAlignment.Center });
-        sp.Children.Add(head);
-
-        var ring = new Grid { Width = size, Height = size, Margin = new Thickness(0, 6, 0, 0), HorizontalAlignment = HorizontalAlignment.Center };
-        ring.Children.Add(Ring(size, stroke, 1, B(A(c, 0x1F))));
-        if (!double.IsNaN(frac) && frac > 0)
+        sp.Children.Add(new TextBlock
         {
-            var grad = new LinearGradientBrush(A(c, 0x8C), c, new Point(0, 1), new Point(1, 0));
-            var arc = Ring(size, stroke, frac, grad);
-            arc.Effect = Glow(c, 14, 0.7);
-            ring.Children.Add(arc);
-        }
-        var num = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
-        num.Children.Add(new TextBlock { Text = value, FontSize = 25, FontWeight = FontWeights.ExtraBold, Foreground = B(c), FontFamily = (FontFamily)FindResource("DisplayFont"), Effect = Glow(c, 18, 0.5) });
-        if (unit.Length > 0) num.Children.Add(new TextBlock { Text = unit, FontSize = 13, FontWeight = FontWeights.Bold, Foreground = B(A(c, 0xD9)), VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(2, 0, 0, 5) });
-        ring.Children.Add(num);
+            Text = Spaced(Loc.T(title).ToUpper(CultureInfo.CurrentCulture)), FontSize = 11, FontWeight = FontWeights.Bold,
+            Foreground = B(Color.FromRgb(0xC6, 0xCD, 0xD6)), HorizontalAlignment = HorizontalAlignment.Center,
+        });
+
+        var ring = new Grid { Width = size, Height = size, Margin = new Thickness(0, 12, 0, 0), HorizontalAlignment = HorizontalAlignment.Center };
+        ring.Children.Add(Ring(size, stroke, 1, B(A(c, 0x30))));
+        if (!double.IsNaN(frac) && frac > 0) ring.Children.Add(Ring(size, stroke, frac, B(c)));
+        var inner = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 6, 0, 0) };
+        var num = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center };
+        num.Children.Add(new TextBlock { Text = value, FontSize = 26, FontWeight = FontWeights.Bold, Foreground = B(c), FontFamily = (FontFamily)FindResource("DisplayFont") });
+        if (unit.Length > 0) num.Children.Add(new TextBlock { Text = unit, FontSize = 14, FontWeight = FontWeights.Bold, Foreground = B(c), VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(1, 0, 0, 5) });
+        inner.Children.Add(num);
+        inner.Children.Add(new Border { Margin = new Thickness(0, 2, 0, 0), HorizontalAlignment = HorizontalAlignment.Center, Child = Icon(icon, Color.FromRgb(0xD8, 0xDC, 0xE2), 20) });
+        ring.Children.Add(inner);
         sp.Children.Add(ring);
-        sp.Children.Add(new TextBlock { Text = Loc.T(word).ToUpper(CultureInfo.CurrentCulture), FontSize = 11.5, FontWeight = FontWeights.ExtraBold, Foreground = B(c), HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, -10, 0, 0) });
-        sp.Children.Add(new TextBlock { Text = sub.ToUpper(CultureInfo.CurrentCulture), FontSize = 10, FontWeight = FontWeights.Bold, Foreground = B(Color.FromRgb(0x7C, 0x80, 0x8A)), HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 4, 0, 0) });
-        sp.Children.Add(new TextBlock { Text = why, FontSize = 11, Foreground = B(Color.FromRgb(0x8E, 0x92, 0x9B)), TextWrapping = TextWrapping.Wrap, TextAlignment = TextAlignment.Center, Margin = new Thickness(4, 3, 4, 0), LineHeight = 15, MaxHeight = 15, TextTrimming = TextTrimming.CharacterEllipsis, ToolTip = why });
-        var card = Card2(sp, c, 12, glow: true);
-        card.Margin = new Thickness(0, 0, 10, 10);
-        return card;
+
+        sp.Children.Add(new TextBlock { Text = Spaced(Loc.T(word).ToUpper(CultureInfo.CurrentCulture)), FontSize = 13, FontWeight = FontWeights.Bold, Foreground = B(c), HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 4, 0, 0) });
+        if (sub.Length > 0)
+            sp.Children.Add(new TextBlock { Text = Spaced(sub.ToUpper(CultureInfo.CurrentCulture)), FontSize = 10, FontWeight = FontWeights.SemiBold, Foreground = B(Color.FromRgb(0x7D, 0x86, 0x92)), HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 5, 0, 0) });
+        sp.Children.Add(new TextBlock
+        {
+            Text = why, FontSize = 11.5, Foreground = B(Color.FromRgb(0x9A, 0xA2, 0xAD)), TextWrapping = TextWrapping.Wrap, TextAlignment = TextAlignment.Center,
+            Margin = new Thickness(6, 8, 6, 0), LineHeight = 16, MaxHeight = 32, TextTrimming = TextTrimming.CharacterEllipsis, ToolTip = why,
+        });
+        return new Border
+        {
+            Child = sp, Padding = new Thickness(14, 16, 14, 16), Margin = new Thickness(0, 0, 10, 10), CornerRadius = new CornerRadius(12),
+            BorderBrush = B(Color.FromRgb(0x22, 0x2B, 0x36)), BorderThickness = new Thickness(1),
+            // A soft light behind the gauge, the only tint on the card.
+            Background = new RadialGradientBrush(A(c, 0x12), Color.FromRgb(0x10, 0x16, 0x1E)) { Center = new Point(0.5, 0.36), GradientOrigin = new Point(0.5, 0.36), RadiusX = 0.55, RadiusY = 0.5 },
+        };
     }
 
     // ───────── header ─────────
