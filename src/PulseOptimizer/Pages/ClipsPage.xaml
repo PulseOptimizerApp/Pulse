@@ -314,6 +314,13 @@
                         </Grid>
                         <Grid Style="{StaticResource Row}">
                             <Grid.ColumnDefinitions><ColumnDefinition Width="200"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <TextBlock Style="{StaticResource RowLabel}" Text="VALORANT highlights"/>
+                            <TextBlock Grid.Column="1" Style="{StaticResource Body}" FontSize="12" Foreground="{StaticResource TextDimBrush}" VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="460" HorizontalAlignment="Left"
+                                       Text="VALORANT doesn't share kills while you play, so Pulse keeps each match in a temporary file and, when it ends, clips your aces, 4Ks, 3Ks and clutches (1v2 or harder) using Riot's match data. The file is deleted right after. It needs free space while the match runs: about 18 GB an hour at 40 Mbps."/>
+                            <CheckBox x:Name="HighlightsSwitch" Grid.Column="2" Style="{StaticResource Switch}" Click="Setting_Click"/>
+                        </Grid>
+                        <Grid Style="{StaticResource Row}">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="200"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                             <TextBlock Style="{StaticResource RowLabel}" Text="Match recaps"/>
                             <TextBlock Grid.Column="1" Style="{StaticResource Body}" FontSize="12" Foreground="{StaticResource TextDimBrush}" VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="460" HorizontalAlignment="Left"
                                        Text="After each match: map, agent or champion, win or loss, K/D/A, headshots and rank, with that match's clips (VALORANT, Counter-Strike 2, League of Legends and Dota 2). Other games, like Marvel Rivals, Overwatch 2, Fortnite and Apex, get a card for each session with how long you played and its clips."/>

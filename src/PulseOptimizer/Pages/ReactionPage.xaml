@@ -32,6 +32,24 @@
             <WrapPanel x:Name="ModeChips" Margin="0,22,0,0"/>
             <TextBlock x:Name="ModeText" Style="{StaticResource Body}" Margin="0,8,0,0" MaxWidth="760" HorizontalAlignment="Left"/>
 
+            <!-- In-game sensitivity: the crosshair moves like VALORANT (for the mouse drills) -->
+            <Border x:Name="FeelRow" Margin="0,14,0,0" Padding="14,10,14,10" CornerRadius="12" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
+                <Grid>
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                    <CheckBox x:Name="FeelSwitch" Style="{StaticResource Switch}" VerticalAlignment="Center" Click="Feel_Changed"/>
+                    <StackPanel Grid.Column="1" Margin="12,0,12,0" VerticalAlignment="Center">
+                        <TextBlock Text="Move like VALORANT" FontSize="13" FontWeight="SemiBold"/>
+                        <TextBlock x:Name="FeelText" FontSize="11.5" Foreground="{StaticResource TextDimBrush}" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="Sensitivity" FontSize="12" Foreground="{StaticResource TextDimBrush}" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                        <TextBox x:Name="SensBox" Style="{StaticResource SearchBox}" Width="70" LostKeyboardFocus="Feel_Changed" KeyDown="FeelBox_KeyDown"/>
+                        <TextBlock Text="DPI" FontSize="12" Foreground="{StaticResource TextDimBrush}" VerticalAlignment="Center" Margin="14,0,6,0"/>
+                        <TextBox x:Name="DpiBox" Style="{StaticResource SearchBox}" Width="70" LostKeyboardFocus="Feel_Changed" KeyDown="FeelBox_KeyDown"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
             <!-- The arena: click anywhere in it (or press Space, or A / D in Left or right) -->
             <Border x:Name="Arena" Margin="0,18,0,0" Height="430" CornerRadius="16" BorderThickness="1" ClipToBounds="True" Cursor="Hand"
                     Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
@@ -52,6 +70,7 @@
                         <Border x:Name="RightSide" Grid.Column="2" CornerRadius="0,16,16,0"/>
                     </Grid>
                     <Canvas x:Name="Field" IsHitTestVisible="False"/>
+                    <Canvas x:Name="CrossLayer" IsHitTestVisible="False"/>
                     <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" IsHitTestVisible="False">
                         <TextBlock x:Name="BigText" FontSize="44" FontWeight="Bold" HorizontalAlignment="Center" Text="Click to start"/>
                         <TextBlock x:Name="SmallText" FontSize="14" Foreground="{StaticResource TextDimBrush}" HorizontalAlignment="Center" Margin="0,8,0,0" TextAlignment="Center"/>

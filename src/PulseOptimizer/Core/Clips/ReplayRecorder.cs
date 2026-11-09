@@ -400,7 +400,7 @@ public sealed class ReplayRecorder : IDisposable
         var f = _session;
         if (f == null) return null;
         _session = null;
-        var tapped = _ring.StopTap();
+        _ring.StopTap(f);
         var marks = MarksBetween(_sessionStart, Now);
         LastRange = (_startAbs + _sessionStart, _startAbs + Now);
         try { await f.FlushAsync(); } catch { }
@@ -414,6 +414,74 @@ public sealed class ReplayRecorder : IDisposable
             return mp4;
         }
         finally { try { File.Delete(_sessionTs); } catch { } }
+    }
+
+    // ───────── A match kept for highlights ─────────
+
+    FileStream _tape;
+    string _tapePath;
+
+    /// <summary>A whole match is being written to a temporary file, to cut highlights from when it ends.</summary>
+    public bool TapeActive => _tape != null;
+    public double TapeSeconds => _tape != null ? Now - _tapeStarted : 0;
+    double _tapeStarted;
+
+    /// <summary>Starts keeping everything in a temporary file (deleted after the highlights are cut). Memory use stays the same.</summary>
+    public void StartTape(string folder)
+    {
+        if (_tape != null) return;
+        Directory.CreateDirectory(folder);
+        _tapePath = Path.Combine(folder, $".match-{Guid.NewGuid():N}.ts");
+        _tape = new FileStream(_tapePath, FileMode.Create, FileAccess.Write, FileShare.Read, 1 << 20);
+        _tapeStarted = Now;
+        _ring.StartTap(_tape);
+    }
+
+    /// <summary>Stops the match file. Returns its path and the local time its first frame was recorded, or null.</summary>
+    public (string Path, DateTime Start)? StopTape()
+    {
+        var f = _tape;
+        if (f == null) return null;
+        _tape = null;
+        double first = _ring.StopTap(f);
+        try { f.Flush(); } catch { }
+        f.Dispose();
+        if (first < 0) { try { File.Delete(_tapePath); } catch { } return null; }
+        return (_tapePath, DateTime.Now - TimeSpan.FromSeconds(Now - first));
+    }
+
+    /// <summary>Deletes a match file Pulse made (only ".match-….ts" files: never anything else).</summary>
+    public static void DeleteTape(string path)
+    {
+        if (string.IsNullOrEmpty(path)) return;
+        var name = Path.GetFileName(path);
+        if (!name.StartsWith(".match-", StringComparison.Ordinal) || !name.EndsWith(".ts", StringComparison.Ordinal)) return;
+        try { File.Delete(path); } catch { }
+    }
+
+    /// <summary>Match files left behind by a crash or a power cut (older than 3 hours), except <paramref name="keep"/>.</summary>
+    public static void DeleteOldTapes(string folder, string keep = null)
+    {
+        try
+        {
+            foreach (var f in Directory.EnumerateFiles(folder, ".match-*.ts"))
+                if (f != keep && File.GetLastWriteTimeUtc(f) < DateTime.UtcNow.AddHours(-3)) DeleteTape(f);
+        }
+        catch { }
+    }
+
+    /// <summary>
+    /// Cuts <paramref name="seconds"/> from <paramref name="from"/> seconds into a match file as an MP4 clip (no
+    /// re-encoding, so it starts at the keyframe just before). Returns its path.
+    /// </summary>
+    public async Task<string> CutTape(string tape, double from, double seconds, string folder, string name, CancellationToken ct = default)
+    {
+        Directory.CreateDirectory(folder);
+        var mp4 = UniquePath(folder, name);
+        string ss = Math.Max(0, from).ToString("0.###", CultureInfo.InvariantCulture), len = seconds.ToString("0.###", CultureInfo.InvariantCulture);
+        var (code, err) = await Ffmpeg.Run($"-hide_banner -loglevel error -y -ss {ss} -i \"{tape}\" -map 0 -c copy{await StretchFor(tape)} -t {len}{TitleArgs(TrackTitles)} -movflags +faststart \"{mp4}\"", ct, 300_000);
+        if (code != 0 || !File.Exists(mp4)) throw new InvalidOperationException("FFmpeg couldn't cut the highlight: " + err.Trim());
+        return mp4;
     }
 
     /// <summary>Names each sound track in the MP4 so the trimmer can show them (MPEG-TS can't carry names).</summary>
@@ -441,6 +509,8 @@ public sealed class ReplayRecorder : IDisposable
 
     public void Dispose()
     {
+        // A match kept for highlights is dropped (it's only temporary).
+        if (StopTape() is { } t) try { File.Delete(t.Path); } catch { }
         // A long recording still running is finished first, so nothing recorded is lost.
         if (_session != null) try { StopSession(Path.GetDirectoryName(_sessionTs)).Wait(TimeSpan.FromMinutes(5)); } catch { }
         _stop.Cancel();

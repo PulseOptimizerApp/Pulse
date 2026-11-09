@@ -59,6 +59,10 @@ public class ReactionSettings
     public Dictionary<string, double> Levels { get; set; } = new();
     /// <summary>Days the daily training plan was finished.</summary>
     public List<DateTime> PlanDays { get; set; } = new();
+    /// <summary>Move the drills' crosshair like VALORANT does at this sensitivity and DPI (raw mouse counts).</summary>
+    public bool GameFeel { get; set; }
+    public double GameSensitivity { get; set; } = 0.4;
+    public int MouseDpi { get; set; } = 800;
 }
 
 /// <summary>What the screen should show for the next try.</summary>

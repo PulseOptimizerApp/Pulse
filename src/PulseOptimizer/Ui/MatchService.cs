@@ -37,7 +37,22 @@ public static class MatchService
         MatchEvents.Highlight += OnHighlight;
         MatchEvents.Finished += OnFinished;
         MatchEvents.Moments += list => MomentLog.Add(list);
-        ValorantMatches.InGame += () => { if (LobbyOn) LobbyOverlay.MatchFound(); };
+        ValorantMatches.InGame += () =>
+        {
+            if (LobbyOn) LobbyOverlay.MatchFound();
+            if (S?.ValorantHighlights == true)
+                System.Windows.Application.Current?.Dispatcher.BeginInvoke(() =>
+                {
+                    var why = ClipsService.StartMatchTape();
+                    if (why != null) TweakEngine.AddLog("clips", "No VALORANT highlights this match: " + why);
+                });
+        };
+        // When the match is in Riot's records: cut its best plays out of the match file.
+        ValorantMatches.MatchSaved += vm =>
+        {
+            if (S?.ValorantHighlights == true || ClipsService.TapeActive)
+                _ = Task.Run(() => ClipsService.FinishMatchTape(vm));
+        };
         // After the match: a few seconds after the recap, the match summary and (if on) both teams (no risk: it's over).
         ValorantMatches.MatchSaved += vm =>
         {
@@ -59,11 +74,14 @@ public static class MatchService
     static bool Wanted => S is { Enabled: true } && (S.AutoClip || S.MatchRecaps);
     static bool LobbyOn => S is { LiveLobby: true, LiveLobbyRisksAccepted: true };
     /// <summary>VALORANT's match watcher is needed for the live warnings and the after-match lobby.</summary>
-    static bool ValorantWatch => LobbyOn || S is { AfterMatchLobby: true } || S is { PostMatchSummary: true };
+    static bool ValorantWatch => LobbyOn || S is { AfterMatchLobby: true } || S is { PostMatchSummary: true } || S is { ValorantHighlights: true };
 
     /// <summary>Every 5 seconds: start or stop the game integrations.</summary>
     static void Watch()
     {
+        // A match file that never got its match (a remake, a crash): don't keep it past 100 minutes.
+        if (ClipsService.TapeActive && ClipsService.TapeSeconds > 100 * 60)
+            System.Windows.Application.Current?.Dispatcher.BeginInvoke(ClipsService.DropMatchTape);
         try
         {
             if (!Wanted)

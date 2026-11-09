@@ -141,6 +141,29 @@ public class ClipsTests
     }
 
     [Fact]
+    public void Two_long_recordings_run_at_once_and_each_knows_where_it_starts()
+    {
+        // The session hotkey and a VALORANT match kept for highlights can overlap.
+        var ring = new TsRing { KeepSeconds = 2 };
+        ring.Write(Pat(), 0);
+        ring.Write(Packet(0x1000, start: true), 0);
+        using var session = new MemoryStream();
+        using var match = new MemoryStream();
+        ring.StartTap(session);
+        ring.Write(Packet(TsRing.VideoPid, true, true, fill: 1), 1);
+        ring.StartTap(match);
+        ring.Write(Packet(TsRing.VideoPid, fill: 2), 2);                 // mid-group: the match file waits for a keyframe
+        ring.Write(Packet(TsRing.VideoPid, true, true, fill: 3), 3);
+        ring.Write(Packet(TsRing.VideoPid, true, true, fill: 4), 4);
+        Assert.Equal(3, ring.StopTap(match));                             // its file starts at the keyframe at t=3
+        ring.Write(Packet(TsRing.VideoPid, true, true, fill: 5), 5);
+        Assert.Equal(1, ring.StopTap(session));
+        Assert.Equal(-1, ring.StopTap(session));                          // already stopped
+        Assert.Equal(2 + 2, match.Length / TsRing.PacketSize);            // tables + keyframes 3 and 4
+        Assert.Equal(2 + 5, session.Length / TsRing.PacketSize);          // tables + 1, 2, 3, 4, 5
+    }
+
+    [Fact]
     public void Clip_start_time_matches_the_keyframe_the_clip_starts_on()
     {
         var ring = new TsRing { KeepSeconds = 100 };
