@@ -74,6 +74,44 @@ public sealed class ReplayRecorder : IDisposable
         return ClipLibrary.StretchCopyArgs(_encoder.Codec, ClipLibrary.StretchSar(w, h, ScreenAspect));
     }
 
+    /// <summary>
+    /// The picture size for a full-screen game when stretched resolutions should play stretched: the screen's own
+    /// shape at the screen's current height (a 4:3 game on a 16:9 screen → 1920×1080). The capture fills it, so a game
+    /// that switches to 1440×1080 stretched is recorded stretched, like it looks, instead of in a box with black bars.
+    /// (0, 0) for a game in a window (recorded at its own shape) or when the setting is off.
+    /// </summary>
+    (int W, int H) StretchCanvas()
+    {
+        if (!_s.StretchToScreen || ScreenAspect <= 0 || _window == IntPtr.Zero || !OperatingSystem.IsWindows()) return default;
+        try
+        {
+            if (!GetWindowRect(_window, out var wr)) return default;
+            var mi = new MONITORINFO { cbSize = System.Runtime.InteropServices.Marshal.SizeOf<MONITORINFO>() };
+            if (!GetMonitorInfo(MonitorFromWindow(_window, 2), ref mi)) return default;
+            var m = mi.rcMonitor;
+            // Full screen (exclusive or borderless): the window covers its whole monitor.
+            bool full = Math.Abs(wr.Left - m.Left) <= 2 && Math.Abs(wr.Top - m.Top) <= 2 && Math.Abs(wr.Right - m.Right) <= 2 && Math.Abs(wr.Bottom - m.Bottom) <= 2;
+            return full ? Canvas(m.Bottom - m.Top, ScreenAspect) : default;
+        }
+        catch { return default; }
+    }
+
+    /// <summary>An even-sized picture of the given height in the screen's shape.</summary>
+    internal static (int W, int H) Canvas(int height, double aspect)
+    {
+        if (height <= 0 || aspect <= 0) return default;
+        int h = height / 2 * 2;
+        return ((int)Math.Round(h * aspect / 2) * 2, h);
+    }
+
+    [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+    struct RECT { public int Left, Top, Right, Bottom; }
+    [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+    struct MONITORINFO { public int cbSize; public RECT rcMonitor, rcWork; public uint dwFlags; }
+    [System.Runtime.InteropServices.DllImport("user32.dll")] static extern bool GetWindowRect(IntPtr hwnd, out RECT rect);
+    [System.Runtime.InteropServices.DllImport("user32.dll")] static extern IntPtr MonitorFromWindow(IntPtr hwnd, uint flags);
+    [System.Runtime.InteropServices.DllImport("user32.dll")] static extern bool GetMonitorInfo(IntPtr monitor, ref MONITORINFO info);
+
     /// <summary>Names of the sound tracks being recorded, in order (track 1 is always all sound).</summary>
     public List<string> TrackTitles { get; } = new();
     public long BufferBytes => _ring.Bytes;
@@ -137,7 +175,7 @@ public sealed class ReplayRecorder : IDisposable
         }
 
         var args = Arguments(_s, _encoder, gamePipe != null ? $@"\\.\pipe\{id}-game" : null, micPipe != null ? $@"\\.\pipe\{id}-mic" : null, _window,
-            appPipes.Select(a => (a.Title, a.Pipe)).ToList(), TrackTitles, VideoLevel);
+            appPipes.Select(a => (a.Title, a.Pipe)).ToList(), TrackTitles, VideoLevel, StretchCanvas());
         _ffmpeg = Process.Start(Ffmpeg.Start(args, redirectOut: true))!;
         try { _ffmpeg.PriorityClass = ProcessPriorityClass.BelowNormal; } catch { } // the game always comes first
 
@@ -150,7 +188,7 @@ public sealed class ReplayRecorder : IDisposable
 
     /// <summary>The FFmpeg command line. Exposed for tests.</summary>
     internal static string Arguments(ClipSettings s, Encoder e, string gamePipe, string micPipe, IntPtr window = default,
-        IReadOnlyList<(string Title, string Pipe)> apps = null, List<string> titles = null, int videoLevel = 0)
+        IReadOnlyList<(string Title, string Pipe)> apps = null, List<string> titles = null, int videoLevel = 0, (int W, int H) canvas = default)
     {
         apps ??= Array.Empty<(string, string)>();
         titles ??= new List<string>();
@@ -162,7 +200,12 @@ public sealed class ReplayRecorder : IDisposable
         // Input 0: grabbed on the graphics card. Either the game's own window (Windows Graphics Capture, which keeps
         // working when the game changes display mode or moves screens; no yellow border, size kept and rounded to even
         // numbers for the encoder), or the whole display (Desktop Duplication).
-        if (window != IntPtr.Zero)
+        // A full-screen game with stretching on gets a fixed picture in the screen's shape that the game fills
+        // (resize_mode=scale), so a stretched resolution is recorded stretched; otherwise the window's own size, and a
+        // window that changes size is fitted inside it (scale_aspect).
+        if (window != IntPtr.Zero && canvas.W > 0 && canvas.H > 0)
+            a.Add($"-thread_queue_size 64 -f lavfi -i gfxcapture=hwnd={(long)window}:capture_cursor={cursor}:capture_border=0:display_border=0:max_framerate={fps}:resize_mode=scale:width={canvas.W}:height={canvas.H}");
+        else if (window != IntPtr.Zero)
             a.Add($"-thread_queue_size 64 -f lavfi -i gfxcapture=hwnd={(long)window}:capture_cursor={cursor}:capture_border=0:display_border=0:max_framerate={fps}:resize_mode=scale_aspect:width=-2:height=-2");
         else
             a.Add($"-thread_queue_size 64 -f lavfi -i ddagrab=output_idx={Math.Max(0, s.Monitor)}:framerate={fps}:draw_mouse={cursor}");
