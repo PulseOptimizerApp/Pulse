@@ -382,7 +382,7 @@ public static class ClipsService
                 TweakEngine.AddLog("clips", $"VALORANT highlights: {made} clips from {vm.Map}");
                 Application.Current?.Dispatcher.BeginInvoke(() =>
                 {
-                    ClipToast.Show(Loc.F("{0} highlights clipped", made), vm.Map ?? "", true);
+                    ClipToast.Show(Loc.F("{0} highlights clipped", made), vm.Map ?? "", ClipToast.Kind.Ok, last);
                     if (last != null) ClipToast.Picture(last);
                 });
                 try { ClipLibrary.EnforceLimit(S); } catch { }
