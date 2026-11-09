@@ -298,6 +298,15 @@ public sealed class WindowsInput : IInputSink, IDisposable
 
     static void Send(INPUT input) => SendInput(1, new[] { input }, Marshal.SizeOf<INPUT>());
 
+    // For button remaps (ButtonRemap.cs): the same input, without a macro around it.
+    internal static void SendKeyRaw(int scan, bool down) => SendKey(scan, down);
+    internal static void SendButtonRaw(int button, bool down) => SendButton(button, down);
+    internal static void SendWheelRaw(int clicks) =>
+        Send(new INPUT { type = INPUT_MOUSE, u = new InputUnion { mi = new MOUSEINPUT { dwFlags = MOUSEEVENTF_WHEEL, mouseData = unchecked((uint)(clicks * 120)) } } });
+    /// <summary>A key by virtual-key code (media and volume keys, which have no ordinary scan code).</summary>
+    internal static void SendVkRaw(int vk, bool down) =>
+        Send(new INPUT { type = INPUT_KEYBOARD, u = new InputUnion { ki = new KEYBDINPUT { wVk = (ushort)vk, dwFlags = (down ? 0 : KEYEVENTF_KEYUP) | KEYEVENTF_EXTENDEDKEY } } });
+
     // ───────── Windows ─────────
 
     const int INPUT_MOUSE = 0, INPUT_KEYBOARD = 1;

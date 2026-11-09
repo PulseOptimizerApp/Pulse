@@ -112,6 +112,10 @@ public partial class MousePage
         foreach (var f in _found) grid.Children.Add(DeviceCard(f));
         grid.Children.Add(ScanCard());
         DevicesView.Children.Add(grid);
+        // Button remaps don't need the mouse's driver, so they're here too (for a mouse that won't connect).
+        var remaps = Panel(Loc.T("Buttons"), RemapPanel());
+        remaps.MaxWidth = 1040; remaps.HorizontalAlignment = HorizontalAlignment.Left; remaps.Margin = new Thickness(0, 4, 0, 0);
+        DevicesView.Children.Add(remaps);
         DevicesView.Children.Add(new TextBlock
         {
             Text = Loc.T("Device support comes from OpenMouse's open-source drivers (about 60 brands). Changes are saved on the device itself, so they work everywhere, even without Pulse running."),
@@ -384,7 +388,7 @@ public partial class MousePage
             {
                 ("overview", "Overview", true),
                 ("performance", "Performance", true),
-                ("buttons", "Buttons", HasButtons),
+                ("buttons", "Buttons", true),   // Pulse's own remaps work for every mouse
                 ("lighting", "Lighting", HasLighting),
                 ("profiles", "Profiles", CanProfile),
                 ("advanced", "Advanced", true),
@@ -401,7 +405,10 @@ public partial class MousePage
             switch (_tab)
             {
                 case "performance": PerformanceTab(right); break;
-                case "buttons": right.Children.Add(Panel(Loc.T("Buttons"), ButtonsPanel())); break;
+                case "buttons":
+                    if (HasButtons) right.Children.Add(Panel(Loc.T("On the mouse"), ButtonsPanel()));
+                    right.Children.Add(Panel(HasButtons ? Loc.T("In Pulse") : Loc.T("Buttons"), RemapPanel()));
+                    break;
                 case "lighting": right.Children.Add(Panel(Loc.T("Lighting"), LightingPanel())); break;
                 case "profiles": right.Children.Add(Panel(Loc.T("Game profiles"), ProfilesPanel())); break;
                 case "advanced": AdvancedTab(right); break;
@@ -561,6 +568,80 @@ public partial class MousePage
             pick.SelectionChanged += (_, _) => { if (pick.SelectedItem is string a && a != action) Set("setButtonMapping", button, a); };
             sp.Children.Add(Field(Loc.T(button), pick, null));
         }
+        return sp;
+    }
+
+    // ───────── Pulse's own button remaps (any mouse) ─────────
+
+    static readonly (string Code, string Label)[] RemapChoices =
+    {
+        ("", "Normal"), ("off", "Disabled"),
+        ("button:0", "Left click"), ("button:1", "Right click"), ("button:2", "Middle click"), ("button:3", "Back (mouse 4)"), ("button:4", "Forward (mouse 5)"),
+        ("wheel:up", "Scroll up"), ("wheel:down", "Scroll down"),
+        ("media:179", "Play / pause"), ("media:176", "Next track"), ("media:177", "Previous track"),
+        ("media:175", "Volume up"), ("media:174", "Volume down"), ("media:173", "Mute"),
+    };
+
+    /// <summary>The middle and side buttons, each with a job picked here; Pulse does the remapping while it runs.</summary>
+    FrameworkElement RemapPanel()
+    {
+        var sp = new StackPanel();
+        void Fill(string listening = null)
+        {
+            sp.Children.Clear();
+            sp.Children.Add(Note(Loc.T("Give the middle and side buttons another job. Works with any mouse while Pulse is running, in every app and game. Saved in Pulse, not on the mouse.")));
+            var remaps = Profiles.Remaps ??= new();
+            foreach (var (button, label) in new[] { ("middle", "Middle button"), ("back", "Back (mouse 4)"), ("forward", "Forward (mouse 5)") })
+            {
+                var current = remaps.GetValueOrDefault(button) ?? "";
+                if (listening == button)
+                {
+                    sp.Children.Add(Field(Loc.T(label), new TextBlock { Text = Loc.T("Press a key… (Esc to cancel)"), FontSize = 13, Foreground = Green, Margin = new Thickness(0, 6, 0, 0) }, null));
+                    continue;
+                }
+                var pick = new ComboBox { Width = 240, HorizontalAlignment = HorizontalAlignment.Left };
+                foreach (var (code, text) in RemapChoices) pick.Items.Add(new ComboBoxItem { Content = Loc.T(text), Tag = code });
+                if (current.StartsWith("key:") && int.TryParse(current[4..], out var vk))
+                    pick.Items.Add(new ComboBoxItem { Content = Loc.F("Key: {0}", Pulse.Core.Input.Keys.Display(vk)), Tag = current });
+                pick.Items.Add(new ComboBoxItem { Content = Loc.T("Keyboard key…"), Tag = "pick" });
+                pick.SelectedItem = pick.Items.Cast<ComboBoxItem>().FirstOrDefault(i => (string)i.Tag == current) ?? pick.Items[0];
+                pick.SelectionChanged += (_, _) =>
+                {
+                    if (pick.SelectedItem is not ComboBoxItem { Tag: string code } || code == current) return;
+                    if (code == "pick") { Listen(button); return; }
+                    Save(button, code);
+                };
+                sp.Children.Add(Field(Loc.T(label), pick, null));
+            }
+            if (remaps.Values.Any(v => !string.IsNullOrEmpty(v)))
+                sp.Children.Add(new TextBlock { Text = Pulse.Core.Input.ButtonRemap.Running ? "●  " + Loc.T("Remapping is on") : Loc.T("Remapping couldn't start: see the log."), FontSize = 11.5, Foreground = Pulse.Core.Input.ButtonRemap.Running ? Green : Res("BadBrush"), Margin = new Thickness(0, 6, 0, 0) });
+        }
+        void Save(string button, string code)
+        {
+            var remaps = Profiles.Remaps ??= new();
+            if (string.IsNullOrEmpty(code)) remaps.Remove(button); else remaps[button] = code;
+            Core.TweakEngine.Save();
+            Pulse.Core.Input.ButtonRemap.Apply(remaps);
+            Fill();
+        }
+        void Listen(string button)
+        {
+            Fill(button);
+            var window = Window.GetWindow(this);
+            if (window == null) { Fill(); return; }
+            System.Windows.Input.KeyEventHandler handler = null;
+            handler = (_, e) =>
+            {
+                var key = e.Key == System.Windows.Input.Key.System ? e.SystemKey : e.Key;
+                e.Handled = true;
+                window.PreviewKeyDown -= handler;
+                if (key == System.Windows.Input.Key.Escape) { Fill(); return; }
+                int vk = System.Windows.Input.KeyInterop.VirtualKeyFromKey(key);
+                if (vk > 0 && vk < 256) Save(button, "key:" + vk); else Fill();
+            };
+            window.PreviewKeyDown += handler;
+        }
+        Fill();
         return sp;
     }
 

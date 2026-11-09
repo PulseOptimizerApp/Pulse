@@ -17,12 +17,14 @@ public static class MouseService
 
     public static void Init()
     {
+        // Button remaps start with Pulse (only when there are any).
+        try { Core.Input.ButtonRemap.Apply(S.Remaps); } catch { }
         GameSessionService.GameChanged += running => _ = Apply(running ? GameSessionService.CurrentGame : null);
         // The battery is checked now and then while a mouse is set up (a few seconds of work every 20 minutes).
         _battery = new Timer(_ => { if (S.Device != null && S.BatteryAlert) _ = Apply(null, onlyBattery: true); }, null, TimeSpan.FromMinutes(3), TimeSpan.FromMinutes(20));
     }
 
-    public static void Shutdown() => _battery?.Dispose();
+    public static void Shutdown() { _battery?.Dispose(); Core.Input.ButtonRemap.Shutdown(); }
 
     /// <summary>
     /// Puts <paramref name="game"/>'s profile (or the desktop one) on the mouse. Returns what was done, or why not.

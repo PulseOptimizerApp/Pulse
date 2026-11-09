@@ -138,9 +138,27 @@ public class SafetyTests
     }
 
     [Fact]
-    public void Never_injects_into_or_reads_other_processes_memory() =>
-        AssertNotUsed(@"\b(OpenProcess|WriteProcessMemory|ReadProcessMemory|CreateRemoteThread|VirtualAllocEx|SetWindowsHookEx)\b",
+    public void Never_injects_into_or_reads_other_processes_memory()
+    {
+        AssertNotUsed(@"\b(OpenProcess|WriteProcessMemory|ReadProcessMemory|CreateRemoteThread|VirtualAllocEx)\b",
             "Pulse must never touch game or other processes' memory (anti-cheat safety)");
+        // Hooks that load into other programs are never used. The one exception is the low-level mouse hook for
+        // button remaps, which Windows runs inside Pulse's own process.
+        AssertNotUsed(@"\bSetWindowsHookEx\b", "Pulse must never load hooks into other programs (anti-cheat safety)", "ButtonRemap.cs");
+    }
+
+    [Fact]
+    public void The_button_remap_hook_is_only_the_low_level_mouse_hook()
+    {
+        var src = File.ReadAllText(Repo.SourceFiles().Single(f => Path.GetFileName(f) == "ButtonRemap.cs"));
+        Assert.Matches(@"const int WH_MOUSE_LL = 14;", src);
+        Assert.Matches(@"SetWindowsHookEx\(WH_MOUSE_LL,", src);
+        Assert.Single(System.Text.RegularExpressions.Regex.Matches(src, @"SetWindowsHookEx\((?!int )"));   // one call (not counting the declaration)
+        Assert.DoesNotMatch(@"WH_KEYBOARD|WH_GETMESSAGE|WH_CALLWNDPROC|WH_CBT|WH_MOUSE\b|WH_DEBUG|WH_SHELL", src);
+        // Input sent by programs is never remapped (no loops), and left/right click are never touched.
+        Assert.Matches(@"LLMHF_INJECTED\) == 0", src);
+        Assert.DoesNotMatch(@"WM_LBUTTON|WM_RBUTTON", src);
+    }
 
     [Fact]
     public void Only_the_cleaner_deletes_files() =>

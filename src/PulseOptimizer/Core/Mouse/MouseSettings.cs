@@ -21,6 +21,11 @@ public class MouseSettings
     public int BatteryAlertPercent { get; set; } = 15;
     /// <summary>Last battery level seen (for the alert, which shows once per drop).</summary>
     public int LastBattery { get; set; } = -1;
+    /// <summary>
+    /// Button remaps Pulse does itself, for mice that can't store them: "middle", "back", "forward" → an action
+    /// (see Pulse.Core.Input.ButtonRemap). Work with any mouse while Pulse runs.
+    /// </summary>
+    public Dictionary<string, string> Remaps { get; set; } = new();
 
     /// <summary>Something needs Pulse to watch for games: a game profile or a desktop profile.</summary>
     public static bool WantsGames(MouseSettings s) =>
