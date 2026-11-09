@@ -638,4 +638,18 @@ public class VideoNeverWaitsOnSoundTests
         Assert.Equal(2, System.Text.RegularExpressions.Regex.Matches(a, "-filter_complex").Count);
         Assert.Contains("-thread_queue_size 64 -f lavfi -i ddagrab", a);    // about a second of room, not 8 frames
     }
+
+    [Fact]
+    public void A_full_screen_stretched_game_is_recorded_in_the_screens_shape()
+    {
+        // 4:3 stretched on a 16:9 screen: a 1920×1080 picture the game fills, not 1440×1080 in a box.
+        Assert.Equal((1920, 1080), Pulse.Core.Clips.ReplayRecorder.Canvas(1080, 16.0 / 9));
+        Assert.Equal((2560, 1440), Pulse.Core.Clips.ReplayRecorder.Canvas(1440, 16.0 / 9));
+        Assert.Equal((1728, 1080), Pulse.Core.Clips.ReplayRecorder.Canvas(1080, 16.0 / 10));
+        var a = Pulse.Core.Clips.ReplayRecorder.Arguments(new ClipSettings(), Nvenc, null, null, (IntPtr)0x1234, canvas: (1920, 1080));
+        Assert.Contains("resize_mode=scale:width=1920:height=1080", a);
+        Assert.DoesNotContain("scale_aspect", a);
+        // A game in a window keeps its own shape.
+        Assert.Contains("resize_mode=scale_aspect", Pulse.Core.Clips.ReplayRecorder.Arguments(new ClipSettings(), Nvenc, null, null, (IntPtr)0x1234));
+    }
 }
