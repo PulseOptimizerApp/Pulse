@@ -104,6 +104,13 @@ public partial class ClipsPage : UserControl, IPage, IReleasable
         _usage.Start();
         if (parameter as string == "newest") { _view = "all"; _settingsOpen = false; Scroll?.ScrollToTop(); }
         if (parameter as string == "matches") { _view = "matches"; _matchFilter = null; _settingsOpen = false; Scroll?.ScrollToTop(); }
+        // From the clip popup: open that clip in the player as soon as the library has it.
+        if (parameter is string open && open.StartsWith("open:", StringComparison.Ordinal))
+        {
+            _view = "all"; _settingsOpen = false;
+            _openWhenLoaded = open[5..];
+            if (OpenWaiting()) _openWhenLoaded = null;
+        }
         UpdateStatus();
         LoadLibrary(); // your clips first; the encoder check below can take a moment
         WatchFolder();
@@ -620,6 +627,7 @@ public partial class ClipsPage : UserControl, IPage, IReleasable
         BuildLibraryFilters();
         BuildNav();
         ApplyLibraryFilter();
+        if (_openWhenLoaded != null && OpenWaiting()) _openWhenLoaded = null;
 
         // Pictures for clips saved by another copy or before thumbnails existed.
         if (Ffmpeg.Installed && vms.Any(v => v.Clip.Thumbnail == null))
@@ -900,6 +908,18 @@ public partial class ClipsPage : UserControl, IPage, IReleasable
     List<string> _trackNames = new();
     double _pendingSeek = -1;
     bool _resumeAfterScrub;
+
+    string _openWhenLoaded;
+
+    /// <summary>Opens the clip the popup was clicked for, if the library has loaded it. True when opened.</summary>
+    bool OpenWaiting()
+    {
+        var vm = _allClips.FirstOrDefault(v => string.Equals(v.Clip.Path, _openWhenLoaded, StringComparison.OrdinalIgnoreCase));
+        if (vm == null) return false;
+        if (SelectToggle.IsChecked == true) SelectToggle.IsChecked = false;
+        Clip_Click(new FrameworkElement { Tag = vm }, null);
+        return true;
+    }
 
     async void Clip_Click(object sender, MouseButtonEventArgs e)
     {
