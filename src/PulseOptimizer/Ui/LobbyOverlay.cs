@@ -68,19 +68,92 @@ public static class LobbyOverlay
         }));
     }
 
-    /// <summary>A match you played just ended: offer both teams (no risk, it's over).</summary>
-    public static void AfterMatch(Pulse.Core.Games.Valorant.VMatch vm)
+    /// <summary>
+    /// A match you played just ended: a summary (result, your numbers, the one thing that mattered most) with buttons to
+    /// open the match in Pulse and, when the after-match lobby is on, to see both teams (no risk, it's over).
+    /// </summary>
+    public static void AfterMatch(Pulse.Core.Games.Valorant.VMatch vm, bool summary = true, bool lobby = true)
     {
         var app = Application.Current;
-        if (app == null || vm == null) return;
-        if (!app.Dispatcher.CheckAccess()) { app.Dispatcher.BeginInvoke(() => AfterMatch(vm)); return; }
+        if (app == null || vm == null || (!summary && !lobby)) return;
+        if (!app.Dispatcher.CheckAccess()) { app.Dispatcher.BeginInvoke(() => AfterMatch(vm, summary, lobby)); return; }
         _after = vm;
-        _afterLoading = Task.Run(() => ValorantLobby.AfterMatch(vm));
+        if (lobby) _afterLoading = Task.Run(() => ValorantLobby.AfterMatch(vm));
+        var sum = summary ? Pulse.Core.Games.Valorant.PostMatch.For(vm) : null;
         var body = new StackPanel { Margin = new Thickness(14, 12, 14, 14) };
-        body.Children.Add(Brand(Loc.T("After the match")));
-        body.Children.Add(T(Loc.T("Match over"), 15, White).Also(t => t.Margin = new Thickness(0, 10, 0, 0)));
-        body.Children.Add(T(Loc.T("See both teams: ranks, peaks, smurf signs and unusual stats?"), 12, Dim, bold: false).Also(t => { t.Margin = new Thickness(0, 2, 0, 0); t.TextWrapping = TextWrapping.Wrap; }));
-        Prompt(app, body, () => _ = ShowAfter(app));
+        var buttons = new List<(string, bool, Action)>();
+        if (sum == null)
+        {
+            body.Children.Add(Brand(Loc.T("After the match")));
+            body.Children.Add(T(Loc.T("Match over"), 15, White).Also(t => t.Margin = new Thickness(0, 10, 0, 0)));
+            body.Children.Add(T(Loc.T("See both teams: ranks, peaks, smurf signs and unusual stats?"), 12, Dim, bold: false).Also(t => { t.Margin = new Thickness(0, 2, 0, 0); t.TextWrapping = TextWrapping.Wrap; }));
+            buttons.Add((Loc.T("Show"), true, () => _ = ShowAfter(app)));
+        }
+        else
+        {
+            SummaryBody(body, sum);
+            buttons.Add((Loc.T("Open match"), true, () => OpenInPulse(app, vm.Id)));
+            if (lobby) buttons.Add((Loc.T("Both teams"), false, () => _ = ShowAfter(app)));
+        }
+        buttons.Add((Loc.T("Close"), false, null));
+        Prompt(app, body, buttons, sum == null ? 25 : 40, width: sum == null ? 300 : 340);
+    }
+
+    static readonly Brush Win = Frozen(new SolidColorBrush(Color.FromRgb(0x3F, 0xD6, 0xB0)));
+    static readonly Brush Loss = Frozen(new SolidColorBrush(Color.FromRgb(0xF0, 0x5A, 0x5A)));
+    static readonly Brush Tip = Frozen(new SolidColorBrush(Color.FromRgb(0xFF, 0xC8, 0x57)));
+    static readonly Brush TipBg = Frozen(new SolidColorBrush(Color.FromArgb(0x1A, 0xFF, 0xC8, 0x57)));
+    static readonly Brush GoodBg = Frozen(new SolidColorBrush(Color.FromArgb(0x1A, 0x3F, 0xD6, 0xB0)));
+
+    /// <summary>The summary: result and map, your agent and place, your numbers, and one point.</summary>
+    static void SummaryBody(StackPanel body, Pulse.Core.Games.Valorant.PostMatch.Summary s)
+    {
+        body.Children.Add(Brand(Loc.T("Match summary")));
+        var result = s.Result > 0 ? Loc.T("Victory") : s.Result < 0 ? Loc.T("Defeat") : Loc.T("Draw");
+        var head = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 10, 0, 0) };
+        head.Children.Add(T(result, 17, s.Result > 0 ? Win : s.Result < 0 ? Loss : White));
+        head.Children.Add(T($"  {s.Us}–{s.Them}", 17, White));
+        if (!string.IsNullOrEmpty(s.Map)) head.Children.Add(T("  ·  " + s.Map, 12.5, Dim, bold: false).Also(t => t.VerticalAlignment = VerticalAlignment.Center));
+        body.Children.Add(head);
+
+        var who = new Grid { Margin = new Thickness(0, 10, 0, 0) };
+        who.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        who.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        who.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        if (MatchArt.AgentIcon(s.Agent) is { } art)
+            who.Children.Add(new Border { Width = 38, Height = 38, CornerRadius = new CornerRadius(8), ClipToBounds = true, Background = RowBg, Child = new Image { Source = art }.Also(i => RenderOptions.SetBitmapScalingMode(i, BitmapScalingMode.HighQuality)) });
+        var mid = new StackPanel { Margin = new Thickness(10, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
+        mid.Children.Add(T($"{s.Agent} · {s.Kills} / {s.Deaths} / {s.Assists}", 13, White));
+        mid.Children.Add(T(Loc.F("#{0} of {1} · ACS {2} · ADR {3} · HS {4}%", s.Place, s.Match.Players.Count, Math.Round(s.Acs), Math.Round(s.Adr), double.IsNaN(s.HsPct) ? "–" : Math.Round(s.HsPct).ToString(CultureInfo.CurrentCulture)), 11, Dim, bold: false).Also(t => t.Margin = new Thickness(0, 2, 0, 0)));
+        Grid.SetColumn(mid, 1);
+        who.Children.Add(mid);
+        if (!double.IsNaN(s.Score))
+        {
+            var score = new StackPanel { VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Right };
+            score.Children.Add(T(Math.Round(s.Score).ToString(CultureInfo.CurrentCulture), 18, White).Also(t => t.HorizontalAlignment = HorizontalAlignment.Right));
+            score.Children.Add(T(Loc.T("Pulse score"), 9.5, Dim, bold: false).Also(t => t.HorizontalAlignment = HorizontalAlignment.Right));
+            Grid.SetColumn(score, 2);
+            who.Children.Add(score);
+        }
+        body.Children.Add(who);
+
+        if (s.Main != null)
+        {
+            var text = T(Loc.F(s.Main.Format, s.Main.Args), 11.5, s.Main.Problem ? Tip : Win, bold: false).Also(t => { t.TextWrapping = TextWrapping.Wrap; t.TextTrimming = TextTrimming.None; });
+            body.Children.Add(new Border
+            {
+                Background = s.Main.Problem ? TipBg : GoodBg, CornerRadius = new CornerRadius(8), Padding = new Thickness(10, 8, 10, 8),
+                Margin = new Thickness(0, 12, 0, 0), Child = text,
+            });
+        }
+    }
+
+    /// <summary>Brings Pulse up on this match's scoreboard.</summary>
+    static void OpenInPulse(Application app, string id)
+    {
+        if (app.MainWindow is not MainWindow mw) return;
+        mw.ShowFromTray();
+        mw.Navigate("valorant", "match:" + id);
     }
 
     static Pulse.Core.Games.Valorant.VMatch _after;
@@ -123,7 +196,7 @@ public static class LobbyOverlay
     static FrameworkElement Brand(string what)
     {
         var sp = new StackPanel { Orientation = Orientation.Horizontal };
-        sp.Children.Add(new Image { Source = new BitmapImage(new Uri("pack://application:,,,/Assets/logo-128.png")), Width = 18, Height = 18 });
+        sp.Children.Add(new Image { Source = new BitmapImage(new Uri("pack://application:,,,/Pulse;component/Assets/logo-128.png")), Width = 18, Height = 18 });
         sp.Children.Add(T("PULSE", 11.5, White).Also(t => { t.Margin = new Thickness(7, 0, 0, 0); t.VerticalAlignment = VerticalAlignment.Center; }));
         sp.Children.Add(T("  ·  " + what.ToUpper(CultureInfo.CurrentCulture), 10.5, Dim).Also(t => t.VerticalAlignment = VerticalAlignment.Center));
         return sp;
@@ -147,18 +220,23 @@ public static class LobbyOverlay
     }
 
     /// <summary>A small corner popup with Show / Not now, gone by itself after 25 seconds.</summary>
-    static void Prompt(Application app, StackPanel body, Action show, string showText = null)
+    static void Prompt(Application app, StackPanel body, Action show, string showText = null) =>
+        Prompt(app, body, new List<(string, bool, Action)> { (showText ?? Loc.T("Show"), true, show), (Loc.T("Not now"), false, null) });
+
+    /// <summary>A small corner popup with buttons (an action of null just closes it), gone by itself after a while.</summary>
+    static void Prompt(Application app, StackPanel body, List<(string Text, bool Primary, Action Act)> buttons, int seconds = 25, double width = 300)
     {
         _prompt?.Close();
         var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 12, 0, 0) };
-        var yes = Btn(app, showText ?? Loc.T("Show"), true);
-        var no = Btn(app, Loc.T("Not now"), false);
-        yes.Click += (_, _) => { ClosePrompt(); show(); };
-        no.Click += (_, _) => ClosePrompt();
-        row.Children.Add(yes); row.Children.Add(no);
+        foreach (var (text, primary, act) in buttons)
+        {
+            var b = Btn(app, text, primary);
+            b.Click += (_, _) => { ClosePrompt(); act?.Invoke(); };
+            row.Children.Add(b);
+        }
         body.Children.Add(row);
 
-        var w = NewWindow(app, Card(body, 300));
+        var w = NewWindow(app, Card(body, width));
         var area = SystemParameters.WorkArea;
         w.Loaded += (_, _) =>
         {
@@ -169,7 +247,7 @@ public static class LobbyOverlay
         _prompt = w;
         w.Show();
         _promptTimer?.Stop();
-        _promptTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(25) };
+        _promptTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(seconds) };
         _promptTimer.Tick += (_, _) => ClosePrompt();
         _promptTimer.Start();
     }
@@ -267,8 +345,18 @@ public static class LobbyOverlay
         return sp;
     }
 
+    /// <summary>Who in this lobby you've met before (from your saved matches), while the panel is built.</summary>
+    static Dictionary<string, Pulse.Core.Games.Valorant.Stats.Encounter> _met = new();
+
     static FrameworkElement Panel(Application app, Lobby l, string title, bool after)
     {
+        try
+        {
+            var all = Pulse.Core.Games.Valorant.VStore.All;
+            var me = l.Players.FirstOrDefault(p => p.Me)?.Puuid ?? all.FirstOrDefault()?.Me;
+            _met = Pulse.Core.Games.Valorant.Stats.MetBefore(all, me, after ? _after?.Id : null);
+        }
+        catch { _met = new(); }
         var sp = new StackPanel { Margin = new Thickness(16, 12, 16, 16) };
         sp.Children.Add(Header(app, after ? title : string.IsNullOrEmpty(l.Map) ? Loc.T("Live lobby") : Loc.T("Live lobby") + " · " + l.Map));
         var cols = new Grid { Margin = new Thickness(0, 12, 0, 0) };
@@ -331,6 +419,21 @@ public static class LobbyOverlay
                 Child = T(Loc.T("Unusual stats").ToUpper(CultureInfo.CurrentCulture), 9, Enemy),
                 ToolTip = Loc.T("Signs, not proof:") + "\n• " + string.Join("\n• ", u.Signs),
             });
+        if (!p.Me && p.Puuid != null && _met.TryGetValue(p.Puuid, out var met))
+        {
+            // Played with or against them before: from your own saved matches only.
+            var tip = new List<string>();
+            if (met.With > 0) tip.Add(Loc.F("With you: {0} games, {1} won", met.With, met.WithWins));
+            if (met.Against > 0) tip.Add(Loc.F("Against you: {0} games, you won {1}", met.Against, met.AgainstWins));
+            tip.Add(Loc.F("Last: {0}", met.Last.ToLocalTime().ToString("d", CultureInfo.CurrentCulture)));
+            nameRow.Children.Add(new Border
+            {
+                CornerRadius = new CornerRadius(999), Padding = new Thickness(6, 0, 6, 1), Margin = new Thickness(6, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center,
+                Background = new SolidColorBrush(Color.FromArgb(0x30, 0x6F, 0xA8, 0xFF)),
+                Child = T(Loc.F("Met {0}×", met.With + met.Against).ToUpper(CultureInfo.CurrentCulture), 9, new SolidColorBrush(Color.FromRgb(0x8F, 0xBE, 0xFF))),
+                ToolTip = string.Join("\n", tip),
+            });
+        }
         who.Children.Add(nameRow);
         var sub = new List<string>();
         if (!string.IsNullOrEmpty(p.Extra)) sub.Add(p.Extra);

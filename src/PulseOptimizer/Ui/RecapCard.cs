@@ -46,7 +46,7 @@ static class RecapCard
         // ── Pulse header: logo, "Match recap", the mode ──
         var top = new Grid();
         var brand = new StackPanel { Orientation = Orientation.Horizontal };
-        brand.Children.Add(new Image { Source = new BitmapImage(new Uri("pack://application:,,,/Assets/logo-128.png")), Width = 18, Height = 18, VerticalAlignment = VerticalAlignment.Center });
+        brand.Children.Add(new Image { Source = new BitmapImage(new Uri("pack://application:,,,/Pulse;component/Assets/logo-128.png")), Width = 18, Height = 18, VerticalAlignment = VerticalAlignment.Center });
         brand.Children.Add(Text("PULSE", 11.5, White, displayFont: true).Also(t => { t.Margin = new Thickness(7, 0, 0, 0); t.VerticalAlignment = VerticalAlignment.Center; }));
         brand.Children.Add(Text("  ·  " + Up(Loc.T("Match recap")), 10.5, Label).Also(t => t.VerticalAlignment = VerticalAlignment.Center));
         top.Children.Add(brand);
