@@ -49,7 +49,8 @@ public static class Stats
             var t = Analysis.Totals(m, id);
             o.Matches++;
             int us = m.Rounds.Count(r => r.Winner == me.Team), them = m.Rounds.Count(r => r.Winner.Length > 0 && r.Winner != me.Team);
-            if (us > them) o.Wins++; else if (them > us) o.Losses++; else o.Draws++;
+            int res = m.Outcome(me.Team);
+            if (res > 0) o.Wins++; else if (res < 0) o.Losses++; else o.Draws++;
             o.Rounds += t.Rounds; o.Kills += me.Kills; o.Deaths += me.Deaths; o.Assists += me.Assists; o.Score += me.Score;
             o.Damage += t.Damage; o.DamageTaken += t.DamageTaken; o.Head += t.Head; o.Body += t.Body; o.Legs += t.Legs;
             o.KastRounds += t.KastRounds; o.FirstBloods += t.FirstKills; o.FirstDeaths += t.FirstDeaths;
@@ -216,7 +217,8 @@ public static class Stats
             var me = m.Players.FirstOrDefault(p => p.Id == id);
             if (me == null || me.Team.Length == 0 || m.Players.Count(p => p.Team == me.Team) < 2) continue;
             int us = m.Rounds.Count(r => r.Winner == me.Team), them = m.Rounds.Count(r => r.Winner.Length > 0 && r.Winner != me.Team);
-            bool won = us > them;
+            int res = m.Outcome(me.Team);
+            bool won = res > 0;
             foreach (var p in m.Players)
             {
                 if (p.Id == id || p.Id.Length == 0) continue;
@@ -253,8 +255,8 @@ public static class Stats
             foreach (var m in g)
             {
                 var team = m.TeamOf(id);
-                int us = m.Rounds.Count(r => r.Winner == team), them = m.Rounds.Count(r => r.Winner.Length > 0 && r.Winner != team);
-                if (us > them) w++; else if (them > us) l++;
+                int res = m.Outcome(team);
+                if (res > 0) w++; else if (res < 0) l++;
                 foreach (var r in m.Rounds.Where(r => r.Winner.Length > 0))
                 {
                     if (m.Attacking(team, r.N)) { ap++; if (r.Winner == team) aw++; }

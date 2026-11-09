@@ -401,7 +401,7 @@ public partial class ValorantPage
     static bool WonFor(VMatch m, string puuid)
     {
         var team = m.TeamOf(puuid);
-        return m.Rounds.Count(r => r.Winner == team) > m.Rounds.Count(r => r.Winner.Length > 0 && r.Winner != team);
+        return m.WonBy(team);
     }
 
     FrameworkElement MatchRow(VMatch m, string puuid)
