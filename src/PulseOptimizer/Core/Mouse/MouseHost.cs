@@ -236,12 +236,12 @@ public sealed class MouseHost : IDisposable
         {
             var v = await work();
             if (what != null) Note(v == null ? what : $"{what} → {Short(v)}");
-            Post(() => _engine.Invoke("__pulseDone", token, true, v));
+            Post(() => _engine.Invoke("__pulseDone", (int)token, true, v));
         }
         catch (Exception ex)
         {
             Note($"{what ?? "call"} failed: {ex.Message}");
-            Post(() => _engine.Invoke("__pulseDone", token, false, ex.Message));
+            Post(() => _engine.Invoke("__pulseDone", (int)token, false, ex.Message));
         }
     });
 
