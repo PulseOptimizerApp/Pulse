@@ -159,7 +159,7 @@ public class TrackerGgTests
 
     /// <summary>
     /// Pictures of the tracker for a person to look at (not a check): set PULSE_SHOTS to a folder and run this test
-    /// on Windows. The "Tracker screenshots" workflow does that and uploads the pictures.
+    /// on Windows (with the VALORANT art from tools/get-match-art.py in place).
     /// </summary>
     [Fact]
     public void Screenshots()
