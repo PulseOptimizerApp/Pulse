@@ -115,7 +115,7 @@ public partial class MousePage
     {
         MousePanel.Children.Clear();
         var head = new WrapPanel { Margin = new Thickness(0, 4, 0, 6) };
-        head.Children.Add(new TextBlock { Text = Str("name") ?? _current?.Name ?? "", FontSize = 16, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 14, 0) });
+        head.Children.Add(new TextBlock { Text = Str("name") ?? _current?.Name ?? "", FontSize = 16, FontWeight = FontWeights.Bold, Foreground = (Brush)FindResource("TextBrush"), Margin = new Thickness(0, 0, 14, 0) });
         var facts = new List<string>();
         if (Str("connectionType") is { } conn) facts.Add(Loc.T(conn) + (Str("connectionDetail") is { Length: > 0 } d ? " · " + d : ""));
         if (!double.IsNaN(Num("batteryPercent"))) facts.Add(Loc.F("Battery {0}%", Num("batteryPercent")) + (Str("batteryState") is { } bs && bs != "Unknown" && bs != "Discharging" ? " · " + Loc.T(bs) : ""));
@@ -188,7 +188,7 @@ public partial class MousePage
                 cb.Click += (_, _) => Set(setter, cb.IsChecked == true);
                 var sp = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 26, 8), ToolTip = Loc.T(tip) };
                 sp.Children.Add(cb);
-                sp.Children.Add(new TextBlock { Text = Loc.T(label), FontSize = 13, VerticalAlignment = VerticalAlignment.Center });
+                sp.Children.Add(new TextBlock { Text = Loc.T(label), FontSize = 13, Foreground = (Brush)FindResource("TextBrush"), VerticalAlignment = VerticalAlignment.Center });
                 toggles.Children.Add(sp);
             }
             Toggle("motionSync", "setMotionSync", "Motion sync", "hideMotionSync", "Lines sensor reads up with USB polls: smoother tracking for about half a millisecond of delay.");
@@ -242,7 +242,7 @@ public partial class MousePage
         g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(170) });
         g.ColumnDefinitions.Add(new ColumnDefinition());
         var left = new StackPanel();
-        left.Children.Add(new TextBlock { Text = Loc.T(label), FontSize = 13, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 6, 12, 0) });
+        left.Children.Add(new TextBlock { Text = Loc.T(label), FontSize = 13, FontWeight = FontWeights.SemiBold, Foreground = (Brush)FindResource("TextBrush"), Margin = new Thickness(0, 6, 12, 0) });
         g.Children.Add(left);
         var right = new StackPanel();
         right.Children.Add(row);

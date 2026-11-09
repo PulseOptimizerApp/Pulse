@@ -77,7 +77,7 @@ public partial class MousePage : UserControl, IPage
             row.ColumnDefinitions.Add(new ColumnDefinition());
             row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             row.Children.Add(new TextBlock { Text = g.Name, FontSize = 12.5, Foreground = (Brush)FindResource("TextDimBrush"), TextTrimming = TextTrimming.CharacterEllipsis });
-            var val = new TextBlock { Text = SensConverter.Round(g, v).ToString(CultureInfo.CurrentCulture), FontSize = 13, FontWeight = FontWeights.Bold, Margin = new Thickness(8, 0, 0, 0) };
+            var val = new TextBlock { Text = SensConverter.Round(g, v).ToString(CultureInfo.CurrentCulture), FontSize = 13, FontWeight = FontWeights.Bold, Foreground = (Brush)FindResource("TextBrush"), Margin = new Thickness(8, 0, 0, 0) };
             Grid.SetColumn(val, 1);
             row.Children.Add(val);
             grid.Children.Add(row);

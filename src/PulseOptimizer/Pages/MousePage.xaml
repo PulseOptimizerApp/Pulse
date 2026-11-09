@@ -59,7 +59,7 @@
                                 <StackPanel>
                                     <TextBlock Text="Sensitivity" FontSize="12" Foreground="{StaticResource TextDimBrush}"/>
                                     <Border Background="{StaticResource Surface2Brush}" CornerRadius="8" Padding="12,7,12,7" Margin="0,6,0,0">
-                                        <TextBlock x:Name="Result" FontSize="15" FontWeight="Bold"/>
+                                        <TextBlock x:Name="Result" FontSize="15" FontWeight="Bold" Foreground="{StaticResource TextBrush}"/>
                                     </Border>
                                 </StackPanel>
                                 <StackPanel Grid.Column="2">
