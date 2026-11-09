@@ -32,7 +32,8 @@ public static class Matchmaking
             if (me.Tier >= 3 && ea >= me.Tier + 1) higher++;
             if (!double.IsNaN(ta)) exp.Add(MmrModel.Expect(MmrModel.TierRating(ta), MmrModel.TierRating(ea)));
             int us = m.Rounds.Count(r => r.Winner == me.Team), them = m.Rounds.Count(r => r.Winner.Length > 0 && r.Winner != me.Team);
-            if (us > them) wins++;
+            int res = m.Outcome(me.Team);
+            if (res > 0) wins++;
         }
         double Avg(List<double> l) => l.Count > 0 ? l.Average() : double.NaN;
         return new Window(last, used, Avg(lobby), Avg(enemy), Avg(team), used > 0 ? hi : 0, used > 0 ? lo : 0,
@@ -82,14 +83,14 @@ public static class HeadToHead
             foreach (var m in ms)
             {
                 var team = m.TeamOf(me);
-                if (m.Rounds.Count(r => r.Winner == team) > m.Rounds.Count(r => r.Winner.Length > 0 && r.Winner != team)) wins++;
+                if (m.WonBy(team)) wins++;
                 rounds += m.Rounds.Count;
                 k += m.Kills.Count(x => x.Killer == me && x.Victim == id);
                 d += m.Kills.Count(x => x.Killer == id && x.Victim == me);
                 var mine = m.Players.First(p => p.Id == me);
                 var them = m.Players.First(p => p.Id == id);
                 double lobby = m.Players.Average(p => (double)p.Score);
-                acs += m.Rounds.Count > 0 ? (double)mine.Score / m.Rounds.Count : 0;
+                acs += m.PlayedRounds(mine.Id) > 0 ? (double)mine.Score / m.PlayedRounds(mine.Id) : 0;
                 theirs += lobby > 0 ? them.Score / lobby : 1;
             }
             var last = ms.OrderByDescending(m => m.StartUtc).First();
@@ -152,11 +153,12 @@ public static class Expected
                 double adj = lobbyAdj * (1 + (agentRatio - 1) * onAgent.Count / (onAgent.Count + 5.0));
                 double win = !double.IsNaN(rating) && enemies.Count >= 3 ? MmrModel.Expect(rating, MmrModel.TierRating(enemies.Average(p => p.Tier))) : 0.5;
                 int us = m.Rounds.Count(x => x.Winner == me.Team), them = m.Rounds.Count(x => x.Winner.Length > 0 && x.Winner != me.Team);
+                int res = m.Outcome(me.Team);
                 lines.Add(new Line(m,
                     Base(x => x.Acs, Mean(recent.Select(x => x.LobbyAcs), 200)) * adj, t.Acs,
                     Base(x => x.Adr, Mean(recent.Select(x => x.LobbyAdr), 135)) * adj, t.Adr,
                     Base(x => x.KdRatio, 1) * adj, t.KdRatio,
-                    Math.Min(100, Base(x => x.KastPct, Mean(recent.Select(x => x.LobbyKast), 70)) * Math.Sqrt(adj)), t.KastPct, win, us > them));
+                    Math.Min(100, Base(x => x.KastPct, Mean(recent.Select(x => x.LobbyKast), 70)) * Math.Sqrt(adj)), t.KastPct, win, res > 0));
             }
             // This match's lobby (without the player), for later expectations.
             var others = m.Players.Where(p => p.Id != id).ToList();
@@ -186,7 +188,7 @@ public static class OpponentAdjusted
         {
             var me = m.Players.FirstOrDefault(p => p.Id == id);
             if (me == null) continue;
-            double acs = (double)me.Score / m.Rounds.Count;
+            double acs = (double)me.Score / Math.Max(1, m.PlayedRounds(me.Id));
             var en = m.Players.Where(p => p.Team != me.Team && p.Tier >= 3).ToList();
             double gap = en.Count >= 3 && me.Tier >= 3 ? en.Average(p => p.Tier) - me.Tier : 0;
             plain.Add(acs);
