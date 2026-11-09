@@ -187,6 +187,22 @@ public partial class ValorantPage
         var face = new Border { Width = 56, Height = 56, CornerRadius = new CornerRadius(13), Margin = new Thickness(0, 0, 16, 0), BorderBrush = B(Color.FromRgb(0x2C, 0x2E, 0x36)), BorderThickness = new Thickness(2) };
         face.Background = MatchArt.AgentIcon(mainAgent) is { } art ? new ImageBrush(art) { Stretch = Stretch.UniformToFill } : B(Color.FromRgb(0x22, 0x22, 0x26));
         g.Children.Add(face);
+        // Their player card, as trackers show it: the square art as the picture (the agent until it's loaded, or for
+        // matches saved before Pulse kept cards) and the wide art as the banner.
+        var cardId = p.Matches.Select(m => m.Players.FirstOrDefault(x => x.Id == p.Puuid)?.Card).FirstOrDefault(c => !string.IsNullOrEmpty(c));
+        var banner = new Border { IsHitTestVisible = false, CornerRadius = new CornerRadius(14), Opacity = 0 };
+        if (cardId != null)
+        {
+            ShowCard(cardId, false, b => face.Background = b);
+            ShowCard(cardId, true, b =>
+            {
+                b.Stretch = Stretch.UniformToFill; b.AlignmentX = AlignmentX.Right;
+                banner.Background = b;
+                // Fades in from the right, behind the ranks, so the name and stats stay easy to read.
+                banner.OpacityMask = new LinearGradientBrush(Color.FromArgb(0, 0, 0, 0), Color.FromArgb(0xFF, 0, 0, 0), new Point(0.25, 0), new Point(1, 0));
+                banner.Opacity = 0.32;
+            });
+        }
 
         var mid = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
         Grid.SetColumn(mid, 1);
@@ -247,8 +263,31 @@ public partial class ValorantPage
         var card = Card2(g, Purple, 14);
         // A purple wash from the top left, like light on the portrait.
         if (card.Child is Grid cg)
+        {
             cg.Children.Insert(0, new Border { IsHitTestVisible = false, CornerRadius = new CornerRadius(14), Background = new RadialGradientBrush(A(Color.FromRgb(0x78, 0x5A, 0xFF), 0x33), A(Color.FromRgb(0x78, 0x5A, 0xFF), 0)) { Center = new Point(0, 0), GradientOrigin = new Point(0, 0), RadiusX = 0.55, RadiusY = 1.2 } });
+            Grid.SetColumnSpan(banner, Math.Max(1, cg.ColumnDefinitions.Count));
+            Grid.SetRowSpan(banner, Math.Max(1, cg.RowDefinitions.Count));
+            cg.Children.Insert(0, banner);
+        }
         return card;
+    }
+
+    /// <summary>Loads a player card's picture (downloaded once, then from disk) and hands it over as a brush.</summary>
+    static async void ShowCard(string cardId, bool wide, Action<ImageBrush> show)
+    {
+        try
+        {
+            if (await Pulse.Core.Games.Live.ValorantStore.CardArt(cardId, wide) is not { } file) return;
+            var bmp = new System.Windows.Media.Imaging.BitmapImage();
+            bmp.BeginInit();
+            bmp.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
+            bmp.DecodePixelWidth = wide ? 900 : 128;
+            bmp.UriSource = new Uri(file);
+            bmp.EndInit();
+            bmp.Freeze();
+            show(new ImageBrush(bmp) { Stretch = Stretch.UniformToFill });
+        }
+        catch { }   // no picture: the agent stays
     }
 
     FrameworkElement RankBox(string label, int tier, string sub)
