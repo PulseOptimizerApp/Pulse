@@ -129,7 +129,46 @@ public sealed class VMatch
     public VPlayer MeP => Players.FirstOrDefault(p => p.Id == Me);
     public string MyTeam => MeP?.Team ?? "";
     public string TeamOf(string id) => Players.FirstOrDefault(p => p.Id == id)?.Team ?? "";
-    public bool Won => Rounds.Count(r => r.Winner == MyTeam) > Rounds.Count(r => r.Winner != MyTeam && r.Winner.Length > 0);
+    public bool Won => Outcome(MyTeam) > 0;
+
+    /// <summary>
+    /// The team Riot says won ("" for a draw), from the match's own result. Null on matches saved before Pulse kept it.
+    /// </summary>
+    public string WinningTeam { get; set; }
+
+    /// <summary>
+    /// 1 if <paramref name="team"/> won, −1 if it lost, 0 for a draw. Uses Riot's own result when saved; otherwise a
+    /// surrender decides it (the surrender round's winner), and only then the rounds won. Counting rounds alone got
+    /// surrenders wrong: a team can be ahead on rounds and still surrender.
+    /// </summary>
+    public int Outcome(string team)
+    {
+        if (string.IsNullOrEmpty(team)) return 0;
+        string winner = WinningTeam;
+        if (winner == null && Rounds.LastOrDefault(r => r.Result == "Surrendered") is { Winner.Length: > 0 } sr) winner = sr.Winner;
+        if (winner != null) return winner.Length == 0 ? 0 : winner == team ? 1 : -1;
+        int us = Rounds.Count(r => r.Winner == team), them = Rounds.Count(r => r.Winner.Length > 0 && r.Winner != team);
+        return us > them ? 1 : us < them ? -1 : 0;
+    }
+
+    public bool WonBy(string team) => Outcome(team) > 0;
+
+    /// <summary>Rounds actually played: a surrender ends the match with a "round" nobody plays.</summary>
+    public int PlayableRounds => Rounds.Count(r => r.Result != "Surrendered");
+
+    /// <summary>
+    /// Rounds one player was in, as Riot counts them (stats.roundsPlayed): fewer than the match's if they left or joined
+    /// late. ACS, ADR and KAST are per round played, the way trackers show them.
+    /// </summary>
+    public int PlayedRounds(string id)
+    {
+        var p = Players.FirstOrDefault(x => x.Id == id);
+        int all = PlayableRounds;
+        return p != null && p.Rounds > 0 ? Math.Min(p.Rounds, Math.Max(all, 1)) : all;
+    }
+
+    /// <summary>True when the player was in this round (Riot lists everyone present in each round's player stats).</summary>
+    public static bool Present(VRound r, string id) => r.Eco.Count == 0 || r.Eco.ContainsKey(id);
     public string MyAgent => MeP?.Agent ?? "";
 
     /// <summary>Queues the coach uses: the modes played as real rounds of 5 against 5.</summary>
@@ -254,6 +293,12 @@ public sealed class VMatch
         // The same kill can be listed both at the top and per round in older data: keep one of each.
         m.Kills = m.Kills.GroupBy(k => (k.GameMs, k.Killer, k.Victim)).Select(g => g.First()).OrderBy(k => k.GameMs).ToList();
         m.FirstAttack = GuessFirstAttack(m);
+        // Riot's own result: teams[].won. Neither team won = a draw ("").
+        if (root.Get("teams") is { ValueKind: JsonValueKind.Array } teams && teams.GetArrayLength() > 0)
+        {
+            var won = teams.EnumerateArray().FirstOrDefault(t => t.Get("won") is { ValueKind: JsonValueKind.True });
+            m.WinningTeam = won.ValueKind == JsonValueKind.Object ? won.Str("teamId") : "";
+        }
         return m;
     }
 

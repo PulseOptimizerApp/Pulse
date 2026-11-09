@@ -142,6 +142,9 @@ public class ClipSettings
     public bool LiveLobbyRisksAccepted { get; set; }
     /// <summary>VALORANT after-match lobby: when a match ends, offer both teams' ranks, peaks and smurf signs (no risk: after the match).</summary>
     public bool AfterMatchLobby { get; set; } = true;
+
+    /// <summary>VALORANT: a summary a few seconds after each match (result, your numbers, the one thing that mattered most).</summary>
+    public bool PostMatchSummary { get; set; } = true;
     /// <summary>VALORANT tracker: searching any Riot ID (off until the user accepts the risk).</summary>
     public bool PlayerSearch { get; set; }
     /// <summary>Riot IDs searched recently in the tracker, newest first (on this PC only).</summary>

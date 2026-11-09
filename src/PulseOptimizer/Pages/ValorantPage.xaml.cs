@@ -32,6 +32,15 @@ public partial class ValorantPage : UserControl, IPage
     public void OnShown(object parameter)
     {
         if (parameter is "review") { _mapMode = "rounds"; parameter = "maps"; }
+        // From the match summary popup: straight to that match's scoreboard.
+        if (parameter is string mk && mk.StartsWith("match:", StringComparison.Ordinal))
+        {
+            _tab = "tracker";
+            _trSearched = null;
+            ShowTab(_tab, false);
+            OpenMatch(mk[6..]);
+            return;
+        }
         if (parameter is string key && _tabs.ContainsKey(key)) _tab = key;
         ShowTab(_tab, false);
     }
@@ -130,6 +139,26 @@ public partial class ValorantPage : UserControl, IPage
         showLast.HorizontalAlignment = HorizontalAlignment.Left;
         showLast.Click += (_, _) => _ = LobbyOverlay.ShowAfter(Application.Current, last);
         sp.Children.Add(showLast);
+
+        // Match summary after each game.
+        var sumRow = new Grid { Margin = new Thickness(0, 20, 0, 0) };
+        sumRow.ColumnDefinitions.Add(new ColumnDefinition());
+        sumRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        var sumLeft = new StackPanel();
+        sumLeft.Children.Add(Heading("Match summary"));
+        sumLeft.Children.Add(Dim(Loc.T("A few seconds after each match: the result, your numbers, your Pulse score and the one thing that cost you the most rounds (or won them), with a button to open the match."), 12.5, 4));
+        sumRow.Children.Add(sumLeft);
+        var sumOn = new CheckBox { Style = (Style)FindResource("Switch"), IsChecked = S.PostMatchSummary, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(16, 2, 0, 0) };
+        sumOn.Click += (_, _) => { S.PostMatchSummary = sumOn.IsChecked == true; TweakEngine.Save(); };
+        Grid.SetColumn(sumOn, 1);
+        sumRow.Children.Add(sumOn);
+        sp.Children.Add(sumRow);
+        var showSum = Btn("Show the last match's summary");
+        showSum.IsEnabled = last != null;
+        showSum.Margin = new Thickness(0, 12, 0, 0);
+        showSum.HorizontalAlignment = HorizontalAlignment.Left;
+        showSum.Click += (_, _) => LobbyOverlay.AfterMatch(last, true, S.AfterMatchLobby);
+        sp.Children.Add(showSum);
 
         sp.Children.Add(new Border { Height = 1, Background = Res("BorderBrush"), Margin = new Thickness(0, 20, 0, 18) });
 
