@@ -52,6 +52,41 @@ public class LiveSpeedTest
         catch (Exception ex) { _out.WriteLine($"__up → {ex.GetType().Name}: {ex.Message}"); }
     }
 
+    [Fact]
+    public async Task Repeated_downloads_status_codes()
+    {
+        if (!Live) return;
+        foreach (var browserLike in new[] { false, true })
+        {
+            using var h = new System.Net.Http.HttpClient();
+            if (browserLike)
+            {
+                h.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) Pulse/1.0");
+                h.DefaultRequestHeaders.Referrer = new Uri("https://speed.cloudflare.com/");
+                h.DefaultRequestHeaders.Add("Origin", "https://speed.cloudflare.com");
+            }
+            var codes = new List<string>();
+            for (int i = 0; i < 20; i++)
+            {
+                try
+                {
+                    var sw = System.Diagnostics.Stopwatch.StartNew();
+                    using var res = await h.GetAsync($"https://speed.cloudflare.com/__down?bytes={(i % 2 == 0 ? 25_000_000 : 10_000_000)}");
+                    var bytes = (await res.Content.ReadAsByteArrayAsync()).Length;
+                    codes.Add($"{(int)res.StatusCode}:{bytes / 1_000_000}MB/{sw.ElapsedMilliseconds}ms");
+                }
+                catch (Exception ex) { codes.Add(ex.GetType().Name); }
+            }
+            _out.WriteLine((browserLike ? "browser-like: " : "plain: ") + string.Join(" ", codes));
+            try
+            {
+                using var meta = await h.GetAsync("https://speed.cloudflare.com/meta");
+                _out.WriteLine("meta " + (int)meta.StatusCode + " " + (await meta.Content.ReadAsStringAsync()));
+            }
+            catch (Exception ex) { _out.WriteLine("meta " + ex.Message); }
+        }
+    }
+
     sealed class SyncProgress : IProgress<SpeedTest.Progress>
     {
         readonly Action<SpeedTest.Progress> _a;

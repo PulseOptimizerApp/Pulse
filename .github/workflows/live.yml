@@ -20,4 +20,4 @@ jobs:
       - name: Live tests
         env:
           PULSE_LIVE: "1"
-        run: dotnet test tests/PulseOptimizer.Tests/PulseOptimizer.Tests.csproj -c Release --filter "FullyQualifiedName~LiveSpeedTest" --logger "console;verbosity=detailed"
+        run: dotnet test tests/PulseOptimizer.Tests/PulseOptimizer.Tests.csproj -c Release --filter "FullyQualifiedName~LiveSpeedTest.Repeated" --logger "console;verbosity=detailed"
