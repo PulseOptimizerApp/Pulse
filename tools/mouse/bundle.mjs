@@ -46,11 +46,23 @@ await esbuild.build({
 let babel = null;
 try { babel = require("@babel/core"); } catch { }
 if (babel) {
-  const plugins = ["@babel/plugin-transform-async-generator-functions", "@babel/plugin-transform-async-to-generator", "@babel/plugin-transform-regenerator"]
-    .map((name) => require(name));
-  const lowered = babel.transformSync(fs.readFileSync(outFile, "utf8"), {
-    babelrc: false, configFile: false, compact: true, comments: false, sourceType: "script", plugins,
+  // Two passes, as Babel's own presets order them: first async functions become generators and the syntax the
+  // generator rewrite can't take (destructuring, rest/spread, default parameters, for-of, let/const in loops) is
+  // lowered; then the generators become plain state machines.
+  const pass = (code, names) => babel.transformSync(code, {
+    babelrc: false, configFile: false, compact: true, comments: false, sourceType: "script",
+    plugins: names.map((name) => require(name)),
   }).code;
+  const lowered = pass(pass(fs.readFileSync(outFile, "utf8"), [
+    "@babel/plugin-transform-async-generator-functions",
+    "@babel/plugin-transform-async-to-generator",
+    "@babel/plugin-transform-object-rest-spread",
+    "@babel/plugin-transform-destructuring",
+    "@babel/plugin-transform-parameters",
+    "@babel/plugin-transform-spread",
+    "@babel/plugin-transform-for-of",
+    "@babel/plugin-transform-block-scoping",
+  ]), ["@babel/plugin-transform-regenerator"]);
   const checked = await esbuild.transform(lowered, {
     minify: true, legalComments: "none", target: "es2019",
     supported: { "async-await": false, "async-generator": false, "for-await": false, generator: false },

@@ -27,6 +27,9 @@ BUILD="$ROOT/.mouse-build"
 mkdir -p "$BUILD"
 npm install --silent --no-audit --no-fund --prefix "$BUILD" esbuild@0.24.0 \
   @babel/core@7.26.0 @babel/plugin-transform-async-to-generator@7.25.9 \
-  @babel/plugin-transform-regenerator@7.25.9 @babel/plugin-transform-async-generator-functions@7.25.9
+  @babel/plugin-transform-regenerator@7.25.9 @babel/plugin-transform-async-generator-functions@7.25.9 \
+  @babel/plugin-transform-object-rest-spread@7.25.9 @babel/plugin-transform-destructuring@7.25.9 \
+  @babel/plugin-transform-parameters@7.25.9 @babel/plugin-transform-spread@7.25.9 \
+  @babel/plugin-transform-for-of@7.25.9 @babel/plugin-transform-block-scoping@7.25.9
 node "$ROOT/tools/mouse/bundle.mjs" "$BUILD" "$SRC" "$ROOT/tools/mouse/bridge.ts" "$OUT"
 echo "openmouse.js: $(wc -c < "$OUT") bytes from mouse-protocol $VERSION"
