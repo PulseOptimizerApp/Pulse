@@ -58,7 +58,7 @@ public static class Tracker
 {
     public static readonly Skill[] Skills =
     {
-        new("aim", "Aim", "%", t => t.HeadshotPct, t => t.Head + t.Body + t.Legs, 50, "Headshot rate: the share of hits that land on the head."),
+        new("aim", "Aim", "", t => t.AimRating, t => t.Head + t.Body + t.Legs, 50, "Headshots, damage and kills together (50 is typical). Headshots count less for sniper players, since an Operator kills with body shots."),
         new("damage", "Damage", "", t => t.Adr, t => t.Rounds, 20, "Damage per round."),
         new("opening", "Opening duels", "%", t => t.OpeningWinPct, t => t.FirstKills + t.FirstDeaths, 6, "How often they win the first fight of the round when they're in it."),
         new("trading", "Trading", "/100", t => t.TradeKillsPer100, t => t.Rounds, 20, "Kills that avenge a teammate within 5 seconds, per 100 rounds."),

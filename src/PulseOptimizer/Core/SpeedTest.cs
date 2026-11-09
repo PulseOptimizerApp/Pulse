@@ -20,6 +20,12 @@ public sealed class SpeedResult
     public string Server { get; set; } = "";
     public bool Wifi { get; set; }
     public long BytesUsed { get; set; }
+    /// <summary>Your internet provider and public IP, and the test server's city (from Cloudflare's own lookup).</summary>
+    public string Isp { get; set; } = "";
+    public string Ip { get; set; } = "";
+    public string ServerCity { get; set; } = "";
+    /// <summary>What went wrong with requests, if anything (e.g. "429×12"), for the log.</summary>
+    public string Problems { get; set; } = "";
 
     /// <summary>How much ping rises when the connection is busy (the worse of download and upload).</summary>
     public double Bufferbloat => Math.Max(0, Math.Max(LoadedDownMs, LoadedUpMs) - IdleMs);
@@ -43,8 +49,39 @@ public sealed class SpeedState
 public static class SpeedTest
 {
     const string Base = "https://speed.cloudflare.com";
-    static readonly HttpClient Http = new(new SocketsHttpHandler { MaxConnectionsPerServer = 16, AutomaticDecompression = DecompressionMethods.None, PooledConnectionLifetime = TimeSpan.FromMinutes(2) })
-    { Timeout = TimeSpan.FromSeconds(30) };
+    static readonly HttpClient Http = MakeClient();
+
+    // Cloudflare's test page sends these; without them some endpoints (like /meta) refuse with 403.
+    static HttpClient MakeClient()
+    {
+        var h = new HttpClient(new SocketsHttpHandler { MaxConnectionsPerServer = 16, AutomaticDecompression = DecompressionMethods.None, PooledConnectionLifetime = TimeSpan.FromMinutes(2) })
+        { Timeout = TimeSpan.FromSeconds(30) };
+        h.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) Pulse/1.0");
+        h.DefaultRequestHeaders.Referrer = new Uri(Base + "/");
+        h.DefaultRequestHeaders.Add("Origin", Base);
+        return h;
+    }
+
+    // Request problems during a run, counted by kind (status code or error), so a bad result says why.
+    static readonly System.Collections.Concurrent.ConcurrentDictionary<string, int> _problems = new();
+    static void Problem(string kind) => _problems.AddOrUpdate(kind, 1, (_, n) => n + 1);
+
+    /// <summary>Who's testing: provider, IP and the Cloudflare city answering.</summary>
+    public static async Task<(string Isp, string Ip, string City)> Meta(CancellationToken ct)
+    {
+        try
+        {
+            using var res = await Http.GetAsync($"{Base}/meta", ct);
+            if (!res.IsSuccessStatusCode) { Problem("meta " + (int)res.StatusCode); return ("", "", ""); }
+            using var doc = System.Text.Json.JsonDocument.Parse(await res.Content.ReadAsStringAsync(ct));
+            var r = doc.RootElement;
+            string S(System.Text.Json.JsonElement e, string k) => e.ValueKind == System.Text.Json.JsonValueKind.Object && e.TryGetProperty(k, out var v) && v.ValueKind == System.Text.Json.JsonValueKind.String ? v.GetString() : "";
+            var city = r.TryGetProperty("colo", out var colo) ? S(colo, "city") : "";
+            return (S(r, "asOrganization"), S(r, "clientIp"), city);
+        }
+        catch (OperationCanceledException) { throw; }
+        catch { return ("", "", ""); }
+    }
 
     public enum Phase { Ping, Download, Upload, Loss, Done }
 
@@ -54,16 +91,19 @@ public static class SpeedTest
     public static async Task<SpeedResult> Run(IProgress<Progress> progress, CancellationToken ct)
     {
         var r = new SpeedResult { At = DateTime.Now, Wifi = NetworkCheck.OnWifi() };
+        _problems.Clear();
         long bytes = 0;
+        var meta = Meta(ct);
 
-        // 1. Idle ping and jitter: 20 tiny requests (the time to the first byte back).
+        // 1. Idle ping and jitter: 20 tiny requests (the time to the first byte back). The first two open the
+        // connection (DNS, TLS) and are left out, or they'd count as huge jitter.
         var idle = new List<double>();
-        for (int i = 0; i < 20; i++)
+        for (int i = 0; i < 22; i++)
         {
             ct.ThrowIfCancellationRequested();
             var ms = await Rtt(ct);
-            if (ms > 0) idle.Add(ms);
-            progress?.Report(new Progress(Phase.Ping, idle.Count > 0 ? Median(idle) : 0, (i + 1) / 20.0));
+            if (ms > 0 && i >= 2) idle.Add(ms);
+            progress?.Report(new Progress(Phase.Ping, idle.Count > 0 ? Median(idle) : 0, (i + 1) / 22.0));
         }
         if (idle.Count == 0) throw new HttpRequestException("The speed test server didn't answer.");
         r.IdleMs = Median(idle);
@@ -81,7 +121,10 @@ public static class SpeedTest
         // 4. Packet loss: 60 pings to Cloudflare's DNS (1.1.1.1), the same small packets games care about.
         progress?.Report(new Progress(Phase.Loss, 0, 0));
         var loss = await NetworkCheck.PingMany(IPAddress.Parse("1.1.1.1"), 60, 40);
-        if (loss.Sent > 0) r.LossPercent = loss.LossPercent;
+        // None back at all means pings are blocked (some networks and firewalls do), not 100% loss.
+        if (loss.Sent > 0 && loss.Received > 0) r.LossPercent = loss.LossPercent;
+        (r.Isp, r.Ip, r.ServerCity) = await meta;
+        r.Problems = string.Join(", ", _problems.OrderByDescending(x => x.Value).Select(x => $"{x.Key}×{x.Value}"));
         progress?.Report(new Progress(Phase.Done, 0, 1));
         r.BytesUsed = bytes;
         return r;
@@ -125,6 +168,7 @@ public static class SpeedTest
         var warm = TimeSpan.FromSeconds(2);
         double warmAt = -1;
         var phase = down ? Phase.Download : Phase.Upload;
+        const int chunk = 25_000_000;
         var upload = new byte[4 * 1024 * 1024];
         Random.Shared.NextBytes(upload);
 
@@ -143,7 +187,8 @@ public static class SpeedTest
                 {
                     if (down)
                     {
-                        using var res = await Http.GetAsync($"{Base}/__down?bytes=25000000", HttpCompletionOption.ResponseHeadersRead, cts.Token);
+                        using var res = await Http.GetAsync($"{Base}/__down?bytes={chunk}", HttpCompletionOption.ResponseHeadersRead, cts.Token);
+                        if (!res.IsSuccessStatusCode) { Problem("down " + (int)res.StatusCode); await Task.Delay(500, cts.Token); continue; }
                         await using var s = await res.Content.ReadAsStreamAsync(cts.Token);
                         int n;
                         while ((n = await s.ReadAsync(buf, cts.Token)) > 0) Count(n);
@@ -152,10 +197,11 @@ public static class SpeedTest
                     {
                         using var content = new CountingContent(upload, Count);
                         using var res = await Http.PostAsync($"{Base}/__up", content, cts.Token);
+                        if (!res.IsSuccessStatusCode) { Problem("up " + (int)res.StatusCode); await Task.Delay(500, cts.Token); }
                     }
                 }
                 catch (OperationCanceledException) { break; }
-                catch { await Task.Delay(200); }
+                catch (Exception ex) { Problem((down ? "down " : "up ") + ex.GetType().Name + ": " + ex.Message); try { await Task.Delay(300, cts.Token); } catch { break; } }
             }
         }
 

@@ -47,6 +47,8 @@ public sealed class PlayerTotals
     public int CastRounds;
     /// <summary>Rounds where you were the last one alive against at least one enemy, and how many of those you won.</summary>
     public int ClutchChances, ClutchWins;
+    /// <summary>Kills (from the kill feed) and how many of them were with a sniper (Operator, Marshal, Outlaw).</summary>
+    public int FeedKills, SniperKills;
     /// <summary>Riot's combat score, added up (ACS = this per round).</summary>
     public int Score;
 
@@ -58,6 +60,7 @@ public sealed class PlayerTotals
         DeathsWithMates += o.DeathsWithMates; Untraded += o.Untraded; DeathsPlaced += o.DeathsPlaced; Alone += o.Alone; Outnumbered += o.Outnumbered;
         DeathsAbilityKnown += o.DeathsAbilityKnown; NoAbility += o.NoAbility;
         ClutchChances += o.ClutchChances; ClutchWins += o.ClutchWins; Score += o.Score;
+        FeedKills += o.FeedKills; SniperKills += o.SniperKills;
         for (int i = 0; i < 4; i++) Casts[i] += o.Casts[i];
         CastRounds += o.CastRounds;
     }
@@ -79,6 +82,26 @@ public sealed class PlayerTotals
     public double TradeKillsPer100 => Div(100.0 * TradeKills, Rounds);
     public double NoAbilityPct => Div(100.0 * NoAbility, DeathsAbilityKnown);
     public double KillsPerRound => Div(Kills, Rounds);
+
+    /// <summary>Share of kills made with a sniper (0–1).</summary>
+    public double SniperShare => FeedKills > 0 ? (double)SniperKills / FeedKills : 0;
+
+    /// <summary>
+    /// Aim, 50 = a typical player: headshot rate, damage per round and kills per round together, so it isn't only
+    /// headshots. Headshots count less the more of the kills are with a sniper, since an Operator kills with a body
+    /// shot and lowers headshot rate without meaning worse aim. Typical values used to put them on one scale:
+    /// 25% headshots, 140 damage and 0.75 kills a round.
+    /// </summary>
+    public double AimRating
+    {
+        get
+        {
+            if (Rounds == 0 || double.IsNaN(HeadshotPct)) return double.NaN;
+            double wHs = 0.45 * (1 - 0.8 * SniperShare), wAdr = 0.30, wKpr = 0.25;
+            double v = wHs * HeadshotPct / 25 + wAdr * Adr / 140 + wKpr * KillsPerRound / 0.75;
+            return 50 * v / (wHs + wAdr + wKpr);
+        }
+    }
     public double WinPct => Div(100.0 * Wins, Matches);
     public double CastsPerRound(int slot) => Div(Casts[slot], CastRounds);
     public double AllCastsPerRound => Div(Casts.Sum(), CastRounds);
@@ -247,6 +270,8 @@ public static class Analysis
         }
         // Kills and deaths as on Riot's own scoreboard (what trackers show); the kill feed only when the scoreboard is empty.
         int feedKills = m.Kills.Count(x => x.Killer == who && x.Victim != who && m.TeamOf(x.Victim) != team), feedDeaths = m.Kills.Count(x => x.Victim == who);
+        t.FeedKills = feedKills;
+        t.SniperKills = m.Kills.Count(x => x.Killer == who && x.Victim != who && m.TeamOf(x.Victim) != team && MapGeo.WeaponCategory(x.Weapon) == "Sniper");
         t.Kills = me.Kills + me.Deaths > 0 ? me.Kills : feedKills;
         t.Deaths = me.Kills + me.Deaths > 0 ? me.Deaths : feedDeaths;
         t.Assists = me.Assists;
