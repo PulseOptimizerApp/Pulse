@@ -331,7 +331,7 @@ public partial class ValorantPage
         });
         sp.Children.Add(new TextBlock
         {
-            Text = (r != null && !double.IsNaN(r.TopPercent) ? Loc.F("Top {0:0}%", r.TopPercent) + " · " : "") + Loc.T("1.00 is the average player in your games"),
+            Text = (r != null && !double.IsNaN(r.TopPercent) ? Loc.F("Top {0:0}%", r.TopPercent) + " · " : "") + Loc.T("1.00 is average for their own lobbies; Top % also weighs how strong those lobbies are"),
             FontSize = 11.5, Foreground = Res("TextDimBrush"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 8),
         });
         void Side(string label, double v)

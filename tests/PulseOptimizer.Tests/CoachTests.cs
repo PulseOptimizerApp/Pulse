@@ -530,3 +530,61 @@ public class SpeedTestTests
         Assert.Equal(Pulse.Core.SpeedTest.Level.Great, Pulse.Core.SpeedTest.Verdict(good).Level);
     }
 }
+
+public class LobbyWeightedSkillTests
+{
+    [Fact]
+    public void Stronger_lobbies_count_for_more()
+    {
+        Assert.Equal(1, Tracker.LobbyFactor(double.NaN));
+        Assert.True(Tracker.LobbyFactor(27) > Tracker.LobbyFactor(20));
+        Assert.True(Tracker.LobbyFactor(20) > Tracker.LobbyFactor(13));
+        Assert.True(Tracker.LobbyFactor(13) > Tracker.LobbyFactor(9));
+        Assert.InRange(Tracker.LobbyFactor(27), 1.5, 1.6);
+        Assert.InRange(Tracker.LobbyFactor(3), 0.6, 0.7);
+    }
+
+    /// <summary>
+    /// The case from a real pro's profile: average for his own Radiant lobbies, so on raw numbers he looked like an
+    /// average player. Weighted by lobby, he has to come out well above a player who's average in Silver lobbies.
+    /// </summary>
+    [Fact]
+    public void An_average_radiant_ranks_far_above_an_average_silver()
+    {
+        // Players at every rank, each scoring around 1.0 against their own lobby (that's what raw stats look like).
+        var rnd = new Random(3);
+        var byTier = new Dictionary<int, List<double>>();
+        var all = new List<double>();
+        for (int tier = 3; tier <= 27; tier++)
+        {
+            var l = new List<double>();
+            for (int i = 0; i < 40; i++) { double raw = 0.7 + 0.6 * rnd.NextDouble(); double adj = raw * Tracker.LobbyFactor(tier); l.Add(adj); all.Add(adj); }
+            l.Sort(); byTier[tier] = l;
+        }
+        all.Sort();
+        double pro = 1.02 * Tracker.LobbyFactor(27), silver = 1.02 * Tracker.LobbyFactor(10);
+        Assert.True(Tracker.PlaysLike(byTier, pro) >= 25, "an average Radiant should play like Immortal 3 / Radiant");
+        Assert.InRange(Tracker.PlaysLike(byTier, silver), 8, 12);
+        Assert.True(Tracker.TopPercent(all, pro) < 10, "an average Radiant is in the top 10% of everyone");
+        Assert.True(Tracker.TopPercent(all, silver) > 50);
+    }
+}
+
+public class AimRatingTests
+{
+    [Fact]
+    public void Operator_players_arent_marked_down_for_body_shots()
+    {
+        PlayerTotals T(int head, int body, int sniper)
+        {
+            var t = new PlayerTotals { Rounds = 100, Kills = 80, Damage = 15000, Head = head, Body = body, FeedKills = 80, SniperKills = sniper };
+            return t;
+        }
+        var rifler = T(25, 75, 0);           // 25% headshots, rifles
+        var oper = T(12, 88, 50);            // 12% headshots, most kills with the Operator, same damage and kills
+        var weak = T(12, 88, 0);             // 12% headshots with rifles
+        Assert.InRange(rifler.AimRating, 48, 60);
+        Assert.True(oper.AimRating > weak.AimRating + 5, "sniper kills shouldn't count against aim like rifle body shots");
+        Assert.True(oper.AimRating > rifler.AimRating - 8);
+    }
+}

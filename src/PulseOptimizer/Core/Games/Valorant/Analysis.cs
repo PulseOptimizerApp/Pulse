@@ -97,7 +97,7 @@ public sealed class PlayerTotals
         get
         {
             if (Rounds == 0 || double.IsNaN(HeadshotPct)) return double.NaN;
-            double wHs = 0.45 * (1 - 0.8 * SniperShare), wAdr = 0.30, wKpr = 0.25;
+            double wHs = 0.45 * (1 - SniperShare), wAdr = 0.30, wKpr = 0.25;
             double v = wHs * HeadshotPct / 25 + wAdr * Adr / 140 + wKpr * KillsPerRound / 0.75;
             return 50 * v / (wHs + wAdr + wKpr);
         }

@@ -4846,5 +4846,18 @@
  "No saved matches from this act": "Nenhuma partida salva deste ato",
  "Riot shares only the rank, record and peak for earlier acts (shown above), not the matches themselves. Pulse keeps every match you play from now on, so future acts get the full breakdown.": "A Riot só compartilha o ranque, o histórico e o pico dos atos anteriores (acima), não as partidas. O Pulse guarda cada partida que você jogar daqui em diante, então os próximos atos terão o detalhamento completo.",
  "Show all matches": "Mostrar todas as partidas",
- "Player from your matches": "Jogador das suas partidas"
+ "Player from your matches": "Jogador das suas partidas",
+ "1.00 is average for their own lobbies; Top % also weighs how strong those lobbies are": "1,00 é a média nos próprios lobbies; o Top % também pesa o quão fortes esses lobbies são",
+ "Headshots, damage and kills together (50 is typical). Headshots count less for sniper players, since an Operator kills with body shots.": "Headshots, dano e abates juntos (50 é o típico). Headshots contam menos para jogadores de sniper, já que a Operator mata com tiros no corpo.",
+ "GO": "VAI",
+ "ms ping": "ms de ping",
+ "checking packet loss": "verificando perda de pacotes",
+ "Idle ping: nothing else using the connection": "Ping em repouso: nada mais usando a conexão",
+ "Ping while downloading": "Ping durante o download",
+ "Ping while uploading": "Ping durante o upload",
+ "Your provider": "Seu provedor",
+ "Looking up…": "Buscando…",
+ "Shown after a test": "Aparece após um teste",
+ "Nearest server": "Servidor mais próximo",
+ "Runs on Cloudflare's speed-test servers, using the nearest one. Uses up to about 2.4 GB on a very fast connection (less on slower ones); nothing about your PC is sent.": "Usa os servidores de teste de velocidade da Cloudflare, o mais próximo. Usa até cerca de 2,4 GB em uma conexão muito rápida (menos nas lentas); nada sobre o seu PC é enviado."
 }

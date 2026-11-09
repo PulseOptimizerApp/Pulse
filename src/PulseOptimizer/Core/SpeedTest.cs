@@ -169,6 +169,7 @@ public static class SpeedTest
         double warmAt = -1;
         var phase = down ? Phase.Download : Phase.Upload;
         const int chunk = 25_000_000;
+        const long Cap = 1_200_000_000;
         var upload = new byte[4 * 1024 * 1024];
         Random.Shared.NextBytes(upload);
 
@@ -183,6 +184,8 @@ public static class SpeedTest
             var buf = new byte[64 * 1024];
             while (!cts.IsCancellationRequested)
             {
+                // Enough data for an accurate number; past this a gigabit line would use gigabytes for nothing.
+                if (Interlocked.Read(ref total) > Cap) { cts.Cancel(); break; }
                 try
                 {
                     if (down)
@@ -218,7 +221,7 @@ public static class SpeedTest
         }
 
         var tasks = Enumerable.Range(0, 6).Select(_ => Stream()).Append(Pinger()).ToList();
-        while (sw.Elapsed < length && !outer.IsCancellationRequested)
+        while (sw.Elapsed < length && !outer.IsCancellationRequested && !cts.IsCancellationRequested)
         {
             await Task.Delay(200);
             if (warmAt < 0 && sw.Elapsed >= warm) warmAt = sw.Elapsed.TotalSeconds;

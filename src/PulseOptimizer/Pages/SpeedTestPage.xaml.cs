@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
+using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Effects;
 using Pulse.Core;
@@ -36,7 +37,7 @@ public partial class SpeedTestPage : UserControl, IPage
 
     static Color A(Color c, byte a) => Color.FromArgb(a, c.R, c.G, c.B);
     static SolidColorBrush B(Color c) { var b = new SolidColorBrush(c); b.Freeze(); return b; }
-    static DropShadowEffect Glow(Color c, double blur = 16, double op = 0.6) => new() { Color = c, BlurRadius = blur, ShadowDepth = 0, Opacity = op };
+
     Brush Res(string k) => (Brush)FindResource(k);
     static Color LevelColor(SpeedTest.Level l) => l switch { SpeedTest.Level.Great => Green, SpeedTest.Level.Ok => Yellow, _ => Red };
 
@@ -94,132 +95,250 @@ public partial class SpeedTestPage : UserControl, IPage
         if (!_running && SpeedTest.History.Count > 1) Root.Children.Add(HistoryCard());
     }
 
-    // ───────── the ring and the start button ─────────
+    // ───────── the speedometer (Speedtest-style) ─────────
 
-    Grid _ringHost;
-    TextBlock _phaseText;
+    static readonly double[] Ticks = { 0, 5, 10, 50, 100, 250, 500, 750, 1000 };
+    const double GSize = 360, GStroke = 26;
+
+    // Live parts, updated in place (no rebuilding while it runs).
+    System.Windows.Shapes.Path _arc;
+    RotateTransform _needleTurn;
+    TextBlock _number, _unitText, _phaseText;
+    System.Windows.Threading.DispatcherTimer _anim;
+    double _shown, _target;
+
+    /// <summary>Where a speed sits on the dial: each tick is an equal step, like Speedtest's 0–5–10–50–100–250–500–750–1000.</summary>
+    static double DialFrac(double mbps)
+    {
+        if (double.IsNaN(mbps) || mbps <= 0) return 0;
+        for (int i = 0; i < Ticks.Length - 1; i++)
+            if (mbps <= Ticks[i + 1]) return (i + (mbps - Ticks[i]) / (Ticks[i + 1] - Ticks[i])) / (Ticks.Length - 1);
+        return 1;
+    }
+
+    static Point OnDial(double frac, double radius)
+    {
+        double deg = 135 + 270 * frac;
+        return new Point(GSize / 2 + radius * Math.Cos(deg * Math.PI / 180), GSize / 2 + radius * Math.Sin(deg * Math.PI / 180));
+    }
+
+    static Geometry ArcGeometry(double frac)
+    {
+        double r = (GSize - GStroke) / 2 - 2;
+        frac = Math.Clamp(frac, 0.0005, 0.9995);
+        var fig = new PathFigure { StartPoint = OnDial(0, r), IsClosed = false };
+        fig.Segments.Add(new ArcSegment(OnDial(frac, r), new Size(r, r), 0, 270 * frac > 180, SweepDirection.Clockwise, true));
+        var g = new PathGeometry(new[] { fig });
+        g.Freeze();
+        return g;
+    }
+
+    bool Uploading => _running && _phase == SpeedTest.Phase.Upload;
 
     FrameworkElement TestCard()
     {
-        var g = new Grid();
-        g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        g.ColumnDefinitions.Add(new ColumnDefinition());
+        var col = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center, Width = 620 };
 
-        _ringHost = new Grid { Width = 190, Height = 190, Margin = new Thickness(4, 0, 26, 0) };
-        g.Children.Add(_ringHost);
+        // Download and upload, Speedtest-style, across the top.
+        var heads = new Grid { Margin = new Thickness(0, 4, 0, 0) };
+        heads.ColumnDefinitions.Add(new ColumnDefinition());
+        heads.ColumnDefinitions.Add(new ColumnDefinition());
+        double down = _running ? _down : _last?.DownMbps ?? -1, up = _running ? _up : _last?.UpMbps ?? -1;
+        heads.Children.Add(Head("↓", "Download", down, Cyan, _running && _phase == SpeedTest.Phase.Download));
+        var u = Head("↑", "Upload", up, Purple, Uploading); Grid.SetColumn(u, 1); heads.Children.Add(u);
+        col.Children.Add(heads);
 
-        var right = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-        Grid.SetColumn(right, 1);
+        // Ping: idle, while downloading, while uploading.
+        var pings = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 14, 0, 0) };
+        pings.Children.Add(new TextBlock { Text = Loc.T("Ping") + " ms", FontSize = 13, Foreground = Res("TextDimBrush"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 18, 0) });
+        double idle = _running ? _ping : _last?.IdleMs ?? -1;
+        pings.Children.Add(PingChip("⇋", Yellow, idle, Loc.T("Idle ping: nothing else using the connection")));
+        pings.Children.Add(PingChip("↓", Cyan, _running ? -1 : _last?.LoadedDownMs ?? -1, Loc.T("Ping while downloading")));
+        pings.Children.Add(PingChip("↑", Purple, _running ? -1 : _last?.LoadedUpMs ?? -1, Loc.T("Ping while uploading")));
+        col.Children.Add(pings);
+
+        col.Children.Add(Dial());
+
+        // Below the dial: start / stop / again.
         if (_running)
         {
-            _phaseText = new TextBlock { FontSize = 20, FontWeight = FontWeights.Bold, Foreground = Res("TextBrush"), FontFamily = (FontFamily)FindResource("DisplayFont") };
-            right.Children.Add(_phaseText);
-            right.Children.Add(Steps());
-            var stop = new Button { Style = (Style)FindResource("GhostButton"), Content = Loc.T("Stop"), Padding = new Thickness(16, 6, 16, 6), Margin = new Thickness(0, 14, 0, 0), HorizontalAlignment = HorizontalAlignment.Left };
+            _phaseText = new TextBlock { FontSize = 13, Foreground = Res("TextDimBrush"), HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 2, 0, 0) };
+            col.Children.Add(_phaseText);
+            var stop = new Button { Style = (Style)FindResource("GhostButton"), Content = Loc.T("Stop"), Padding = new Thickness(18, 6, 18, 6), Margin = new Thickness(0, 10, 0, 0), HorizontalAlignment = HorizontalAlignment.Center };
             stop.Click += (_, _) => _cts?.Cancel();
-            right.Children.Add(stop);
-        }
-        else
-        {
-            var (lvl, text) = _last != null ? SpeedTest.Verdict(_last) : (SpeedTest.Level.Ok, "");
-            if (_last != null)
-            {
-                var c = LevelColor(lvl);
-                right.Children.Add(Caps("For games", 10.5, B(A(c, 0xCC))));
-                right.Children.Add(new TextBlock { Text = Loc.T(text), FontSize = 21, FontWeight = FontWeights.Bold, Foreground = B(c), FontFamily = (FontFamily)FindResource("DisplayFont"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 2, 0, 0) });
-                var where = new List<string> { _last.At.ToString("g", CultureInfo.CurrentCulture) };
-                if (_last.Server.Length > 0) where.Add(Loc.F("server {0}", _last.Server));
-                where.Add(Loc.T(_last.Wifi ? "Wi-Fi" : "Ethernet"));
-                right.Children.Add(Faint(string.Join(" · ", where), 11.5, 4));
-            }
-            else
-            {
-                right.Children.Add(new TextBlock { Text = Loc.T("Test your connection for gaming"), FontSize = 21, FontWeight = FontWeights.Bold, Foreground = Res("TextBrush"), FontFamily = (FontFamily)FindResource("DisplayFont"), TextWrapping = TextWrapping.Wrap });
-                right.Children.Add(Dim(Loc.T("Takes about 30 seconds. Close downloads and streams first for a fair result."), 12.5, 4));
-            }
-            var go = new Button { Style = (Style)FindResource("PrimaryButton"), Content = Loc.T(_last == null ? "Start test" : "Test again"), Padding = new Thickness(22, 8, 22, 8), Margin = new Thickness(0, 14, 0, 0), HorizontalAlignment = HorizontalAlignment.Left };
-            go.Click += (_, _) => _ = Start();
-            right.Children.Add(go);
-        }
-        g.Children.Add(right);
-        DrawRing();
-        return Card(g, _running ? Cyan : Purple, 18);
-    }
-
-    FrameworkElement Steps()
-    {
-        var wp = new WrapPanel { Margin = new Thickness(0, 10, 0, 0) };
-        void Step(SpeedTest.Phase ph, string label, double val, string unit)
-        {
-            bool done = _phase > ph, now = _phase == ph;
-            var c = done ? Green : now ? Cyan : Color.FromRgb(0x5A, 0x5E, 0x68);
-            var sp = new StackPanel { Orientation = Orientation.Horizontal };
-            sp.Children.Add(new TextBlock { Text = Loc.T(label), FontSize = 11.5, FontWeight = FontWeights.Bold, Foreground = B(c) });
-            if (val >= 0) sp.Children.Add(new TextBlock { Text = " " + val.ToString(val >= 100 ? "0" : "0.#", CultureInfo.CurrentCulture) + " " + unit, FontSize = 11.5, Foreground = Res("TextDimBrush") });
-            wp.Children.Add(new Border { CornerRadius = new CornerRadius(999), BorderThickness = new Thickness(1), BorderBrush = B(A(c, 0x66)), Background = B(A(c, 0x14)), Padding = new Thickness(10, 3, 10, 4), Margin = new Thickness(0, 0, 6, 6), Child = sp });
-        }
-        Step(SpeedTest.Phase.Ping, "Ping", _ping, "ms");
-        Step(SpeedTest.Phase.Download, "Download", _down, "Mbps");
-        Step(SpeedTest.Phase.Upload, "Upload", _up, "Mbps");
-        Step(SpeedTest.Phase.Loss, "Packet loss", -1, "");
-        return wp;
-    }
-
-    void DrawRing()
-    {
-        if (_ringHost == null) return;
-        _ringHost.Children.Clear();
-        const double size = 190, stroke = 13;
-        Color c; double frac; string value, unit, label;
-        if (_running)
-        {
-            (c, label) = _phase switch
-            {
-                SpeedTest.Phase.Ping => (Purple, "Ping"),
-                SpeedTest.Phase.Download => (Cyan, "Download"),
-                SpeedTest.Phase.Upload => (Blue, "Upload"),
-                _ => (Green, "Packet loss"),
-            };
-            bool speed = _phase is SpeedTest.Phase.Download or SpeedTest.Phase.Upload;
-            frac = speed ? SpeedFrac(_value) : _phase == SpeedTest.Phase.Ping ? Math.Clamp(_value / 150, 0, 1) : _frac;
-            value = _phase == SpeedTest.Phase.Loss ? "…" : _value.ToString(_value >= 100 ? "0" : "0.0", CultureInfo.CurrentCulture);
-            unit = speed ? "Mbps" : _phase == SpeedTest.Phase.Ping ? "ms" : "";
-            if (_phaseText != null) _phaseText.Text = Loc.T(_phase switch
-            {
-                SpeedTest.Phase.Ping => "Measuring ping…",
-                SpeedTest.Phase.Download => "Testing download…",
-                SpeedTest.Phase.Upload => "Testing upload…",
-                _ => "Checking for packet loss…",
-            });
+            col.Children.Add(stop);
         }
         else if (_last != null)
         {
-            c = Cyan; label = "Download"; frac = SpeedFrac(_last.DownMbps);
-            value = _last.DownMbps.ToString(_last.DownMbps >= 100 ? "0" : "0.0", CultureInfo.CurrentCulture); unit = "Mbps";
+            var (lvl, text) = SpeedTest.Verdict(_last);
+            col.Children.Add(new TextBlock { Text = Loc.T(text), FontSize = 15, FontWeight = FontWeights.SemiBold, Foreground = B(LevelColor(lvl)), HorizontalAlignment = HorizontalAlignment.Center, TextAlignment = TextAlignment.Center, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 2, 0, 0) });
+            var again = new Button { Style = (Style)FindResource("PrimaryButton"), Content = Loc.T("Test again"), Padding = new Thickness(24, 8, 24, 8), Margin = new Thickness(0, 12, 0, 0), HorizontalAlignment = HorizontalAlignment.Center };
+            again.Click += (_, _) => _ = Start();
+            col.Children.Add(again);
         }
-        else { c = Purple; label = "Ready"; frac = double.NaN; value = "–"; unit = ""; }
 
-        _ringHost.Children.Add(Ring(size, stroke, 1, B(A(c, 0x1F))));
-        if (!double.IsNaN(frac) && frac > 0)
+        // Who's testing: provider and IP, and the server.
+        var who = new Grid { Margin = new Thickness(0, 22, 0, 2) };
+        who.ColumnDefinitions.Add(new ColumnDefinition());
+        who.ColumnDefinitions.Add(new ColumnDefinition());
+        string isp = _last?.Isp ?? "", ip = _last?.Ip ?? "", city = _last?.ServerCity ?? "";
+        who.Children.Add(Who("👤", isp.Length > 0 ? isp : Loc.T("Your provider"), ip.Length > 0 ? ip : _running ? Loc.T("Looking up…") : Loc.T("Shown after a test"), HorizontalAlignment.Right));
+        var srv = Who("🖧", "Cloudflare", city.Length > 0 ? city : _last?.Server is { Length: > 0 } code ? code : Loc.T("Nearest server"), HorizontalAlignment.Left); Grid.SetColumn(srv, 1); who.Children.Add(srv);
+        col.Children.Add(who);
+
+        UpdateDial(snap: true);
+        return Card(col, _running ? Cyan : Purple, 20);
+    }
+
+    FrameworkElement Head(string arrow, string label, double value, Color c, bool live)
+    {
+        var sp = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center };
+        var row = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center };
+        row.Children.Add(new Border { Width = 20, Height = 20, CornerRadius = new CornerRadius(10), BorderThickness = new Thickness(1.5), BorderBrush = B(c), Margin = new Thickness(0, 0, 8, 0),
+            Child = new TextBlock { Text = arrow, FontSize = 12, FontWeight = FontWeights.Bold, Foreground = B(c), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, -2, 0, 0) } });
+        row.Children.Add(new TextBlock { Text = Loc.T(label).ToUpper(CultureInfo.CurrentCulture), FontSize = 14, FontWeight = FontWeights.Bold, Foreground = Res(live ? "TextBrush" : "TextDimBrush"), VerticalAlignment = VerticalAlignment.Center });
+        row.Children.Add(new TextBlock { Text = " Mbps", FontSize = 14, Foreground = Res("TextFaintBrush"), VerticalAlignment = VerticalAlignment.Center });
+        sp.Children.Add(row);
+        if (value >= 0)
+            sp.Children.Add(new TextBlock { Text = Fmt(value), FontSize = 34, FontWeight = FontWeights.Light, Foreground = Res("TextBrush"), HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 4, 0, 0) });
+        else
+            sp.Children.Add(new Border { Width = 48, Height = 2, Background = live ? B(c) : Res("TextFaintBrush"), Margin = new Thickness(0, 22, 0, 18), HorizontalAlignment = HorizontalAlignment.Center });
+        return sp;
+    }
+
+    static string Fmt(double v) => v.ToString(v >= 100 ? "0.0" : "0.00", CultureInfo.CurrentCulture);
+
+    FrameworkElement PingChip(string icon, Color c, double ms, string tip)
+    {
+        var sp = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 22, 0), ToolTip = tip };
+        sp.Children.Add(new Border { Width = 18, Height = 18, CornerRadius = new CornerRadius(9), BorderThickness = new Thickness(1.5), BorderBrush = B(c), Margin = new Thickness(0, 0, 7, 0),
+            Child = new TextBlock { Text = icon, FontSize = 10.5, FontWeight = FontWeights.Bold, Foreground = B(c), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, -2, 0, 0) } });
+        sp.Children.Add(new TextBlock { Text = ms > 0 ? ms.ToString("0", CultureInfo.CurrentCulture) : "—", FontSize = 14, Foreground = Res("TextBrush"), VerticalAlignment = VerticalAlignment.Center });
+        return sp;
+    }
+
+    FrameworkElement Who(string icon, string title, string sub, HorizontalAlignment align)
+    {
+        var sp = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = align, Margin = new Thickness(16, 0, 16, 0) };
+        sp.Children.Add(new Border { Width = 38, Height = 38, CornerRadius = new CornerRadius(19), BorderThickness = new Thickness(1), BorderBrush = Res("BorderBrush"), Margin = new Thickness(0, 0, 10, 0),
+            Child = new TextBlock { Text = icon, FontSize = 15, Foreground = Res("TextDimBrush"), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center } });
+        var t = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+        t.Children.Add(new TextBlock { Text = title, FontSize = 16, Foreground = Res("TextBrush"), TextTrimming = TextTrimming.CharacterEllipsis, MaxWidth = 210 });
+        t.Children.Add(new TextBlock { Text = sub, FontSize = 12.5, Foreground = Res("TextDimBrush") });
+        sp.Children.Add(t);
+        return sp;
+    }
+
+    FrameworkElement Dial()
+    {
+        var c = new Canvas { Width = GSize, Height = GSize - 30, Margin = new Thickness(0, 14, 0, 0), HorizontalAlignment = HorizontalAlignment.Center, ClipToBounds = false };
+        double r = (GSize - GStroke) / 2 - 2;
+        // Track.
+        c.Children.Add(new System.Windows.Shapes.Path { Data = ArcGeometry(1), Stroke = B(Color.FromRgb(0x26, 0x28, 0x34)), StrokeThickness = GStroke, StrokeStartLineCap = PenLineCap.Flat, StrokeEndLineCap = PenLineCap.Flat });
+        // Progress: blue-cyan to green for download, violet for upload.
+        var grad = Uploading
+            ? new LinearGradientBrush(Color.FromRgb(0x7C, 0x4D, 0xFF), Color.FromRgb(0xC0, 0x84, 0xFC), new Point(0, 1), new Point(1, 0))
+            : new LinearGradientBrush(new GradientStopCollection { new(Color.FromRgb(0x00, 0xB4, 0xFF), 0), new(Color.FromRgb(0x5E, 0xF2, 0xD6), 0.55), new(Color.FromRgb(0x7D, 0xF0, 0x7A), 1) }, new Point(0, 1), new Point(1, 0));
+        grad.Freeze();
+        _arc = new System.Windows.Shapes.Path { Stroke = grad, StrokeThickness = GStroke, StrokeStartLineCap = PenLineCap.Flat, StrokeEndLineCap = PenLineCap.Flat };
+        c.Children.Add(_arc);
+        // Tick labels inside the ring.
+        for (int i = 0; i < Ticks.Length; i++)
         {
-            var arc = Ring(size, stroke, frac, new LinearGradientBrush(A(c, 0x8C), c, new Point(0, 1), new Point(1, 0)));
-            arc.Effect = Glow(c, 18, 0.7);
-            _ringHost.Children.Add(arc);
+            var p = OnDial(i / (double)(Ticks.Length - 1), r - GStroke - 8);
+            var t = new TextBlock { Text = Ticks[i].ToString("0", CultureInfo.InvariantCulture), FontSize = 14, FontWeight = FontWeights.Bold, Foreground = Res("TextBrush") };
+            t.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+            Canvas.SetLeft(t, p.X - t.DesiredSize.Width / 2); Canvas.SetTop(t, p.Y - t.DesiredSize.Height / 2);
+            c.Children.Add(t);
         }
-        var mid = new StackPanel { VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center };
-        mid.Children.Add(new TextBlock { Text = value, FontSize = 40, FontWeight = FontWeights.ExtraBold, Foreground = B(c), FontFamily = (FontFamily)FindResource("DisplayFont"), HorizontalAlignment = HorizontalAlignment.Center, Effect = Glow(c, 20, 0.45) });
-        if (unit.Length > 0) mid.Children.Add(new TextBlock { Text = unit, FontSize = 12.5, FontWeight = FontWeights.Bold, Foreground = B(A(c, 0xCC)), HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, -4, 0, 0) });
-        _ringHost.Children.Add(mid);
-        _ringHost.Children.Add(new TextBlock { Text = Loc.T(label).ToUpper(CultureInfo.CurrentCulture), FontSize = 10.5, FontWeight = FontWeights.ExtraBold, Foreground = B(A(c, 0xB3)), VerticalAlignment = VerticalAlignment.Bottom, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 0, 0, 14) });
+        // Needle: a tapered blade from the middle, turned by angle.
+        double len = r - GStroke - 30;
+        var needle = new System.Windows.Shapes.Polygon
+        {
+            Points = new PointCollection { new(GSize / 2 + 26, GSize / 2 - 4), new(GSize / 2 + len, GSize / 2 - 1.2), new(GSize / 2 + len, GSize / 2 + 1.2), new(GSize / 2 + 26, GSize / 2 + 4) },
+            Fill = new LinearGradientBrush(Color.FromArgb(0x30, 0xFF, 0xFF, 0xFF), Color.FromArgb(0xF0, 0xFF, 0xFF, 0xFF), 0),
+        };
+        _needleTurn = new RotateTransform(135, GSize / 2, GSize / 2);
+        needle.RenderTransform = _needleTurn;
+        needle.Visibility = _running || _last != null ? Visibility.Visible : Visibility.Collapsed;
+        c.Children.Add(needle);
+
+        // Middle: the live number, or a GO button before the first test.
+        if (!_running && _last == null)
+        {
+            var go = new Button { Width = 120, Height = 120, Cursor = Cursors.Hand, ToolTip = Loc.T("Start test"), Template = GoTemplate() };
+            go.Click += (_, _) => _ = Start();
+            Canvas.SetLeft(go, GSize / 2 - 60); Canvas.SetTop(go, GSize / 2 - 60);
+            c.Children.Add(go);
+        }
+        else
+        {
+            var mid = new StackPanel { Width = 200 };
+            _number = new TextBlock { FontSize = 40, FontWeight = FontWeights.Light, Foreground = Res("TextBrush"), HorizontalAlignment = HorizontalAlignment.Center };
+            _unitText = new TextBlock { FontSize = 13, Foreground = Res("TextDimBrush"), HorizontalAlignment = HorizontalAlignment.Center };
+            mid.Children.Add(_number); mid.Children.Add(_unitText);
+            Canvas.SetLeft(mid, GSize / 2 - 100); Canvas.SetTop(mid, GSize / 2 + 48);
+            c.Children.Add(mid);
+        }
+        return c;
+    }
+
+    ControlTemplate GoTemplate()
+    {
+        var t = new ControlTemplate(typeof(Button));
+        var ring = new FrameworkElementFactory(typeof(Border));
+        ring.SetValue(Border.CornerRadiusProperty, new CornerRadius(60));
+        ring.SetValue(Border.BorderThicknessProperty, new Thickness(3));
+        ring.SetValue(Border.BorderBrushProperty, new LinearGradientBrush(Color.FromRgb(0x00, 0xB4, 0xFF), Color.FromRgb(0x7D, 0xF0, 0x7A), 45));
+        ring.SetValue(Border.BackgroundProperty, B(Color.FromArgb(0x18, 0x22, 0xD3, 0xEE)));
+        var txt = new FrameworkElementFactory(typeof(TextBlock));
+        txt.SetValue(TextBlock.TextProperty, Loc.T("GO"));
+        txt.SetValue(TextBlock.FontSizeProperty, 34.0);
+        txt.SetValue(TextBlock.FontWeightProperty, FontWeights.SemiBold);
+        txt.SetValue(TextBlock.ForegroundProperty, Brushes.White);
+        txt.SetValue(HorizontalAlignmentProperty, HorizontalAlignment.Center);
+        txt.SetValue(VerticalAlignmentProperty, VerticalAlignment.Center);
+        ring.AppendChild(txt);
+        t.VisualTree = ring;
+        return t;
+    }
+
+    /// <summary>Moves the needle, arc and number toward the live value (smoothly while running).</summary>
+    void UpdateDial(bool snap = false)
+    {
+        if (_arc == null) return;
+        bool speed = _running && _phase is SpeedTest.Phase.Download or SpeedTest.Phase.Upload;
+        _target = _running ? (speed ? _value : 0) : _last?.DownMbps ?? 0;
+        if (snap && !_running) _shown = _target;
+        else _shown += (_target - _shown) * 0.18;
+        double f = DialFrac(_shown);
+        _arc.Data = f > 0.001 ? ArcGeometry(f) : null;
+        _needleTurn.Angle = 135 + 270 * f;
+        if (_number != null)
+        {
+            if (_running && _phase == SpeedTest.Phase.Ping) { _number.Text = _value > 0 ? _value.ToString("0", CultureInfo.CurrentCulture) : "…"; _unitText.Text = Loc.T("ms ping"); }
+            else if (_running && _phase == SpeedTest.Phase.Loss) { _number.Text = "…"; _unitText.Text = Loc.T("checking packet loss"); }
+            else { _number.Text = Fmt(_shown); _unitText.Text = (Uploading ? "↑ " : "↓ ") + "Mbps"; }
+        }
+        if (_phaseText != null) _phaseText.Text = Loc.T(_phase switch
+        {
+            SpeedTest.Phase.Ping => "Measuring ping…",
+            SpeedTest.Phase.Download => "Testing download…",
+            SpeedTest.Phase.Upload => "Testing upload…",
+            _ => "Checking for packet loss…",
+        });
     }
 
     async Task Start()
     {
         if (_running) return;
         _running = true;
-        _phase = SpeedTest.Phase.Ping; _value = 0; _frac = 0; _down = _up = _ping = -1;
+        _phase = SpeedTest.Phase.Ping; _value = 0; _frac = 0; _down = _up = _ping = -1; _shown = 0;
         _cts = new CancellationTokenSource();
         Build();
+        _anim ??= new System.Windows.Threading.DispatcherTimer(System.Windows.Threading.DispatcherPriority.Render) { Interval = TimeSpan.FromMilliseconds(33) };
+        _anim.Tick -= AnimTick; _anim.Tick += AnimTick;
+        _anim.Start();
         var progress = new Progress<SpeedTest.Progress>(p =>
         {
             bool newPhase = p.Phase != _phase;
@@ -230,13 +349,14 @@ public partial class SpeedTestPage : UserControl, IPage
                 if (_phase == SpeedTest.Phase.Upload) _up = _value;
             }
             _phase = p.Phase; _value = p.Value; _frac = p.Fraction;
-            if (newPhase && _running) Build(); else DrawRing();
+            if (newPhase && _running) { Build(); if (p.Phase is SpeedTest.Phase.Download or SpeedTest.Phase.Upload) _shown = 0; }
         });
         try
         {
             var r = await Task.Run(() => SpeedTest.Run(progress, _cts.Token));
             _last = r;
             SpeedTest.Save(r);
+            if (r.Problems.Length > 0) TweakEngine.AddLog("network", "Speed test request problems: " + r.Problems);
         }
         catch (OperationCanceledException) { }
         catch (Exception ex)
@@ -247,21 +367,22 @@ public partial class SpeedTestPage : UserControl, IPage
         finally
         {
             _running = false;
+            _anim?.Stop();
             _cts?.Dispose(); _cts = null;
             Build();
         }
     }
 
+    void AnimTick(object s, EventArgs e) => UpdateDial();
+
     // ───────── results ─────────
 
     FrameworkElement ResultTiles(SpeedResult r)
     {
-        var grid = new UniformGrid { Columns = 6, Margin = new Thickness(0, 0, -10, 0) };
+        var grid = new UniformGrid { Columns = 4, Margin = new Thickness(0, 0, -10, 0) };
         var d = SpeedTest.Diagnose(r).ToDictionary(x => x.Area);
         Color Of(string area) => d.TryGetValue(area, out var f) ? LevelColor(f.Level) : Color.FromRgb(0x7C, 0x80, 0x8A);
         string N(double v) => v.ToString(v >= 100 ? "0" : "0.0", CultureInfo.CurrentCulture);
-        grid.Children.Add(Tile("Download", N(r.DownMbps), "Mbps", Of("Download"), ""));
-        grid.Children.Add(Tile("Upload", N(r.UpMbps), "Mbps", Of("Upload"), ""));
         grid.Children.Add(Tile("Ping", r.IdleMs.ToString("0", CultureInfo.CurrentCulture), "ms", Of("Ping"), Loc.T("idle")));
         grid.Children.Add(Tile("Jitter", r.JitterMs.ToString("0.0", CultureInfo.CurrentCulture), "ms", Of("Jitter"), Loc.T("ping changes")));
         grid.Children.Add(Tile("Packet loss", r.LossPercent < 0 ? "–" : r.LossPercent.ToString("0.#", CultureInfo.CurrentCulture), r.LossPercent < 0 ? "" : "%", Of("Packet loss"), r.LossPercent < 0 ? Loc.T("couldn't check") : Loc.T("60 packets")));
@@ -375,7 +496,7 @@ public partial class SpeedTestPage : UserControl, IPage
         Item("A gaming verdict", "One plain answer: is this connection good for competitive games?", Blue);
         Item("How to fix it", "For anything that isn't good: why it happens and what to do, easiest fix first.", Red);
         sp.Children.Add(grid);
-        sp.Children.Add(Faint(Loc.T("Runs on Cloudflare's speed-test servers, using the nearest one. Uses about 200–800 MB on a fast connection; nothing about your PC is sent."), 11, 2));
+        sp.Children.Add(Faint(Loc.T("Runs on Cloudflare's speed-test servers, using the nearest one. Uses up to about 2.4 GB on a very fast connection (less on slower ones); nothing about your PC is sent."), 11, 2));
         return Card(sp, Purple);
     }
 

@@ -157,6 +157,28 @@ public static class Tracker
     static (int Matches, int Samples) _scaleKey = (-1, -1);
 
     /// <summary>One player's numbers in one match, for the scale (only the ones with enough behind them to mean something).</summary>
+    /// <summary>
+    /// How much harder a lobby is than a mid-Gold one: 4.5% per rank step from Gold 2, limited to 0.6–1.6 (Radiant
+    /// lobbies count 1.6×). Every match's stats are against that lobby, so an average Radiant has the same raw numbers
+    /// as an average Silver; ranking skills on lobby-weighted numbers is what tells them apart.
+    /// </summary>
+    internal static double LobbyFactor(double enemyTier) => double.IsNaN(enemyTier) || enemyTier < 3 ? 1 : Math.Clamp(1 + 0.045 * (enemyTier - 13), 0.6, 1.6);
+
+    /// <summary>The enemies' average rank in a match (ranked players only), NaN if under 3 were ranked.</summary>
+    internal static double EnemyTier(VMatch m, string id)
+    {
+        var team = m.TeamOf(id);
+        var t = m.Players.Where(x => x.Team != team && x.Tier >= 3).Select(x => (double)x.Tier).ToList();
+        return t.Count >= 3 ? t.Average() : double.NaN;
+    }
+
+    /// <summary>A player's typical enemy rank over their matches (NaN when unknown).</summary>
+    internal static double EnemyTier(IEnumerable<VMatch> ms, string id)
+    {
+        var t = ms.Select(m => EnemyTier(m, id)).Where(x => !double.IsNaN(x)).ToList();
+        return t.Count > 0 ? t.Average() : double.NaN;
+    }
+
     internal static Dictionary<string, double> ScaleValues(VMatch m, VPlayer p)
     {
         var o = new Dictionary<string, double>();
@@ -177,6 +199,10 @@ public static class Tracker
             var v = k.Get(t);
             if (!double.IsNaN(v) && !double.IsInfinity(v)) o[k.Id] = v;
         }
+        // Lobby-weighted copies of the skills and the impact rating, for "top X%" and "plays like".
+        double f = LobbyFactor(EnemyTier(m, p.Id));
+        foreach (var k in Skills) if (o.TryGetValue(k.Id, out var v)) o["adj:" + k.Id] = v * f;
+        if (o.TryGetValue("rating", out var rt)) o["adj:rating"] = rt * f;
         return o;
     }
 
@@ -190,6 +216,8 @@ public static class Tracker
         if (_scale != null && _scaleKey == key) return _scale;
         var s = new Scale();
         foreach (var k in Skills.Concat(StatTiles)) { s.All[k.Id] = new(); s.ByTier[k.Id] = new(); }
+        foreach (var k in Skills) { s.All["adj:" + k.Id] = new(); s.ByTier["adj:" + k.Id] = new(); }
+        s.All["adj:rating"] = new();
         s.All["rating"] = new();
         s.All["dd"] = new();
         s.All["open"] = new();
@@ -284,10 +312,15 @@ public static class Tracker
     public static void Score(Profile p)
     {
         var scale = Build(VStore.All);
+        double f = LobbyFactor(EnemyTier(p.Matches, p.Puuid));
         SkillScore One(Skill k)
         {
             if (k.Sample(p.Totals) < k.MinSample) return new SkillScore(k, double.NaN, double.NaN, 0);
             var v = k.Get(p.Totals);
+            // Skills are ranked lobby-weighted (the number shown stays the real one); the detail tiles as they are.
+            var adj = "adj:" + k.Id;
+            if (scale.All.TryGetValue(adj, out var all) && all.Count >= 20)
+                return new SkillScore(k, v, TopPercent(all, v * f), PlaysLike(scale.ByTier[adj], v * f));
             return new SkillScore(k, v, TopPercent(scale.All[k.Id], v), PlaysLike(scale.ByTier[k.Id], v));
         }
         p.Skills = Skills.Select(One).ToList();
@@ -322,7 +355,9 @@ public static class Tracker
         }
         if (avg <= 0) return null;
         double overall = mine / avg;
-        return new Rating(overall, atkAvg > 0 ? atkMine / atkAvg : double.NaN, defAvg > 0 ? defMine / defAvg : double.NaN, TopPercent(scale.All["rating"], overall));
+        double adjusted = overall * LobbyFactor(EnemyTier(p.Matches, p.Puuid));
+        var top = scale.All.TryGetValue("adj:rating", out var adj) && adj.Count >= 20 ? TopPercent(adj, adjusted) : TopPercent(scale.All["rating"], overall);
+        return new Rating(overall, atkAvg > 0 ? atkMine / atkAvg : double.NaN, defAvg > 0 ? defMine / defAvg : double.NaN, top);
     }
 
     /// <summary>"Top X%" for any number Pulse keeps per player-match ("adr", "kd", "hs", "kast", "dd", "acs", "kpr", "kad"…); NaN until there are 20.</summary>
