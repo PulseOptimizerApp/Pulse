@@ -177,9 +177,16 @@ public class PeekTrainerTests
         var page = new Pulse.Pages.ReactionPage();
         var type = page.GetType();
         var host = new Border { Width = 1100, Height = 1500, Background = new SolidColorBrush(Color.FromRgb(0x0B, 0x0C, 0x0F)), Child = page, Padding = new Thickness(28) };
+        void Show(DependencyObject d)
+        {
+            if (d is FrameworkElement fe && Pulse.Ui.Anim.GetReveal(fe)) { fe.BeginAnimation(UIElement.OpacityProperty, null); fe.Opacity = 1; }
+            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(d); i++) Show(VisualTreeHelper.GetChild(d, i));
+        }
         void Save(string name, FrameworkElement el, int w, int h)
         {
             el.Measure(new Size(w, h)); el.Arrange(new Rect(0, 0, w, h)); el.UpdateLayout();
+            Show(el);
+            el.UpdateLayout();
             var rtb = new RenderTargetBitmap(w * 2, h * 2, 192, 192, PixelFormats.Pbgra32);
             rtb.Render(el);
             var enc = new PngBitmapEncoder();
@@ -189,15 +196,24 @@ public class PeekTrainerTests
         }
         Save("reaction-start.png", host, 1100, 1500);
 
-        // Mid-peek: an enemy swinging out, as it looks in the drill.
+        // Mid-peek: an enemy (then a teammate) swinging out, as it looks in the drill.
         object Get(string f) => type.GetField(f, F)!.GetValue(page);
-        type.GetMethod("Start", F)!.Invoke(page, null);
-        type.GetField("_timer", F)!.GetValue(page).GetType().GetMethod("Stop")!.Invoke(type.GetField("_timer", F)!.GetValue(page), null);
-        type.GetMethod("ShowPeek", F)!.Invoke(page, null);
-        var scene = (PeekScene)Get("_scene");
-        var pt = (PeekTrial)Get("_pt");
-        type.GetMethod("Place", F)!.Invoke(page, new object[] { scene.At(pt, PeekScene.OutMs(pt) + 20) });
-        Save("reaction-peek.png", host, 1100, 1500);
+        void Peek(string name, bool enemy)
+        {
+            type.GetMethod("Start", F)!.Invoke(page, null);
+            var timer = (System.Windows.Threading.DispatcherTimer)Get("_timer");
+            timer.Stop();
+            var trial = (PeekTrial)Get("_pt");
+            type.GetField("_pt", F)!.SetValue(page, trial with { Enemy = enemy });
+            type.GetMethod("ShowPeek", F)!.Invoke(page, null);
+            var scene = (PeekScene)Get("_scene");
+            var pt = (PeekTrial)Get("_pt");
+            type.GetMethod("Place", F)!.Invoke(page, new object[] { scene.At(pt, PeekScene.OutMs(pt) + 20) });
+            Save(name, host, 1100, 1500);
+            type.GetMethod("StopFrames", F)!.Invoke(page, null);
+        }
+        Peek("reaction-peek.png", true);
+        Peek("reaction-teammate.png", false);
 
         // The lightning: a strip of frames.
         var strip = new WrapPanel { Width = 8 * 90, Background = new SolidColorBrush(Color.FromRgb(0x0B, 0x0C, 0x0F)) };
