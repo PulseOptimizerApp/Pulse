@@ -788,7 +788,6 @@ public partial class MousePage
                 : "M50,0 C28,0 18,16 18,40 C18,46 15,48 15,54 C15,58 18,60 18,64 C18,86 32,100 50,100 C68,100 82,86 82,64 C82,60 85,58 85,54 C85,48 82,46 82,40 C82,16 72,0 50,0 Z"),
             Fill = Brushes.Black, Stretch = Stretch.Uniform,
             Width = keyboard ? size : size * 0.62, Height = keyboard ? size * 0.33 : size,
-            Effect = new System.Windows.Media.Effects.DropShadowEffect { BlurRadius = 24, ShadowDepth = 6, Opacity = 0.5, Color = Colors.Black },
         };
         var mark = new TextBlock
         {
