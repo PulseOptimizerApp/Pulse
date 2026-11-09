@@ -141,7 +141,7 @@ public partial class ValorantPage
             : r.Added > 0 ? Loc.F("Added {0} matches.", r.Added)
             : r.Scanned > 0 && r.Real < 10 ? Loc.F("Your last {0} games had only {1} Competitive, Unrated, Premier or Swiftplay matches, and Pulse has all of them. Deathmatch and Team Deathmatch don't count: play a few 5v5 matches and they'll show up here.", r.Scanned, r.Real)
             : manual ? Loc.T("You're up to date: every recent match is already here.") : null;
-        if (_tab is "coach" or "maps" or "review" or "tracker" && (manual || r.Added > 0)) Build();
+        if (_tab is "coach" or "maps" or "tracker" && (manual || r.Added > 0)) Build();
     }
 
     // ───────── what to work on ─────────
@@ -213,7 +213,7 @@ public partial class ValorantPage
         if (m.Tip.Watch is DeathTag tag)
         {
             var watch = Btn("Watch these deaths");
-            watch.Click += (_, _) => { _reviewFilter = tag; _reviewMatch = null; ShowTab("review"); };
+            watch.Click += (_, _) => OpenDeaths(tag);
             buttons.Children.Add(watch);
         }
         if (m.Id is "alone" or "outnumbered" or "firstdeath" or "untraded")
@@ -295,7 +295,7 @@ public partial class ValorantPage
             var count = new TextBlock { Text = $"{n}  ·  {100.0 * n / Math.Max(1, r.DeathsCounted):0}%", FontSize = 12, Foreground = Res("TextDimBrush"), Margin = new Thickness(10, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
             var link = new Button { Style = (Style)FindResource("LinkButton"), Content = name, Padding = new Thickness(0), HorizontalAlignment = HorizontalAlignment.Left, ToolTip = Loc.T("Watch these deaths") };
             var tag = c;
-            link.Click += (_, _) => { _reviewFilter = tag; _reviewMatch = null; ShowTab("review"); };
+            link.Click += (_, _) => OpenDeaths(tag);
             Grid.SetRow(link, row); Grid.SetRow(cell, row); Grid.SetRow(count, row);
             Grid.SetColumn(cell, 1); Grid.SetColumn(count, 2);
             g.Children.Add(link); g.Children.Add(cell); g.Children.Add(count);
@@ -419,7 +419,7 @@ public partial class ValorantPage
         if (m.Tip.Watch is DeathTag tag)
         {
             var watch = Btn("Watch these deaths");
-            watch.Click += (_, _) => { _reviewFilter = tag; _reviewMatch = null; ShowTab("review"); };
+            watch.Click += (_, _) => OpenDeaths(tag);
             buttons.Children.Add(watch);
         }
         sp.Children.Add(buttons);

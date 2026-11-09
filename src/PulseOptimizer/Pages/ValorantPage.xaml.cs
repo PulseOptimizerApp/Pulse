@@ -24,13 +24,14 @@ public partial class ValorantPage : UserControl, IPage
     public ValorantPage()
     {
         InitializeComponent();
-        foreach (var (key, title) in new[] { ("coach", "Coach"), ("tracker", "Tracker"), ("intel", "Intel"), ("maps", "Heatmaps"), ("lineups", "Lineups"), ("review", "Death review"), ("store", "Store"), ("overview", "Lobby & matches") })
+        foreach (var (key, title) in new[] { ("coach", "Coach"), ("tracker", "Tracker"), ("intel", "Intel"), ("maps", "Heatmaps"), ("lineups", "Lineups"), ("store", "Store"), ("overview", "Lobby & matches") })
             Tabs.Children.Add(TabButton(key, title));
-        Unloaded += (_, _) => { StopReview(); StopRoundPlay(); };
+        Unloaded += (_, _) => StopRoundPlay();
     }
 
     public void OnShown(object parameter)
     {
+        if (parameter is "review") { _mapMode = "rounds"; parameter = "maps"; }
         if (parameter is string key && _tabs.ContainsKey(key)) _tab = key;
         ShowTab(_tab, false);
     }
@@ -67,7 +68,6 @@ public partial class ValorantPage : UserControl, IPage
 
     void ShowTab(string key, bool animate = true)
     {
-        if (_tab == "review" && key != "review") StopReview();
         if (key != "tracker" && MatchLayer.Visibility == Visibility.Visible) CloseMatch();
         StopRoundPlay();
         _tab = key;
@@ -89,7 +89,6 @@ public partial class ValorantPage : UserControl, IPage
         {
             case "coach": BuildCoach(); break;
             case "maps": BuildMaps(); break;
-            case "review": BuildReview(); break;
             case "store": BuildStore(); break;
             case "tracker": BuildTracker(); break;
             case "intel": BuildIntel(); break;
