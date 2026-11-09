@@ -136,11 +136,15 @@ public partial class MousePage
             for (int i = 0; i < stages.Count; i++)
             {
                 int stage = i;
-                var box = new TextBox { Style = (Style)FindResource("SearchBox"), Width = 76, Text = stages[i].ToString("0", CultureInfo.CurrentCulture), Margin = new Thickness(0, 0, 6, 6), ToolTip = Loc.F("Stage {0}", i + 1) };
-                if (i == active) box.BorderBrush = (Brush)FindResource("AccentBrush");
+                var box = new TextBox { Style = (Style)FindResource("SearchBox"), Width = 76, Text = stages[i].ToString("0", CultureInfo.CurrentCulture), ToolTip = Loc.F("Stage {0}", i + 1) };
+                if (i == active) box.FontWeight = FontWeights.Bold;
                 box.GotKeyboardFocus += (_, _) => { if (stage != active && _methods.Contains("setActiveDpiStage")) Set("setActiveDpiStage", stage); };
                 box.KeyDown += (_, e) => { if (e.Key == System.Windows.Input.Key.Enter && TryNum(box.Text, out var v)) Set("setDpiStageValue", stage, (int)v); };
-                row.Children.Add(box);
+                // The stage in use has a bar under it.
+                var cell = new StackPanel { Margin = new Thickness(0, 0, 6, 6) };
+                cell.Children.Add(box);
+                cell.Children.Add(new Border { Height = 3, CornerRadius = new CornerRadius(2), Margin = new Thickness(10, 4, 10, 0), Background = i == active ? (Brush)FindResource("TextBrush") : Brushes.Transparent });
+                row.Children.Add(cell);
             }
             MousePanel.Children.Add(Wrap(row));
         }
