@@ -1,0 +1,15 @@
+name: Brawlhalla probe
+on:
+  push:
+    branches: [bh-fix]
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          A=https://api.brawlhalla.com/v1
+          curl -sS "$A/leaderboard/ranked?game_mode=1v1&region=ALL&page=1&max_results=3&search=Neo999" > s.json; head -c 1500 s.json; echo
+          id=$(python3 -c "import json;print(json.load(open('s.json'))['rankings'][0]['players'][0]['id'])"); echo ID=$id
+          for m in all ranked_1v1 ranked_3v3; do echo "== $m"; curl -sS -w "\nHTTP %{http_code}\n" "$A/player/stats?brawlhalla_id=$id&mode=$m" | head -c 600; echo; done
+          curl -sS -w "\nHTTP %{http_code}\n" "$A/player/teams?brawlhalla_id=$id" | head -c 300; echo
+          curl -sS -w "\nHTTP %{http_code}\n" "$A/player/guild?brawlhalla_id=$id" | head -c 300; echo
