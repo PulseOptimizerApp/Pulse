@@ -5550,5 +5550,6 @@
  "High, DirectX 12": "Alto, DirectX 12",
  "Java, 16 chunks": "Java, 16 chunks",
  "Graphics level 10": "Nível gráfico 10",
- "High, no ray tracing": "Alto, sem ray tracing"
+ "High, no ray tracing": "Alto, sem ray tracing",
+ "{0:0.0}× as fast": "{0:0.0}× mais rápida"
 }

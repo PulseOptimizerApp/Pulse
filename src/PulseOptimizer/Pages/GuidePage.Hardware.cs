@@ -178,7 +178,7 @@ public partial class GuidePage
             double myScore = Describe(mine).Score;
             double diff = myScore > 0 ? score / myScore - 1 : 0;
             var c = diff > 0.03 ? Green : diff < -0.03 ? Red : Grey;
-            string text = Math.Abs(diff) < 0.03 ? Loc.T("About the same") : diff > 0 ? Loc.F("{0:0}% faster", diff * 100) : Loc.F("{0:0}% slower", -diff * 100);
+            string text = Math.Abs(diff) < 0.03 ? Loc.T("About the same") : diff >= 1 ? Loc.F("{0:0.0}× as fast", 1 + diff) : diff > 0 ? Loc.F("{0:0}% faster", diff * 100) : Loc.F("{0:0}% slower", -diff * 100);
             how.Children.Add(Gauge(text, Loc.F("than yours ({0})", Describe(mine).Name), Math.Clamp(0.5 + diff / 2, 0, 1), c));
         }
         sp.Children.Add(how);
@@ -267,7 +267,7 @@ public partial class GuidePage
         string curSpeed = _bRam == null ? "DDR4-3200" : $"{_bRam.Type}-{_bRam.Mhz}";
         if (!speeds.Contains(curSpeed)) speeds.Add(curSpeed);
         var speed = Combo(speeds, curSpeed, o => (string)o, 130);
-        var chan = Combo(new object[] { true, false }, _bRam?.Dual ?? true, o => (bool)o ? Loc.T("Two sticks or more (dual channel)") : Loc.T("One stick (single channel)"), 230);
+        var chan = Combo(new object[] { true, false }, _bRam?.Dual ?? true, o => (bool)o ? Loc.T("Two sticks or more (dual channel)") : Loc.T("One stick (single channel)"), 260);
         void RamChanged()
         {
             if (size.SelectedItem is not ComboBoxItem { Tag: int gb } || speed.SelectedItem is not ComboBoxItem { Tag: string sp2 } || chan.SelectedItem is not ComboBoxItem { Tag: bool dual }) return;

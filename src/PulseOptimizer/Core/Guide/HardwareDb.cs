@@ -117,17 +117,18 @@ public static class HardwareDb
         if (words.Length == 0) return new();
         bool Has(string name) { var n = Norm(name) + " " + name.ToLowerInvariant(); return words.All(w => n.Contains(w, StringComparison.Ordinal)); }
         var hits = new List<(object Part, double Rank)>();
-        foreach (var c in Cpus) if (Has(c.Name)) hits.Add((c, Rank(c.Name, c.Year)));
-        foreach (var g in Gpus) if (Has(g.Name)) hits.Add((g, Rank(g.Name, g.Year)));
+        foreach (var c in Cpus) if (Has(c.Name)) hits.Add((c, Rank(c.Name, c.Year) + c.Score / 100000));
+        foreach (var g in Gpus) if (Has(g.Name)) hits.Add((g, Rank(g.Name, g.Year) + g.Score / 100000));
         foreach (var r in RamKits) if (Has(r.Label + " ram memory")) hits.Add((r, Rank(r.Label, 2020)));
         return hits.OrderByDescending(h => h.Rank).Take(max).Select(h => h.Part).ToList();
 
         double Rank(string name, int year)
         {
             var n = Norm(name);
-            double r = year / 10000.0;
+            double r = (year - 2000) / 100.0;
             var tokens = n.Split(' ');
             r += 2 * words.Count(w => tokens.Contains(w));                     // whole model numbers beat partial ones
+            r += words.Count(w => tokens.Any(t => t.StartsWith(w, StringComparison.Ordinal)));   // "rtx 50" → RTX 50-series before RTX 3050
             if (n == string.Join(' ', words)) r += 10;
             else if (n.StartsWith(words[0], StringComparison.Ordinal) || n.Contains(" " + words[0], StringComparison.Ordinal)) r += 1;
             return r - n.Length / 1000.0;
