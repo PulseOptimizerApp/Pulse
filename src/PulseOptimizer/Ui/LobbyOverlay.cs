@@ -21,7 +21,7 @@ namespace Pulse.Ui;
 /// rate this act. Both windows never take focus from the game (clicks work, keys stay with the game). Games in
 /// exclusive fullscreen draw over them; borderless or windowed shows them.
 /// </summary>
-public static class LobbyOverlay
+public static partial class LobbyOverlay
 {
     static Window _prompt, _panel;
     static Task<Lobby> _loading;
