@@ -32,7 +32,7 @@ public static class ValorantConsole
     /// A player's latest console matches (id, start time), newest first: each console queue's latest page, plus the
     /// unfiltered history in case console matches are listed there.
     /// </summary>
-    public static async Task<List<(string Id, long At)>> History(ValorantMatches.Session s, string puuid)
+    internal static async Task<List<(string Id, long At)>> History(ValorantMatches.Session s, string puuid)
     {
         lock (_probe) _probe.Clear();
         var order = Platform != null ? Platforms.Where(p => p == Platform).Concat(Platforms.Where(p => p != Platform)) : Platforms;
@@ -70,7 +70,7 @@ public static class ValorantConsole
     }
 
     /// <summary>A console match's details: as PC first, then with the console platform header.</summary>
-    public static async Task<JsonDocument> Details(ValorantMatches.Session s, string id)
+    internal static async Task<JsonDocument> Details(ValorantMatches.Session s, string id)
     {
         var url = $"https://pd.{s.Shard}.a.pvp.net/match-details/v1/matches/{id}";
         var (doc, code) = await ValorantMatches.GetStatus(s, url, Platform);
