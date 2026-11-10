@@ -413,7 +413,7 @@ public sealed partial class BrawlhallaPage
         if (m.RatingAfter > 0)
         {
             var rt = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0) };
-            rt.Children.Add(Dot(TierColor(Brawlhalla.TierOf(m.RatingAfter))).Also(d => d.Margin = new Thickness(0, 0, 6, 0)));
+            rt.Children.Add(RankMark(Brawlhalla.TierOf(m.RatingAfter)).Also(d => d.Margin = new Thickness(0, 0, 6, 0)));
             rt.Children.Add(new TextBlock { Text = m.RatingAfter.ToString("N0", CultureInfo.CurrentCulture), FontSize = 13, FontWeight = FontWeights.SemiBold, Foreground = Res("TextBrush") });
             int d = m.RatingChange;
             if (d != 0) rt.Children.Add(new TextBlock { Text = " " + (d > 0 ? "+" : "") + d, FontSize = 12, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(d > 0 ? Green : Red), VerticalAlignment = VerticalAlignment.Center });

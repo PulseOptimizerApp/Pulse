@@ -298,16 +298,20 @@ public partial class ValorantPage
         var parties = Parties(m);
         var rows = Memo("sbrows:" + m.Id, () => m.Players.Select(p => new SbRow(p, TotalsOf(m, p.Id), ScoreOf(m, p.Id), Stats.MultiKills(m, p.Id).Skip(3).Sum())).ToList());
         var mvp = rows.OrderByDescending(r => r.P.Score).FirstOrDefault()?.P.Id;
+        // Deathmatch has no match rank, so it shows each player's peak (their best rank ever) instead.
+        bool dm = m.Queue == "deathmatch";
+        if (dm) LoadMatchPeaks(m);
+        int RankOf(SbRow r) => dm ? (_trPeaks.TryGetValue(r.P.Id, out var pk) ? pk.Peak : 0) : r.P.Tier;
         var cols = new (string Key, string Head, string Tip, double W)[]
         {
-            ("rank", "Match Rank", "Their rank in this match", 86), ("pulse", "Pulse", "Pulse Score: one match's overall impact (0–1000)", 74), ("acs", "ACS", "Average combat score", 58),
+            dm ? ("rank", "Peak Rank", "Their highest rank ever", 86) : ("rank", "Match Rank", "Their rank in this match", 86), ("pulse", "Pulse", "Pulse Score: one match's overall impact (0–1000)", 74), ("acs", "ACS", "Average combat score", 58),
             ("k", "K", "Kills", 44), ("d", "D", "Deaths", 44), ("a", "A", "Assists", 44), ("pm", "+/-", "Kills minus deaths", 48), ("kd", "K/D", "Kills per death", 52),
             ("dd", "DDΔ", "Damage dealt minus taken, per round", 56), ("adr", "ADR", "Damage per round", 60), ("hs", "HS%", "Headshot rate", 54), ("kast", "KAST", "Rounds with a kill, assist, survival or trade", 58),
             ("fk", "FK", "First kills", 42), ("fd", "FD", "First deaths", 42), ("mk", "MK", "Rounds with 3 or more kills", 42),
         };
         double Key(SbRow r) => _sbSort switch
         {
-            "rank" => r.P.Tier, "pulse" => double.IsNaN(r.Score) ? -1 : r.Score, "k" => r.T.Kills, "d" => r.T.Deaths, "a" => r.T.Assists, "pm" => r.T.Kills - r.T.Deaths,
+            "rank" => RankOf(r), "pulse" => double.IsNaN(r.Score) ? -1 : r.Score, "k" => r.T.Kills, "d" => r.T.Deaths, "a" => r.T.Assists, "pm" => r.T.Kills - r.T.Deaths,
             "kd" => r.T.KdRatio, "dd" => double.IsNaN(r.T.DamageDelta) ? -9999 : r.T.DamageDelta, "adr" => double.IsNaN(r.T.Adr) ? -1 : r.T.Adr,
             "hs" => double.IsNaN(r.T.HeadshotPct) ? -1 : r.T.HeadshotPct, "kast" => double.IsNaN(r.T.KastPct) ? -1 : r.T.KastPct,
             "fk" => r.T.FirstKills, "fd" => r.T.FirstDeaths, "mk" => r.Multi, _ => double.IsNaN(r.T.Acs) ? r.P.Score : r.T.Acs,
@@ -328,11 +332,11 @@ public partial class ValorantPage
             var title = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(14, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
             var tc = team.Length == 0 ? TgText : TeamColor(team);
             title.Children.Add(Txt(team.Length == 0 ? Loc.T("Players") : Loc.T(TeamLabel(team)), 11.5, tc, true));
-            var ranked = lines.Where(l => l.P.Tier >= 3).ToList();
+            var ranked = lines.Where(l => RankOf(l) >= 3).ToList();
             if (ranked.Count > 0)
             {
-                int avg = (int)Math.Round(ranked.Average(l => l.P.Tier));
-                title.Children.Add(Txt("  •  " + Loc.T("Avg. Rank:") + " ", 11, TgSub));
+                int avg = (int)Math.Round(ranked.Average(l => RankOf(l)));
+                title.Children.Add(Txt("  •  " + Loc.T(dm ? "Avg. Peak:" : "Avg. Rank:") + " ", 11, TgSub));
                 if (MatchArt.RankIcon(avg) is { } ai) title.Children.Add(Pic(ai, 14, 14, 4));
                 title.Children.Add(Txt(ValorantMatches.RankName(avg), 11, tc, true));
             }
@@ -373,7 +377,7 @@ public partial class ValorantPage
                 pulse.Children.Add(Txt(N(l.Score), 14, TgText, true));
                 var cells = new UIElement[]
                 {
-                    MatchArt.RankIcon(l.P.Tier) is { } rk ? Pic(rk, 26, 26, 0).Also(i => i.ToolTip = ValorantMatches.RankName(l.P.Tier)) : Txt("–", 13, TgDim),
+                    RankCell(l.P, dm),
                     pulse,
                     Txt(N(t.Acs), 14, TgText, true),
                     Txt(t.Kills.ToString(CultureInfo.CurrentCulture), 14, TgText, true), Txt(t.Deaths.ToString(CultureInfo.CurrentCulture), 14, TgSub, true), Txt(t.Assists.ToString(CultureInfo.CurrentCulture), 14, TgSub, true),
@@ -400,10 +404,53 @@ public partial class ValorantPage
             }
             sp.Children.Add(g);
         }
+        if (dm && !S.PlayerSearch)
+            sp.Children.Add(Txt(Loc.T("Turn on player search to see their peak ranks too."), 11, TgDim).Also(t => t.Margin = new Thickness(14, 8, 14, 0)));
+        else if (dm && _peaksBusy.Contains(m.Id))
+            sp.Children.Add(Txt(Loc.T("Looking up peaks…"), 11, TgDim).Also(t => t.Margin = new Thickness(14, 8, 14, 0)));
         if (_namesProblem != null && m.Players.Any(p => Stats.NameOf(m, p.Id) == null && NameBook.Get(p.Id) == null))
             sp.Children.Add(Txt(_namesProblem, 11, TgYellow).Also(t => t.Margin = new Thickness(14, 8, 14, 0)));
         sp.Children.Add(Txt(Loc.T("Click a player to open their profile, or a column to sort. Colored edges mark players who queued together."), 11, TgDim).Also(t => t.Margin = new Thickness(14, 8, 14, 12)));
         return sp;
+    }
+
+    static readonly HashSet<string> _peaksAsked = new(), _peaksBusy = new();
+
+    /// <summary>The rank column's cell: their rank in this match, or in Deathmatch (no match rank) their peak rank.</summary>
+    FrameworkElement RankCell(VPlayer p, bool dm)
+    {
+        int tier = p.Tier;
+        string tip = ValorantMatches.RankName(tier);
+        if (dm)
+        {
+            tier = _trPeaks.TryGetValue(p.Id, out var pk) ? pk.Peak : 0;
+            tip = tier >= 3 ? Loc.F("Peak: {0}", ValorantMatches.RankName(tier)) + (pk.Tier >= 3 && pk.Tier != tier ? "\n" + Loc.F("Now: {0}", ValorantMatches.RankName(pk.Tier)) : "") : null;
+        }
+        if (tier >= 3 && MatchArt.RankIcon(tier) is { } rk) return Pic(rk, 26, 26, 0).Also(i => i.ToolTip = tip);
+        return Txt("–", 13, TgDim).Also(t => t.ToolTip = dm && _trPeaks.ContainsKey(p.Id) ? Loc.T("Never ranked") : null);
+    }
+
+    /// <summary>Deathmatch: looks up every player's peak rank once (a Riot lookup each, so only with player search on).</summary>
+    void LoadMatchPeaks(VMatch m)
+    {
+        if (!S.PlayerSearch || _peaksAsked.Contains(m.Id)) return;
+        var missing = m.Players.Select(p => p.Id).Where(id => !_trPeaks.ContainsKey(id)).ToList();
+        if (missing.Count == 0) return;
+        _peaksAsked.Add(m.Id);
+        _peaksBusy.Add(m.Id);
+        _ = Task.Run(async () =>
+        {
+            Dictionary<string, (int Tier, int Peak)> found;
+            try { found = await ValorantSearch.Peaks(missing); } catch { found = new(); }
+            Dispatcher.Invoke(() =>
+            {
+                foreach (var kv in found) _trPeaks[kv.Key] = kv.Value;
+                _peaksBusy.Remove(m.Id);
+                // Nothing came back (the Riot Client was closed): try again next time the match opens.
+                if (found.Count == 0) _peaksAsked.Remove(m.Id);
+                if (_trMatchId == m.Id && MatchLayer.Visibility == Visibility.Visible) ShowMatch();
+            });
+        });
     }
 
     /// <summary>An agent's face with the account level on it, then the Riot ID (tag dimmer), rank and an MVP tag.</summary>

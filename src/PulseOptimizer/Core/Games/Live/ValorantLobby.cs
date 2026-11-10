@@ -317,11 +317,9 @@ public static class ValorantLobby
     }
 
     /// <summary>
-    /// Smurf signs, each from data Riot gives for every player, weighted by how strongly it points to a player whose
+    /// Smurf signs (RR per win isn't one: plenty of regular players gain a lot of RR on a streak), each from data Riot gives for every player, weighted by how strongly it points to a player whose
     /// skill is above their rank:
     /// <list type="bullet">
-    /// <item>RR per win: Riot gives more RR per win when your hidden skill rating (MMR) is above your rank. Most players
-    /// gain about 15–22 RR a win; a steady 25 or more means the game itself thinks they belong higher. The strongest sign.</item>
     /// <item>Win rate this act over at least 10 games: 65% and up is rare for someone at their right rank.</item>
     /// <item>A low account level in ranked (a new account).</item>
     /// <item>A peak rank two ranks or more above where they are now (a strong player in a lower lobby).</item>
@@ -332,13 +330,6 @@ public static class ValorantLobby
     {
         int score = 0;
         var signs = new List<string>();
-        var wins = gains.Where(g => g > 0).ToList();
-        if (wins.Count >= 3)
-        {
-            double avg = wins.Average();
-            if (avg >= 28) { score += 40; signs.Add(Pulse.Ui.Loc.F("Gains {0} RR a win (most players get 15 to 22)", Math.Round(avg))); }
-            else if (avg >= 24) { score += 25; signs.Add(Pulse.Ui.Loc.F("Gains {0} RR a win (most players get 15 to 22)", Math.Round(avg))); }
-        }
         if (games >= 10 && winPercent >= 0)
         {
             if (winPercent >= 75) { score += 40; signs.Add(Pulse.Ui.Loc.F("Wins {0}% of {1} games this act", winPercent, games)); }

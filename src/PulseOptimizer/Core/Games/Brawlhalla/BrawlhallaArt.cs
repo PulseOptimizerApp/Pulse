@@ -78,6 +78,14 @@ public static class BrawlhallaArt
         return Load($"weapon-{k}.png");
     }
 
+    /// <summary>The rank's banner from the game ("Gold 3" → the Gold banner); null when unranked.</summary>
+    public static ImageSource Rank(string tier)
+    {
+        var first = (tier ?? "").Trim().Split(' ')[0].ToLowerInvariant();
+        if (first == "fallen") first = "valhallan";
+        return first is "valhallan" or "diamond" or "platinum" or "gold" or "silver" or "bronze" or "tin" ? Load($"rank-{first}.png") : null;
+    }
+
     static ImageSource Load(string file)
     {
         lock (Cache)

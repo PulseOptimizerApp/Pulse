@@ -3,8 +3,10 @@ using System.Text.RegularExpressions;
 
 namespace Pulse.Core.Guide;
 
-public sealed record HwCpu(string Name, string Brand, int Year, int Cores, int Threads, double Ghz, double Score, string Kind);
-public sealed record HwGpu(string Name, string Brand, int Year, int Vram, double Score, int Watts, string Kind);
+/// <param name="Price">Rough US price in dollars (0: not sold on its own, like a laptop chip).</param>
+/// <param name="Used">No longer sold new: the price is a typical used one.</param>
+public sealed record HwCpu(string Name, string Brand, int Year, int Cores, int Threads, double Ghz, double Score, string Kind, int Price = 0, bool Used = false);
+public sealed record HwGpu(string Name, string Brand, int Year, int Vram, double Score, int Watts, string Kind, int Price = 0, bool Used = false);
 public sealed record HwGame(string Name, string Settings, double Cpu, double G720, double G1080, double G1440, double V1080, double V1440, double Cap);
 
 /// <summary>Memory as the builder sees it.</summary>
@@ -45,16 +47,82 @@ public static class HardwareDb
             basis = r.GetProperty("basis").GetString();
             foreach (var c in r.GetProperty("cpus").EnumerateArray())
                 cpus.Add(new HwCpu(c.GetProperty("n").GetString(), c.GetProperty("b").GetString(), c.GetProperty("y").GetInt32(), c.GetProperty("c").GetInt32(),
-                    c.GetProperty("t").GetInt32(), c.GetProperty("ghz").GetDouble(), c.GetProperty("s").GetDouble(), c.GetProperty("k").GetString()));
+                    c.GetProperty("t").GetInt32(), c.GetProperty("ghz").GetDouble(), c.GetProperty("s").GetDouble(), c.GetProperty("k").GetString(), Price(c), Used(c)));
             foreach (var g in r.GetProperty("gpus").EnumerateArray())
                 gpus.Add(new HwGpu(g.GetProperty("n").GetString(), g.GetProperty("b").GetString(), g.GetProperty("y").GetInt32(), g.GetProperty("vram").GetInt32(),
-                    g.GetProperty("s").GetDouble(), g.GetProperty("w").GetInt32(), g.GetProperty("k").GetString()));
+                    g.GetProperty("s").GetDouble(), g.GetProperty("w").GetInt32(), g.GetProperty("k").GetString(), Price(g), Used(g)));
             foreach (var g in r.GetProperty("games").EnumerateArray())
                 games.Add(new HwGame(g.GetProperty("n").GetString(), g.GetProperty("set").GetString(), g.GetProperty("cpu").GetDouble(), g.GetProperty("g720").GetDouble(),
                     g.GetProperty("g1080").GetDouble(), g.GetProperty("g1440").GetDouble(), g.GetProperty("v1080").GetDouble(), g.GetProperty("v1440").GetDouble(), g.GetProperty("cap").GetDouble()));
         }
         catch { }
         return (cpus, gpus, games, basis);
+    }
+
+    static int Price(JsonElement e) => e.TryGetProperty("p", out var p) ? p.GetInt32() : 0;
+    static bool Used(JsonElement e) => e.TryGetProperty("u", out var u) && u.GetBoolean();
+
+    // ───────── prices ─────────
+
+    /// <summary>"$449", or "$120 used" for parts no longer sold new; null for parts not sold on their own.</summary>
+    public static string PriceText(int price, bool used) => price <= 0 ? null : "$" + price.ToString("N0", System.Globalization.CultureInfo.InvariantCulture) + (used ? " " + Pulse.Ui.Loc.T("used") : "");
+    public static string PriceText(HwCpu c) => c == null ? null : PriceText(c.Price, c.Used);
+    public static string PriceText(HwGpu g) => g == null ? null : PriceText(g.Price, g.Used);
+    public static string PriceText(HwRam r) => r == null ? null : PriceText(RamPrice(r), false);
+
+    /// <summary>
+    /// A memory kit's rough US price (late 2026, when memory costs several times what it did a year before).
+    /// One stick costs about the same as two of half the size.
+    /// </summary>
+    public static int RamPrice(HwRam r)
+    {
+        if (r == null || r.Gb <= 0) return 0;
+        bool ddr5 = r.Type == "DDR5";
+        double perGb = ddr5 ? 13.5 : 6.3;
+        // Faster kits cost a little more; slow ones a little less.
+        double speed = ddr5 ? 1 + (r.Mhz - 6000) / 1200.0 * 0.08 : 1 + (r.Mhz - 3200) / 800.0 * 0.06;
+        double floor = ddr5 ? 90 : 35;
+        return (int)(Math.Round(Math.Max(floor, r.Gb * perGb * Math.Clamp(speed, 0.85, 1.25)) / 5) * 5);
+    }
+
+    /// <summary>
+    /// The rest of a desktop (motherboard, 1 TB SSD, power supply, case and cooler), sized to the graphics card:
+    /// a bigger card needs a bigger power supply and a better case.
+    /// </summary>
+    public static int RestOfPc(HwCpu c, HwGpu g)
+    {
+        double s = g?.Score ?? 50;
+        int rest = s >= 160 ? 750 : s >= 110 ? 550 : s >= 70 ? 420 : 320;
+        // DDR5 boards (AM5, Intel 12th gen and newer) cost more than DDR4 ones.
+        if (c != null && NewPlatform(c)) rest += 60;
+        return rest;
+    }
+
+    /// <summary>AM5 Ryzens (7000 and newer) and Core Ultra take DDR5 boards.</summary>
+    public static bool NewPlatform(HwCpu c) => c.Name.StartsWith("Core Ultra") || Regex.IsMatch(c.Name, @"^Ryzen \d [789]\d{3}");
+
+    /// <summary>A ready-made build: a starting point for each budget.</summary>
+    public sealed record Build(string Name, string Why, HwCpu Cpu, HwGpu Gpu, HwRam Ram)
+    {
+        public int Parts => (Cpu?.Price ?? 0) + (Gpu?.Price ?? 0) + RamPrice(Ram);
+        public int Total => Parts + RestOfPc(Cpu, Gpu);
+    }
+
+    /// <summary>Builds from low end to the best, plus one made for competitive shooters (most frames for the money).</summary>
+    public static List<Build> Builds()
+    {
+        HwCpu C(string n) => Cpus.FirstOrDefault(c => c.Name == n);
+        HwGpu G(string n) => Gpus.FirstOrDefault(g => g.Name == n);
+        var list = new List<Build>
+        {
+            new("Low end", "Cheapest that plays everything at 1080p, with used graphics", C("Ryzen 5 5500"), G("Radeon RX 6600"), new HwRam(16, "DDR4", 3200, true)),
+            new("Entry level", "New parts, smooth 1080p, high fps in Valorant and Fortnite", C("Ryzen 5 5600"), G("GeForce RTX 5060"), new HwRam(16, "DDR4", 3200, true)),
+            new("Mid range", "1440p in most games, and room to upgrade", C("Ryzen 5 9600X"), G("Radeon RX 9060 XT 16GB"), new HwRam(32, "DDR5", 6000, true)),
+            new("Competitive", "The fastest gaming CPU with a sensible card: the most frames in Valorant and CS2 for the money", C("Ryzen 7 9800X3D"), G("GeForce RTX 5060 Ti 16GB"), new HwRam(32, "DDR5", 6000, true)),
+            new("High end", "High settings at 1440p, high frame rates everywhere", C("Ryzen 7 9800X3D"), G("GeForce RTX 5070 Ti"), new HwRam(32, "DDR5", 6000, true)),
+            new("Top gaming", "The fastest there is, 4K included", C("Ryzen 7 9850X3D"), G("GeForce RTX 5090"), new HwRam(32, "DDR5", 6400, true)),
+        };
+        return list.Where(b => b.Cpu != null && b.Gpu != null).ToList();
     }
 
     // ───────── names ─────────
