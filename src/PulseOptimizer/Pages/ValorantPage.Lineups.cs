@@ -172,7 +172,8 @@ public partial class ValorantPage
         }
         foreach (var (letter, at) in MapGeo.Sites(map))
         {
-            var t = new TextBlock { Text = letter, FontSize = 30, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromArgb(0x55, 0xFF, 0xFF, 0xFF)), FontFamily = (FontFamily)FindResource("DisplayFont"), IsHitTestVisible = false };
+            var t = new TextBlock { Text = letter, FontSize = 34, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromArgb(0xE6, 0xFF, 0xFF, 0xFF)), FontFamily = (FontFamily)FindResource("DisplayFont"), IsHitTestVisible = false,
+                Effect = new System.Windows.Media.Effects.DropShadowEffect { Color = Colors.Black, BlurRadius = 8, ShadowDepth = 0, Opacity = 0.9 } };
             t.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
             Canvas.SetLeft(t, at.X * size - t.DesiredSize.Width / 2); Canvas.SetTop(t, at.Y * size - t.DesiredSize.Height / 2);
             canvas.Children.Add(t);
@@ -289,7 +290,9 @@ public partial class ValorantPage
             steps.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             var text = l.Steps[i];
             int colon = text.IndexOf(':');
-            string label = colon > 0 && colon <= 12 ? text[..colon] : (i + 1).ToString(CultureInfo.InvariantCulture);
+            // Unlabelled steps: the throw itself (charge, bounces, jump) or what comes next.
+            bool throwStep = new[] { "bar", "bounce", "charge", "throw", "fire", "jump", "release", "shoot", "click" }.Any(w => text.Contains(w, StringComparison.OrdinalIgnoreCase));
+            string label = colon > 0 && colon <= 12 ? text[..colon] : Loc.T(throwStep ? "Throw" : "Then");
             string rest = colon > 0 && colon <= 12 ? text[(colon + 1)..].Trim() : text;
             var lt = new TextBlock { Text = label, FontSize = 12.5, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(SideColor(l)), Margin = new Thickness(0, 4, 12, 4) };
             var rt = new TextBlock { Text = rest, FontSize = 13, Foreground = Res("TextBrush"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 4, 0, 4), LineHeight = 19 };
