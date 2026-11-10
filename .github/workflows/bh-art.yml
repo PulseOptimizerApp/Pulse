@@ -21,7 +21,7 @@ jobs:
               line=line.strip()
               if not line: continue
               d=json.loads(line)
-              for l in d.get('data',d if isinstance(d,list) else []): names.append(l['bio_name'])
+              for l in d.get('legends',[]): names.append(l.get('bio_name') or l['legend_name'])
           open('/tmp/names.txt','w').write('\n'.join(sorted(set(names))))
           P
           wc -l /tmp/names.txt
