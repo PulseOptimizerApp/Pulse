@@ -32,7 +32,9 @@ public sealed class BhRanked
     public string Mode = "";
     public int Rating, PeakRating, Games, Wins, GlobalRank, RegionRank;
     public string Region = "";
-    public string Tier => Brawlhalla.TierOf(Rating);
+    /// <summary>The leaderboard's own tier (Valhallan is a top spot, not a rating), when it was looked up.</summary>
+    public string BoardTier;
+    public string Tier => BoardTier is { Length: > 0 } t ? t : Brawlhalla.TierOf(Rating);
 }
 
 public sealed class BhTeam
@@ -220,6 +222,16 @@ public static class Brawlhalla
                         { mine.Rating = I(l, "rating"); mine.PeakRating = I(l, "peak_rating"); mine.Tier = S(l, "tier"); }
             }
         using (var three = await threeTask) if (three != null) p.ThreeVsThree = Ranked(three.RootElement, "3v3");
+        // Diamond-rated players may be Valhallan, which only the leaderboard knows: find them on it.
+        foreach (var r in new[] { p.OneVsOne, p.ThreeVsThree })
+            if (r is { Rating: >= 2000 } && p.Name.Length > 0)
+                try
+                {
+                    var (rows, _) = await Rankings(r.Mode, r.Region.Length > 0 ? r.Region : "ALL", 1, p.Name, 50, ct);
+                    if (rows.FirstOrDefault(x => x.Id == p.Id) is { } row) r.BoardTier = row.Tier;
+                }
+                catch (OperationCanceledException) { throw; }
+                catch { }
         using (var teams = await teamsTask)
             if (teams?.RootElement.TryGetProperty("teams", out var t) == true && t.TryGetProperty("ranked_2v2", out var two) && two.ValueKind == JsonValueKind.Array)
                 foreach (var x in two.EnumerateArray())
