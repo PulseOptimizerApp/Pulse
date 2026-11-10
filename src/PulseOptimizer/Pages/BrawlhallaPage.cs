@@ -254,7 +254,7 @@ public sealed partial class BrawlhallaPage : UserControl, IPage
             // As a background, so it fills the header without making it taller.
             layers.Children.Add(new Border
             {
-                Width = 360, HorizontalAlignment = HorizontalAlignment.Right, Opacity = 0.2,
+                Width = 360, HorizontalAlignment = HorizontalAlignment.Right, Opacity = 0.3,
                 Background = new ImageBrush(art) { Stretch = Stretch.UniformToFill, AlignmentY = AlignmentY.Top },
                 OpacityMask = new LinearGradientBrush(Color.FromArgb(0, 0, 0, 0), Color.FromArgb(0xFF, 0, 0, 0), 0),
             });
