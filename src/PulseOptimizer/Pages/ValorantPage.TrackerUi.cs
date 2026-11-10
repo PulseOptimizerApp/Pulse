@@ -215,6 +215,7 @@ public partial class ValorantPage
             Child = new TextBlock { Text = Loc.T(t).ToUpper(CultureInfo.CurrentCulture), FontSize = 10.5, FontWeight = FontWeights.ExtraBold, Foreground = B(c) },
         };
         if (p.CheatChecks >= 2) nameRow.Children.Add(p.Cheat.Score >= 60 ? Tag("Repeated anomalies", Red) : p.Cheat.Score >= 30 ? Tag("Statistical outlier", Yellow) : Tag("● No anomalies", Green));
+        if (p.Private) nameRow.Children.Add(Tag("Private", Grey));
         if (p.Smurf.Score >= 60) nameRow.Children.Add(Tag("Likely smurf", Yellow));
         if (mmr?.Side == Tracker.MmrSide.Above) nameRow.Children.Add(Tag("MMR above rank", Purple));
         else if (mmr?.Side == Tracker.MmrSide.Below) nameRow.Children.Add(Tag("MMR below rank", Orange));
@@ -288,6 +289,26 @@ public partial class ValorantPage
             show(new ImageBrush(bmp) { Stretch = Stretch.UniformToFill });
         }
         catch { }   // no picture: the agent stays
+    }
+
+    /// <summary>A player whose profile is private: Riot shares no matches or rank for them.</summary>
+    FrameworkElement PrivateCard()
+    {
+        var sp = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 14, 0, 14) };
+        sp.Children.Add(new System.Windows.Shapes.Path
+        {
+            // A padlock.
+            Data = Geometry.Parse("M7,10 V7 a5,5 0 0 1 10,0 V10 M5,10 h14 a1.5,1.5 0 0 1 1.5,1.5 v8 a1.5,1.5 0 0 1 -1.5,1.5 h-14 a1.5,1.5 0 0 1 -1.5,-1.5 v-8 a1.5,1.5 0 0 1 1.5,-1.5 Z M12,14.5 v3"),
+            Stroke = Res("TextDimBrush"), StrokeThickness = 1.8, StrokeLineJoin = PenLineJoin.Round, StrokeStartLineCap = PenLineCap.Round, StrokeEndLineCap = PenLineCap.Round,
+            Width = 34, Height = 34, Stretch = Stretch.Uniform, HorizontalAlignment = HorizontalAlignment.Center,
+        });
+        sp.Children.Add(new TextBlock { Text = Loc.T("This profile is private"), FontSize = 17, FontWeight = FontWeights.Bold, Foreground = Res("TextBrush"), HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 10, 0, 0) });
+        sp.Children.Add(new TextBlock
+        {
+            Text = Loc.T("They've hidden their match history in VALORANT's settings, so Riot doesn't share their matches or rank. You'll still see how they did in matches you played together."),
+            FontSize = 12.5, Foreground = Res("TextDimBrush"), TextWrapping = TextWrapping.Wrap, TextAlignment = TextAlignment.Center, MaxWidth = 520, Margin = new Thickness(0, 6, 0, 0),
+        });
+        return Card2(sp, Grey);
     }
 
     FrameworkElement RankBox(string label, int tier, string sub)
@@ -496,6 +517,11 @@ public partial class ValorantPage
         yield return Header(p, mainAgent, mmr);
         yield return ProfileNav(p);
 
+        if (p.Private)
+        {
+            yield return PrivateCard();
+            yield break;
+        }
         if (p.Matches.Count == 0 && ProfileMatches(p).Count == 0)
         {
             yield return Card2(Dim(Loc.T("No competitive, unrated, premier or swiftplay matches to measure yet."), 12.5, 0), Grey);

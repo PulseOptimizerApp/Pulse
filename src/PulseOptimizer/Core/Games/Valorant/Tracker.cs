@@ -20,6 +20,11 @@ public sealed class Profile
     public bool FromYourMatches;
     /// <summary>Loaded for console (console matches and console rank) instead of PC.</summary>
     public bool Console;
+    /// <summary>
+    /// Riot shared nothing for them: no match history, no rank and no act record. That's how a profile set to private
+    /// (match history hidden in VALORANT's settings) looks, so the tracker says so.
+    /// </summary>
+    public bool Private;
     public List<VMatch> Matches = new();
     public PlayerTotals Totals = new();
     public int Tier, Rr, Peak, ActWinPct, ActGames, Level;

@@ -5279,5 +5279,8 @@
  "Nothing asked yet.": "Nada foi pedido ainda.",
  "Pulse asks Riot for your console matches when it downloads your matches (open VALORANT or the Riot Client on this PC, then come back here). If you've played on console and nothing shows, copy this and send it: it's what Riot answered.": "O Pulse pede à Riot suas partidas de console quando baixa suas partidas (abra o VALORANT ou o cliente da Riot neste PC e volte aqui). Se você jogou no console e nada aparece, copie isto e envie: é o que a Riot respondeu.",
  "No console matches yet": "Ainda não há partidas de console",
- "Looking for console matches…": "Procurando partidas de console…"
+ "Looking for console matches…": "Procurando partidas de console…",
+ "This profile is private": "Este perfil é privado",
+ "Private": "Privado",
+ "They've hidden their match history in VALORANT's settings, so Riot doesn't share their matches or rank. You'll still see how they did in matches you played together.": "Ele ocultou o histórico de partidas nas configurações do VALORANT, então a Riot não compartilha suas partidas nem seu ranque. Você ainda verá como ele foi nas partidas que jogaram juntos."
 }

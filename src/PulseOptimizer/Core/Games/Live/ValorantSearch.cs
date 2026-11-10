@@ -167,6 +167,8 @@ public static class ValorantSearch
         p.Acts = await actsTask;
         p.Account = ValorantLobby.SmurfSigns(0, tier, peak, win, games, gains);
         Tracker.Finish(p, p.Account);
+        p.Private = !console && matches.Count == 0 && listed == 0 && tier == 0 && peak == 0 && p.LastTier < 3 && (p.Acts?.Count ?? 0) == 0;
+        if (p.Private) return new Result(p, null);   // the profile itself says it's private
         if (matches.Count == 0 && tier == 0)
             return new Result(p, console ? "Found the player, but they have no console matches or console rank. Switch to PC to see their PC stats."
                 : "Found the player, but Riot didn't share any matches or rank for them.");
