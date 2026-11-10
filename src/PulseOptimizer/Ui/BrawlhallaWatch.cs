@@ -16,7 +16,7 @@ namespace Pulse.Ui;
 public static class BrawlhallaWatch
 {
     static System.Threading.Timer _timer;
-    static DateTime _lastOpen = DateTime.MinValue, _lastCheck = DateTime.MinValue;
+    static DateTime _lastOpen = DateTime.MinValue, _lastCheck = DateTime.MinValue, _lastModCheck = DateTime.MinValue;
     static int _busy;
 
     /// <summary>Raised on the UI thread after new matches were logged for a player.</summary>
@@ -88,6 +88,19 @@ public static class BrawlhallaWatch
         {
             _keyOn = wantKey;
             System.Windows.Application.Current?.Dispatcher.BeginInvoke(wantKey ? RegisterKey : UnregisterKey);
+        }
+        // A Brawlhalla update puts its original files back: once the game is closed, apply your customizations again.
+        if (!open && s.Mods is { } mods && mods.Written.Count > 0 && now - _lastModCheck > TimeSpan.FromMinutes(10))
+        {
+            _lastModCheck = now;
+            var t = new Thread(() =>
+            {
+                try { if (BrawlhallaMods.NeedsReapply() && BrawlhallaMods.ApplyAll() == null) TweakEngine.AddLog("brawlhalla", "Brawlhalla: applied your customizations again after a game update"); }
+                catch { }
+            });
+            t.SetApartmentState(ApartmentState.STA);
+            t.IsBackground = true;
+            t.Start();
         }
         if (s is not { MyId: > 0, TrackMatches: true }) return;
         if (now - _lastOpen > TimeSpan.FromMinutes(5) || now - _lastCheck < TimeSpan.FromSeconds(60)) return;

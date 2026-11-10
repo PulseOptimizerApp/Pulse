@@ -18,6 +18,8 @@ public class BrawlhallaSettings
     public List<BhRecent> Opponents { get; set; } = new();
     /// <summary>Ctrl+Shift+B while Brawlhalla is open: Pulse comes up on Matchup.</summary>
     public bool MatchupHotkey { get; set; } = true;
+    /// <summary>Your changes to the game's files (skins, colors, effects, map backgrounds) and smoother-play settings.</summary>
+    public BhMods Mods { get; set; } = new();
 }
 
 public class BhRecent { public long Id { get; set; } public string Name { get; set; } = ""; }

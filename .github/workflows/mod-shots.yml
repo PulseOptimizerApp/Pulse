@@ -1,0 +1,31 @@
+name: Mod shots (temporary)
+on:
+  push:
+    branches: [bh-customize]
+permissions:
+  contents: write
+jobs:
+  shots:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Tests and screenshots
+        env:
+          PULSE_MOD_SHOTS: ${{ github.workspace }}\shots
+        timeout-minutes: 15
+        run: dotnet test tests/PulseOptimizer.Tests/PulseOptimizer.Tests.csproj -c Release --filter "FullyQualifiedName~ModShots|FullyQualifiedName~BrawlhallaModTests|FullyQualifiedName~SafetyTests" --logger "console;verbosity=normal"
+      - name: Push the pictures to a scratch branch
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p shots && cd shots
+          git init -q -b mod-shots-out
+          git config user.name "shots"
+          git config user.email "shots@users.noreply.github.com"
+          git add -A
+          git commit -qm "shots ${{ github.sha }}" --allow-empty
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" mod-shots-out
