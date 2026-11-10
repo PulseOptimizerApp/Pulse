@@ -108,6 +108,29 @@ public partial class MainWindow : Window
         // Resume a measurement interrupted by a restart.
         var pending = AbTest.LoadPending();
         if (pending != null) Dispatcher.InvokeAsync(() => Navigate("measure", pending));
+        // New here: the two-minute setup. People who used Pulse before it existed don't get it on their own.
+        else
+        {
+            if (TweakEngine.State.Setup == null)
+            {
+                TweakEngine.State.Setup = new SetupState { Done = !TweakEngine.FreshInstall };
+                TweakEngine.Save();
+            }
+            if (!TweakEngine.State.Setup.Done) Dispatcher.InvokeAsync(() => ShowSetup(), System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+        }
+    }
+
+    Ui.SetupWizard _setup;
+
+    /// <summary>The first-run setup over the window (from Settings too). Dialogs it opens still show above it.</summary>
+    public void ShowSetup()
+    {
+        if (_setup != null) return;
+        _setup = new Ui.SetupWizard();
+        Grid.SetRow(_setup, 1);
+        Grid.SetColumnSpan(_setup, 2);
+        _setup.Closed += () => { Root.Children.Remove(_setup); _setup = null; };
+        Root.Children.Insert(Root.Children.IndexOf(Overlay), _setup);
     }
 
     void UpdateSidebar()

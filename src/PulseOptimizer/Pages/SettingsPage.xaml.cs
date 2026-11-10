@@ -95,6 +95,12 @@ public partial class SettingsPage : UserControl, IPage
         }
         Root.Children.Add(Section("Language", langs));
 
+        var setup = new Button { Style = (Style)FindResource("GhostButton"), Content = Loc.T("Run setup again"), HorizontalAlignment = HorizontalAlignment.Left, Padding = new Thickness(14, 6, 14, 6), Margin = new Thickness(0, 12, 0, 10) };
+        setup.Click += (_, _) => MainWindow.Instance.ShowSetup();
+        Root.Children.Add(Section("Setup",
+            new TextBlock { Text = Loc.T("The two-minute walkthrough from the first time you opened Pulse: your games, a PC check, the recommended tweaks and your accounts."), FontSize = 12, Foreground = Res("TextDimBrush"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 0) },
+            setup));
+
         var move = new Button { Style = (Style)FindResource("GhostButton"), Content = Loc.T("Open Undo & restore"), HorizontalAlignment = HorizontalAlignment.Left, Padding = new Thickness(14, 6, 14, 6), Margin = new Thickness(0, 12, 0, 10) };
         move.Click += (_, _) => MainWindow.Instance.Navigate("safety");
         Root.Children.Add(Section("Backup and undo",

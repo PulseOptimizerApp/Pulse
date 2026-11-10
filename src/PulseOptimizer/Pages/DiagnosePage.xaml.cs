@@ -27,6 +27,8 @@ public partial class DiagnosePage : UserControl, IPage
     public async void OnShown(object parameter)
     {
         if (parameter as string == "run") Run_Click(null, null);
+        // A checkup that already ran (the first-run setup): show it instead of running it again.
+        if (parameter is List<Finding> done) { RunBtnText.Text = "Run again"; ShowFindings(done); }
         if (_specsLoaded) return;
         _specsLoaded = true;
         _cpu.Sample();
@@ -97,7 +99,11 @@ public partial class DiagnosePage : UserControl, IPage
             ProgressText.Visibility = Visibility.Collapsed;
             RunBtnText.Text = "Run again";
         }
+        ShowFindings(findings);
+    }
 
+    void ShowFindings(List<Finding> findings)
+    {
         int ok = findings.Count(f => f.Severity == Severity.Ok);
         int problems = findings.Count(f => f.Severity == Severity.Problem);
         int checks = findings.Count(f => f.Severity == Severity.Check);
