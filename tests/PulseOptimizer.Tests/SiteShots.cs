@@ -36,6 +36,9 @@ public class SiteShots
         var log = new List<string>();
         var th = new Thread(() =>
         {
+            // Pages await work and come back to this thread: give it a dispatcher context like the app's UI thread.
+            SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(Dispatcher.CurrentDispatcher));
+            Dispatcher.CurrentDispatcher.UnhandledException += (_, e) => { log.Add("UI exception: " + e.Exception.Message); e.Handled = true; };
             if (Application.Current == null)
             {
                 var app = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
