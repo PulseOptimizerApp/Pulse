@@ -25,17 +25,24 @@ jobs:
           open('/tmp/names.txt','w').write('\n'.join(sorted(set(names))))
           P
           wc -l /tmp/names.txt
-          while read -r n; do
-            f=$(echo "$n" | sed 's/[^A-Za-z0-9]//g')
-            code=$(curl -sS -A "$UA" -L -o "art/full/$f.png" -w "%{http_code}" "https://brawlhalla.wiki.gg/images/Portrait_$f.png")
-            [ "$code" = 200 ] || { echo "MISSING $n ($f) $code"; rm -f "art/full/$f.png"; }
-            sleep 0.3
-          done < /tmp/names.txt
-          ls art/full | wc -l
-          identify art/full/Hattori.png art/full/SirRoland.png
-          for f in art/full/*.png; do convert "$f" -resize 128x128 -strip "art/small/$(basename $f)"; done
-          du -sh art/full art/small
-          for q in Sword Spear Icon_Sword Weapon; do curl -sS -A "$UA" "https://brawlhalla.wiki.gg/api.php?action=query&list=allimages&aiprefix=$q&ailimit=15&format=json" | python3 -c "import json,sys; print([i['name'] for i in json.load(sys.stdin)['query']['allimages']])"; done
+          python3 - <<'P'
+          import json
+          ws=set()
+          for line in open('/tmp/l.json'):
+              line=line.strip()
+              if not line: continue
+              for l in json.loads(line).get('legends',[]): ws.add(l['weapon_one']); ws.add(l['weapon_two'])
+          open('/tmp/weapons.txt','w').write('\n'.join(sorted(ws)))
+          P
+          cat /tmp/weapons.txt | tr '\n' ' '; echo
+          get() { code=$(curl -sS -A "$UA" -L -o "$2" -w "%{http_code}" "https://brawlhalla.wiki.gg/images/$1"); [ "$code" = 200 ] && echo "GOT $1" || { rm -f "$2"; echo "NO $1 $code"; }; sleep 0.3; }
+          mkdir -p art/full art/weapons
+          for f in Bodvar Bödvar Qinghua QinghuaAndBaobao Qinghua_and_Baobao; do get "Portrait_$f.png" "art/full/$f.png"; done
+          while read -r w; do
+            for q in "$w" "Icon_$w" "Weapon_$w"; do
+              curl -sS -A "$UA" "https://brawlhalla.wiki.gg/api.php?action=query&list=allimages&aiprefix=$q&ailimit=200&format=json" | python3 -c "import json,sys; print('$q', [i['name'] for i in json.load(sys.stdin)['query']['allimages'] if 'con' in i['name'].lower()][:8])"
+            done
+          done < /tmp/weapons.txt
       - name: Push
         run: |
           cd art
