@@ -37,10 +37,9 @@ jobs:
           cat /tmp/weapons.txt | tr '\n' ' '; echo
           get() { code=$(curl -sS -A "$UA" -L -o "$2" -w "%{http_code}" "https://brawlhalla.wiki.gg/images/$1"); [ "$code" = 200 ] && echo "GOT $1" || { rm -f "$2"; echo "NO $1 $code"; }; sleep 0.3; }
           mkdir -p art/full art/weapons
-          for f in Bodvar; do get "Portrait_$f.png" "art/full/$f.png"; done
-          curl -sS -A "$UA" "https://brawlhalla.wiki.gg/api.php?action=query&list=allimages&aiprefix=Portrait_Q&ailimit=20&format=json" | python3 -c "import json,sys; print([i['name'] for i in json.load(sys.stdin)['query']['allimages']])"
-          for q in Sword Hammer Boots Gauntlet Blaster Pistol Rocket Lance; do curl -sS -A "$UA" "https://brawlhalla.wiki.gg/api.php?action=query&list=allimages&aiprefix=${q}&ailimit=500&format=json" | python3 -c "import json,sys; print('$q', [i['name'] for i in json.load(sys.stdin)['query']['allimages'] if i['name'].endswith('_Icon.png')])"; done
-          for w in Axe Bow Cannon Chakram Greatsword Katars Orb Scythe Spear Sword Hammer Boots Battle_Boots Gauntlets Blasters Rocket_Lance RocketLance; do get "${w}_Icon.png" "art/weapons/$w.png"; done
+          get "Portrait_Bodvar.png" "art/full/Bodvar.png"
+          get "Portrait_Qinghua%26Baobao.png" "art/full/QinghuaBaobao.png"
+          for w in Axe Bow Cannon Chakram Greatsword Katars Orb Scythe Spear Sword Grapple_Hammer Battle_Boots Gauntlets Blasters Rocket_Lance; do get "${w}_Icon.png" "art/weapons/$w.png"; done
       - name: Push
         run: |
           cd art
