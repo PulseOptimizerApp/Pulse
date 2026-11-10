@@ -411,7 +411,7 @@ public sealed partial class BrawlhallaPage : UserControl, IPage
         if (l.Rating > 0)
         {
             var rk = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 0, 8, 0) };
-            rk.Children.Add(Dot(TierColor(l.Tier.Length > 0 ? l.Tier : Brawlhalla.TierOf(l.Rating))).Also(d => d.Margin = new Thickness(0, 0, 6, 0)));
+            rk.Children.Add(RankMark(l.Tier.Length > 0 ? l.Tier : Brawlhalla.TierOf(l.Rating)).Also(d => d.Margin = new Thickness(0, 0, 6, 0)));
             rk.Children.Add(new TextBlock { Text = l.Rating.ToString(CultureInfo.CurrentCulture), FontSize = 13, Foreground = Res("TextBrush"), VerticalAlignment = VerticalAlignment.Center });
             PutIn(row, 6, rk);
         }
@@ -521,12 +521,21 @@ public sealed partial class BrawlhallaPage : UserControl, IPage
         var c = TierColor(tier);
         var sp = new StackPanel();
         sp.Children.Add(Caps(title, 10.5, Res("TextFaintBrush")));
+        // The big rank banner on the right, like the game's ranked screen.
+        Grid outer = null;
+        if (BrawlhallaArt.Rank(tier) is { } banner)
+        {
+            outer = new Grid();
+            outer.ColumnDefinitions.Add(new ColumnDefinition());
+            outer.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            outer.Children.Add(new Image { Source = banner, Height = 84, Margin = new Thickness(12, 0, 0, 0), VerticalAlignment = VerticalAlignment.Top, ToolTip = tier }.Also(i => Grid.SetColumn(i, 1)));
+        }
         var line = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 8, 0, 0) };
         line.Children.Add(new TextBlock { Text = rating.ToString("N0", CultureInfo.CurrentCulture), FontSize = 30, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(c), VerticalAlignment = VerticalAlignment.Center });
         line.Children.Add(TierPill(tier).Also(t => t.Margin = new Thickness(10, 0, 0, 0)));
         sp.Children.Add(line);
         // Rating against peak.
-        if (peak > 0) sp.Children.Add(Bar(Math.Clamp(rating / (double)peak, 0, 1), c, 250).Also(b => b.Margin = new Thickness(0, 10, 0, 0)));
+        if (peak > 0) sp.Children.Add(Bar(Math.Clamp(rating / (double)peak, 0, 1), c, outer != null ? 210 : 250).Also(b => b.Margin = new Thickness(0, 10, 0, 0)));
         sp.Children.Add(Dim(Loc.F("Peak {0}", peak.ToString("N0", CultureInfo.CurrentCulture)) + (games > 0 ? $" · {wins}–{games - wins} ({100.0 * wins / games:0}%)" : ""), 12, 6));
         var where = new List<string>();
         if (regionRank > 0) where.Add(Loc.F("#{0} in {1}", regionRank.ToString("N0", CultureInfo.CurrentCulture), region));
@@ -534,9 +543,10 @@ public sealed partial class BrawlhallaPage : UserControl, IPage
         if (globalRank > 0) where.Add(Loc.F("#{0} worldwide", globalRank.ToString("N0", CultureInfo.CurrentCulture)));
         if (note != null) where.Add(note);
         if (where.Count > 0) sp.Children.Add(Dim(string.Join(" · ", where), 12, 2));
+        if (outer != null) { outer.Children.Add(sp); }
         return new Border
         {
-            Child = sp, Width = 300, Margin = new Thickness(0, 0, 12, 12), Padding = new Thickness(18, 16, 18, 16), CornerRadius = new CornerRadius(12),
+            Child = (UIElement)outer ?? sp, Width = outer != null ? 330 : 300, Margin = new Thickness(0, 0, 12, 12), Padding = new Thickness(18, 16, 18, 16), CornerRadius = new CornerRadius(12),
             Background = new LinearGradientBrush(A(c, 0x1C), A(c, 0x04), 90), BorderBrush = new SolidColorBrush(A(c, 0x60)), BorderThickness = new Thickness(1),
         };
     }
@@ -654,11 +664,16 @@ public sealed partial class BrawlhallaPage : UserControl, IPage
     static Border TierPill(string tier)
     {
         var c = TierColor(tier);
+        // The game's own rank banner, then the rank's name.
+        var content = new StackPanel { Orientation = Orientation.Horizontal };
+        if (BrawlhallaArt.Rank(tier) is { } banner)
+            content.Children.Add(new Image { Source = banner, Height = 20, Margin = new Thickness(-4, -3, 5, -3), VerticalAlignment = VerticalAlignment.Center });
+        content.Children.Add(new TextBlock { Text = string.IsNullOrEmpty(tier) ? Loc.T("Unranked") : tier, FontSize = 11.5, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(c), VerticalAlignment = VerticalAlignment.Center });
         return new Border
         {
             CornerRadius = new CornerRadius(999), Padding = new Thickness(9, 2, 9, 3), HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Center,
             Background = new SolidColorBrush(A(c, 0x22)), BorderBrush = new SolidColorBrush(A(c, 0x70)), BorderThickness = new Thickness(1),
-            Child = new TextBlock { Text = string.IsNullOrEmpty(tier) ? Loc.T("Unranked") : tier, FontSize = 11.5, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(c) },
+            Child = content,
         };
     }
 
@@ -668,6 +683,11 @@ public sealed partial class BrawlhallaPage : UserControl, IPage
         BorderBrush = new SolidColorBrush(A(c, 0x80)), BorderThickness = new Thickness(1), Background = new SolidColorBrush(A(c, 0x14)),
         Child = new TextBlock { Text = text.ToUpper(CultureInfo.CurrentCulture), FontSize = 10.5, FontWeight = FontWeights.ExtraBold, Foreground = new SolidColorBrush(c) },
     };
+
+    /// <summary>A small rank banner (a colored dot when there's no banner).</summary>
+    static FrameworkElement RankMark(string tier) => BrawlhallaArt.Rank(tier) is { } b
+        ? new Image { Source = b, Height = 18, VerticalAlignment = VerticalAlignment.Center, ToolTip = tier }
+        : Dot(TierColor(tier));
 
     static FrameworkElement Dot(Color c) => new System.Windows.Shapes.Ellipse { Width = 8, Height = 8, Fill = new SolidColorBrush(c), VerticalAlignment = VerticalAlignment.Center };
 

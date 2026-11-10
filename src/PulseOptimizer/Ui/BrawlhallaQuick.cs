@@ -155,7 +155,10 @@ public static class BrawlhallaQuick
                 var row = new Border { Background = new SolidColorBrush(Row), CornerRadius = new CornerRadius(7), Padding = new Thickness(10, 7, 10, 7), Margin = new Thickness(0, 6, 0, 0), Cursor = Cursors.Hand };
                 var g = new Grid();
                 g.Children.Add(T(r.Name, 13, White, true));
-                g.Children.Add(T($"{r.Tier} · {r.Rating:N0} · {r.Region}", 11.5, Dim, false).Also(t => t.HorizontalAlignment = HorizontalAlignment.Right));
+                var tierLine = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
+                if (BrawlhallaArt.Rank(r.Tier) is { } rb) tierLine.Children.Add(new Image { Source = rb, Height = 16, Margin = new Thickness(0, 0, 5, 0), VerticalAlignment = VerticalAlignment.Center });
+                tierLine.Children.Add(T($"{r.Tier} · {r.Rating:N0} · {r.Region}", 11.5, Dim, false).Also(t => t.VerticalAlignment = VerticalAlignment.Center));
+                g.Children.Add(tierLine);
                 row.Child = g;
                 long pick = r.Id;
                 row.MouseLeftButtonUp += (_, _) => _ = Show(pick, ct);
@@ -185,7 +188,10 @@ public static class BrawlhallaQuick
         who.Children.Add(Pic(main != null ? BrawlhallaArt.Legend(Name(main.LegendId)) : null, 40));
         var whoText = new StackPanel { Margin = new Thickness(10, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
         whoText.Children.Add(T(foe.Name, 15, White, true));
-        whoText.Children.Add(T(foe.OneVsOne is { } one ? $"{one.Tier} · {one.Rating:N0}" : Loc.T("No ranked 1v1 this season"), 11.5, Dim, false));
+        var foeTier = new StackPanel { Orientation = Orientation.Horizontal };
+        if (foe.OneVsOne is { } ranked && BrawlhallaArt.Rank(ranked.Tier) is { } fb) foeTier.Children.Add(new Image { Source = fb, Height = 18, Margin = new Thickness(0, 1, 5, 0), VerticalAlignment = VerticalAlignment.Center });
+        foeTier.Children.Add(T(foe.OneVsOne is { } one ? $"{one.Tier} · {one.Rating:N0}" : Loc.T("No ranked 1v1 this season"), 11.5, Dim, false).Also(t => t.VerticalAlignment = VerticalAlignment.Center));
+        whoText.Children.Add(foeTier);
         who.Children.Add(whoText);
         _out.Children.Add(who);
 
