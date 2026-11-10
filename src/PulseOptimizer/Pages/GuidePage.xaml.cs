@@ -13,7 +13,7 @@ using Loc = Pulse.Ui.Loc;
 namespace Pulse.Pages;
 
 /// <summary>
-/// The PC guide, one tab at a time: step-by-step guides, what makes games smoother, what hardware costs (with charts), the gear reviewers
+/// The PC guide, one tab at a time: step-by-step guides, hardware lookup and a PC builder with expected frame rates, what makes games smoother, what hardware costs (with charts), the gear reviewers
 /// rate best, prebuilt PC makers, and hardware news. Content comes from <see cref="GuideLive"/> (Pulse's website),
 /// so prices and news stay current between Pulse releases.
 /// </summary>
@@ -36,7 +36,7 @@ public partial class GuidePage : UserControl, IPage
     public GuidePage()
     {
         InitializeComponent();
-        foreach (var (key, title) in new[] { ("guides", "Guides"), ("smooth", "Make it smoother"), ("prices", "Prices"), ("gear", "Best gear"), ("prebuilt", "Prebuilt PCs"), ("news", "News") })
+        foreach (var (key, title) in new[] { ("guides", "Guides"), ("hardware", "Hardware"), ("smooth", "Make it smoother"), ("prices", "Prices"), ("gear", "Best gear"), ("prebuilt", "Prebuilt PCs"), ("news", "News") })
             Tabs.Children.Add(TabButton(key, title));
         ShowTab(_tab, animate: false);
         UpdateFresh();
@@ -99,6 +99,7 @@ public partial class GuidePage : UserControl, IPage
             "prebuilt" => BuildPrebuilt(),
             "news" => BuildNews(),
             "guides" => BuildGuides(),
+            "hardware" => BuildHardware(),
             _ => BuildTips(),
         });
         Scroller.ScrollToTop();
