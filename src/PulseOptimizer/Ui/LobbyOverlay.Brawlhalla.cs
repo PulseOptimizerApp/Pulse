@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using Pulse.Core.Games.Brawlhalla;
+using Pulse.Pages;
 
 namespace Pulse.Ui;
 
