@@ -29,6 +29,7 @@ public sealed partial class BrawlhallaPage : UserControl, IPage
     int _boardPage = 1;
     string _status, _sort = "games", _tab = "overview";
     int _openLegend, _legendLimit = 10;
+    long _retryId;
     string _weaponFilter;
     List<BhMatch> _matches = new();
     bool _busy, _shown;
@@ -120,7 +121,14 @@ public sealed partial class BrawlhallaPage : UserControl, IPage
         go.Click += (_, _) => _ = Search(box.Text);
         box.KeyDown += (_, e) => { if (e.Key == Key.Enter) { e.Handled = true; _ = Search(box.Text); } };
 
-        if (_status != null) sp.Children.Add(new TextBlock { Text = _status, FontSize = 12, Foreground = Res(_busy ? "TextDimBrush" : "BadBrush"), Margin = new Thickness(0, 8, 0, 0), TextWrapping = TextWrapping.Wrap });
+        if (_status != null)
+        {
+            var line = new WrapPanel { Margin = new Thickness(0, 8, 0, 0) };
+            line.Children.Add(new TextBlock { Text = _status, FontSize = 12, Foreground = Res(_busy ? "TextDimBrush" : "BadBrush"), TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 10, 0) });
+            // Their servers have hiccups: one click to ask again.
+            if (!_busy && _retryId > 0) { long again = _retryId; line.Children.Add(Ghost(Loc.T("Try again"), () => _ = Open(again))); }
+            sp.Children.Add(line);
+        }
         sp.Children.Add(new TextBlock
         {
             Text = Loc.T("Names search the ranked leaderboards. For someone who doesn't play ranked, use their Brawlhalla ID (in game: Inventory, Profile)."),
@@ -542,7 +550,8 @@ public sealed partial class BrawlhallaPage : UserControl, IPage
             // Turn what changed since Pulse last saw them into matches.
             var matches = p == null ? new List<BhMatch>() : await Task.Run(() => { BrawlhallaMatches.Record(p); return BrawlhallaMatches.For(p.Id); });
             if (ct.IsCancellationRequested) return;
-            if (p == null) _status = Loc.T("No player with that Brawlhalla ID.");
+            _retryId = 0;
+            if (p == null) { _status = Loc.T("Brawlhalla's servers sent no stats for that player. If the ID is right, try again in a moment."); _retryId = id; }
             else
             {
                 if (tier1v1 is { Length: > 0 } && p.OneVsOne is { BoardTier: null } one) one.BoardTier = tier1v1;
@@ -555,7 +564,7 @@ public sealed partial class BrawlhallaPage : UserControl, IPage
             }
         }
         catch (OperationCanceledException) { return; }
-        catch (Exception ex) { _status = Problem(ex); }
+        catch (Exception ex) { _status = Problem(ex); _retryId = id; }
         _busy = false;
         Build();
     }
@@ -570,7 +579,9 @@ public sealed partial class BrawlhallaPage : UserControl, IPage
     }
 
     static string Problem(Exception ex) => ex is HttpRequestException or TaskCanceledException
-        ? (ex.Message.StartsWith("Brawlhalla's servers say", StringComparison.Ordinal) ? Loc.T(ex.Message) : Loc.T("Couldn't reach Brawlhalla's stats. Check your connection and try again."))
+        ? (ex.Message.StartsWith("Brawlhalla's servers say", StringComparison.Ordinal) ? Loc.T(ex.Message)
+            : ex.Message.StartsWith("Brawlhalla's servers answered", StringComparison.Ordinal) ? Loc.T("Brawlhalla's servers are having a hiccup. Try again in a moment.")
+            : Loc.T("Couldn't reach Brawlhalla's stats. Check your connection and try again."))
         : Loc.T("Something went wrong reading Brawlhalla's stats.");
 
     // ───────── pieces ─────────

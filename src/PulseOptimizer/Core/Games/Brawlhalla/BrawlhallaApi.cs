@@ -86,14 +86,14 @@ public static class Brawlhalla
 
     static async Task<JsonDocument> Get(string path, CancellationToken ct)
     {
-        // Their servers sometimes answer 502/503 for a moment: try twice more, a little later each time.
+        // Their servers often answer 502/503 for a moment: try three more times, a little later each time.
         HttpResponseMessage res = null;
         for (int attempt = 0; ; attempt++)
         {
             res?.Dispose();
             res = await Http.GetAsync(Api + path, ct);
-            if ((int)res.StatusCode is < 500 or > 504 || attempt == 2) break;
-            await Task.Delay(800 * (attempt + 1), ct);
+            if ((int)res.StatusCode is < 500 or > 504 || attempt == 3) break;
+            await Task.Delay(700 * (attempt + 1), ct);
         }
         using var _ = res;
         if ((int)res.StatusCode == 404) return null;
@@ -200,7 +200,14 @@ public static class Brawlhalla
         var threeTask = Optional($"player/stats?brawlhalla_id={id}&mode=ranked_3v3", ct);
         var teamsTask = Optional($"player/teams?brawlhalla_id={id}", ct);
         var guildTask = Optional($"player/guild?brawlhalla_id={id}", ct);
-        using var all = await allTask;
+        var allDoc = await allTask;
+        // Their servers sometimes say "not found" for a player who exists: ask once more before believing it.
+        if (allDoc == null)
+        {
+            await Task.Delay(1200, ct);
+            allDoc = await Get($"player/stats?brawlhalla_id={id}&mode=all", ct);
+        }
+        using var all = allDoc;
         if (all == null) return null;
         var r = all.RootElement;
         var p = new BhProfile

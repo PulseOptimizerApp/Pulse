@@ -5445,5 +5445,7 @@
  "Unarmed damage": "Dano desarmado",
  "Wins {0}% of all games": "Vence {0}% de todas as partidas",
  "Wins {0}% of ranked 1v1 ({1} games)": "Vence {0}% na ranqueada 1v1 ({1} partidas)",
- "{0} hours played in all": "{0} horas jogadas no total"
+ "{0} hours played in all": "{0} horas jogadas no total",
+ "Brawlhalla's servers sent no stats for that player. If the ID is right, try again in a moment.": "Os servidores do Brawlhalla não enviaram as estatísticas desse jogador. Se o ID estiver certo, tente de novo daqui a pouco.",
+ "Brawlhalla's servers are having a hiccup. Try again in a moment.": "Os servidores do Brawlhalla estão instáveis. Tente de novo daqui a pouco."
 }
