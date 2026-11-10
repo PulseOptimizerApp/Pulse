@@ -435,8 +435,11 @@ public sealed partial class BrawlhallaPage
 
     FrameworkElement Switch(string label, bool on, Action<bool> set)
     {
-        var cb = new CheckBox { Style = (Style)FindResource("Switch"), IsChecked = on, Content = Loc.T(label), Margin = new Thickness(0, 0, 28, 6) };
+        var sp = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 28, 6), HorizontalAlignment = HorizontalAlignment.Left };
+        var cb = new CheckBox { Style = (Style)FindResource("Switch"), IsChecked = on, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 10, 0) };
         cb.Click += (_, _) => set(cb.IsChecked == true);
-        return cb;
+        sp.Children.Add(cb);
+        sp.Children.Add(new TextBlock { Text = Loc.T(label), FontSize = 12.5, Foreground = Res("TextBrush"), VerticalAlignment = VerticalAlignment.Center });
+        return sp;
     }
 }

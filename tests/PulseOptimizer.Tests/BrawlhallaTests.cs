@@ -157,7 +157,7 @@ public class BrawlhallaPageShots
         var legends = Brawlhalla.Legends().GetAwaiter().GetResult();
         var board = Brawlhalla.Rankings("1v1", "ALL", 1, null, 10).GetAwaiter().GetResult();
         var profile = Brawlhalla.Profile(board.Rows[0].Id).GetAwaiter().GetResult();
-        var me = Brawlhalla.Profile(board.Rows[5].Id).GetAwaiter().GetResult();
+        var me = Brawlhalla.Profile(board.Rows[1].Id).GetAwaiter().GetResult() ?? Brawlhalla.Profile(board.Rows[2].Id).GetAwaiter().GetResult();
         Exception error = null;
         var th = new Thread(() =>
         {

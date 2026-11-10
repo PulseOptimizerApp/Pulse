@@ -195,7 +195,7 @@ public sealed partial class BrawlhallaPage
         if (odds == null)
         {
             mid.Children.Add(new TextBlock { Text = "–", FontSize = 40, FontWeight = FontWeights.Bold, Foreground = Res("TextDimBrush"), HorizontalAlignment = HorizontalAlignment.Center });
-            mid.Children.Add(Dim(me == null ? Loc.T("Set \"This is me\" on your profile so Pulse knows your rating.") : Loc.T("Not enough games to tell."), 11.5, 2).Also(t => t.TextAlignment = TextAlignment.Center));
+            mid.Children.Add(Dim(me == null ? (S.MyId > 0 ? Loc.T("Loading your stats…") : Loc.T("Set \"This is me\" on your profile so Pulse knows your rating.")) : Loc.T("Not enough games to tell."), 11.5, 2).Also(t => t.TextAlignment = TextAlignment.Center));
         }
         else
         {
@@ -232,7 +232,7 @@ public sealed partial class BrawlhallaPage
         sp.Children.Add(Caps(left ? "You" : "Them", 10.5, Res("TextFaintBrush")).Also(t => t.HorizontalAlignment = align));
         if (p == null)
         {
-            sp.Children.Add(Dim(Loc.T("Set \"This is me\" on your own profile first."), 12.5, 6).Also(t => { t.HorizontalAlignment = align; t.MaxWidth = 220; }));
+            sp.Children.Add(Dim(S.MyId > 0 ? Loc.T("Loading your stats…") : Loc.T("Set \"This is me\" on your own profile first."), 12.5, 6).Also(t => { t.HorizontalAlignment = align; t.MaxWidth = 220; }));
             return sp;
         }
         var main = p.Legends.Where(l => l.Games > 0).OrderByDescending(l => l.Games).FirstOrDefault();
