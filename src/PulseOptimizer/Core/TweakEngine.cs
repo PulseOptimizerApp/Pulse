@@ -42,8 +42,19 @@ public class AppSettings
     public bool InStartMenu { get; set; } = true;
 }
 
+/// <summary>What the first-run setup remembers.</summary>
+public class SetupState
+{
+    /// <summary>Finished or skipped: don't show it again by itself.</summary>
+    public bool Done { get; set; }
+    /// <summary>The games picked in setup (catalog ids), for tailoring what Pulse points you to.</summary>
+    public List<string> Games { get; set; } = new();
+}
+
 public class AppState
 {
+    /// <summary>The first-run setup. Null in settings saved before it existed (those users aren't new).</summary>
+    public SetupState Setup { get; set; }
     /// <summary>Tweak id → backups of everything it changed, in order.</summary>
     public Dictionary<string, List<ActionBackup>> Applied { get; set; } = new();
     public Dictionary<string, DateTime> AppliedAt { get; set; } = new();
@@ -107,6 +118,9 @@ public static class TweakEngine
     // Named floats: a number that has no value yet (NaN, like a coach focus with no matches) must never stop settings from saving.
     static readonly JsonSerializerOptions Json = new() { WriteIndented = true, NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.AllowNamedFloatingPointLiterals };
 
+    /// <summary>No settings file when Pulse started: a new install.</summary>
+    public static bool FreshInstall { get; private set; }
+
     public static AppState State { get; private set; } = Load();
 
     /// <summary>Puts restored settings in place (Settings backup) and saves them.</summary>
@@ -118,6 +132,7 @@ public static class TweakEngine
     {
         try
         {
+            FreshInstall = !File.Exists(StateFile);
             if (File.Exists(StateFile))
                 return JsonSerializer.Deserialize<AppState>(File.ReadAllText(StateFile), ReadOptions) ?? new AppState();
         }
