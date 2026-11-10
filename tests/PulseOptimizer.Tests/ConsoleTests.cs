@@ -36,3 +36,21 @@ public class ConsoleTests
         Assert.Equal("9fb348bc-41a0-91ad-8a3e-818035c4e561", m.Players[0].Card);
     }
 }
+
+public class ConsolePlatformHeaderTests
+{
+    [Theory]
+    [InlineData("playstation", "PlayStation")]
+    [InlineData("xbox", "Xbox")]
+    public void Console_requests_say_which_console(string platform, string os)
+    {
+        var json = System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(Pulse.Core.Games.Live.ValorantMatches.PlatformHeader(platform)));
+        using var doc = JsonDocument.Parse(json);
+        Assert.Equal(platform, doc.RootElement.GetProperty("platformType").GetString());
+        Assert.Equal(os, doc.RootElement.GetProperty("platformOS").GetString());
+    }
+
+    [Fact]
+    public void Pc_requests_are_unchanged() =>
+        Assert.Equal(Pulse.Core.Games.Live.ValorantMatches.ClientPlatform, Pulse.Core.Games.Live.ValorantMatches.PlatformHeader(null));
+}

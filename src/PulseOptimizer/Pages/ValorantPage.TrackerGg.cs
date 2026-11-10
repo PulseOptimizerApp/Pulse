@@ -290,6 +290,11 @@ public partial class ValorantPage
 
         if (_trView is "overview" or "matches" or "performance" or "agents" or "maps" or "weapons") yield return FilterBarGg(p);
 
+        if (ms.Count == 0 && _trConsole && _trView is not ("encounters" or "insights"))
+        {
+            yield return Card(ConsoleProbe());
+            yield break;
+        }
         if (ms.Count == 0 && _trView is not ("encounters" or "insights"))
         {
             var none = new StackPanel { Margin = new Thickness(18, 22, 18, 24) };

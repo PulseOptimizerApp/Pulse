@@ -5275,5 +5275,9 @@
  "Middle button": "Botón central",
  "Console": "Consola",
  "PC": "PC",
- "Found the player, but they have no console matches or console rank. Switch to PC to see their PC stats.": "Se encontró al jugador, pero no tiene partidas ni rango en consola. Cambia a PC para ver sus estadísticas de PC."
+ "Found the player, but they have no console matches or console rank. Switch to PC to see their PC stats.": "Se encontró al jugador, pero no tiene partidas ni rango en consola. Cambia a PC para ver sus estadísticas de PC.",
+ "Nothing asked yet.": "Todavía no se ha preguntado nada.",
+ "Pulse asks Riot for your console matches when it downloads your matches (open VALORANT or the Riot Client on this PC, then come back here). If you've played on console and nothing shows, copy this and send it: it's what Riot answered.": "Pulse le pide a Riot tus partidas de consola cuando descarga tus partidas (abre VALORANT o el cliente de Riot en este PC y vuelve aquí). Si jugaste en consola y no aparece nada, copia esto y envíalo: es lo que respondió Riot.",
+ "No console matches yet": "Aún no hay partidas de consola",
+ "Looking for console matches…": "Buscando partidas de consola…"
 }

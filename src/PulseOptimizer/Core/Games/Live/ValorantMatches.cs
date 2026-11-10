@@ -292,12 +292,19 @@ public sealed class ValorantMatches : IDisposable
         catch { return null; }
     }
 
-    internal static async Task<JsonDocument> Get(Session s, string url)
+    /// <summary>
+    /// The X-Riot-ClientPlatform header: PC (what the Riot Client sends) or, for console data, "playstation" / "xbox".
+    /// </summary>
+    internal static string PlatformHeader(string platform) => platform == null ? ClientPlatform
+        : Convert.ToBase64String(Encoding.UTF8.GetBytes(
+            $"{{\r\n\t\"platformType\": \"{platform}\",\r\n\t\"platformOS\": \"{(platform == "xbox" ? "Xbox" : "PlayStation")}\",\r\n\t\"platformOSVersion\": \"\",\r\n\t\"platformChipset\": \"Unknown\"\r\n}}"));
+
+    internal static async Task<JsonDocument> Get(Session s, string url, string platform = null)
     {
         var req = new HttpRequestMessage(HttpMethod.Get, url);
         req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", s.Access);
         req.Headers.Add("X-Riot-Entitlements-JWT", s.Entitlement);
-        req.Headers.Add("X-Riot-ClientPlatform", ClientPlatform);
+        req.Headers.Add("X-Riot-ClientPlatform", PlatformHeader(platform));
         if (s.Version.Length > 0) req.Headers.Add("X-Riot-ClientVersion", s.Version);
         using var res = await Http.SendAsync(req);
         if (res.StatusCode is System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.Forbidden) Forget();   // token expired: log in again next time
@@ -397,21 +404,14 @@ public sealed class ValorantMatches : IDisposable
             if (got < 20) break; // that was the last page
             await Task.Delay(600, ct);
         }
-        // Console matches have their own queues; ask for each one's latest page too (for the tracker's Console tab).
-        foreach (var cq in Pulse.Core.Games.Valorant.VMatch.ConsoleQueues)
+        // Console matches have their own queues (and maybe need a console platform header): for the Console tab.
+        var consoleIds = new HashSet<string>();
+        try
         {
-            try
-            {
-                using var ch = await Get(s, $"https://pd.{s.Shard}.a.pvp.net/match-history/v1/history/{s.Puuid}?startIndex=0&endIndex=20&queue={cq}");
-                if (ch?.RootElement.Get("History") is { ValueKind: JsonValueKind.Array } h)
-                    foreach (var x in h.EnumerateArray())
-                    {
-                        var id = x.Str("MatchID");
-                        if (id.Length > 0 && Pulse.Core.Games.Valorant.VMatch.Counts(x.Str("QueueID")) && (!Pulse.Core.Games.Valorant.VStore.Has(id) || Pulse.Core.Games.Valorant.VStore.Incomplete(id)) && !ids.Contains(id)) ids.Add(id);
-                    }
-            }
-            catch { }
+            foreach (var (id, _) in await ValorantConsole.History(s, s.Puuid))
+                if ((!Pulse.Core.Games.Valorant.VStore.Has(id) || Pulse.Core.Games.Valorant.VStore.Incomplete(id)) && !ids.Contains(id)) { ids.Add(id); consoleIds.Add(id); }
         }
+        catch (Exception ex) when (ex is not OperationCanceledException) { TweakEngine.AddLog("valorant", "Console history failed: " + ex.Message); }
         TweakEngine.AddLog("valorant", $"Match download: {scanned} games in your history, {seen} real matches, {ids.Count} new");
         if (ids.Count == 0) return new BackfillResult(0, 0, null, scanned, seen);
 
@@ -431,7 +431,10 @@ public sealed class ValorantMatches : IDisposable
             try
             {
                 ct.ThrowIfCancellationRequested();
-                var (d, c) = await GetStatus(s, $"https://pd.{s.Shard}.a.pvp.net/match-details/v1/matches/{id}");
+                var (d, c) = consoleIds.Contains(id)
+                    ? (await ValorantConsole.Details(s, id), 200)
+                    : await GetStatus(s, $"https://pd.{s.Shard}.a.pvp.net/match-details/v1/matches/{id}");
+                if (d == null && consoleIds.Contains(id)) c = 0;
                 using (d)
                 {
                     if (d != null && Pulse.Core.Games.Valorant.VMatch.Parse(d.RootElement, s.Puuid, self._agents, self._maps) is { } vm)
@@ -464,14 +467,14 @@ public sealed class ValorantMatches : IDisposable
     }
 
     /// <summary>Like <see cref="Get"/>, with the HTTP status (0 when Riot didn't answer at all).</summary>
-    static async Task<(JsonDocument Doc, int Status)> GetStatus(Session s, string url)
+    internal static async Task<(JsonDocument Doc, int Status)> GetStatus(Session s, string url, string platform = null)
     {
         try
         {
             using var req = new HttpRequestMessage(HttpMethod.Get, url);
             req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", s.Access);
             req.Headers.Add("X-Riot-Entitlements-JWT", s.Entitlement);
-            req.Headers.Add("X-Riot-ClientPlatform", ClientPlatform);
+            req.Headers.Add("X-Riot-ClientPlatform", PlatformHeader(platform));
             if (s.Version.Length > 0) req.Headers.Add("X-Riot-ClientVersion", s.Version);
             using var res = await Http.SendAsync(req);
             if (!res.IsSuccessStatusCode) return (null, (int)res.StatusCode);
