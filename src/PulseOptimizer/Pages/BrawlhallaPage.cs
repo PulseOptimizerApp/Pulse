@@ -12,10 +12,11 @@ namespace Pulse.Pages;
 
 /// <summary>
 /// A Brawlhalla tracker, from Brawlhalla's official public API: find a player by name (ranked players) or Brawlhalla
-/// ID; a profile with Overview (stats, playstyle, standout legends), Legends (every legend, with a detail view),
-/// Weapons and Ranked (1v1, every 2v2 team, 3v3, ranked legends) tabs; and the ranked leaderboards by region.
+/// ID; a profile with Overview (stats, smurf factor, playstyle, standout legends, latest matches), Legends (a card for
+/// every legend), Weapons, Ranked (1v1, every 2v2 team, 3v3, ranked legends) and Matches (logged by Pulse) tabs; and
+/// the ranked leaderboards by region.
 /// </summary>
-public sealed class BrawlhallaPage : UserControl, IPage
+public sealed partial class BrawlhallaPage : UserControl, IPage
 {
     static BrawlhallaSettings S => TweakEngine.State.Brawlhalla ??= new BrawlhallaSettings();
 
@@ -27,7 +28,9 @@ public sealed class BrawlhallaPage : UserControl, IPage
     string _boardMode = "1v1", _boardRegion = "ALL";
     int _boardPage = 1;
     string _status, _sort = "games", _tab = "overview";
-    int _openLegend;
+    int _openLegend, _legendLimit = 10;
+    string _weaponFilter;
+    List<BhMatch> _matches = new();
     bool _busy, _shown;
     CancellationTokenSource _cts;
 
@@ -38,21 +41,38 @@ public sealed class BrawlhallaPage : UserControl, IPage
 
     public BrawlhallaPage()
     {
-        Content = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, Content = _root };
+        Content = _scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, Content = _root };
         Build();
+        // A match Pulse just logged for the player on screen: show it.
+        Pulse.Ui.BrawlhallaWatch.Logged += id =>
+        {
+            if (_profile?.Id != id || _busy) return;
+            _matches = BrawlhallaMatches.For(id);
+            if (_tab is "matches" or "overview") Build();
+        };
     }
 
+    readonly ScrollViewer _scroll;
+
+    /// <summary>"matches" (from the after-match popup): your matches.</summary>
     public void OnShown(object parameter)
     {
-        if (_shown) return;
-        _shown = true;
-        _ = Start();
+        bool matches = parameter as string == "matches" && S.MyId > 0;
+        if (!_shown)
+        {
+            _shown = true;
+            _ = Start(matches);
+            return;
+        }
+        if (!matches) return;
+        if (_profile?.Id == S.MyId) { _matches = BrawlhallaMatches.For(S.MyId); _tab = "matches"; Build(); }
+        else _ = Open(S.MyId, "matches");
     }
 
-    async Task Start()
+    async Task Start(bool matches = false)
     {
         try { _legends = await Task.Run(() => Brawlhalla.Legends()); } catch { }
-        if (S.MyId > 0) await Open(S.MyId);
+        if (S.MyId > 0) await Open(S.MyId, matches ? "matches" : "overview");
         else await LoadBoard();
     }
 
@@ -75,7 +95,8 @@ public sealed class BrawlhallaPage : UserControl, IPage
         _root.Children.Add(Tabs());
         var parts = _tab switch
         {
-            "legends" => LegendsTab(_profile),
+            "legends" => LegendCards(_profile),
+            "matches" => MatchesTab(_profile),
             "weapons" => WeaponsTab(_profile),
             "ranked" => RankedTab(_profile),
             _ => OverviewTab(_profile),
@@ -164,7 +185,7 @@ public sealed class BrawlhallaPage : UserControl, IPage
         PutIn(row, 2, TierPill(r.Tier.Length > 0 ? r.Tier : Brawlhalla.TierOf(r.Rating)));
         // Teams (2v2) open the first player.
         // From the 1v1 board, its tier (Valhallan) carries over: the profile can't always look it up (names with accents).
-        return Clickable(row, r.Id > 0 ? () => _ = Open(r.Id, oneVsOne ? r.Tier : null) : null);
+        return Clickable(row, r.Id > 0 ? () => _ = Open(r.Id, tier1v1: oneVsOne ? r.Tier : null) : null);
     }
 
     // ───────── a player: header and tabs ─────────
@@ -177,15 +198,9 @@ public sealed class BrawlhallaPage : UserControl, IPage
         g.ColumnDefinitions.Add(new ColumnDefinition());
         g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
-        // The main legend's initial, in a gold-rimmed badge (Brawlhalla's API has no pictures).
-        string initial = main != null ? LegendName(main.LegendId)[..1] : "?";
-        g.Children.Add(new Border
-        {
-            Width = 64, Height = 64, CornerRadius = new CornerRadius(16), Margin = new Thickness(0, 0, 18, 0), VerticalAlignment = VerticalAlignment.Top,
-            BorderBrush = new SolidColorBrush(A(Gold, 0xB0)), BorderThickness = new Thickness(2),
-            Background = new LinearGradientBrush(A(Gold, 0x40), A(Gold, 0x08), 45),
-            Child = new TextBlock { Text = initial, FontSize = 30, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Gold), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, FontFamily = (FontFamily)FindResource("DisplayFont") },
-        });
+        // Their main legend's portrait, in a gold rim.
+        string mainName = main != null ? LegendName(main.LegendId) : "";
+        g.Children.Add(Portrait(mainName, 84, 18, 2).Also(b => { b.Margin = new Thickness(0, 0, 20, 0); b.VerticalAlignment = VerticalAlignment.Top; }));
 
         var mid = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
         Grid.SetColumn(mid, 1);
@@ -193,6 +208,8 @@ public sealed class BrawlhallaPage : UserControl, IPage
         nameRow.Children.Add(new TextBlock { Text = p.Name.Length > 0 ? p.Name : Loc.T("Unknown player"), FontSize = 24, FontWeight = FontWeights.Bold, Foreground = Res("TextBrush"), FontFamily = (FontFamily)FindResource("DisplayFont"), Margin = new Thickness(0, 0, 12, 0), VerticalAlignment = VerticalAlignment.Center });
         if (S.MyId == p.Id) nameRow.Children.Add(Badge(Loc.T("You"), Gold));
         if (p.OneVsOne?.Tier is { Length: > 0 } t1) nameRow.Children.Add(TierPill(t1).Also(x => x.Margin = new Thickness(0, 0, 6, 0)));
+        if (S.MyId != p.Id && BrawlhallaMatches.Smurf(p) is { Score: >= 35 } sm)
+            nameRow.Children.Add(Badge(Loc.T(sm.Label), sm.Score >= 60 ? Red : Gold));
         mid.Children.Add(nameRow);
         var facts = new List<string>();
         if (main != null) facts.Add(Loc.F("Mostly {0}", LegendName(main.LegendId)));
@@ -231,20 +248,29 @@ public sealed class BrawlhallaPage : UserControl, IPage
         right.Children.Add(me);
         g.Children.Add(right);
 
-        // A gold wash from the top left, like light on the badge, over the card's dark panel.
-        var wash = new Border
+        // A banner: their main legend, large and faded, on the right; a gold wash from the top left.
+        var layers = new Grid();
+        if (BrawlhallaArt.Legend(mainName) is { } art)
+            layers.Children.Add(new Image
+            {
+                Source = art, Stretch = Stretch.UniformToFill, Width = 420, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center, Opacity = 0.22,
+                OpacityMask = new LinearGradientBrush(Color.FromArgb(0, 0, 0, 0), Color.FromArgb(0xFF, 0, 0, 0), 0),
+            }.Also(i => RenderOptions.SetBitmapScalingMode(i, BitmapScalingMode.HighQuality)));
+        layers.Children.Add(new Border { Background = new RadialGradientBrush(A(Gold, 0x1E), A(Gold, 0x00)) { Center = new Point(0, 0), GradientOrigin = new Point(0, 0), RadiusX = 0.6, RadiusY = 1.3 } });
+        layers.Children.Add(new Border { Child = g, Padding = new Thickness(24, 22, 24, 22) });
+        layers.SizeChanged += (_, e) => layers.Clip = new RectangleGeometry(new Rect(e.NewSize), 13, 13);
+        return new Border
         {
-            Child = g, Padding = new Thickness(24, 20, 24, 20), CornerRadius = new CornerRadius(14),
-            Background = new RadialGradientBrush(A(Gold, 0x1E), A(Gold, 0x00)) { Center = new Point(0, 0), GradientOrigin = new Point(0, 0), RadiusX = 0.6, RadiusY = 1.3 },
+            Child = layers, Background = new SolidColorBrush(PanelBg), CornerRadius = new CornerRadius(14), Margin = new Thickness(0, 14, 0, 0), ClipToBounds = true,
+            BorderBrush = new SolidColorBrush(A(Gold, 0x55)), BorderThickness = new Thickness(1),
         };
-        return new Border { Child = wash, Background = new SolidColorBrush(PanelBg), CornerRadius = new CornerRadius(14), Margin = new Thickness(0, 14, 0, 0), BorderBrush = new SolidColorBrush(A(Gold, 0x55)), BorderThickness = new Thickness(1) };
     }
 
     FrameworkElement Tabs()
     {
         var w = new WrapPanel { Margin = new Thickness(0, 14, 0, 0) };
-        w.Children.Add(Segments(new[] { ("overview", "Overview"), ("legends", "Legends"), ("weapons", "Weapons"), ("ranked", "Ranked") }
-            .Select(t => (Loc.T(t.Item2), _tab == t.Item1, (Action)(() => { _tab = t.Item1; Build(); })))));
+        w.Children.Add(Segments(new[] { ("overview", "Overview"), ("legends", "Legends"), ("weapons", "Weapons"), ("ranked", "Ranked"), ("matches", "Matches") }
+            .Select(t => (Loc.T(t.Item2) + (t.Item1 == "matches" && _matches.Count > 0 ? $" {_matches.Sum(m => m.Games)}" : ""), _tab == t.Item1, (Action)(() => { _tab = t.Item1; Build(); _scroll.ScrollToTop(); })))));
         return w;
     }
 
@@ -269,6 +295,9 @@ public sealed class BrawlhallaPage : UserControl, IPage
         if (teamKos > 0) tiles.Children.Add(Tile("Team KOs", teamKos.ToString("N0", CultureInfo.CurrentCulture), Loc.T("on teammates")));
         yield return Card(Section("Overall", tiles));
 
+        // Their latest matches Pulse logged.
+        if (_matches.Count > 0) yield return Card(RecentMatches(5));
+
         // Standouts.
         var standouts = new WrapPanel();
         var most = played.OrderByDescending(l => l.Games).FirstOrDefault();
@@ -287,6 +316,8 @@ public sealed class BrawlhallaPage : UserControl, IPage
         if (Weapons(p).OrderByDescending(w => w.Time).FirstOrDefault() is { Time: > 0 } fav)
             standouts.Children.Add(Standout("Favourite weapon", fav.Name, Loc.F("held {0} · {1} KOs", Hours(fav.Time), fav.Kos.ToString("N0", CultureInfo.CurrentCulture)), Blue, 0));
         if (standouts.Children.Count > 0) yield return Card(Section("Standouts", standouts));
+
+        if (S.MyId != p.Id) yield return Card(SmurfPanel(p));
 
         // Where damage and KOs come from.
         long dWeapons = played.Sum(l => l.DamageWeaponOne + l.DamageWeaponTwo), dUnarmed = played.Sum(l => l.DamageUnarmed), dThrown = played.Sum(l => l.DamageThrown), dGadgets = played.Sum(l => l.DamageGadgets);
@@ -314,36 +345,7 @@ public sealed class BrawlhallaPage : UserControl, IPage
         yield return Card(Section("Gadgets", gadgets));
     }
 
-    // ───────── Legends ─────────
-
-    IEnumerable<FrameworkElement> LegendsTab(BhProfile p)
-    {
-        var played = p.Legends.Where(l => l.Games > 0).ToList();
-        int legendGames = Math.Max(1, played.Sum(l => l.Games));
-        var sp = new StackPanel();
-        var sorts = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
-        sorts.Children.Add(Segments(new[] { ("games", "Most played"), ("win", "Win rate"), ("kos", "KOs a game"), ("damage", "Damage a game"), ("rating", "Ranked rating"), ("time", "Playtime") }
-            .Select(s => (Loc.T(s.Item2), _sort == s.Item1, (Action)(() => { _sort = s.Item1; Build(); })))));
-        sp.Children.Add(sorts);
-        var rows = _sort switch
-        {
-            "win" => played.OrderByDescending(l => l.Games >= 10).ThenByDescending(l => l.Wins / (double)l.Games),
-            "kos" => played.OrderByDescending(l => l.Games >= 10).ThenByDescending(l => l.Kos / (double)l.Games),
-            "damage" => played.OrderByDescending(l => l.Games >= 10).ThenByDescending(l => l.DamageDealt / (double)l.Games),
-            "rating" => played.OrderByDescending(l => l.Rating).ThenByDescending(l => l.Games),
-            "time" => played.OrderByDescending(l => l.MatchTime),
-            _ => played.OrderByDescending(l => l.Games),
-        };
-        sp.Children.Add(LegendHeader());
-        foreach (var l in rows)
-        {
-            sp.Children.Add(LegendRow(l, legendGames));
-            if (_openLegend == l.LegendId) sp.Children.Add(LegendDetail(l));
-        }
-        if (played.Count == 0) sp.Children.Add(Dim(Loc.T("No games yet."), 12.5, 4));
-        sp.Children.Add(Dim(Loc.T("Click a legend for its weapons and where its damage comes from. Win rate and per-game sorts put legends with 10 or more games first."), 11.5, 10));
-        yield return Card(Section("Legends", sp));
-    }
+    // ───────── Legends (table rows, for the overview) ─────────
 
     static readonly double[] LegendCols = { double.NaN, 130, 80, 90, 90, 110, 100, 80 };
 
@@ -352,9 +354,11 @@ public sealed class BrawlhallaPage : UserControl, IPage
     FrameworkElement LegendRow(BhLegendStats l, int allGames)
     {
         double win = 100.0 * l.Wins / l.Games;
-        var row = GridRow(LegendCols, false, LegendName(l.LegendId), null, null, (l.Kos / (double)l.Games).ToString("0.00", CultureInfo.CurrentCulture),
+        var row = GridRow(LegendCols, false, null, null, null, (l.Kos / (double)l.Games).ToString("0.00", CultureInfo.CurrentCulture),
             (l.Falls / (double)l.Games).ToString("0.00", CultureInfo.CurrentCulture), (l.DamageDealt / (double)l.Games).ToString("N0", CultureInfo.CurrentCulture),
             null, Hours(l.MatchTime));
+
+        PutIn(row, 0, Named(LegendName(l.LegendId), 28));
 
         // Games, with a bar for its share of all games (a quarter of all games fills it).
         var games = new StackPanel { HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 0, 8, 0) };
@@ -375,50 +379,7 @@ public sealed class BrawlhallaPage : UserControl, IPage
         }
         else PutIn(row, 6, new TextBlock { Text = "–", FontSize = 13, Foreground = Res("TextFaintBrush"), HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 0, 8, 0) });
 
-        return Clickable(row, () => { _openLegend = _openLegend == l.LegendId ? 0 : l.LegendId; _tab = "legends"; Build(); }, _openLegend == l.LegendId);
-    }
-
-    FrameworkElement LegendDetail(BhLegendStats l)
-    {
-        _legends.TryGetValue(l.LegendId, out var info);
-        var g = new Grid { Margin = new Thickness(0, 4, 0, 4) };
-        g.ColumnDefinitions.Add(new ColumnDefinition());
-        g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(28) });
-        g.ColumnDefinitions.Add(new ColumnDefinition());
-
-        var left = new StackPanel();
-        left.Children.Add(Caps("Weapons", 10, Res("TextFaintBrush")));
-        long held = Math.Max(1, l.TimeWeaponOne + l.TimeWeaponTwo);
-        foreach (var (name, dmg, ko, t, c) in new[] { (Spaced(info?.WeaponOne) ?? Loc.T("Weapon 1"), l.DamageWeaponOne, l.KoWeaponOne, l.TimeWeaponOne, Gold), (Spaced(info?.WeaponTwo) ?? Loc.T("Weapon 2"), l.DamageWeaponTwo, l.KoWeaponTwo, l.TimeWeaponTwo, Blue) })
-        {
-            var r = new Grid { Margin = new Thickness(0, 10, 0, 0) };
-            r.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(100) });
-            r.ColumnDefinitions.Add(new ColumnDefinition());
-            r.Children.Add(new TextBlock { Text = name, FontSize = 13, FontWeight = FontWeights.SemiBold, Foreground = Res("TextBrush") });
-            var bits = new StackPanel();
-            bits.Children.Add(Bar(t / (double)held, c, 260));
-            bits.Children.Add(Dim(Loc.F("{0:0}% of the time · {1} KOs · {2} damage", 100.0 * t / held, ko.ToString("N0", CultureInfo.CurrentCulture), Short(dmg)), 11.5, 4));
-            Grid.SetColumn(bits, 1);
-            r.Children.Add(bits);
-            left.Children.Add(r);
-        }
-        g.Children.Add(left);
-
-        var right = new StackPanel();
-        Grid.SetColumn(right, 2);
-        right.Children.Add(Caps("Damage comes from", 10, Res("TextFaintBrush")));
-        right.Children.Add(Split(null, new[] { ("Weapons", (double)(l.DamageWeaponOne + l.DamageWeaponTwo), Gold), ("Unarmed", l.DamageUnarmed, Blue), ("Thrown weapons", l.DamageThrown, Purple), ("Gadgets", l.DamageGadgets, Teal) }, 320));
-        var facts = new List<string>
-        {
-            Loc.F("{0} wins of {1}", l.Wins.ToString("N0", CultureInfo.CurrentCulture), l.Games.ToString("N0", CultureInfo.CurrentCulture)),
-            Loc.F("{0:0.00} KO / fall", l.Falls > 0 ? l.Kos / (double)l.Falls : 0),
-            Loc.F("{0:0.00} damage ratio", l.DamageTaken > 0 ? l.DamageDealt / (double)l.DamageTaken : 0),
-            Loc.F("{0} self-KOs", l.Suicides),
-        };
-        if (l.Rating > 0) facts.Add(Loc.F("ranked {0} (peak {1})", l.Rating, l.PeakRating));
-        right.Children.Add(Dim(string.Join(" · ", facts), 12, 6));
-        g.Children.Add(right);
-        return new Border { Child = g, Padding = new Thickness(18, 14, 18, 14), Margin = new Thickness(0, 2, 0, 8), CornerRadius = new CornerRadius(10), Background = new SolidColorBrush(Inset), BorderBrush = new SolidColorBrush(A(Gold, 0x40)), BorderThickness = new Thickness(1) };
+        return Clickable(row, () => ShowLegend(l.LegendId));
     }
 
     // ───────── Weapons ─────────
@@ -444,7 +405,7 @@ public sealed class BrawlhallaPage : UserControl, IPage
         return by.Select(x => new WeaponLine(Spaced(x.Key), x.Value.Damage, x.Value.Kos, x.Value.Time, x.Value.Legends.Count)).ToList();
     }
 
-    static readonly double[] WeaponCols = { 140, double.NaN, 80, 90, 90, 100, 80 };
+    static readonly double[] WeaponCols = { 170, double.NaN, 80, 90, 90, 100, 80 };
 
     IEnumerable<FrameworkElement> WeaponsTab(BhProfile p)
     {
@@ -457,12 +418,13 @@ public sealed class BrawlhallaPage : UserControl, IPage
         sp.Children.Add(GridRow(WeaponCols, true, "Weapon", "Time held", "Share", "KOs", "KOs / hour", "Damage", "Legends").Also(b => b.Margin = new Thickness(0, 10, 0, 0)));
         foreach (var w in lines)
         {
-            var row = GridRow(WeaponCols, false, w.Name, null, $"{100.0 * w.Time / total:0.0}%", w.Kos.ToString("N0", CultureInfo.CurrentCulture),
+            var row = GridRow(WeaponCols, false, null, null, $"{100.0 * w.Time / total:0.0}%", w.Kos.ToString("N0", CultureInfo.CurrentCulture),
                 w.Time > 0 ? (w.Kos / (w.Time / 3600.0)).ToString("0.0", CultureInfo.CurrentCulture) : "–", Short(w.Damage), w.Legends.ToString(CultureInfo.CurrentCulture));
             var held = new StackPanel { Orientation = Orientation.Horizontal };
             held.Children.Add(Bar(w.Time / (double)top, Gold, 140).Also(b => { b.VerticalAlignment = VerticalAlignment.Center; b.Margin = new Thickness(0, 0, 10, 0); }));
             held.Children.Add(new TextBlock { Text = Hours(w.Time), FontSize = 13, Foreground = Res("TextBrush"), VerticalAlignment = VerticalAlignment.Center });
             PutIn(row, 1, held);
+            PutIn(row, 0, WeaponName(w.Name, 22));
             sp.Children.Add(row);
         }
         yield return Card(Section("Weapons", sp));
@@ -470,7 +432,7 @@ public sealed class BrawlhallaPage : UserControl, IPage
 
     // ───────── Ranked ─────────
 
-    static readonly double[] RankedLegendCols = { double.NaN, 150, 100, 100 };
+    static readonly double[] RankedLegendCols = { double.NaN, 150, 100, 100, 150 };
     static readonly double[] TeamCols = { double.NaN, 140, 90, 90, 130, 70 };
 
     IEnumerable<FrameworkElement> RankedTab(BhProfile p)
@@ -487,11 +449,13 @@ public sealed class BrawlhallaPage : UserControl, IPage
         if (ranked.Count > 0)
         {
             var sp = new StackPanel();
-            sp.Children.Add(GridRow(RankedLegendCols, true, "Legend", "Tier", "Rating", "Peak"));
+            sp.Children.Add(GridRow(RankedLegendCols, true, "Legend", "Tier", "Rating", "Peak", "Record"));
             foreach (var l in ranked)
             {
-                var row = GridRow(RankedLegendCols, false, LegendName(l.LegendId), null, l.Rating.ToString("N0", CultureInfo.CurrentCulture), l.PeakRating.ToString("N0", CultureInfo.CurrentCulture));
+                var row = GridRow(RankedLegendCols, false, null, null, l.Rating.ToString("N0", CultureInfo.CurrentCulture), l.PeakRating.ToString("N0", CultureInfo.CurrentCulture),
+                    l.RankedGames > 0 ? $"{l.RankedWins}–{l.RankedGames - l.RankedWins} · {100.0 * l.RankedWins / l.RankedGames:0}%" : "");
                 PutIn(row, 1, TierPill(l.Tier.Length > 0 ? l.Tier : Brawlhalla.TierOf(l.Rating)));
+                PutIn(row, 0, Named(LegendName(l.LegendId), 26));
                 sp.Children.Add(row);
             }
             yield return Card(Section("Ranked 1v1 legends", sp));
@@ -563,7 +527,7 @@ public sealed class BrawlhallaPage : UserControl, IPage
         Build();
     }
 
-    async Task Open(long id, string tier1v1 = null)
+    async Task Open(long id, string tab = "overview", string tier1v1 = null)
     {
         _cts?.Cancel();
         _cts = new CancellationTokenSource();
@@ -573,12 +537,14 @@ public sealed class BrawlhallaPage : UserControl, IPage
         {
             if (_legends.Count == 0) try { _legends = await Task.Run(() => Brawlhalla.Legends(ct)); } catch { }
             var p = await Task.Run(() => Brawlhalla.Profile(id, ct));
+            // Turn what changed since Pulse last saw them into matches.
+            var matches = p == null ? new List<BhMatch>() : await Task.Run(() => { BrawlhallaMatches.Record(p); return BrawlhallaMatches.For(p.Id); });
             if (ct.IsCancellationRequested) return;
             if (p == null) _status = Loc.T("No player with that Brawlhalla ID.");
             else
             {
                 if (tier1v1 is { Length: > 0 } && p.OneVsOne is { BoardTier: null } one) one.BoardTier = tier1v1;
-                _profile = p; _results = null; _status = null; _tab = "overview"; _openLegend = 0;
+                _profile = p; _matches = matches; _results = null; _status = null; _tab = tab; _openLegend = 0; _legendLimit = 10; _weaponFilter = null;
                 S.Recent.RemoveAll(r => r.Id == p.Id);
                 S.Recent.Insert(0, new BhRecent { Id = p.Id, Name = p.Name });
                 if (S.Recent.Count > 10) S.Recent.RemoveRange(10, S.Recent.Count - 10);
@@ -609,7 +575,12 @@ public sealed class BrawlhallaPage : UserControl, IPage
 
     string LegendName(int id) => _legends.TryGetValue(id, out var l) && l.Name.Length > 0 ? l.Name : Loc.F("Legend {0}", id);
 
-    static string Spaced(string weapon) => string.IsNullOrEmpty(weapon) ? null : System.Text.RegularExpressions.Regex.Replace(weapon, "(?<=[a-z])(?=[A-Z])", " ");
+    /// <summary>A weapon's name as the game shows it ("RocketLance" → "Rocket Lance", "Fists" → "Gauntlets").</summary>
+    static string Spaced(string weapon) => string.IsNullOrEmpty(weapon) ? null : weapon switch
+    {
+        "Fists" => "Gauntlets", "Pistol" => "Blasters", "Hammer" => "Grapple Hammer", "Katar" => "Katars", "Boots" => "Battle Boots",
+        _ => System.Text.RegularExpressions.Regex.Replace(weapon, "(?<=[a-z])(?=[A-Z])", " "),
+    };
     static Color A(Color c, byte a) => Color.FromArgb(a, c.R, c.G, c.B);
     static string Hours(long seconds) => seconds >= 3600 ? Loc.F("{0:0.0} h", seconds / 3600.0) : Loc.F("{0} min", seconds / 60);
     static string Clock(long seconds) => $"{seconds / 60}:{seconds % 60:00}";
@@ -694,7 +665,7 @@ public sealed class BrawlhallaPage : UserControl, IPage
             Child = sp, Width = 206, Margin = new Thickness(0, 0, 12, 12), Padding = new Thickness(16, 14, 16, 14), CornerRadius = new CornerRadius(12),
             Background = new LinearGradientBrush(A(c, 0x18), A(c, 0x03), 90), BorderBrush = new SolidColorBrush(A(c, 0x45)), BorderThickness = new Thickness(1),
         };
-        return legendId > 0 ? Clickable(b, () => { _tab = "legends"; _openLegend = legendId; Build(); }) : b;
+        return legendId > 0 ? Clickable(b, () => ShowLegend(legendId)) : b;
     }
 
     FrameworkElement Tile(string label, string value, string sub, Color? valueColor = null)

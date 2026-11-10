@@ -61,11 +61,13 @@ public static class MatchService
             _ = Task.Delay(6000).ContinueWith(_ => LobbyOverlay.AfterMatch(vm, summary, lobby));
         };
         _watch = new System.Threading.Timer(_ => Watch(), null, 3000, 5000);
+        BrawlhallaWatch.Init();
     }
 
     public static void Shutdown()
     {
         _watch?.Dispose();
+        BrawlhallaWatch.Shutdown();
         _gsi?.Dispose();
         League.Dispose();
         Valorant.Dispose();

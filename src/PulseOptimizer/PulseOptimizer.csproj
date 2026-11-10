@@ -48,6 +48,7 @@
     <Resource Include="Assets\Games\*.png" />
     <!-- VALORANT agent, map and rank art for match recaps, fetched by tools/get-match-art.py at build time (not committed). -->
     <Resource Include="Assets\Matches\*.png" />
+    <Resource Include="Assets\Brawlhalla\*.png" />
     <Resource Include="Assets\Matches\*.jpg" />
     <Resource Include="Assets\Matches\meta.json" Condition="Exists('Assets\Matches\meta.json')" />
     <!-- PresentMon (Intel, MIT) is downloaded here by the build and carried inside the exe, so the release is one file. -->

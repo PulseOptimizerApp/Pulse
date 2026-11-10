@@ -189,8 +189,11 @@ public static class Brawlhalla
         return (rows, I(doc.RootElement, "total_pages"));
     }
 
-    /// <summary>A player's whole profile: overall stats, ranked 1v1 and 3v3, 2v2 teams and clan, asked for together.</summary>
-    public static async Task<BhProfile> Profile(long id, CancellationToken ct = default)
+    /// <summary>
+    /// A player's whole profile: overall stats, ranked 1v1 and 3v3, 2v2 teams and clan, asked for together.
+    /// <paramref name="lookUpTier"/>: also find Diamond players on the leaderboard (for Valhallan), one more request.
+    /// </summary>
+    public static async Task<BhProfile> Profile(long id, CancellationToken ct = default, bool lookUpTier = true)
     {
         var allTask = Get($"player/stats?brawlhalla_id={id}&mode=all", ct);
         var oneTask = Optional($"player/stats?brawlhalla_id={id}&mode=ranked_1v1", ct);
@@ -233,7 +236,7 @@ public static class Brawlhalla
         using (var three = await threeTask) if (three != null) p.ThreeVsThree = Ranked(three.RootElement, "3v3");
         // Diamond-rated players may be Valhallan, which only the leaderboard knows: find them on it.
         foreach (var rk in new[] { p.OneVsOne, p.ThreeVsThree })
-            if (rk is { Rating: >= 2000 } && p.Name.Length > 0)
+            if (lookUpTier && rk is { Rating: >= 2000 } && p.Name.Length > 0)
                 try
                 {
                     var (rows, _) = await Rankings(rk.Mode, rk.Region.Length > 0 ? rk.Region : "ALL", 1, p.Name, 50, ct);
