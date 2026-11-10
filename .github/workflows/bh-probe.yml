@@ -2,17 +2,11 @@ name: Brawlhalla probe
 on:
   push:
     branches: [bh-more]
-permissions:
-  contents: write
 jobs:
   probe:
     runs-on: ubuntu-latest
     steps:
       - run: |
           A=https://api.brawlhalla.com/v1
-          UA="PulseOptimizer/1.0 (https://github.com/PulseOptimizerApp/Pulse)"
-          curl -sS "$A/static/legends?max_results=100&page=1" | python3 -c "import json,sys; d=json.load(sys.stdin); print('pages',d.get('total_pages'),'count',len(d['legends'])); print(sorted(l['bio_name'] or l['legend_name'] for l in d['legends']))"
-          echo "== steam search"; curl -sS -w " HTTP %{http_code}\n" "$A/search?steamid=76561198025185087" | head -c 400; echo
-          echo "== steam xml"; curl -sS -A "$UA" -w " HTTP %{http_code}\n" "https://steamcommunity.com/id/gabelogannewell/?xml=1" | head -c 600; echo
-          mkdir -p art; for n in Zariel; do curl -sS -A "$UA" -o art/$n.png -w "$n %{http_code}\n" "https://brawlhalla.wiki.gg/images/Portrait_$n.png"; done
-          cd art && git init -q -b bh-art2 && git config user.name a && git config user.email a@users.noreply.github.com && git add -A && git commit -qm art && git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" bh-art2
+          for p in steamid steam_id steamId steam_id64 steamid64 id; do printf "$p: "; curl -sS -w " HTTP %{http_code}\n" "$A/search?$p=76561197960287930" | head -c 300; echo; done
+          for path in "player/search?steamid=76561197960287930" "search/steam?steamid=76561197960287930" "search/steamid/76561197960287930" "player/steam?steam_id=76561197960287930"; do printf "$path: "; curl -sS -w " HTTP %{http_code}\n" "$A/$path" | head -c 200; echo; done
