@@ -1,0 +1,6 @@
+ok mods-notice.png
+ok mods-skins.png
+ok mods-colors.png
+ok mods-effects.png
+ok mods-maps.png
+ok mods-smooth.png
