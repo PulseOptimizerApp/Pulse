@@ -70,6 +70,7 @@
                             <RadioButton Style="{StaticResource NavButton}" Tag="clips" ui:Icon.Glyph="&#xE714;" ui:Icon.Path="M4 6 H20 V18 H4 Z M10 9.5 L15 12 L10 14.5 Z" Content="Clips" Checked="Nav_Checked" Click="Nav_Click"/>
                             <RadioButton Style="{StaticResource NavButton}" Tag="crosshair" ui:Icon.Glyph="&#xE1D9;" ui:Icon.Path="M12 5 A7 7 0 1 1 11.99 5 M12 2.5 V7.5 M12 16.5 V21.5 M2.5 12 H7.5 M16.5 12 H21.5 M12 12 h0.01" Content="Crosshair" Checked="Nav_Checked" Click="Nav_Click"/>
                             <RadioButton Style="{StaticResource NavButton}" Tag="valorant" ui:Icon.Glyph="&#xE7C1;" ui:Icon.Path="M12 3 L20.5 12 L12 21 L3.5 12 Z M12 8.5 V15.5 M8.5 12 H15.5" Content="VALORANT" Checked="Nav_Checked" Click="Nav_Click"/>
+                            <RadioButton Style="{StaticResource NavButton}" Tag="brawlhalla" ui:Icon.Glyph="&#xE7C1;" ui:Icon.Path="M5 19 L14.5 9.5 M12.5 7.5 L16.5 3.5 L20.5 7.5 L16.5 11.5 Z M5 19 L3.5 20.5 M7 15 L9 17" Content="Brawlhalla" Checked="Nav_Checked" Click="Nav_Click"/>
                             <RadioButton Style="{StaticResource NavButton}" Tag="roblox" ui:Icon.Glyph="&#xE768;" ui:Icon.Path="M6.6 3.6 L20.4 6.6 L17.4 20.4 L3.6 17.4 Z M11.1 9.7 L14.3 10.4 L13.6 13.6 L10.4 12.9 Z" Content="Roblox" Checked="Nav_Checked" Click="Nav_Click"/>
 
                             <TextBlock Style="{StaticResource NavHeader}" Text="PERFORMANCE"/>

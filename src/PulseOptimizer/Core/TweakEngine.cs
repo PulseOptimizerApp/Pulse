@@ -74,6 +74,7 @@ public class AppState
     public Pulse.Core.Clips.ClipSettings Clips { get; set; } = new();
     public Pulse.Core.Reaction.ReactionSettings Reaction { get; set; } = new();
     public Pulse.Core.Mouse.MouseSettings Mouse { get; set; } = new();
+    public Pulse.Core.Games.Brawlhalla.BrawlhallaSettings Brawlhalla { get; set; } = new();
     /// <summary>The first version's single click macro. Kept so older settings carry over into <see cref="MacroList"/>.</summary>
     public Pulse.Core.Input.MacroSettings Macros { get; set; } = new();
     /// <summary>The Macros page: every macro (null until the old click macro has been carried over).</summary>

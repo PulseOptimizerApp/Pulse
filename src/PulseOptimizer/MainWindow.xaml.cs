@@ -34,7 +34,7 @@ public partial class MainWindow : Window
     readonly Dictionary<string, DateTime> _lastSeen = new();
 
     /// <summary>Screens that never run anything in the background, so they can be rebuilt when opened again.</summary>
-    static readonly HashSet<string> LightPages = new() { "home", "guide", "safety", "startup", "reaction", "mouse" };
+    static readonly HashSet<string> LightPages = new() { "home", "guide", "safety", "startup", "reaction", "mouse", "brawlhalla" };
 
     /// <summary>Lets go of light screens not looked at for 3 minutes (they're rebuilt in a moment when opened again).</summary>
     void DropIdlePages(string showing)
@@ -185,6 +185,7 @@ public partial class MainWindow : Window
                 "guide" => new GuidePage(),
                 "gpu" => new GpuPage(),
                 "valorant" => new ValorantPage(),
+                "brawlhalla" => new BrawlhallaPage(),
                 "report" => new ReportPage(),
                 "speed" => new SpeedTestPage(),
                 "settings" => new SettingsPage(),
