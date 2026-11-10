@@ -1,0 +1,30 @@
+name: Site screenshots
+# Temporary: renders Pulse's pages at 2x for the website.
+on:
+  push:
+    branches: [site-shots]
+permissions:
+  contents: write
+jobs:
+  shots:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Render
+        env:
+          PULSE_SITE_SHOTS: ${{ github.workspace }}\shots
+        run: dotnet test tests/PulseOptimizer.Tests/PulseOptimizer.Tests.csproj -c Release --filter "FullyQualifiedName~SiteShots" --logger "console;verbosity=detailed"
+      - name: Push the pictures to a scratch branch
+        if: always()
+        shell: bash
+        run: |
+          cd shots
+          git init -q -b site-shots-out
+          git config user.name "shots"
+          git config user.email "shots@users.noreply.github.com"
+          git add -A
+          git commit -qm "shots ${{ github.sha }}"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" site-shots-out
