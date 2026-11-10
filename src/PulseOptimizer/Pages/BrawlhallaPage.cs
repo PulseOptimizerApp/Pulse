@@ -101,6 +101,8 @@ public sealed partial class BrawlhallaPage : UserControl, IPage
             Style = (Style)FindResource("Sub"), Margin = new Thickness(0, 6, 0, 0), MaxWidth = 760, HorizontalAlignment = HorizontalAlignment.Left,
             Text = Loc.T("Ranked, legends and weapons for any player, and the ranked leaderboards, from Brawlhalla's official stats."),
         });
+        _root.Children.Add(ModeSwitch());
+        if (_mode == "customize") { foreach (var m in ModsParts()) _root.Children.Add(m); return; }
         _root.Children.Add(Card(SearchPanel()));
         if (_matchup) { foreach (var m in MatchupParts()) _root.Children.Add(m); return; }
         if (_results is { Count: > 0 }) _root.Children.Add(Card(ResultsPanel()));
