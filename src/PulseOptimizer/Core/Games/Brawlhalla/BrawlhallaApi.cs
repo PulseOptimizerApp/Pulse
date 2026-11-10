@@ -10,6 +10,10 @@ public class BrawlhallaSettings
     public string MyName { get; set; }
     /// <summary>Recent lookups, newest first: (id, name).</summary>
     public List<BhRecent> Recent { get; set; } = new();
+    /// <summary>While Brawlhalla is open, check your stats every minute and log each match you play.</summary>
+    public bool TrackMatches { get; set; } = true;
+    /// <summary>When a match you played shows up: a small summary in the corner.</summary>
+    public bool MatchPopup { get; set; } = true;
 }
 
 public class BhRecent { public long Id { get; set; } public string Name { get; set; } = ""; }
@@ -22,7 +26,10 @@ public sealed class BhLegendStats
     public long DamageDealt, DamageTaken, MatchTime, DamageUnarmed, DamageThrown, DamageWeaponOne, DamageWeaponTwo, DamageGadgets;
     public int KoUnarmed, KoWeaponOne, KoWeaponTwo, KoGadgets;
     public long TimeWeaponOne, TimeWeaponTwo;
-    // Ranked (1v1) per legend, when known.
+    // This legend's level and XP, and its ranked 1v1 this season.
+    public int Level, RankedGames, RankedWins;
+    public long Xp;
+    public double XpPercent;
     public int Rating, PeakRating;
     public string Tier = "";
 }
@@ -50,6 +57,7 @@ public sealed class BhProfile
     public long Id;
     public string Name = "";
     public int Level, Games, Wins;
+    public long Xp;
     public double XpPercent;
     public long DamageBomb, DamageMine, DamageSpikeball, DamageSidekick;
     public int KoBomb, KoMine, KoSpikeball, KoSidekick, KoSnowball, HitSnowball;
@@ -194,7 +202,7 @@ public static class Brawlhalla
         var r = all.RootElement;
         var p = new BhProfile
         {
-            Id = L(r, "brawlhalla_id") is > 0 and var bid ? bid : id, Name = S(r, "name"), Level = I(r, "level"), XpPercent = D(r, "xp_percentage"),
+            Id = L(r, "brawlhalla_id") is > 0 and var bid ? bid : id, Name = S(r, "name"), Level = I(r, "level"), Xp = L(r, "xp"), XpPercent = D(r, "xp_percentage"),
             Games = I(r, "games"), Wins = I(r, "wins"),
             DamageBomb = L(r, "damage_bomb"), DamageMine = L(r, "damage_mine"), DamageSpikeball = L(r, "damage_spikeball"), DamageSidekick = L(r, "damage_sidekick"),
             KoBomb = I(r, "ko_bomb"), KoMine = I(r, "ko_mine"), KoSpikeball = I(r, "ko_spikeball"), KoSidekick = I(r, "ko_sidekick"),
@@ -210,6 +218,7 @@ public static class Brawlhalla
                     DamageWeaponTwo = L(l, "damage_weapon_two"), DamageGadgets = L(l, "damage_gadgets"),
                     KoUnarmed = I(l, "ko_unarmed"), KoWeaponOne = I(l, "ko_weapon_one"), KoWeaponTwo = I(l, "ko_weapon_two"), KoGadgets = I(l, "ko_gadgets"),
                     TimeWeaponOne = L(l, "time_held_weapon_one"), TimeWeaponTwo = L(l, "time_held_weapon_two"),
+                    Level = I(l, "level"), Xp = L(l, "xp"), XpPercent = D(l, "xp_percentage"),
                 });
 
         using (var one = await oneTask)
@@ -219,7 +228,7 @@ public static class Brawlhalla
                 if (one.RootElement.TryGetProperty("legends", out var rl) && rl.ValueKind == JsonValueKind.Array)
                     foreach (var l in rl.EnumerateArray())
                         if (p.Legends.FirstOrDefault(x => x.LegendId == I(l, "legend_id")) is { } mine)
-                        { mine.Rating = I(l, "rating"); mine.PeakRating = I(l, "peak_rating"); mine.Tier = S(l, "tier"); }
+                        { mine.Rating = I(l, "rating"); mine.PeakRating = I(l, "peak_rating"); mine.Tier = S(l, "tier"); mine.RankedGames = I(l, "games"); mine.RankedWins = I(l, "wins"); }
             }
         using (var three = await threeTask) if (three != null) p.ThreeVsThree = Ranked(three.RootElement, "3v3");
         // Diamond-rated players may be Valhallan, which only the leaderboard knows: find them on it.
