@@ -9,14 +9,10 @@ jobs:
       - shell: bash
         run: |
           A=https://api.brawlhalla.com/v1
-          id=5461700
-          for gap in 3 2 1.5 1 0.7 0.5 0.3; do
-            sleep 5; printf "gap $gap: "
-            for i in 1 2 3 4; do curl -sS -o /dev/null -w "%{http_code} " "$A/player/stats?brawlhalla_id=$id&mode=all"; sleep $gap; done; echo
+          for id in 5461700 139282598 110282750 32181827; do
+            for m in all ranked_1v1 ranked_3v3; do
+              printf "$id $m plain:"; curl -sS -o /dev/null -w "%{http_code}" "$A/player/stats?brawlhalla_id=$id&mode=$m"
+              for k in 1 2 3; do printf " bust$k:"; curl -sS -o /dev/null -w "%{http_code}" "$A/player/stats?brawlhalla_id=$id&mode=$m&t=$RANDOM$k"; done
+              printf " teams-bust:"; curl -sS -o /dev/null -w "%{http_code}" "$A/player/teams?brawlhalla_id=$id&t=$RANDOM"; echo
+            done
           done
-          sleep 5; printf "after 404, wait: "; curl -sS -o /dev/null -w "%{http_code} " "$A/player/stats?brawlhalla_id=$id&mode=all"; curl -sS -o /dev/null -w "%{http_code} " "$A/player/stats?brawlhalla_id=$id&mode=all"
-          for w in 1 2 3 5; do sleep $w; printf "+${w}s:"; curl -sS -o /dev/null -w "%{http_code} " "$A/player/stats?brawlhalla_id=$id&mode=all"; done; echo
-          sleep 5; printf "different endpoints back to back: "
-          for m in all ranked_1v1 ranked_3v3; do curl -sS -o /dev/null -w "%{http_code} " "$A/player/stats?brawlhalla_id=$id&mode=$m"; done
-          curl -sS -o /dev/null -w "teams %{http_code} " "$A/player/teams?brawlhalla_id=$id"; curl -sS -o /dev/null -w "board %{http_code}\n" "$A/leaderboard/ranked?game_mode=1v1&region=ALL&page=1&max_results=3"
-          curl -sS -D - -o /dev/null "$A/player/stats?brawlhalla_id=$id&mode=all" | head -20
