@@ -386,7 +386,7 @@ public sealed class ValorantMatches : IDisposable
                 foreach (var x in h.EnumerateArray())
                 {
                     // Deathmatch is kept too, for the tracker's Deathmatch playlist, but doesn't use up the count of real matches.
-                    var queue = x.Str("QueueID");
+                    var queue = Pulse.Core.Games.Valorant.VMatch.BaseQueue(x.Str("QueueID"));
                     bool real = Pulse.Core.Games.Valorant.VMatch.Counts(queue);
                     if (!real && queue != "deathmatch") continue;
                     if (real) seen++;
@@ -396,6 +396,21 @@ public sealed class ValorantMatches : IDisposable
             }
             if (got < 20) break; // that was the last page
             await Task.Delay(600, ct);
+        }
+        // Console matches have their own queues; ask for each one's latest page too (for the tracker's Console tab).
+        foreach (var cq in Pulse.Core.Games.Valorant.VMatch.ConsoleQueues)
+        {
+            try
+            {
+                using var ch = await Get(s, $"https://pd.{s.Shard}.a.pvp.net/match-history/v1/history/{s.Puuid}?startIndex=0&endIndex=20&queue={cq}");
+                if (ch?.RootElement.Get("History") is { ValueKind: JsonValueKind.Array } h)
+                    foreach (var x in h.EnumerateArray())
+                    {
+                        var id = x.Str("MatchID");
+                        if (id.Length > 0 && Pulse.Core.Games.Valorant.VMatch.Counts(x.Str("QueueID")) && (!Pulse.Core.Games.Valorant.VStore.Has(id) || Pulse.Core.Games.Valorant.VStore.Incomplete(id)) && !ids.Contains(id)) ids.Add(id);
+                    }
+            }
+            catch { }
         }
         TweakEngine.AddLog("valorant", $"Match download: {scanned} games in your history, {seen} real matches, {ids.Count} new");
         if (ids.Count == 0) return new BackfillResult(0, 0, null, scanned, seen);

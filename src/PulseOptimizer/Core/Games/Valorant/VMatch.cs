@@ -123,6 +123,8 @@ public sealed class VMatch
     /// <summary>The team that attacked in the first round ("Red" or "Blue").</summary>
     public string FirstAttack { get; set; } = "Red";
     public int Version { get; set; } = 1;
+    /// <summary>Played on console (PlayStation, Xbox): its own queues and rank, shown under the tracker's Console tab.</summary>
+    public bool Console { get; set; }
     /// <summary>
     /// Matches saved before this version are downloaded again: version 2 added Riot IDs, parties and round ceremonies;
     /// version 3 the players' cards.
@@ -201,7 +203,14 @@ public sealed class VMatch
     public string MyAgent => MeP?.Agent ?? "";
 
     /// <summary>Queues the coach uses: the modes played as real rounds of 5 against 5.</summary>
-    public static bool Counts(string queue) => queue is "competitive" or "unrated" or "premier" or "swiftplay";
+    public static bool Counts(string queue) => BaseQueue(queue) is "competitive" or "unrated" or "premier" or "swiftplay";
+
+    /// <summary>Console queues are the PC ones with "console_" in front (console_competitive…).</summary>
+    public static bool IsConsole(string queue) => queue?.StartsWith("console_", StringComparison.OrdinalIgnoreCase) == true;
+    /// <summary>The queue without the console prefix, so a console match is read like a PC one ("competitive").</summary>
+    public static string BaseQueue(string queue) => IsConsole(queue) ? queue[8..] : queue ?? "";
+    /// <summary>The console queues, for asking Riot for console match history.</summary>
+    public static readonly string[] ConsoleQueues = { "console_competitive", "console_unrated", "console_swiftplay", "console_deathmatch", "console_hurm" };
 
     /// <summary>The local time a moment in the match happened on this PC (exact when lined up with the game's log).</summary>
     public DateTime LocalTime(long gameMs) => ((ZeroUtc ?? StartUtc) + TimeSpan.FromMilliseconds(gameMs)).ToLocalTime();
@@ -233,7 +242,7 @@ public sealed class VMatch
         {
             Version = CurrentVersion,
             Id = info.Str("matchId"), MapUrl = info.Str("mapId"), Map = ValorantMatches.MapName(info.Str("mapId"), maps),
-            Queue = info.Str("queueID"), Me = me,
+            Queue = BaseQueue(info.Str("queueID")), Console = IsConsole(info.Str("queueID")), Me = me,
             StartUtc = info.Get("gameStartMillis") is { ValueKind: JsonValueKind.Number } s ? DateTimeOffset.FromUnixTimeMilliseconds(s.GetInt64()).UtcDateTime : DateTime.UtcNow,
             LengthMs = info.Get("gameLengthMillis") is { ValueKind: JsonValueKind.Number } l ? l.GetInt64() : 0,
         };
@@ -431,8 +440,9 @@ public static class VStore
     }
 
     /// <summary>Your matches that the coach uses (real 5v5 rounds), for the account playing now when it's known.</summary>
-    public static List<VMatch> ForCoach(string me = null) =>
-        All.Where(m => VMatch.Counts(m.Queue) && m.Rounds.Count >= 5 && (me == null || m.Me == me)).ToList();
+    /// <summary>Real matches (not Deathmatch) of one platform: PC unless asked for console, which plays its own queues.</summary>
+    public static List<VMatch> ForCoach(string me = null, bool console = false) =>
+        All.Where(m => VMatch.Counts(m.Queue) && m.Console == console && m.Rounds.Count >= 5 && (me == null || m.Me == me)).ToList();
 
     /// <summary>For tests: forget what's in memory.</summary>
     internal static void Reset() { lock (Gate) _cache = null; }

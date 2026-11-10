@@ -150,23 +150,24 @@ public static class ValorantLobby
     }
 
     /// <summary>Current rank and RR this act, peak rank ever (with its act), and win rate this act.</summary>
-    internal static async Task<(int Tier, int Rr, int Peak, string PeakAct, int Win, int Games)> Mmr(ValorantMatches.Session s, string puuid)
+    internal static async Task<(int Tier, int Rr, int Peak, string PeakAct, int Win, int Games)> Mmr(ValorantMatches.Session s, string puuid, string ranked = "competitive")
     {
         try
         {
             using var doc = await ValorantMatches.Get(s, $"https://pd.{s.Shard}.a.pvp.net/mmr/v1/players/{puuid}");
             if (doc == null) return default;
-            return ReadMmr(doc.RootElement, _seasons ?? new());
+            return ReadMmr(doc.RootElement, _seasons ?? new(), ranked);
         }
         catch { return default; }
     }
 
-    internal static (int Tier, int Rr, int Peak, string PeakAct, int Win, int Games) ReadMmr(JsonElement root, List<(string Id, DateTime Start, bool Act, bool Active)> seasons)
+    internal static (int Tier, int Rr, int Peak, string PeakAct, int Win, int Games) ReadMmr(JsonElement root, List<(string Id, DateTime Start, bool Act, bool Active)> seasons, string ranked = "competitive")
     {
         int tier = 0, rr = 0, peak = 0, win = -1, games = 0;
         string peakAct = "";
         var current = seasons.FirstOrDefault(x => x.Act && x.Active).Id;
-        if (root.Get("QueueSkills", "competitive", "SeasonalInfoBySeasonID") is { ValueKind: JsonValueKind.Object } bySeason)
+        // Console has its own ranked queue (console_competitive) and its own rank.
+        if (root.Get("QueueSkills", ranked, "SeasonalInfoBySeasonID") is { ValueKind: JsonValueKind.Object } bySeason)
             foreach (var season in bySeason.EnumerateObject())
             {
                 var v = season.Value;
@@ -209,21 +210,21 @@ public static class ValorantLobby
     }
 
     /// <summary>A player's competitive history act by act (newest first), from Riot's rank record.</summary>
-    internal static async Task<List<ActLine>> ActHistory(ValorantMatches.Session s, string puuid)
+    internal static async Task<List<ActLine>> ActHistory(ValorantMatches.Session s, string puuid, string ranked = "competitive")
     {
         try
         {
             await LoadContent(s);
             using var doc = await ValorantMatches.Get(s, $"https://pd.{s.Shard}.a.pvp.net/mmr/v1/players/{puuid}");
-            return doc == null ? new() : ReadActs(doc.RootElement, Acts());
+            return doc == null ? new() : ReadActs(doc.RootElement, Acts(), ranked);
         }
         catch { return new(); }
     }
 
-    internal static List<ActLine> ReadActs(JsonElement root, List<(string Id, string Name, DateTime Start, DateTime End, bool Active)> acts)
+    internal static List<ActLine> ReadActs(JsonElement root, List<(string Id, string Name, DateTime Start, DateTime End, bool Active)> acts, string ranked = "competitive")
     {
         var list = new List<ActLine>();
-        if (root.Get("QueueSkills", "competitive", "SeasonalInfoBySeasonID") is not { ValueKind: JsonValueKind.Object } bySeason) return list;
+        if (root.Get("QueueSkills", ranked, "SeasonalInfoBySeasonID") is not { ValueKind: JsonValueKind.Object } bySeason) return list;
         foreach (var season in bySeason.EnumerateObject())
         {
             var v = season.Value;
@@ -279,11 +280,11 @@ public static class ValorantLobby
     }
 
     /// <summary>The rank after a player's last competitive match (for players who haven't played ranked this act).</summary>
-    internal static async Task<int> LastTier(ValorantMatches.Session s, string puuid)
+    internal static async Task<int> LastTier(ValorantMatches.Session s, string puuid, string ranked = "competitive")
     {
         try
         {
-            using var doc = await ValorantMatches.Get(s, $"https://pd.{s.Shard}.a.pvp.net/mmr/v1/players/{puuid}/competitiveupdates?startIndex=0&endIndex=1&queue=competitive");
+            using var doc = await ValorantMatches.Get(s, $"https://pd.{s.Shard}.a.pvp.net/mmr/v1/players/{puuid}/competitiveupdates?startIndex=0&endIndex=1&queue={ranked}");
             if (doc?.RootElement.Get("Matches") is { ValueKind: JsonValueKind.Array } m && m.GetArrayLength() > 0) return m[0].Int("TierAfterUpdate");
         }
         catch { }
@@ -301,12 +302,12 @@ public static class ValorantLobby
         catch { return 0; }
     }
 
-    internal static async Task<List<int>> RecentGains(ValorantMatches.Session s, string puuid)
+    internal static async Task<List<int>> RecentGains(ValorantMatches.Session s, string puuid, string ranked = "competitive")
     {
         var list = new List<int>();
         try
         {
-            using var doc = await ValorantMatches.Get(s, $"https://pd.{s.Shard}.a.pvp.net/mmr/v1/players/{puuid}/competitiveupdates?startIndex=0&endIndex=10&queue=competitive");
+            using var doc = await ValorantMatches.Get(s, $"https://pd.{s.Shard}.a.pvp.net/mmr/v1/players/{puuid}/competitiveupdates?startIndex=0&endIndex=10&queue={ranked}");
             if (doc?.RootElement.Get("Matches") is { ValueKind: JsonValueKind.Array } m)
                 foreach (var x in m.EnumerateArray())
                     if (x.Get("RankedRatingEarned") is { ValueKind: JsonValueKind.Number } e) list.Add(e.GetInt32());

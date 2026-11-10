@@ -18,6 +18,8 @@ public sealed class Profile
     public bool IsYou;
     /// <summary>True when this profile comes only from matches you played in (not a search).</summary>
     public bool FromYourMatches;
+    /// <summary>Loaded for console (console matches and console rank) instead of PC.</summary>
+    public bool Console;
     public List<VMatch> Matches = new();
     public PlayerTotals Totals = new();
     public int Tier, Rr, Peak, ActWinPct, ActGames, Level;
