@@ -59,7 +59,7 @@ public class SafetyTests
     {
         var src = File.ReadAllText(Repo.SourceFiles().Single(f => Path.GetFileName(f) == "ValorantStore.cs"));
         var urls = Regex.Matches(src, @"https?://[^\s""]+").Select(m => m.Value).Distinct().ToList();
-        Assert.All(urls, u => Assert.Matches(@"^https://(pd\.\{s\.Shard\}\.a\.pvp\.net/store/|valorant-api\.com/v1/(bundles|weapons/skinlevels)/|media\.valorant-api\.com/)", u));
+        Assert.All(urls, u => Assert.Matches(@"^https://(pd\.\{s\.Shard\}\.a\.pvp\.net/store/|valorant-api\.com/v1/(bundles|weapons/skinlevels)/|valorant-api\.com/v1/weapons/skins$|media\.valorant-api\.com/)", u));
         // The one POST is the storefront read (Riot's store answers reads with POST); nothing is ever bought.
         Assert.Single(Regex.Matches(src, @"HttpMethod\.Post"));
         Assert.DoesNotContain("/order", src);

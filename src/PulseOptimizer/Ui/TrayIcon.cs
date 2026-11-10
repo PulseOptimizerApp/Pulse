@@ -13,7 +13,7 @@ public static class TrayIcon
 {
     const int WM_APP_TRAY = 0x8000 + 77;
     const int NIM_ADD = 0, NIM_MODIFY = 1, NIM_DELETE = 2;
-    const int NIF_MESSAGE = 1, NIF_ICON = 2, NIF_TIP = 4;
+    const int NIF_MESSAGE = 1, NIF_ICON = 2, NIF_TIP = 4, NIF_INFO = 0x10, NIIF_USER = 4, NIN_BALLOONUSERCLICK = 0x0405;
     const int WM_LBUTTONUP = 0x0202, WM_RBUTTONUP = 0x0205;
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
@@ -58,6 +58,27 @@ public static class TrayIcon
         _shown = Shell_NotifyIcon(NIM_ADD, ref d);
     }
 
+    /// <summary>
+    /// A Windows notification from Pulse's tray icon. When the icon isn't showing (Pulse's window is open and Clips is
+    /// off), it appears just for the notification. Clicking it opens Pulse.
+    /// </summary>
+    public static void Notify(string title, string text)
+    {
+        bool wasShown = _shown;
+        Show();
+        if (!_shown) return;
+        var d = Data();
+        d.uFlags = NIF_INFO;
+        d.szInfoTitle = title.Length > 63 ? title[..63] : title;
+        d.szInfo = text.Length > 255 ? text[..255] : text;
+        d.dwInfoFlags = NIIF_USER;
+        Shell_NotifyIcon(NIM_MODIFY, ref d);
+        if (!wasShown) _ = Task.Delay(TimeSpan.FromSeconds(30)).ContinueWith(_ => System.Windows.Application.Current?.Dispatcher.BeginInvoke(() => { if (!_keepShown) Hide(); }));
+    }
+
+    /// <summary>True while something else (Clips, start in tray) wants the icon, so a notification doesn't remove it.</summary>
+    static bool _keepShown => System.Windows.Application.Current?.MainWindow is { IsVisible: false };
+
     public static void Hide()
     {
         if (!_shown) return;
@@ -85,7 +106,7 @@ public static class TrayIcon
             if (msg == WM_APP_TRAY)
             {
                 int ev = lp.ToInt32() & 0xFFFF;
-                if (ev == WM_LBUTTONUP) OpenRequested?.Invoke();
+                if (ev == WM_LBUTTONUP || ev == NIN_BALLOONUSERCLICK) OpenRequested?.Invoke();
                 else if (ev == WM_RBUTTONUP) Menu(hwnd);
                 handled = true;
             }
