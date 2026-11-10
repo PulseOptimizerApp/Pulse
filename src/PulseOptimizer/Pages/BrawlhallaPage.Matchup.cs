@@ -6,6 +6,7 @@ using System.Windows.Media;
 using System.Windows.Threading;
 using Pulse.Core;
 using Pulse.Core.Games.Brawlhalla;
+using Pulse.Ui;
 
 namespace Pulse.Pages;
 
