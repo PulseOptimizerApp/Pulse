@@ -1,0 +1,14 @@
+name: Brawlhalla probe
+on:
+  push:
+    branches: [bh-fix]
+jobs:
+  probe:
+    runs-on: windows-latest
+    steps:
+      - shell: bash
+        run: |
+          A=https://api.brawlhalla.com/v1
+          curl -sS "$A/leaderboard/ranked?game_mode=1v1&region=ALL&page=1&max_results=4" > s.json
+          ids=$(python -c "import json;print(' '.join(str(r['players'][0]['id']) for r in json.load(open('s.json'))['rankings']))"); echo $ids
+          for id in $ids; do for i in 1 2 3; do printf "$id all "; curl -sS -o o.json -w "%{http_code} %{size_download}\n" "$A/player/stats?brawlhalla_id=$id&mode=all"; head -c 120 o.json; echo; done; done
