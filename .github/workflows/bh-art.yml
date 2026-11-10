@@ -2,16 +2,44 @@ name: Brawlhalla art probe
 on:
   push:
     branches: [brawlhalla-2]
+permissions:
+  contents: write
 jobs:
   probe:
     runs-on: ubuntu-latest
     steps:
-      - name: Probe
+      - name: Fetch portraits
         run: |
+          set +e
           UA="PulseOptimizer/1.0 (https://github.com/PulseOptimizerApp/Pulse)"
-          curl -sS -A "$UA" "https://brawlhalla.wiki.gg/api.php?action=query&titles=Legend&prop=images&imlimit=500&format=json" | head -c 6000; echo
-          echo ----
-          curl -sS -A "$UA" "https://brawlhalla.wiki.gg/api.php?action=query&list=allimages&aiprefix=Portrait&ailimit=20&format=json" | head -c 3000; echo
-          echo ----
-          curl -sS -A "$UA" -o /dev/null -w "%{http_code}\n" "https://www.brawlhalla.com/legends/hattori/"
-          curl -sS -A "$UA" "https://www.brawlhalla.com/legends/hattori/" | grep -oE '(src|content)="[^"]+\.(png|jpg|webp)[^"]*"' | head -30
+          mkdir -p art/full art/small
+          for p in 1 2; do curl -sS "https://api.brawlhalla.com/v1/static/legends?max_results=100&page=$p" >> /tmp/l.json; echo >> /tmp/l.json; done
+          python3 - <<'P'
+          import json
+          names=[]
+          for line in open('/tmp/l.json'):
+              line=line.strip()
+              if not line: continue
+              d=json.loads(line)
+              for l in d.get('data',d if isinstance(d,list) else []): names.append(l['bio_name'])
+          open('/tmp/names.txt','w').write('\n'.join(sorted(set(names))))
+          P
+          wc -l /tmp/names.txt
+          while read -r n; do
+            f=$(echo "$n" | sed 's/[^A-Za-z0-9]//g')
+            code=$(curl -sS -A "$UA" -L -o "art/full/$f.png" -w "%{http_code}" "https://brawlhalla.wiki.gg/images/Portrait_$f.png")
+            [ "$code" = 200 ] || { echo "MISSING $n ($f) $code"; rm -f "art/full/$f.png"; }
+            sleep 0.3
+          done < /tmp/names.txt
+          ls art/full | wc -l
+          identify art/full/Hattori.png art/full/SirRoland.png
+          for f in art/full/*.png; do convert "$f" -resize 128x128 -strip "art/small/$(basename $f)"; done
+          du -sh art/full art/small
+          for q in Sword Spear Icon_Sword Weapon; do curl -sS -A "$UA" "https://brawlhalla.wiki.gg/api.php?action=query&list=allimages&aiprefix=$q&ailimit=15&format=json" | python3 -c "import json,sys; print([i['name'] for i in json.load(sys.stdin)['query']['allimages']])"; done
+      - name: Push
+        run: |
+          cd art
+          git init -q -b bh-art
+          git config user.name art; git config user.email art@users.noreply.github.com
+          git add -A; git commit -qm art
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" bh-art
