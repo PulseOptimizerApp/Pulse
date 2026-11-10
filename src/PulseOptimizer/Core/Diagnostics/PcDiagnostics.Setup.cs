@@ -66,6 +66,18 @@ public static partial class PcDiagnostics
         return null;
     }
 
+    /// <summary>
+    /// Which channel a module is on, for telling channels apart. Intel 12th gen and newer name slots
+    /// "Controller0-ChannelA-DIMM0" / "Controller1-ChannelA-DIMM0": the two memory controllers are the two channels
+    /// (each DDR5 stick's own sub-channels are A/B), so the controller counts, not just the letter.
+    /// </summary>
+    internal static string ChannelKey(string deviceLocator, string bankLabel)
+    {
+        var letter = ChannelOf(deviceLocator, bankLabel);
+        var c = Regex.Match(deviceLocator ?? "", @"Controller\s*(\d+)", RegexOptions.IgnoreCase);
+        return c.Success ? $"{c.Groups[1].Value}{letter}" : letter;
+    }
+
     static IEnumerable<Finding> MemoryChannels()
     {
         var doc = Ps("ConvertTo-Json -Compress -InputObject @(Get-CimInstance Win32_PhysicalMemory | Select-Object DeviceLocator,BankLabel,Capacity)");
@@ -86,7 +98,7 @@ public static partial class PcDiagnostics
             yield break;
         }
 
-        var channels = mods.Select(m => ChannelOf(Str(m, "DeviceLocator"), Str(m, "BankLabel"))).ToList();
+        var channels = mods.Select(m => ChannelKey(Str(m, "DeviceLocator"), Str(m, "BankLabel"))).ToList();
 
         if (channels.All(c => c != null) && channels.Distinct().Count() == 1)
             yield return new Finding
@@ -100,7 +112,9 @@ public static partial class PcDiagnostics
             yield return new Finding
             {
                 Id = "ram-channels", Rank = 0, Severity = Severity.Ok, Title = "Memory channels",
-                Detail = $"{mods.Count} modules installed" + (channels.All(c => c != null) ? $" across channels {string.Join(", ", channels.Distinct().OrderBy(c => c))}." : "."),
+                Detail = $"{mods.Count} modules installed" + (channels.All(c => c != null)
+                    ? (channels.Any(c => char.IsDigit(c[0])) ? $" on {channels.Select(c => c[0]).Distinct().Count()} memory controllers (dual channel)." : $" across channels {string.Join(", ", channels.Distinct().OrderBy(c => c))}.")
+                    : "."),
             };
     }
 
