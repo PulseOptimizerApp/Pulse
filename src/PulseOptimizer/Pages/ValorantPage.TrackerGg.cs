@@ -250,6 +250,12 @@ public partial class ValorantPage
         var all = ProfileMatches(p);
         var q = _trQueue ?? DefaultQueue(p.Matches);
         var wrap = new WrapPanel { Margin = new Thickness(0, 0, 0, 4) };
+        // PC or console first, as tracker.gg puts it: each has its own matches and rank.
+        wrap.Children.Add(Segments(new (string, bool, Action)[]
+        {
+            (Loc.T("PC"), !_trConsole, () => SetPlatform(false)),
+            (Loc.T("Console"), _trConsole, () => SetPlatform(true)),
+        }, 80));
         var queues = new List<(string Label, bool On, Action Go)>();
         foreach (var key in new[] { "all", "competitive", "unrated", "deathmatch", "swiftplay", "premier" })
         {
