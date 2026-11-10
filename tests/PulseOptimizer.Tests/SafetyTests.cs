@@ -38,7 +38,8 @@ public class SafetyTests
             "NVIDIA's public driver lookup for the newest Game Ready version (DriverCheck.cs). The speed test downloads and uploads " +
             "random filler to Cloudflare's public speed-test servers (SpeedTest.cs). The Mouse page downloads device pictures " +
             "from OpenMouse's image server, only from img.openmouse.app and openmouse.app (DeviceArt.cs). The Brawlhalla page reads " +
-            "public player stats and leaderboards from Brawlhalla's official API at api.brawlhalla.com (BrawlhallaApi.cs)",
+            "public player stats and leaderboards from Brawlhalla's official API at api.brawlhalla.com, portraits of legends newer than the " +
+            "build from brawlhalla.wiki.gg, and Steam's public profile page (steamcommunity.com, ?xml=1) to turn a Steam link into a name (BrawlhallaApi.cs)",
             "Ffmpeg.cs", "Updater.cs", "LeagueLive.cs", "ValorantMatches.cs", "ValorantLobby.cs", "GuideLive.cs", "ValorantStore.cs", "DriverCheck.cs", "ValorantSearch.cs", "SpeedTest.cs", "DeviceArt.cs", "BrawlhallaApi.cs");
 
     [Fact]

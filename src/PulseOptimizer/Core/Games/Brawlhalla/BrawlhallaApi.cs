@@ -83,7 +83,7 @@ public sealed record BhRanking(int Rank, long Id, string Name, int Rating, int B
 public static class Brawlhalla
 {
     const string Api = "https://api.brawlhalla.com/v1/";
-    static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(15) };
+    static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(20) };
     static Dictionary<int, BhLegend> _legends;
 
     public static readonly string[] Regions = { "ALL", "US-E", "US-W", "EU", "BRZ", "SEA", "AUS", "JPS", "SA", "ME" };
@@ -92,14 +92,21 @@ public static class Brawlhalla
 
     static async Task<JsonDocument> Get(string path, CancellationToken ct)
     {
-        // Their servers often answer 502/503 for a moment: try three more times, a little later each time.
+        // Their servers often answer 502/503 for a moment, or hang: give each try 6 seconds, and try twice more, a
+        // little later each time.
         HttpResponseMessage res = null;
         for (int attempt = 0; ; attempt++)
         {
             res?.Dispose();
-            res = await Http.GetAsync(Api + path, ct);
-            if ((int)res.StatusCode is < 500 or > 504 || attempt == 3) break;
-            await Task.Delay(700 * (attempt + 1), ct);
+            res = null;
+            using (var slow = CancellationTokenSource.CreateLinkedTokenSource(ct))
+            {
+                slow.CancelAfter(TimeSpan.FromSeconds(6));
+                try { res = await Http.GetAsync(Api + path, slow.Token); }
+                catch (OperationCanceledException) when (!ct.IsCancellationRequested && attempt < 2) { }
+            }
+            if (res != null && ((int)res.StatusCode is < 500 or > 504 || attempt == 2)) break;
+            await Task.Delay(400 * (attempt + 1), ct);
         }
         using var _ = res;
         if ((int)res.StatusCode == 404) return null;
@@ -160,14 +167,17 @@ public static class Brawlhalla
     /// <summary>Ranked players whose name matches (the API only searches the ranked leaderboards).</summary>
     public static async Task<List<BhRanking>> Find(string name, CancellationToken ct = default)
     {
-        var found = new List<BhRanking>();
-        foreach (var mode in new[] { "1v1", "2v2" })
+        // Both boards at once (a 2v2 board that fails doesn't lose the 1v1 results).
+        var one = Rankings("1v1", "ALL", 1, name, 20, ct);
+        var two = Rankings("2v2", "ALL", 1, name, 20, ct);
+        var found = new List<BhRanking>((await one).Rows);
+        try
         {
-            var page = await Rankings(mode, "ALL", 1, name, 20, ct);
-            foreach (var r in page.Rows)
+            foreach (var r in (await two).Rows)
                 if (found.All(f => f.Id != r.Id)) found.Add(r);
-            if (found.Count >= 10) break;
         }
+        catch (OperationCanceledException) { throw; }
+        catch { }
         // Exact names first, then the closest.
         return found.OrderByDescending(r => string.Equals(r.Name, name, StringComparison.OrdinalIgnoreCase))
             .ThenByDescending(r => r.Name.StartsWith(name, StringComparison.OrdinalIgnoreCase)).ThenByDescending(r => r.Rating).Take(12).ToList();
@@ -211,7 +221,7 @@ public static class Brawlhalla
         // more times, then fall back to the copy saved last time this player loaded.
         for (int attempt = 0; allDoc == null && attempt < 3; attempt++)
         {
-            await Task.Delay(1500 * (attempt + 1), ct);
+            await Task.Delay(600 * (attempt + 1), ct);
             try { allDoc = await Get($"player/stats?brawlhalla_id={id}&mode=all", ct); }
             catch (HttpRequestException) when (attempt < 2) { }
         }
@@ -239,6 +249,9 @@ public static class Brawlhalla
                     Level = I(l, "level"), Xp = L(l, "xp"), XpPercent = D(l, "xp_percentage"),
                 });
 
+        // The rest gets 2.5 more seconds: a part that's still hanging is left out (ranked falls back to last time's).
+        var more = Task.Delay(2500, ct);
+        oneTask = Within(oneTask, more); threeTask = Within(threeTask, more); teamsTask = Within(teamsTask, more); guildTask = Within(guildTask, more);
         using (var one = await oneTask)
             if (one != null)
             {
@@ -254,9 +267,12 @@ public static class Brawlhalla
             if (lookUpTier && rk is { Rating: >= 2000 } && p.Name.Length > 0)
                 try
                 {
-                    var (rows, _) = await Rankings(rk.Mode, rk.Region.Length > 0 ? rk.Region : "ALL", 1, p.Name, 50, ct);
+                    using var quick = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                    quick.CancelAfter(TimeSpan.FromSeconds(3));
+                    var (rows, _) = await Rankings(rk.Mode, rk.Region.Length > 0 ? rk.Region : "ALL", 1, p.Name, 50, quick.Token);
                     if (rows.FirstOrDefault(x => x.Id == p.Id) is { } row) rk.BoardTier = row.Tier;
                 }
+                catch (OperationCanceledException) when (!ct.IsCancellationRequested) { }
                 catch (OperationCanceledException) { throw; }
                 catch { }
         using (var teams = await teamsTask)
@@ -288,6 +304,64 @@ public static class Brawlhalla
         return p;
     }
 
+    // ───────── portraits of legends newer than this version of Pulse ─────────
+
+    /// <summary>Where a downloaded portrait is kept.</summary>
+    public static string PortraitFile(string key) => Path.Combine(Dir, "art", $"legend-{key}.png");
+
+    /// <summary>
+    /// A legend Pulse has no picture for (added to the game after this version): its portrait from the Brawlhalla
+    /// Wiki (brawlhalla.wiki.gg), saved on this PC. False when there isn't one.
+    /// </summary>
+    public static async Task<bool> DownloadPortrait(string name, string key)
+    {
+        try
+        {
+            var file = new string((name ?? "").Normalize(System.Text.NormalizationForm.FormD).Where(char.IsAsciiLetterOrDigit).ToArray());
+            if (file.Length == 0) return false;
+            using var req = new HttpRequestMessage(HttpMethod.Get, $"https://brawlhalla.wiki.gg/images/Portrait_{file}.png");
+            req.Headers.UserAgent.ParseAdd("PulseOptimizer/1.0 (+https://github.com/PulseOptimizerApp/Pulse)");
+            using var res = await Http.SendAsync(req);
+            if (!res.IsSuccessStatusCode || res.Content.Headers.ContentType?.MediaType != "image/png") return false;
+            var bytes = await res.Content.ReadAsByteArrayAsync();
+            if (bytes.Length is < 100 or > 2_000_000) return false;
+            Directory.CreateDirectory(Path.GetDirectoryName(PortraitFile(key))!);
+            await File.WriteAllBytesAsync(PortraitFile(key), bytes);
+            return true;
+        }
+        catch { return false; }
+    }
+
+    // ───────── Steam ─────────
+
+    /// <summary>
+    /// A Steam profile link, custom URL name or SteamID64 → the Steam account's id and current name, from Steam's
+    /// public profile page (steamcommunity.com, ?xml=1). Null when it isn't Steam-shaped or the profile isn't found.
+    /// Brawlhalla's API can't search by Steam id any more, so callers look the name up on the leaderboards.
+    /// </summary>
+    public static async Task<(string SteamId, string Name)?> Steam(string text, CancellationToken ct = default)
+    {
+        text = (text ?? "").Trim();
+        string url;
+        var m = System.Text.RegularExpressions.Regex.Match(text, @"steamcommunity\.com/(profiles|id)/([^/?#\s]+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        if (m.Success) url = $"https://steamcommunity.com/{m.Groups[1].Value.ToLowerInvariant()}/{Uri.EscapeDataString(m.Groups[2].Value)}/?xml=1";
+        else if (System.Text.RegularExpressions.Regex.IsMatch(text, @"^7656119\d{10}$")) url = $"https://steamcommunity.com/profiles/{text}/?xml=1";
+        else if (System.Text.RegularExpressions.Regex.IsMatch(text, @"^[A-Za-z0-9_-]{2,32}$")) url = $"https://steamcommunity.com/id/{text}/?xml=1";
+        else return null;
+        try
+        {
+            using var slow = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            slow.CancelAfter(TimeSpan.FromSeconds(6));
+            var xml = await Http.GetStringAsync(url, slow.Token);
+            var doc = System.Xml.Linq.XDocument.Parse(xml);
+            var id = doc.Root?.Element("steamID64")?.Value;
+            var name = doc.Root?.Element("steamID")?.Value;
+            return string.IsNullOrEmpty(id) || string.IsNullOrEmpty(name) ? null : (id, name.Trim());
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
+        catch { return null; }
+    }
+
     // ───────── the last copy of each profile, for when their servers don't answer ─────────
 
     static readonly JsonSerializerOptions Fields = new() { IncludeFields = true };
@@ -298,8 +372,8 @@ public static class Brawlhalla
         try { Directory.CreateDirectory(Dir); File.WriteAllText(SavedFile(p.Id), JsonSerializer.Serialize(p, Fields)); } catch { }
     }
 
-    /// <summary>The profile saved last time (with <see cref="BhProfile.SavedAt"/>), or null.</summary>
-    static BhProfile Saved(long id)
+    /// <summary>The profile saved last time (with <see cref="BhProfile.SavedAt"/>), or null: shown at once while a fresh one loads.</summary>
+    public static BhProfile Saved(long id)
     {
         try
         {
@@ -318,6 +392,14 @@ public static class Brawlhalla
         if (e.TryGetProperty("region_ranks", out var rr) && rr.ValueKind == JsonValueKind.Array)
             r.RegionRank = rr.EnumerateArray().Where(x => S(x, "region") == r.Region).Select(x => I(x, "rank")).FirstOrDefault();
         return r.Games > 0 || r.Rating > 0 ? r : null;
+    }
+
+    /// <summary>The answer if it comes before <paramref name="deadline"/>, otherwise null (a late one is disposed).</summary>
+    static async Task<JsonDocument> Within(Task<JsonDocument> task, Task deadline)
+    {
+        if (await Task.WhenAny(task, deadline) == task) return await task;
+        _ = task.ContinueWith(t => { if (t.Status == TaskStatus.RanToCompletion) t.Result?.Dispose(); }, TaskScheduler.Default);
+        return null;
     }
 
     /// <summary>A part of a profile that may not exist (no ranked games, no clan): null instead of an error.</summary>

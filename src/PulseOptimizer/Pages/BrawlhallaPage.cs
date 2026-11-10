@@ -30,6 +30,8 @@ public sealed partial class BrawlhallaPage : UserControl, IPage
     string _status, _sort = "games", _tab = "overview";
     int _openLegend, _legendLimit = 10;
     long _retryId;
+    string _resultsNote;
+    bool _refreshing;
     string _weaponFilter;
     List<BhMatch> _matches = new();
     bool _busy, _shown;
@@ -44,6 +46,8 @@ public sealed partial class BrawlhallaPage : UserControl, IPage
     {
         Content = _scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, Content = _root };
         Build();
+        // A portrait Pulse didn't have arrived: show it.
+        BrawlhallaArt.Arrived += () => Dispatcher.BeginInvoke(() => { if (IsVisible && !_busy) Build(); });
         // A match Pulse just logged for the player on screen: show it.
         Pulse.Ui.BrawlhallaWatch.Logged += id =>
         {
@@ -59,8 +63,10 @@ public sealed partial class BrawlhallaPage : UserControl, IPage
     public void OnShown(object parameter)
     {
         bool matches = parameter as string == "matches" && S.MyId > 0;
-        if (parameter as string == "matchup")
+        if (parameter is string mp && mp.StartsWith("matchup", StringComparison.Ordinal))
         {
+            // "matchup:<id>" (from the corner box): that opponent loaded.
+            if (mp.Length > 8 && long.TryParse(mp[8..], NumberStyles.None, CultureInfo.InvariantCulture, out var foeId) && _foe?.Id != foeId) _ = LoadFoe(foeId);
             if (!_shown) { _shown = true; _ = Task.Run(() => Brawlhalla.Legends()).ContinueWith(t => { if (t.Status == TaskStatus.RanToCompletion) _legends = t.Result; }, TaskScheduler.FromCurrentSynchronizationContext()); }
             ShowMatchup();
             return;
@@ -101,7 +107,9 @@ public sealed partial class BrawlhallaPage : UserControl, IPage
         if (_profile == null) { _root.Children.Add(Card(BoardPanel())); return; }
 
         _root.Children.Add(Header(_profile));
-        if (_profile.SavedAt is { } saved)
+        if (_refreshing)
+            _root.Children.Add(Dim(Loc.F("Saved stats from {0}, getting fresh ones…", Ago(_profile.SavedAt ?? DateTime.Now)), 12, 8));
+        else if (_profile.SavedAt is { } saved)
         {
             // Their servers didn't answer: say so, show the saved copy, and offer another try.
             var row = new WrapPanel();
@@ -129,7 +137,7 @@ public sealed partial class BrawlhallaPage : UserControl, IPage
         var row = new Grid { Margin = new Thickness(0, 10, 0, 0) };
         row.ColumnDefinitions.Add(new ColumnDefinition { MaxWidth = 420 });
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        var box = new TextBox { Style = (Style)FindResource("SearchBox"), Tag = Loc.T("Name or Brawlhalla ID"), FontSize = 14, VerticalContentAlignment = VerticalAlignment.Center };
+        var box = new TextBox { Style = (Style)FindResource("SearchBox"), Tag = Loc.T("Name, Brawlhalla ID or Steam profile link"), FontSize = 14, VerticalContentAlignment = VerticalAlignment.Center };
         row.Children.Add(box);
         var go = new Button { Style = (Style)FindResource("PrimaryButton"), Content = Loc.T("Search"), Margin = new Thickness(10, 0, 0, 0), Padding = new Thickness(16, 6, 16, 6), IsEnabled = !_busy };
         Grid.SetColumn(go, 1);
@@ -148,15 +156,16 @@ public sealed partial class BrawlhallaPage : UserControl, IPage
         }
         sp.Children.Add(new TextBlock
         {
-            Text = Loc.T("Names search the ranked leaderboards. For someone who doesn't play ranked, use their Brawlhalla ID (in game: Inventory, Profile)."),
+            Text = Loc.T("Names search the ranked leaderboards; a Steam profile link (or custom URL name) searches their Steam name. For someone who doesn't play ranked, use their Brawlhalla ID (in game: Inventory, Profile)."),
             FontSize = 11.5, Foreground = Res("TextFaintBrush"), Margin = new Thickness(0, 8, 0, 0), TextWrapping = TextWrapping.Wrap,
         });
 
         var chips = new WrapPanel { Margin = new Thickness(0, 8, 0, 0) };
         chips.Children.Add(Chip(Loc.T("Matchup"), _matchup, ShowMatchup));
         if (S.MyId > 0) chips.Children.Add(Chip(Loc.T("You") + (S.MyName is { Length: > 0 } my ? " · " + my : ""), !_matchup && _profile?.Id == S.MyId, () => { _matchup = false; _ = Open(S.MyId); }));
-        foreach (var r in S.Recent.Where(r => r.Id != S.MyId).Take(6))
-            chips.Children.Add(Chip(r.Name.Length > 0 ? r.Name : r.Id.ToString(CultureInfo.InvariantCulture), !_matchup && _profile?.Id == r.Id, () => { _matchup = false; _ = Open(r.Id); }));
+        foreach (var r in S.Recent.Where(r => r.Id != S.MyId).Take(8).ToList())
+            chips.Children.Add(Removable(Chip(r.Name.Length > 0 ? r.Name : r.Id.ToString(CultureInfo.InvariantCulture), !_matchup && _profile?.Id == r.Id, () => { _matchup = false; _ = Open(r.Id); }),
+                () => { S.Recent.RemoveAll(x => x.Id == r.Id); TweakEngine.Save(); Build(); }));
         if (_profile != null || _matchup) chips.Children.Add(Chip(Loc.T("Leaderboards"), false, () => { _matchup = false; _profile = null; _results = null; Build(); if (_board.Rows == null) _ = LoadBoard(); }));
         if (chips.Children.Count > 0) sp.Children.Add(chips);
         return sp;
@@ -166,6 +175,7 @@ public sealed partial class BrawlhallaPage : UserControl, IPage
     {
         var sp = new StackPanel();
         sp.Children.Add(Heading("Players found"));
+        if (_resultsNote != null) sp.Children.Add(Dim(_resultsNote, 12, 4).Also(t => t.Margin = new Thickness(0, 4, 0, 6)));
         sp.Children.Add(BoardHeader());
         foreach (var r in _results) sp.Children.Add(RankRow(r, showRank: true, oneVsOne: false));
         return sp;
@@ -537,13 +547,14 @@ public sealed partial class BrawlhallaPage : UserControl, IPage
     {
         text = (text ?? "").Trim();
         if (text.Length == 0 || _busy) return;
-        if (long.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out var id) && id > 0) { await Open(id); return; }
+        if (!IsSteamId(text) && long.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out var id) && id > 0) { await Open(id); return; }
         if (text.Length < 2) { _status = Loc.T("Type at least two letters of their name."); Build(); return; }
         _busy = true; _status = Loc.T("Searching…"); Build();
         try
         {
-            _results = await Task.Run(() => Brawlhalla.Find(text));
-            _status = _results.Count == 0 ? Loc.T("No ranked player with that name. Try their Brawlhalla ID instead.") : null;
+            (_results, var note) = await FindAny(text);
+            _resultsNote = _results.Count > 0 ? note : null;
+            _status = _results.Count == 0 ? note : null;
             if (_results.Count == 1 && _results[0].Id > 0) { _busy = false; await Open(_results[0].Id); return; }
         }
         catch (Exception ex)
@@ -560,10 +571,18 @@ public sealed partial class BrawlhallaPage : UserControl, IPage
         _cts?.Cancel();
         _cts = new CancellationTokenSource();
         var ct = _cts.Token;
-        _busy = true; _status = Loc.T("Loading their stats…"); Build();
+        _busy = true; _status = Loc.T("Loading their stats…"); _refreshing = false;
         try
         {
             if (_legends.Count == 0) try { _legends = await Task.Run(() => Brawlhalla.Legends(ct)); } catch { }
+            // Someone opened before: their saved stats at once, fresh ones in a moment.
+            if (await Task.Run(() => Brawlhalla.Saved(id)) is { } saved && !ct.IsCancellationRequested)
+            {
+                _matchup = false;
+                _profile = saved; _matches = BrawlhallaMatches.For(id); _results = null; _status = null; _tab = tab; _openLegend = 0; _legendLimit = 10; _weaponFilter = null;
+                _refreshing = true;
+            }
+            Build();
             var p = await Task.Run(() => Brawlhalla.Profile(id, ct));
             // Turn what changed since Pulse last saw them into matches.
             var matches = p == null ? new List<BhMatch>() : await Task.Run(() => { BrawlhallaMatches.Record(p); return BrawlhallaMatches.For(p.Id); });
@@ -573,8 +592,10 @@ public sealed partial class BrawlhallaPage : UserControl, IPage
             else
             {
                 if (tier1v1 is { Length: > 0 } && p.OneVsOne is { BoardTier: null } one) one.BoardTier = tier1v1;
+                bool keep = _refreshing && _profile?.Id == p.Id;   // the saved copy is on screen: keep the tab they're on
                 _matchup = false;
-                _profile = p; _matches = matches; _results = null; _status = null; _tab = tab; _openLegend = 0; _legendLimit = 10; _weaponFilter = null;
+                _profile = p; _matches = matches; _results = null; _status = null;
+                if (!keep) { _tab = tab; _openLegend = 0; _legendLimit = 10; _weaponFilter = null; }
                 S.Recent.RemoveAll(r => r.Id == p.Id);
                 S.Recent.Insert(0, new BhRecent { Id = p.Id, Name = p.Name });
                 if (S.Recent.Count > 10) S.Recent.RemoveRange(10, S.Recent.Count - 10);
@@ -585,6 +606,7 @@ public sealed partial class BrawlhallaPage : UserControl, IPage
         catch (OperationCanceledException) { return; }
         catch (Exception ex) { _status = Problem(ex); _retryId = id; }
         _busy = false;
+        _refreshing = false;
         Build();
     }
 
