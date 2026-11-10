@@ -5668,5 +5668,21 @@
  "This is your PC as Windows reports it. Change any part to see what it would do, or start from a ready-made build.": "Este es tu PC tal como lo informa Windows. Cambia cualquier pieza para ver qué haría, o empieza desde una configuración ya hecha.",
  "Used parts are priced as used: no longer sold new.": "Las piezas usadas tienen precio de segunda mano: ya no se venden nuevas.",
  "used": "usado",
- "{0} for the parts above, plus about {1} for a motherboard, 1 TB SSD, power supply, case and cooler.": "{0} por las piezas de arriba, más unos {1} por placa base, SSD de 1 TB, fuente, caja y disipador."
+ "{0} for the parts above, plus about {1} for a motherboard, 1 TB SSD, power supply, case and cooler.": "{0} por las piezas de arriba, más unos {1} por placa base, SSD de 1 TB, fuente, caja y disipador.",
+ "Click where you stand to throw it.": "Haz clic donde te colocas para lanzarlo.",
+ "From {0} to {1}. Click again to start over.": "De {0} a {1}. Haz clic otra vez para empezar de nuevo.",
+ "More {0} lineups on {1} on YouTube": "Más lineups de {0} en {1} en YouTube",
+ "No lineups of your own yet. Save one from the library, or add your own: pick the map, click where you stand and where it lands, and write the steps.": "Aún no tienes lineups propios. Guarda uno de la biblioteca o añade el tuyo: elige el mapa, haz clic donde te colocas y donde cae, y escribe los pasos.",
+ "No written lineups yet: opens videos": "Aún no hay lineups escritos: abre vídeos",
+ "No {0} lineups for {1} on {2} here. Try both sides.": "No hay lineups de {0} para {1} en {2}. Prueba ambos lados.",
+ "Pick an agent and a map. Each line runs from where you stand to where it lands: click one for the steps.": "Elige un agente y un mapa. Cada línea va de donde te colocas a donde cae: haz clic en una para ver los pasos.",
+ "Standing at {0}. Now click where it lands.": "Te colocas en {0}. Ahora haz clic donde cae.",
+ "This map's picture isn't in this build yet: the list has every lineup.": "La imagen de este mapa aún no está en esta versión: la lista tiene todos los lineups.",
+ "Written up by {0}": "Escrito por {0}",
+ "a guide site": "una web de guías",
+ "{0} lineups on {1}": "{0} lineups en {1}",
+ "Stand here": "Colócate aquí",
+ "Lands here": "Cae aquí",
+ "On the map": "En el mapa",
+ "Watch it": "Verlo"
 }

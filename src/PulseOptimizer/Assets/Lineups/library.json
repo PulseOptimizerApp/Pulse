@@ -13,7 +13,9 @@
    "Full charge (3 bars), no bounce."
   ],
   "SourceName": "Dignitas",
-  "Source": "https://dignitas.gg/articles/easy-ascent-recon-bolt-lineups-valorant"
+  "Source": "https://dignitas.gg/articles/easy-ascent-recon-bolt-lineups-valorant",
+  "Stand": "B Main",
+  "Land": "B Site"
  },
  {
   "Agent": "Sova",
@@ -30,7 +32,9 @@
    "Doesn't cover the sewers part."
   ],
   "SourceName": "Dignitas",
-  "Source": "https://dignitas.gg/articles/easy-ascent-recon-bolt-lineups-valorant"
+  "Source": "https://dignitas.gg/articles/easy-ascent-recon-bolt-lineups-valorant",
+  "Stand": "B Main",
+  "Land": "B Site"
  },
  {
   "Agent": "Sova",
@@ -46,7 +50,9 @@
    "Full charge, no bounce."
   ],
   "SourceName": "Dignitas",
-  "Source": "https://dignitas.gg/articles/easy-ascent-recon-bolt-lineups-valorant"
+  "Source": "https://dignitas.gg/articles/easy-ascent-recon-bolt-lineups-valorant",
+  "Stand": "Mid Top",
+  "Land": "Mid Courtyard"
  },
  {
   "Agent": "Sova",
@@ -62,7 +68,9 @@
    "Full charge, 1 bounce."
   ],
   "SourceName": "DiamondLobby",
-  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/"
+  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/",
+  "Stand": "B Main",
+  "Land": "B Site"
  },
  {
   "Agent": "Sova",
@@ -78,7 +86,9 @@
    "Full charge, 1 bounce."
   ],
   "SourceName": "DiamondLobby",
-  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/"
+  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/",
+  "Stand": "A Main",
+  "Land": "A Garden"
  },
  {
   "Agent": "Sova",
@@ -94,7 +104,9 @@
    "About two bars (60–65%), no bounce."
   ],
   "SourceName": "DiamondLobby",
-  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/"
+  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/",
+  "Stand": "A Lobby",
+  "Land": "A Site"
  },
  {
   "Agent": "Sova",
@@ -110,7 +122,9 @@
    "Full charge, 1 bounce (2 also works)."
   ],
   "SourceName": "DiamondLobby",
-  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/"
+  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/",
+  "Stand": "B Site",
+  "Land": "B Main"
  },
  {
   "Agent": "Sova",
@@ -126,7 +140,9 @@
    "Two bars, no bounce. Fire shot 2 about two seconds later: aim at the second charge line on the crystal spike on the cloud, one bar, no bounce."
   ],
   "SourceName": "DiamondLobby",
-  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/"
+  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/",
+  "Stand": "A Main",
+  "Land": "A Site"
  },
  {
   "Agent": "Sova",
@@ -142,7 +158,9 @@
    "Two bars, no bounce."
   ],
   "SourceName": "DiamondLobby",
-  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/"
+  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/",
+  "Stand": "B Link",
+  "Land": "B Window"
  },
  {
   "Agent": "Sova",
@@ -158,7 +176,9 @@
    "Full charge, 1 bounce."
   ],
   "SourceName": "DiamondLobby",
-  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/"
+  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/",
+  "Stand": "B Site",
+  "Land": "B Fountain"
  },
  {
   "Agent": "Sova",
@@ -174,7 +194,9 @@
    "Two bars, 1 bounce."
   ],
   "SourceName": "DiamondLobby",
-  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/"
+  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/",
+  "Stand": "B Link",
+  "Land": "B Site"
  },
  {
   "Agent": "Sova",
@@ -190,7 +212,9 @@
    "Two bars, 1 bounce. Then turn fully to the small slanted edge and fire an instant second dart (no charge, no bounce)."
   ],
   "SourceName": "DiamondLobby",
-  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/"
+  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/",
+  "Stand": "A Lobby",
+  "Land": "A Site"
  },
  {
   "Agent": "Sova",
@@ -206,7 +230,9 @@
    "Two bars, no bounce; second dart two lines lower beside the panel, one bar, about two seconds later."
   ],
   "SourceName": "DiamondLobby",
-  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/"
+  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/",
+  "Stand": "Defender Side Spawn",
+  "Land": "B Site"
  },
  {
   "Agent": "Sova",
@@ -222,7 +248,9 @@
    "Full charge, 2 bounces."
   ],
   "SourceName": "DiamondLobby",
-  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/"
+  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/",
+  "Stand": "Defender Side Spawn",
+  "Land": "B Site"
  },
  {
   "Agent": "Sova",
@@ -238,7 +266,9 @@
    "Two bars, no bounce."
   ],
   "SourceName": "DiamondLobby",
-  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/"
+  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/",
+  "Stand": "A Bridge",
+  "Land": "A Lobby"
  },
  {
   "Agent": "Sova",
@@ -254,7 +284,9 @@
    "Full charge, 1 bounce."
   ],
   "SourceName": "DiamondLobby",
-  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/"
+  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/",
+  "Stand": "Mid Cannon",
+  "Land": "B Site"
  },
  {
   "Agent": "Sova",
@@ -271,7 +303,9 @@
    "High angle: scans B site except the tower."
   ],
   "SourceName": "DiamondLobby",
-  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/"
+  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/",
+  "Stand": "B Tree",
+  "Land": "B Site"
  },
  {
   "Agent": "Sova",
@@ -287,7 +321,9 @@
    "Full charge, 1 bounce."
   ],
   "SourceName": "DiamondLobby",
-  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/"
+  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/",
+  "Stand": "B Generator",
+  "Land": "B Arcade"
  },
  {
   "Agent": "Sova",
@@ -303,7 +339,9 @@
    "One bar, no bounce."
   ],
   "SourceName": "DiamondLobby",
-  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/"
+  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/",
+  "Stand": "A Gate",
+  "Land": "A Site"
  },
  {
   "Agent": "Sova",
@@ -319,7 +357,9 @@
    "Full charge, 1 bounce."
   ],
   "SourceName": "DiamondLobby",
-  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/"
+  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/",
+  "Stand": "B Link",
+  "Land": "B Site"
  },
  {
   "Agent": "Sova",
@@ -335,7 +375,9 @@
    "One bar, no bounce."
   ],
   "SourceName": "DiamondLobby",
-  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/"
+  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/",
+  "Stand": "A Long",
+  "Land": "A Site"
  },
  {
   "Agent": "Sova",
@@ -351,7 +393,9 @@
    "Two bars, no bounce."
   ],
   "SourceName": "DiamondLobby",
-  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/"
+  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/",
+  "Stand": "C Long",
+  "Land": "C Site"
  },
  {
   "Agent": "Sova",
@@ -367,7 +411,9 @@
    "One bar, no bounce."
   ],
   "SourceName": "DiamondLobby",
-  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/"
+  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/",
+  "Stand": "C Site",
+  "Land": "C Long"
  },
  {
   "Agent": "Sova",
@@ -383,7 +429,9 @@
    "Full charge, 2 bounces."
   ],
   "SourceName": "DiamondLobby",
-  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/"
+  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/",
+  "Stand": "B Site",
+  "Land": "Mid Window"
  },
  {
   "Agent": "Sova",
@@ -399,7 +447,9 @@
    "One bar, no bounce; second dart instant at the top of the wall. Lands about three seconds later."
   ],
   "SourceName": "DiamondLobby",
-  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/"
+  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/",
+  "Stand": "C Link",
+  "Land": "C Site"
  },
  {
   "Agent": "Sova",
@@ -415,7 +465,9 @@
    "One and a half bars, no bounce."
   ],
   "SourceName": "DiamondLobby",
-  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/"
+  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/",
+  "Stand": "Mid Boiler",
+  "Land": "B Green"
  },
  {
   "Agent": "Sova",
@@ -431,7 +483,9 @@
    "Two bars, 2 bounces."
   ],
   "SourceName": "DiamondLobby",
-  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/"
+  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/",
+  "Stand": "Mid Blue",
+  "Land": "A Screen"
  },
  {
   "Agent": "Sova",
@@ -447,7 +501,9 @@
    "One and a half bars, no bounce."
   ],
   "SourceName": "DiamondLobby",
-  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/"
+  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/",
+  "Stand": "B Hut",
+  "Land": "B Site"
  },
  {
   "Agent": "Sova",
@@ -463,7 +519,9 @@
    "Two and a half bars, 2 bounces."
   ],
   "SourceName": "DiamondLobby",
-  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/"
+  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/",
+  "Stand": "Mid Boiler",
+  "Land": "A Site"
  },
  {
   "Agent": "Sova",
@@ -480,7 +538,9 @@
    "Misses the A Dugout corner and cubby."
   ],
   "SourceName": "DiamondLobby",
-  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/"
+  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/",
+  "Stand": "A Main",
+  "Land": "A Site"
  },
  {
   "Agent": "Sova",
@@ -496,7 +556,9 @@
    "Tap (no charge), no bounce."
   ],
   "SourceName": "DiamondLobby",
-  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/"
+  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/",
+  "Stand": "B Link",
+  "Land": "B Tower"
  },
  {
   "Agent": "Sova",
@@ -512,7 +574,9 @@
    "Tap (no charge), no bounce."
   ],
   "SourceName": "DiamondLobby",
-  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/"
+  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/",
+  "Stand": "Defender Side Spawn",
+  "Land": "B Site"
  },
  {
   "Agent": "Sova",
@@ -529,7 +593,9 @@
    "Can be blocked by a smoke."
   ],
   "SourceName": "DiamondLobby",
-  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/"
+  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/",
+  "Stand": "A Lobby",
+  "Land": "A Rafters"
  },
  {
   "Agent": "Sova",
@@ -545,7 +611,9 @@
    "Full charge, 2 bounces."
   ],
   "SourceName": "DiamondLobby",
-  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/"
+  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/",
+  "Stand": "A Ramps",
+  "Land": "B Garage"
  },
  {
   "Agent": "Sova",
@@ -561,7 +629,9 @@
    "Full charge, 1 bounce."
   ],
   "SourceName": "DiamondLobby",
-  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/"
+  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/",
+  "Stand": "B Lobby",
+  "Land": "B Site"
  },
  {
   "Agent": "Sova",
@@ -577,7 +647,9 @@
    "One and a half bars, no bounce."
   ],
   "SourceName": "DiamondLobby",
-  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/"
+  "Source": "https://diamondlobby.com/valorant/best-sova-lineups/",
+  "Stand": "A Rafters",
+  "Land": "A Main"
  },
  {
   "Agent": "Sova",
@@ -593,7 +665,9 @@
    "Two bars, 2 bounces."
   ],
   "SourceName": "ONE Esports",
-  "Source": "https://www.oneesports.gg/valorant/best-sova-lineups-lotus-three-sites/"
+  "Source": "https://www.oneesports.gg/valorant/best-sova-lineups-lotus-three-sites/",
+  "Stand": "A Site",
+  "Land": "A Rubble"
  },
  {
   "Agent": "Sova",
@@ -610,7 +684,9 @@
    "Lands on the far side of the wall, so it's hard to shoot."
   ],
   "SourceName": "ONE Esports",
-  "Source": "https://www.oneesports.gg/valorant/best-sova-lineups-lotus-three-sites/"
+  "Source": "https://www.oneesports.gg/valorant/best-sova-lineups-lotus-three-sites/",
+  "Stand": "A Site",
+  "Land": "A Door"
  },
  {
   "Agent": "Sova",
@@ -626,7 +702,9 @@
    "Full charge, 2 bounces."
   ],
   "SourceName": "ONE Esports",
-  "Source": "https://www.oneesports.gg/valorant/best-sova-lineups-lotus-three-sites/"
+  "Source": "https://www.oneesports.gg/valorant/best-sova-lineups-lotus-three-sites/",
+  "Stand": "A Stairs",
+  "Land": "A Site"
  },
  {
   "Agent": "Sova",
@@ -642,7 +720,9 @@
    "First: no charge, no bounce. Second: no charge, 1 bounce."
   ],
   "SourceName": "ONE Esports",
-  "Source": "https://www.oneesports.gg/valorant/best-sova-lineups-lotus-three-sites/"
+  "Source": "https://www.oneesports.gg/valorant/best-sova-lineups-lotus-three-sites/",
+  "Stand": "C Hall",
+  "Land": "C Site"
  },
  {
   "Agent": "Sova",
@@ -659,7 +739,9 @@
    "Pair it with a smoke on the Mid Bottom choke."
   ],
   "SourceName": "ONE Esports",
-  "Source": "https://www.oneesports.gg/valorant/sunset-sova-lineups/"
+  "Source": "https://www.oneesports.gg/valorant/sunset-sova-lineups/",
+  "Stand": "Mid Top",
+  "Land": "Mid Bottom"
  },
  {
   "Agent": "Sova",
@@ -675,7 +757,9 @@
    "One bar or full charge, 1 bounce. The same works with Shock Bolt for damage."
   ],
   "SourceName": "ONE Esports",
-  "Source": "https://www.oneesports.gg/valorant/sunset-sova-lineups/"
+  "Source": "https://www.oneesports.gg/valorant/sunset-sova-lineups/",
+  "Stand": "A Lobby",
+  "Land": "A Main"
  },
  {
   "Agent": "Sova",
@@ -691,7 +775,9 @@
    "Two bars."
   ],
   "SourceName": "ONE Esports",
-  "Source": "https://www.oneesports.gg/valorant/sunset-sova-lineups/"
+  "Source": "https://www.oneesports.gg/valorant/sunset-sova-lineups/",
+  "Stand": "A Link",
+  "Land": "A Site"
  },
  {
   "Agent": "Sova",
@@ -707,7 +793,9 @@
    "First dart two bars; second dart slightly lower, one bar."
   ],
   "SourceName": "ONE Esports",
-  "Source": "https://www.oneesports.gg/valorant/sunset-sova-lineups/"
+  "Source": "https://www.oneesports.gg/valorant/sunset-sova-lineups/",
+  "Stand": "B Lobby",
+  "Land": "B Main"
  },
  {
   "Agent": "Viper",
@@ -722,7 +810,9 @@
    "Aim: Toward the site so the screen covers the side door."
   ],
   "SourceName": "Sportskeeda",
-  "Source": "https://www.sportskeeda.com/valorant/valorant-episode-4-act-3-viper-guide-most-useful-lineups-attack-defence-every-map"
+  "Source": "https://www.sportskeeda.com/valorant/valorant-episode-4-act-3-viper-guide-most-useful-lineups-attack-defence-every-map",
+  "Stand": "A Main",
+  "Land": "A Site"
  },
  {
   "Agent": "Viper",
@@ -738,7 +828,9 @@
    "Then play Hell and pick off anyone dropping from Heaven."
   ],
   "SourceName": "Sportskeeda",
-  "Source": "https://www.sportskeeda.com/valorant/valorant-episode-4-act-3-viper-guide-most-useful-lineups-attack-defence-every-map"
+  "Source": "https://www.sportskeeda.com/valorant/valorant-episode-4-act-3-viper-guide-most-useful-lineups-attack-defence-every-map",
+  "Stand": "A Rafters",
+  "Land": "A Window"
  },
  {
   "Agent": "Viper",
@@ -752,7 +844,9 @@
    "Aim: The A site main entrance."
   ],
   "SourceName": "Sportskeeda",
-  "Source": "https://www.sportskeeda.com/valorant/valorant-episode-4-act-3-viper-guide-most-useful-lineups-attack-defence-every-map"
+  "Source": "https://www.sportskeeda.com/valorant/valorant-episode-4-act-3-viper-guide-most-useful-lineups-attack-defence-every-map",
+  "Stand": "A Site",
+  "Land": "A Main"
  },
  {
   "Agent": "Viper",
@@ -767,7 +861,9 @@
    "Aim: Straight toward B."
   ],
   "SourceName": "Sportskeeda",
-  "Source": "https://www.sportskeeda.com/valorant/valorant-episode-4-act-3-viper-guide-most-useful-lineups-attack-defence-every-map"
+  "Source": "https://www.sportskeeda.com/valorant/valorant-episode-4-act-3-viper-guide-most-useful-lineups-attack-defence-every-map",
+  "Stand": "A Site",
+  "Land": "A Long"
  },
  {
   "Agent": "Viper",
@@ -782,7 +878,9 @@
    "Blocks the A entrance and Hell."
   ],
   "SourceName": "Sportskeeda",
-  "Source": "https://www.sportskeeda.com/valorant/valorant-episode-4-act-3-viper-guide-most-useful-lineups-attack-defence-every-map"
+  "Source": "https://www.sportskeeda.com/valorant/valorant-episode-4-act-3-viper-guide-most-useful-lineups-attack-defence-every-map",
+  "Stand": "A Lobby",
+  "Land": "A Site"
  },
  {
   "Agent": "Viper",
@@ -797,7 +895,9 @@
    "Aim: Into Heaven."
   ],
   "SourceName": "Sportskeeda",
-  "Source": "https://www.sportskeeda.com/valorant/valorant-episode-4-act-3-viper-guide-most-useful-lineups-attack-defence-every-map"
+  "Source": "https://www.sportskeeda.com/valorant/valorant-episode-4-act-3-viper-guide-most-useful-lineups-attack-defence-every-map",
+  "Stand": "A Sewer",
+  "Land": "A Tower"
  },
  {
   "Agent": "Viper",
@@ -813,7 +913,9 @@
    "Then put the cloud on Heaven to block the Tower."
   ],
   "SourceName": "Sportskeeda",
-  "Source": "https://www.sportskeeda.com/valorant/valorant-episode-4-act-3-viper-guide-most-useful-lineups-attack-defence-every-map"
+  "Source": "https://www.sportskeeda.com/valorant/valorant-episode-4-act-3-viper-guide-most-useful-lineups-attack-defence-every-map",
+  "Stand": "A Main",
+  "Land": "A Site"
  },
  {
   "Agent": "Viper",
@@ -828,7 +930,9 @@
    "Aim: Toward the A Main entrance."
   ],
   "SourceName": "Sportskeeda",
-  "Source": "https://www.sportskeeda.com/valorant/valorant-episode-4-act-3-viper-guide-most-useful-lineups-attack-defence-every-map"
+  "Source": "https://www.sportskeeda.com/valorant/valorant-episode-4-act-3-viper-guide-most-useful-lineups-attack-defence-every-map",
+  "Stand": "Defender Side Spawn",
+  "Land": "A Main"
  },
  {
   "Agent": "Viper",
@@ -843,7 +947,9 @@
    "Aim: Toward the A Teleporter."
   ],
   "SourceName": "Sportskeeda",
-  "Source": "https://www.sportskeeda.com/valorant/valorant-episode-4-act-3-viper-guide-most-useful-lineups-attack-defence-every-map"
+  "Source": "https://www.sportskeeda.com/valorant/valorant-episode-4-act-3-viper-guide-most-useful-lineups-attack-defence-every-map",
+  "Stand": "A Bath",
+  "Land": "A Site"
  },
  {
   "Agent": "Viper",
@@ -858,7 +964,9 @@
    "Aim: Toward Pallet."
   ],
   "SourceName": "Sportskeeda",
-  "Source": "https://www.sportskeeda.com/valorant/valorant-episode-4-act-3-viper-guide-most-useful-lineups-attack-defence-every-map"
+  "Source": "https://www.sportskeeda.com/valorant/valorant-episode-4-act-3-viper-guide-most-useful-lineups-attack-defence-every-map",
+  "Stand": "B Window",
+  "Land": "B Site"
  },
  {
   "Agent": "Viper",
@@ -872,7 +980,9 @@
    "Aim: The B Hall entrance."
   ],
   "SourceName": "Sportskeeda",
-  "Source": "https://www.sportskeeda.com/valorant/valorant-episode-4-act-3-viper-guide-most-useful-lineups-attack-defence-every-map"
+  "Source": "https://www.sportskeeda.com/valorant/valorant-episode-4-act-3-viper-guide-most-useful-lineups-attack-defence-every-map",
+  "Stand": "B Site",
+  "Land": "B Hall"
  },
  {
   "Agent": "Viper",
@@ -887,7 +997,9 @@
    "Aim: Generator and Maze."
   ],
   "SourceName": "Sportskeeda",
-  "Source": "https://www.sportskeeda.com/valorant/valorant-episode-4-act-3-viper-guide-most-useful-lineups-attack-defence-every-map"
+  "Source": "https://www.sportskeeda.com/valorant/valorant-episode-4-act-3-viper-guide-most-useful-lineups-attack-defence-every-map",
+  "Stand": "Attacker Side Spawn",
+  "Land": "A Site"
  },
  {
   "Agent": "Viper",
@@ -902,7 +1014,9 @@
    "Aim: Diagonally through the Maze."
   ],
   "SourceName": "Sportskeeda",
-  "Source": "https://www.sportskeeda.com/valorant/valorant-episode-4-act-3-viper-guide-most-useful-lineups-attack-defence-every-map"
+  "Source": "https://www.sportskeeda.com/valorant/valorant-episode-4-act-3-viper-guide-most-useful-lineups-attack-defence-every-map",
+  "Stand": "A Site",
+  "Land": "A Pipes"
  },
  {
   "Agent": "Viper",
@@ -917,7 +1031,9 @@
    "Aim: A Door or A Ropes."
   ],
   "SourceName": "Sportskeeda",
-  "Source": "https://www.sportskeeda.com/valorant/valorant-episode-4-act-3-viper-guide-most-useful-lineups-attack-defence-every-map"
+  "Source": "https://www.sportskeeda.com/valorant/valorant-episode-4-act-3-viper-guide-most-useful-lineups-attack-defence-every-map",
+  "Stand": "A Main",
+  "Land": "A Rope"
  },
  {
   "Agent": "Viper",
@@ -932,7 +1048,9 @@
    "Aim: Onto Arcade."
   ],
   "SourceName": "Sportskeeda",
-  "Source": "https://www.sportskeeda.com/valorant/valorant-episode-4-act-3-viper-guide-most-useful-lineups-attack-defence-every-map"
+  "Source": "https://www.sportskeeda.com/valorant/valorant-episode-4-act-3-viper-guide-most-useful-lineups-attack-defence-every-map",
+  "Stand": "B Tower",
+  "Land": "B Site"
  },
  {
   "Agent": "Viper",
@@ -947,7 +1065,9 @@
    "Aim: Straight across the B pillar."
   ],
   "SourceName": "Sportskeeda",
-  "Source": "https://www.sportskeeda.com/valorant/valorant-episode-4-act-3-viper-guide-most-useful-lineups-attack-defence-every-map"
+  "Source": "https://www.sportskeeda.com/valorant/valorant-episode-4-act-3-viper-guide-most-useful-lineups-attack-defence-every-map",
+  "Stand": "B Main",
+  "Land": "B Site"
  },
  {
   "Agent": "Viper",
@@ -962,6 +1082,8 @@
    "Aim: Diagonally toward A Hall."
   ],
   "SourceName": "Sportskeeda",
-  "Source": "https://www.sportskeeda.com/valorant/valorant-episode-4-act-3-viper-guide-most-useful-lineups-attack-defence-every-map"
+  "Source": "https://www.sportskeeda.com/valorant/valorant-episode-4-act-3-viper-guide-most-useful-lineups-attack-defence-every-map",
+  "Stand": "A Site",
+  "Land": "A Lobby"
  }
 ]

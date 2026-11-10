@@ -1,20 +1,35 @@
-name: Lineup map data (temporary)
+name: Lineup shots (temporary)
 on:
   push:
     branches: [lineups-map]
-    paths: [.github/workflows/lineup-meta.yml]
 permissions:
   contents: write
 jobs:
-  get:
-    runs-on: ubuntu-latest
+  shots:
+    runs-on: windows-latest
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
-      - run: pip install pillow -q && python tools/get-match-art.py out
-      - name: Push the map data to a scratch branch
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Game art
         run: |
-          mkdir -p pub && cp out/meta.json pub/ && cp out/mini-*.png pub/ 2>/dev/null || true
-          curl -s https://valorant-api.com/v1/maps > pub/maps-full.json
-          cd pub && git init -q && git checkout -q -b lineup-meta-out && git add -A
-          git -c user.name=Claude -c user.email=noreply@anthropic.com commit -qm "map data"
-          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" lineup-meta-out
+          pip install pillow -q
+          python tools/get-match-art.py src/PulseOptimizer/Assets/Matches
+      - name: Render
+        env:
+          PULSE_LINEUP_SHOTS: ${{ github.workspace }}\shots
+        timeout-minutes: 15
+        run: dotnet test tests/PulseOptimizer.Tests/PulseOptimizer.Tests.csproj -c Release --filter "FullyQualifiedName~LineupShots|FullyQualifiedName~CoachTests" --logger "console;verbosity=normal"
+      - name: Push the pictures to a scratch branch
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p shots && cd shots
+          git init -q -b lineup-shots-out
+          git config user.name "shots"
+          git config user.email "shots@users.noreply.github.com"
+          git add -A
+          git commit -qm "shots ${{ github.sha }}" --allow-empty
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" lineup-shots-out
