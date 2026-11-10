@@ -1,0 +1,17 @@
+name: Brawlhalla art probe
+on:
+  push:
+    branches: [brawlhalla-2]
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe
+        run: |
+          UA="PulseOptimizer/1.0 (https://github.com/PulseOptimizerApp/Pulse)"
+          curl -sS -A "$UA" "https://brawlhalla.wiki.gg/api.php?action=query&titles=Legend&prop=images&imlimit=500&format=json" | head -c 6000; echo
+          echo ----
+          curl -sS -A "$UA" "https://brawlhalla.wiki.gg/api.php?action=query&list=allimages&aiprefix=Portrait&ailimit=20&format=json" | head -c 3000; echo
+          echo ----
+          curl -sS -A "$UA" -o /dev/null -w "%{http_code}\n" "https://www.brawlhalla.com/legends/hattori/"
+          curl -sS -A "$UA" "https://www.brawlhalla.com/legends/hattori/" | grep -oE '(src|content)="[^"]+\.(png|jpg|webp)[^"]*"' | head -30
