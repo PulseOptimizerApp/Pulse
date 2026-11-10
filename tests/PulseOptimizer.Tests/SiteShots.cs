@@ -113,10 +113,10 @@ public class SiteShots
             // Brawlhalla: the #1 1v1 player.
             Shot("brawlhalla.png", () => new Pulse.Pages.BrawlhallaPage(), p =>
             {
-                var board = Pulse.Core.Games.Brawlhalla.Brawlhalla.Rankings("1v1", "ALL", 1, null, 5).GetAwaiter().GetResult();
-                var legends = Pulse.Core.Games.Brawlhalla.Brawlhalla.Legends().GetAwaiter().GetResult();
+                var board = Task.Run(() => Pulse.Core.Games.Brawlhalla.Brawlhalla.Rankings("1v1", "ALL", 1, null, 5)).GetAwaiter().GetResult();
+                var legends = Task.Run(() => Pulse.Core.Games.Brawlhalla.Brawlhalla.Legends()).GetAwaiter().GetResult();
                 Pulse.Core.Games.Brawlhalla.BhProfile prof = null;
-                foreach (var r in board.Rows) { prof = Pulse.Core.Games.Brawlhalla.Brawlhalla.Profile(r.Id).GetAwaiter().GetResult(); if (prof != null) break; }
+                foreach (var r in board.Rows) { var id = r.Id; prof = Task.Run(() => Pulse.Core.Games.Brawlhalla.Brawlhalla.Profile(id)).GetAwaiter().GetResult(); if (prof != null) break; }
                 var t = p.GetType();
                 t.GetField("_legends", F)!.SetValue(p, legends);
                 t.GetField("_profile", F)!.SetValue(p, prof);

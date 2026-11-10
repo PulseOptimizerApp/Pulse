@@ -8,6 +8,7 @@ permissions:
 jobs:
   shots:
     runs-on: windows-latest
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
@@ -16,6 +17,7 @@ jobs:
       - name: Render
         env:
           PULSE_SITE_SHOTS: ${{ github.workspace }}\shots
+        timeout-minutes: 15
         run: dotnet test tests/PulseOptimizer.Tests/PulseOptimizer.Tests.csproj -c Release --filter "FullyQualifiedName~SiteShots" --logger "console;verbosity=detailed"
       - name: Push the pictures to a scratch branch
         if: always()
