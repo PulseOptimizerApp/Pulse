@@ -52,16 +52,29 @@ public class BrawlhallaPageShots
                     t.GetField("_legends", F)!.SetValue(page, legends);
                     set(page);
                     t.GetMethod("Build", F)!.Invoke(page, null);
-                    var host = new System.Windows.Controls.Border { Width = 1200, Height = 2000, Padding = new System.Windows.Thickness(28), Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x0B, 0x0C, 0x0F)), Child = page };
-                    host.Measure(new System.Windows.Size(1200, 2000)); host.Arrange(new System.Windows.Rect(0, 0, 1200, 2000)); host.UpdateLayout();
-                    var rtb = new System.Windows.Media.Imaging.RenderTargetBitmap(1200, 2000, 96, 96, System.Windows.Media.PixelFormats.Pbgra32);
+                    var host = new System.Windows.Controls.Border { Width = 1200, Height = 2600, Padding = new System.Windows.Thickness(28), Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x0B, 0x0C, 0x0F)), Child = page };
+                    host.Measure(new System.Windows.Size(1200, 2600)); host.Arrange(new System.Windows.Rect(0, 0, 1200, 2600)); host.UpdateLayout();
+                    var rtb = new System.Windows.Media.Imaging.RenderTargetBitmap(1200, 2600, 96, 96, System.Windows.Media.PixelFormats.Pbgra32);
                     rtb.Render(host);
                     var enc = new System.Windows.Media.Imaging.PngBitmapEncoder();
                     enc.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(rtb));
                     using var fs = File.Create(Path.Combine(dir, file));
                     enc.Save(fs);
                 }
-                Shot("brawlhalla-profile.png", p => p.GetType().GetField("_profile", F)!.SetValue(p, profile));
+                void Tab(Pulse.Pages.BrawlhallaPage p, string tab)
+                {
+                    p.GetType().GetField("_profile", F)!.SetValue(p, profile);
+                    p.GetType().GetField("_tab", F)!.SetValue(p, tab);
+                }
+                Shot("brawlhalla-profile.png", p => Tab(p, "overview"));
+                Shot("brawlhalla-legends.png", p =>
+                {
+                    Tab(p, "legends");
+                    var top = profile.Legends.Where(l => l.Games > 0).OrderByDescending(l => l.Games).First();
+                    p.GetType().GetField("_openLegend", F)!.SetValue(p, top.LegendId);
+                });
+                Shot("brawlhalla-weapons.png", p => Tab(p, "weapons"));
+                Shot("brawlhalla-ranked.png", p => Tab(p, "ranked"));
                 Shot("brawlhalla-board.png", p => p.GetType().GetField("_board", F)!.SetValue(p, board));
             }
             catch (Exception ex) { error = ex; }
