@@ -223,12 +223,12 @@ public static class Brawlhalla
             }
         using (var three = await threeTask) if (three != null) p.ThreeVsThree = Ranked(three.RootElement, "3v3");
         // Diamond-rated players may be Valhallan, which only the leaderboard knows: find them on it.
-        foreach (var r in new[] { p.OneVsOne, p.ThreeVsThree })
-            if (r is { Rating: >= 2000 } && p.Name.Length > 0)
+        foreach (var rk in new[] { p.OneVsOne, p.ThreeVsThree })
+            if (rk is { Rating: >= 2000 } && p.Name.Length > 0)
                 try
                 {
-                    var (rows, _) = await Rankings(r.Mode, r.Region.Length > 0 ? r.Region : "ALL", 1, p.Name, 50, ct);
-                    if (rows.FirstOrDefault(x => x.Id == p.Id) is { } row) r.BoardTier = row.Tier;
+                    var (rows, _) = await Rankings(rk.Mode, rk.Region.Length > 0 ? rk.Region : "ALL", 1, p.Name, 50, ct);
+                    if (rows.FirstOrDefault(x => x.Id == p.Id) is { } row) rk.BoardTier = row.Tier;
                 }
                 catch (OperationCanceledException) { throw; }
                 catch { }
