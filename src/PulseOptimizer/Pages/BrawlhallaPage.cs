@@ -251,11 +251,13 @@ public sealed partial class BrawlhallaPage : UserControl, IPage
         // A banner: their main legend, large and faded, on the right; a gold wash from the top left.
         var layers = new Grid();
         if (BrawlhallaArt.Legend(mainName) is { } art)
-            layers.Children.Add(new Image
+            // As a background, so it fills the header without making it taller.
+            layers.Children.Add(new Border
             {
-                Source = art, Stretch = Stretch.UniformToFill, Width = 420, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center, Opacity = 0.22,
+                Width = 360, HorizontalAlignment = HorizontalAlignment.Right, Opacity = 0.2,
+                Background = new ImageBrush(art) { Stretch = Stretch.UniformToFill, AlignmentY = AlignmentY.Top },
                 OpacityMask = new LinearGradientBrush(Color.FromArgb(0, 0, 0, 0), Color.FromArgb(0xFF, 0, 0, 0), 0),
-            }.Also(i => RenderOptions.SetBitmapScalingMode(i, BitmapScalingMode.HighQuality)));
+            });
         layers.Children.Add(new Border { Background = new RadialGradientBrush(A(Gold, 0x1E), A(Gold, 0x00)) { Center = new Point(0, 0), GradientOrigin = new Point(0, 0), RadiusX = 0.6, RadiusY = 1.3 } });
         layers.Children.Add(new Border { Child = g, Padding = new Thickness(24, 22, 24, 22) });
         layers.SizeChanged += (_, e) => layers.Clip = new RectangleGeometry(new Rect(e.NewSize), 13, 13);

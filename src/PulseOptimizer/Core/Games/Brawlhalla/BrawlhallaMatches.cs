@@ -266,7 +266,7 @@ public static class BrawlhallaMatches
         if (high && p.Games > 0 && p.Games < 600)
         {
             parts.Add(rating >= 2000 ? 35 : 25);
-            signs.Add(("Only {0} games in all, peak {1}", new object[] { p.Games, rating }));
+            signs.Add(("Only {0} games in all, peak {1}", new object[] { p.Games.ToString("N0"), rating.ToString("N0") }));
         }
         if (high && hours < 80)
         {
@@ -276,7 +276,7 @@ public static class BrawlhallaMatches
         if (one is { Games: >= 20 } && one.Wins * 100 / one.Games is var wr && wr >= 65)
         {
             parts.Add(wr >= 75 ? 30 : 18);
-            signs.Add(("Wins {0}% of ranked 1v1 ({1} games)", new object[] { wr, one.Games }));
+            signs.Add(("Wins {0}% of ranked 1v1 ({1} games)", new object[] { wr, one.Games.ToString("N0") }));
         }
         if (one is { Games: > 0 and < 60 } && one.Rating >= 1680)
         {

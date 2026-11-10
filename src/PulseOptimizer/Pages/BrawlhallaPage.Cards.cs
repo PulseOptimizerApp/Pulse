@@ -131,7 +131,7 @@ public sealed partial class BrawlhallaPage
         head.Children.Add(Portrait(name, 52, 10));
         var who = new StackPanel { Margin = new Thickness(14, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center };
         who.Children.Add(new TextBlock { Text = name, FontSize = 19, FontWeight = FontWeights.Bold, Foreground = Res("TextBrush"), FontFamily = (FontFamily)FindResource("DisplayFont"), TextTrimming = TextTrimming.CharacterEllipsis });
-        who.Children.Add(Dim(Loc.F("Level {0} · {1}", l.Level, Hours(l.MatchTime)) + $" · {100.0 * l.Games / allGames:0.0}% " + Loc.T("of games"), 11.5, 2));
+        who.Children.Add(Dim((l.Level > 0 ? Loc.F("Level {0} · {1}", l.Level, Hours(l.MatchTime)) : Hours(l.MatchTime)) + $" · {100.0 * l.Games / allGames:0.0}% " + Loc.T("of games"), 11.5, 2));
         if (l.Level > 0) who.Children.Add(Bar(Math.Clamp(l.XpPercent, 0, 1), Gold, 120).Also(b => b.Margin = new Thickness(0, 5, 0, 0)));
         PutAt(head, 1, who);
 
@@ -162,7 +162,7 @@ public sealed partial class BrawlhallaPage
         PutAt(head, 4, HeadStat("Damage / game", (l.DamageDealt / (double)l.Games).ToString("N0", CultureInfo.CurrentCulture)));
         PutAt(head, 5, HeadStat("Taken / game", (l.DamageTaken / (double)l.Games).ToString("N0", CultureInfo.CurrentCulture)));
         PutAt(head, 6, HeadStat("Average game", Clock(l.MatchTime / l.Games)));
-        PutAt(head, 7, HeadStat("XP", Short(l.Xp)));
+        if (l.Xp > 0) PutAt(head, 7, HeadStat("XP", Short(l.Xp)));
 
         // Combat and ranked.
         var body = new StackPanel { Margin = new Thickness(0, 16, 0, 0) };
