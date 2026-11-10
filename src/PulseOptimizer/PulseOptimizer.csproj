@@ -42,6 +42,7 @@
     <!-- Translations: English text → translated text, one file per language. -->
     <EmbeddedResource Include="Lang\*.json" LogicalName="Lang.%(Filename).json" />
     <EmbeddedResource Include="Core\Guide\guide.json" LogicalName="guide.json" />
+    <EmbeddedResource Include="Core\Guide\hardware.json" LogicalName="hardware.json" />
     <EmbeddedResource Include="Assets\Lineups\library.json" LogicalName="lineups.json" />
     <!-- Mouse drivers: OpenMouse mouse-protocol (AGPL-3.0), pinned release bundled by tools/get-mouse-protocol.sh (not committed). -->
     <EmbeddedResource Include="Assets\Mouse\openmouse.js.gz" Condition="Exists('Assets\Mouse\openmouse.js.gz')" LogicalName="openmouse.js.gz" />
