@@ -47,7 +47,7 @@ public class SiteShots
             const System.Reflection.BindingFlags F = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Instance;
             const int W = 1180, H = 780;
 
-            void Shot(string file, Func<FrameworkElement> make, Action<FrameworkElement> shown = null, int wait = 2500, int h = H)
+            void Shot(string file, Func<FrameworkElement> make, Action<FrameworkElement> shown = null, int wait = 2500, int h = H, Action<FrameworkElement> after = null)
             {
                 try
                 {
@@ -55,7 +55,8 @@ public class SiteShots
                     var host = new Border { Padding = new Thickness(36, 30, 36, 30), Background = (Brush)Application.Current.Resources["BgBrush"], Child = page, Width = W, Height = h };
                     var win = new Window
                     {
-                        Content = host, SizeToContent = SizeToContent.WidthAndHeight, WindowStyle = WindowStyle.None, ShowInTaskbar = false,
+                        // In a canvas, so the page lays out at full size even on a CI desktop smaller than the page.
+                        Content = new Canvas { Width = 10, Height = 10, Children = { host } }, Width = 40, Height = 40, WindowStyle = WindowStyle.None, ShowInTaskbar = false,
                         Left = -4000, Top = -4000, ShowActivated = false, Background = (Brush)Application.Current.Resources["BgBrush"],
                         FontFamily = (FontFamily)Application.Current.Resources["UiFont"], Foreground = (Brush)Application.Current.Resources["TextBrush"],
                     };
@@ -63,6 +64,8 @@ public class SiteShots
                     Pump(300);
                     shown?.Invoke(page);
                     Pump(wait);
+                    if (after != null) { after(page); Pump(400); }
+                    host.Measure(new Size(W, h)); host.Arrange(new Rect(0, 0, W, h));
                     host.UpdateLayout();
                     var rtb = new RenderTargetBitmap(W * 2, h * 2, 192, 192, PixelFormats.Pbgra32);
                     rtb.Render(host);
@@ -87,8 +90,17 @@ public class SiteShots
             foreach (var f in findings) try { Pulse.Core.FixGuides.Attach(f, Pulse.Core.HardwareFacts.Get()); } catch { }
 
             Shot("diagnose.png", () => new Pulse.Pages.DiagnosePage(), p => ((Pulse.IPage)p).OnShown(findings), 3000);
-            Shot("tweaks.png", () => new Pulse.Pages.TweaksPage(), p => ((Pulse.IPage)p).OnShown(null), 3000);
-            Shot("home.png", () => new Pulse.Pages.HomePage(), p => ((Pulse.IPage)p).OnShown(null), 4000);
+            Shot("tweaks.png", () => new Pulse.Pages.TweaksPage(), p => ((Pulse.IPage)p).OnShown(null), 12000);
+            // Home, as a typical gaming PC rather than the CI machine.
+            Shot("home.png", () => new Pulse.Pages.HomePage(), p => ((Pulse.IPage)p).OnShown(null), 5000, H, p =>
+            {
+                void Set(string name, string text) { if (p.FindName(name) is TextBlock t) t.Text = text; }
+                Set("PcLine", "Windows 11 Home 25H2 · AMD Ryzen 7 7800X3D 8-Core Processor");
+                Set("CpuName", "AMD Ryzen 7 7800X3D 8-Core Processor");
+                Set("GpuName", "NVIDIA GeForce RTX 4070 SUPER");
+                Set("RamName", "32 GB installed");
+                if (p.FindName("StartupCard") is FrameworkElement sc) sc.Visibility = Visibility.Collapsed;
+            });
             Shot("clips.png", () => new Pulse.Pages.ClipsPage(), p => ((Pulse.IPage)p).OnShown(null), 3000);
             Shot("crosshair.png", () => new Pulse.Pages.CrosshairPage(), p => ((Pulse.IPage)p).OnShown(null), 2500);
             Shot("macros.png", () => new Pulse.Pages.MacrosPage(), p => ((Pulse.IPage)p).OnShown(null), 2000);
