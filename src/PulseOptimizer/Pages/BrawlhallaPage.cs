@@ -101,6 +101,15 @@ public sealed partial class BrawlhallaPage : UserControl, IPage
         if (_profile == null) { _root.Children.Add(Card(BoardPanel())); return; }
 
         _root.Children.Add(Header(_profile));
+        if (_profile.SavedAt is { } saved)
+        {
+            // Their servers didn't answer: say so, show the saved copy, and offer another try.
+            var row = new WrapPanel();
+            row.Children.Add(new TextBlock { Text = Loc.F("Brawlhalla's servers aren't sending this player's stats right now, so this is what Pulse saved {0}.", Ago(saved)), FontSize = 12.5, Foreground = Res("WarnBrush"), TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 12, 0) });
+            long again = _profile.Id;
+            row.Children.Add(Ghost(Loc.T("Try again"), () => _ = Open(again, _tab)));
+            _root.Children.Add(new Border { Child = row, Margin = new Thickness(0, 10, 0, 0), Padding = new Thickness(16, 10, 16, 10), CornerRadius = new CornerRadius(10), Background = Res("WarnSoftBrush") });
+        }
         _root.Children.Add(Tabs());
         var parts = _tab switch
         {

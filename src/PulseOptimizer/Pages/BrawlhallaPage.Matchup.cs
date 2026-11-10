@@ -216,6 +216,7 @@ public sealed partial class BrawlhallaPage
             if (BrawlhallaMatches.Smurf(foe).Score >= 35)
                 mid.Children.Add(new TextBlock { Text = Loc.T("They may be a smurf: likely better than their rating."), FontSize = 11.5, Foreground = new SolidColorBrush(Red), TextAlignment = TextAlignment.Center, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 0) });
         }
+        if (foe.SavedAt is { } saved) mid.Children.Add(Dim(Loc.F("Their stats are from {0}: Brawlhalla's servers aren't answering for them right now.", Ago(saved)), 11, 6).Also(t => { t.TextAlignment = TextAlignment.Center; t.Foreground = Res("WarnBrush"); }));
         PutAt(g, 1, mid);
 
         var layers = new Grid();

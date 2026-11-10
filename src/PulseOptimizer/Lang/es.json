@@ -5470,5 +5470,8 @@
  "Them": "Rival",
  "Your best picks": "Tus mejores elecciones",
  "Self-KOs per 100 falls": "AutoKOs por cada 100 caídas",
- "Ctrl+Shift+B opens Matchup while Brawlhalla is open": "Ctrl+Shift+B abre Enfrentamiento mientras Brawlhalla está abierto"
+ "Ctrl+Shift+B opens Matchup while Brawlhalla is open": "Ctrl+Shift+B abre Enfrentamiento mientras Brawlhalla está abierto",
+ "Brawlhalla's servers aren't sending this player's stats right now, so this is what Pulse saved {0}.": "Los servidores de Brawlhalla no están enviando las estadísticas de este jugador ahora mismo, así que esto es lo que Pulse guardó {0}.",
+ "Their stats are from {0}: Brawlhalla's servers aren't answering for them right now.": "Sus estadísticas son de {0}: los servidores de Brawlhalla no responden para este jugador ahora mismo.",
+ "Loading your stats…": "Cargando tus estadísticas…"
 }

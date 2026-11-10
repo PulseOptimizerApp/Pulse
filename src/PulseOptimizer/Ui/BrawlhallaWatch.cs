@@ -102,6 +102,7 @@ public static class BrawlhallaWatch
             {
                 long id = s.MyId;
                 var p = await Brawlhalla.Profile(id, lookUpTier: false);
+                if (p?.SavedAt != null) return;   // their servers didn't answer: nothing new to compare
                 var fresh = BrawlhallaMatches.Record(p);
                 if (fresh.Count == 0) return;
                 TweakEngine.AddLog("brawlhalla", $"Brawlhalla: logged {fresh.Sum(m => m.Games)} match(es)");
