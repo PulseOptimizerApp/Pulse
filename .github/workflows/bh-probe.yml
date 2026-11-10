@@ -8,8 +8,9 @@ jobs:
     steps:
       - run: |
           A=https://api.brawlhalla.com/v1
-          curl -sS "$A/leaderboard/ranked?game_mode=1v1&region=ALL&page=1&max_results=3&search=Neo999" > s.json; head -c 1500 s.json; echo
-          id=$(python3 -c "import json;print(json.load(open('s.json'))['rankings'][0]['players'][0]['id'])"); echo ID=$id
-          for m in all ranked_1v1 ranked_3v3; do echo "== $m"; curl -sS -w "\nHTTP %{http_code}\n" "$A/player/stats?brawlhalla_id=$id&mode=$m" | head -c 600; echo; done
-          curl -sS -w "\nHTTP %{http_code}\n" "$A/player/teams?brawlhalla_id=$id" | head -c 300; echo
-          curl -sS -w "\nHTTP %{http_code}\n" "$A/player/guild?brawlhalla_id=$id" | head -c 300; echo
+          for i in $(seq 1 8); do
+            for m in all ranked_1v1; do printf "$m "; curl -sS -o /tmp/o.json -w "%{http_code} %{size_download}\n" "$A/player/stats?brawlhalla_id=32181827&mode=$m"; done
+            sleep 2
+          done
+          head -c 300 /tmp/o.json; echo
+          curl -sS -o /tmp/p.json -w "%{http_code}\n" "$A/player/stats?brawlhalla_id=5989758&mode=ranked_1v1"; head -c 200 /tmp/p.json; echo
