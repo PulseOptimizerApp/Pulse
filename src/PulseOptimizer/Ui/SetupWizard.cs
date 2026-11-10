@@ -303,7 +303,7 @@ public sealed class SetupWizard : Grid
         int problems = _findings.Count(f => f.Severity == Severity.Problem), checks = _findings.Count(f => f.Severity == Severity.Check), ok = _findings.Count(f => f.Severity == Severity.Ok);
         sp.Children.Add(new TextBlock
         {
-            Text = problems + checks == 0 ? Loc.T("Nothing to fix: this PC is set up well.") : Loc.F("{0} problems and {1} things worth checking ({2} checks look good).", problems, checks, ok),
+            Text = problems + checks == 0 ? Loc.T("Nothing to fix: this PC is set up well.") : Loc.F("Problems: {0} · Worth checking: {1} · Fine: {2}", problems, checks, ok),
             FontSize = 16, FontWeight = FontWeights.SemiBold, Foreground = Res(problems > 0 ? "WarnBrush" : "GoodBrush"), TextWrapping = TextWrapping.Wrap,
         });
         foreach (var f in _findings.Where(f => f.Severity is Severity.Problem or Severity.Check).Take(5))
@@ -353,6 +353,10 @@ public sealed class SetupWizard : Grid
         }
         Head("Apply the recommended tweaks", "The safe, documented settings that fit this PC. Pulse makes a restore point first and backs up each change. Untick any you'd rather leave.", "Skip this step");
         var sp = new StackPanel();
+        var apply = new Button { Style = (Style)Application.Current.FindResource("PrimaryButton"), Content = _applying ? Loc.T("Applying…") : Loc.F("Apply the {0} ticked tweaks", _tweakPicked.Count), IsEnabled = !_applying, HorizontalAlignment = HorizontalAlignment.Left, Padding = new Thickness(20, 9, 20, 10) };
+        var status = new TextBlock { FontSize = 12.5, Foreground = Res("TextDimBrush"), Margin = new Thickness(0, 8, 0, 14) };
+        sp.Children.Add(apply);
+        sp.Children.Add(status);
         foreach (var t in _tweaks)
         {
             var row = new Grid { Margin = new Thickness(0, 0, 0, 10) };
@@ -360,7 +364,7 @@ public sealed class SetupWizard : Grid
             row.ColumnDefinitions.Add(new ColumnDefinition());
             var cb = new CheckBox { IsChecked = _tweakPicked.Contains(t.Id), VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 2, 12, 0), IsEnabled = !_applying };
             var id = t.Id;
-            cb.Click += (_, _) => { if (cb.IsChecked == true) _tweakPicked.Add(id); else _tweakPicked.Remove(id); };
+            cb.Click += (_, _) => { if (cb.IsChecked == true) _tweakPicked.Add(id); else _tweakPicked.Remove(id); apply.Content = Loc.F("Apply the {0} ticked tweaks", _tweakPicked.Count); };
             row.Children.Add(cb);
             var text = new StackPanel();
             text.Children.Add(new TextBlock { Text = Loc.T(t.Title), FontSize = 13.5, FontWeight = FontWeights.SemiBold, Foreground = Res("TextBrush"), TextWrapping = TextWrapping.Wrap });
@@ -369,8 +373,6 @@ public sealed class SetupWizard : Grid
             row.Children.Add(text);
             sp.Children.Add(row);
         }
-        var apply = new Button { Style = (Style)Application.Current.FindResource("PrimaryButton"), Content = Loc.T(_applying ? "Applying…" : "Apply the ticked tweaks"), IsEnabled = !_applying, HorizontalAlignment = HorizontalAlignment.Left, Padding = new Thickness(20, 9, 20, 10), Margin = new Thickness(0, 8, 0, 0) };
-        var status = new TextBlock { FontSize = 12.5, Foreground = Res("TextDimBrush"), Margin = new Thickness(0, 10, 0, 0) };
         apply.Click += async (_, _) =>
         {
             var todo = _tweaks.Where(t => _tweakPicked.Contains(t.Id)).ToList();
@@ -381,15 +383,13 @@ public sealed class SetupWizard : Grid
             int ok = 0;
             foreach (var t in todo)
             {
-                if (_body.Content is StackPanel p && p.Children[^1] is TextBlock st) st.Text = Loc.T(t.Title) + "…";
+                status.Text = Loc.T(t.Title) + "…";
                 try { await Task.Run(() => TweakEngine.Apply(t)); t.IsOn = true; ok++; } catch { }
             }
             _applying = false;
             _applied = ok;
             Render();
         };
-        sp.Children.Add(apply);
-        sp.Children.Add(status);
         _body.Content = sp;
     }
 

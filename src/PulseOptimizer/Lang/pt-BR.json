@@ -5614,7 +5614,6 @@
  "Skip this step": "Pular esta etapa",
  "Run the check": "Fazer a verificação",
  "Nothing to fix: this PC is set up well.": "Nada para corrigir: este PC está bem configurado.",
- "{0} problems and {1} things worth checking ({2} checks look good).": "{0} problemas e {1} coisas para verificar ({2} verificações ok).",
  "Step-by-step fixes for each one are on the Diagnose page. Pulse will open it when setup is done.": "As correções passo a passo estão na página Diagnóstico. O Pulse vai abri-la quando terminar.",
  "Tweaks applied": "Ajustes aplicados",
  "{0} tweaks are on. Each one is backed up: Tweaks or Undo & restore turns any of them off again.": "{0} ajustes ativados. Cada um tem backup: Ajustes ou Desfazer e restaurar desligam qualquer um.",
@@ -5624,7 +5623,6 @@
  "Apply the recommended tweaks": "Aplique os ajustes recomendados",
  "The safe, documented settings that fit this PC. Pulse makes a restore point first and backs up each change. Untick any you'd rather leave.": "Os ajustes seguros e documentados que combinam com este PC. O Pulse cria antes um ponto de restauração e faz backup de cada mudança. Desmarque os que preferir deixar.",
  "Applying…": "Aplicando…",
- "Apply the ticked tweaks": "Aplicar os marcados",
  "So your stats, matches and after-match summaries are yours from the start.": "Para suas estatísticas, partidas e resumos serem seus desde o início.",
  "Nothing to do: Pulse finds your account through the Riot Client while it's open, so your tracker and match summaries are yours automatically.": "Nada a fazer: o Pulse encontra sua conta pelo cliente da Riot enquanto ele está aberto, então seu tracker e seus resumos são seus automaticamente.",
  "You're {0}. Pulse logs your matches while Brawlhalla is open.": "Você é {0}. O Pulse registra suas partidas enquanto o Brawlhalla está aberto.",
@@ -5649,5 +5647,7 @@
  "What your PC can run, upgrade ideas, prices and step-by-step guides.": "O que seu PC roda, ideias de upgrade, preços e guias passo a passo.",
  "Run setup again": "Refazer a configuração",
  "Setup": "Configuração inicial",
- "The two-minute walkthrough from the first time you opened Pulse: your games, a PC check, the recommended tweaks and your accounts.": "O passo a passo de dois minutos da primeira vez que você abriu o Pulse: seus jogos, uma verificação do PC, os ajustes recomendados e suas contas."
+ "The two-minute walkthrough from the first time you opened Pulse: your games, a PC check, the recommended tweaks and your accounts.": "O passo a passo de dois minutos da primeira vez que você abriu o Pulse: seus jogos, uma verificação do PC, os ajustes recomendados e suas contas.",
+ "Problems: {0} · Worth checking: {1} · Fine: {2}": "Problemas: {0} · Para verificar: {1} · Ok: {2}",
+ "Apply the {0} ticked tweaks": "Aplicar os {0} ajustes marcados"
 }
