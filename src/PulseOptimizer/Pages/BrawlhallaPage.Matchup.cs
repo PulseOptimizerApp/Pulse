@@ -19,6 +19,7 @@ namespace Pulse.Pages;
 public sealed partial class BrawlhallaPage
 {
     bool _matchup, _foeBusy;
+    string _foeNote;
     BhProfile _me, _foe;
     DateTime _meAt;
     List<BhRanking> _foeResults;
@@ -52,9 +53,9 @@ public sealed partial class BrawlhallaPage
     {
         text = (text ?? "").Trim();
         if (text.Length == 0 || _foeBusy) return;
-        if (long.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out var id) && id > 0) { await LoadFoe(id); return; }
+        if (!IsSteamId(text) && long.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out var id) && id > 0) { await LoadFoe(id); return; }
         if (text.Length < 2) { _foeStatus = Loc.T("Type at least two letters of their name."); Build(); return; }
-        if (text.Any(c => c > 127))
+        if (text.Any(c => c > 127) && !SteamShaped(text))
         {
             _foeStatus = Loc.T("Brawlhalla's search doesn't take accented letters or symbols. Use their Brawlhalla ID instead (in game: Inventory, Profile).");
             Build();
@@ -63,8 +64,9 @@ public sealed partial class BrawlhallaPage
         _foeBusy = true; _foeStatus = Loc.T("Searching…"); Build();
         try
         {
-            _foeResults = await Task.Run(() => Brawlhalla.Find(text));
-            _foeStatus = _foeResults.Count == 0 ? Loc.T("No ranked player with that name. Try their Brawlhalla ID instead.") : null;
+            (_foeResults, var note) = await FindAny(text);
+            _foeStatus = _foeResults.Count == 0 ? note : null;
+            _foeNote = _foeResults.Count > 0 ? note : null;
             // An exact name: straight to them.
             var exact = _foeResults.Where(r => string.Equals(r.Name, text, StringComparison.OrdinalIgnoreCase)).ToList();
             if (exact.Count == 1 || _foeResults.Count == 1) { _foeBusy = false; await LoadFoe((exact.Count == 1 ? exact[0] : _foeResults[0]).Id); return; }
@@ -72,6 +74,35 @@ public sealed partial class BrawlhallaPage
         catch (Exception ex) { _foeStatus = Problem(ex); }
         _foeBusy = false;
         Build();
+    }
+
+    static bool IsSteamId(string text) => System.Text.RegularExpressions.Regex.IsMatch(text, @"^7656119\d{10}$");
+    static bool SteamShaped(string text) => IsSteamId(text) || text.Contains("steamcommunity.com", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// A name (the ranked leaderboards), or a Steam profile link / SteamID64 / custom URL name: Steam's name for that
+    /// account, looked up on the leaderboards (Brawlhalla names usually start as the Steam name). Returns the players
+    /// found and a line to show with them (or, with none, why).
+    /// </summary>
+    async Task<(List<BhRanking> Rows, string Note)> FindAny(string text)
+    {
+        bool steamShaped = SteamShaped(text);
+        if (!steamShaped)
+        {
+            var rows = await Task.Run(() => Brawlhalla.Find(text));
+            if (rows.Count > 0) return (rows, null);
+        }
+        var steam = await Task.Run(() => Brawlhalla.Steam(text));
+        if (steam is not { } s)
+            return (new(), steamShaped ? Loc.T("That Steam profile wasn't found.") : Loc.T("No ranked player with that name. Try their Brawlhalla ID instead."));
+        if (!steamShaped && string.Equals(s.Name, text, StringComparison.OrdinalIgnoreCase))
+            return (new(), Loc.T("No ranked player with that name. Try their Brawlhalla ID instead."));
+        if (s.Name.Any(c => c > 127))
+            return (new(), Loc.F("Their Steam name is {0}: Brawlhalla's search can't take accents or symbols. Use their Brawlhalla ID instead.", s.Name));
+        var found = await Task.Run(() => Brawlhalla.Find(s.Name));
+        return (found, found.Count > 0
+            ? Loc.F("Steam account {0}: ranked players with that name (Brawlhalla names usually match Steam names).", s.Name)
+            : Loc.F("Steam account {0}: no ranked player with that name. If their Brawlhalla name is different, use their Brawlhalla ID.", s.Name));
     }
 
     async Task LoadFoe(long id)
@@ -123,17 +154,19 @@ public sealed partial class BrawlhallaPage
         if (S.Opponents.Count > 0)
         {
             var chips = new WrapPanel { Margin = new Thickness(0, 10, 0, 0) };
-            foreach (var o in S.Opponents.Take(8))
-                chips.Children.Add(Chip(o.Name.Length > 0 ? o.Name : o.Id.ToString(CultureInfo.InvariantCulture), _foe?.Id == o.Id, () => _ = LoadFoe(o.Id)));
+            foreach (var o in S.Opponents.Take(8).ToList())
+                chips.Children.Add(Removable(Chip(o.Name.Length > 0 ? o.Name : o.Id.ToString(CultureInfo.InvariantCulture), _foe?.Id == o.Id, () => _ = LoadFoe(o.Id)),
+                    () => { S.Opponents.RemoveAll(x => x.Id == o.Id); TweakEngine.Save(); Build(); }));
             top.Children.Add(chips);
         }
-        top.Children.Add(Switch("Ctrl+Shift+B opens Matchup while Brawlhalla is open", S.MatchupHotkey, v => { S.MatchupHotkey = v; TweakEngine.Save(); })
+        top.Children.Add(Switch("Ctrl+Shift+B in Brawlhalla: a box in the top right to check your opponent", S.MatchupHotkey, v => { S.MatchupHotkey = v; TweakEngine.Save(); })
             .Also(e => e.Margin = new Thickness(0, 12, 0, 0)));
         if (!Pulse.Ui.BrawlhallaWatch.HotkeyWorks)
             top.Children.Add(new TextBlock { Text = Loc.T("Another app already uses Ctrl+Shift+B, so the shortcut can't work."), FontSize = 11.5, Foreground = Res("WarnBrush"), Margin = new Thickness(0, 4, 0, 0) });
         if (_foeResults is { Count: > 0 })
         {
             top.Children.Add(new Border { Height = 10 });
+            if (_foeNote != null) top.Children.Add(Dim(_foeNote, 12, 0).Also(t => t.Margin = new Thickness(0, 0, 0, 6)));
             top.Children.Add(BoardHeader());
             foreach (var r in _foeResults) top.Children.Add(RankRow(r, true, false, r.Id > 0 ? () => _ = LoadFoe(r.Id) : null));
         }

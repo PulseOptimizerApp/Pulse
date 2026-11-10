@@ -53,11 +53,8 @@ public static class BrawlhallaWatch
             if (msg == 0x0312 && w.ToInt32() == KeyId)
             {
                 handled = true;
-                if (System.Windows.Application.Current?.MainWindow is MainWindow mw)
-                {
-                    mw.ShowFromTray();
-                    mw.Navigate("brawlhalla", "matchup");
-                }
+                // The quick box in the corner, over the game.
+                BrawlhallaQuick.Toggle();
             }
             return IntPtr.Zero;
         });

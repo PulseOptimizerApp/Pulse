@@ -423,6 +423,26 @@ public sealed partial class BrawlhallaPage
         return Clickable(row, () => ShowLegend(m.LegendId));
     }
 
+    /// <summary>A chip with a small × in its corner on hover, to take it off the list (like the VALORANT tracker's).</summary>
+    FrameworkElement Removable(FrameworkElement chip, Action remove)
+    {
+        var g = new Grid { Margin = chip.Margin };
+        chip.Margin = new Thickness(0);
+        g.Children.Add(chip);
+        var x = new Border
+        {
+            Width = 16, Height = 16, CornerRadius = new CornerRadius(8), HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top,
+            Margin = new Thickness(0, -6, -6, 0), Background = new SolidColorBrush(Color.FromRgb(0x3A, 0x3D, 0x46)), Cursor = System.Windows.Input.Cursors.Hand,
+            Visibility = Visibility.Hidden, ToolTip = Loc.T("Remove"),
+            Child = new TextBlock { Text = "×", FontSize = 12, FontWeight = FontWeights.Bold, Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, -2, 0, 0) },
+        };
+        x.MouseLeftButtonUp += (_, e) => { e.Handled = true; remove(); };
+        g.Children.Add(x);
+        g.MouseEnter += (_, _) => x.Visibility = Visibility.Visible;
+        g.MouseLeave += (_, _) => x.Visibility = Visibility.Hidden;
+        return g;
+    }
+
     static string Ago(DateTime t)
     {
         var d = DateTime.Now - t;
