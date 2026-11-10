@@ -54,6 +54,7 @@ public partial class ValorantPage
         }
         if (matches.Count == 0 && _trSearched == null)
         {
+            if (_trConsole) { Root.Children.Add(Card(ConsoleProbe())); return; }
             Root.Children.Add(CoachHeader(matches));
             return;
         }
@@ -151,6 +152,29 @@ public partial class ValorantPage
         catch { }
         _trBusy = false;
         if (_tab == "tracker") Build();
+    }
+
+    /// <summary>
+    /// The Console tab with no console matches: what Pulse asked Riot for and what came back, to copy and send
+    /// (console data is new to Pulse, and this shows exactly where it stops).
+    /// </summary>
+    StackPanel ConsoleProbe()
+    {
+        var sp = new StackPanel();
+        sp.Children.Add(Heading("No console matches yet"));
+        sp.Children.Add(Dim(Loc.T("Pulse asks Riot for your console matches when it downloads your matches (open VALORANT or the Riot Client on this PC, then come back here). If you've played on console and nothing shows, copy this and send it: it's what Riot answered."), 12.5, 6));
+        var lines = Pulse.Core.Games.Live.ValorantConsole.Probe;
+        sp.Children.Add(new Border
+        {
+            Background = B(Color.FromRgb(0x16, 0x17, 0x1B)), CornerRadius = new CornerRadius(8), Padding = new Thickness(10), Margin = new Thickness(0, 10, 0, 0),
+            Child = new TextBlock { Text = lines.Count == 0 ? Loc.T("Nothing asked yet.") : string.Join("\n", lines), FontFamily = new FontFamily("Consolas"), FontSize = 11, Foreground = Res("TextDimBrush"), TextWrapping = TextWrapping.Wrap },
+        });
+        var copy = Btn("Copy details", false);
+        copy.HorizontalAlignment = HorizontalAlignment.Left;
+        copy.Margin = new Thickness(0, 10, 0, 0);
+        copy.Click += (_, _) => { try { Clipboard.SetText(string.Join("\n", lines)); copy.Content = Loc.T("Copied"); } catch { } };
+        sp.Children.Add(copy);
+        return sp;
     }
 
     async Task LoadMyRank()

@@ -150,11 +150,11 @@ public static class ValorantLobby
     }
 
     /// <summary>Current rank and RR this act, peak rank ever (with its act), and win rate this act.</summary>
-    internal static async Task<(int Tier, int Rr, int Peak, string PeakAct, int Win, int Games)> Mmr(ValorantMatches.Session s, string puuid, string ranked = "competitive")
+    internal static async Task<(int Tier, int Rr, int Peak, string PeakAct, int Win, int Games)> Mmr(ValorantMatches.Session s, string puuid, string ranked = "competitive", string platform = null)
     {
         try
         {
-            using var doc = await ValorantMatches.Get(s, $"https://pd.{s.Shard}.a.pvp.net/mmr/v1/players/{puuid}");
+            using var doc = await ValorantMatches.Get(s, $"https://pd.{s.Shard}.a.pvp.net/mmr/v1/players/{puuid}", platform);
             if (doc == null) return default;
             return ReadMmr(doc.RootElement, _seasons ?? new(), ranked);
         }
@@ -210,12 +210,12 @@ public static class ValorantLobby
     }
 
     /// <summary>A player's competitive history act by act (newest first), from Riot's rank record.</summary>
-    internal static async Task<List<ActLine>> ActHistory(ValorantMatches.Session s, string puuid, string ranked = "competitive")
+    internal static async Task<List<ActLine>> ActHistory(ValorantMatches.Session s, string puuid, string ranked = "competitive", string platform = null)
     {
         try
         {
             await LoadContent(s);
-            using var doc = await ValorantMatches.Get(s, $"https://pd.{s.Shard}.a.pvp.net/mmr/v1/players/{puuid}");
+            using var doc = await ValorantMatches.Get(s, $"https://pd.{s.Shard}.a.pvp.net/mmr/v1/players/{puuid}", platform);
             return doc == null ? new() : ReadActs(doc.RootElement, Acts(), ranked);
         }
         catch { return new(); }
@@ -280,11 +280,11 @@ public static class ValorantLobby
     }
 
     /// <summary>The rank after a player's last competitive match (for players who haven't played ranked this act).</summary>
-    internal static async Task<int> LastTier(ValorantMatches.Session s, string puuid, string ranked = "competitive")
+    internal static async Task<int> LastTier(ValorantMatches.Session s, string puuid, string ranked = "competitive", string platform = null)
     {
         try
         {
-            using var doc = await ValorantMatches.Get(s, $"https://pd.{s.Shard}.a.pvp.net/mmr/v1/players/{puuid}/competitiveupdates?startIndex=0&endIndex=1&queue={ranked}");
+            using var doc = await ValorantMatches.Get(s, $"https://pd.{s.Shard}.a.pvp.net/mmr/v1/players/{puuid}/competitiveupdates?startIndex=0&endIndex=1&queue={ranked}", platform);
             if (doc?.RootElement.Get("Matches") is { ValueKind: JsonValueKind.Array } m && m.GetArrayLength() > 0) return m[0].Int("TierAfterUpdate");
         }
         catch { }
@@ -302,12 +302,12 @@ public static class ValorantLobby
         catch { return 0; }
     }
 
-    internal static async Task<List<int>> RecentGains(ValorantMatches.Session s, string puuid, string ranked = "competitive")
+    internal static async Task<List<int>> RecentGains(ValorantMatches.Session s, string puuid, string ranked = "competitive", string platform = null)
     {
         var list = new List<int>();
         try
         {
-            using var doc = await ValorantMatches.Get(s, $"https://pd.{s.Shard}.a.pvp.net/mmr/v1/players/{puuid}/competitiveupdates?startIndex=0&endIndex=10&queue={ranked}");
+            using var doc = await ValorantMatches.Get(s, $"https://pd.{s.Shard}.a.pvp.net/mmr/v1/players/{puuid}/competitiveupdates?startIndex=0&endIndex=10&queue={ranked}", platform);
             if (doc?.RootElement.Get("Matches") is { ValueKind: JsonValueKind.Array } m)
                 foreach (var x in m.EnumerateArray())
                     if (x.Get("RankedRatingEarned") is { ValueKind: JsonValueKind.Number } e) list.Add(e.GetInt32());
