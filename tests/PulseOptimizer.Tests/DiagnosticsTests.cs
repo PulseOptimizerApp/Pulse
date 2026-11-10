@@ -45,4 +45,14 @@ public class DiagnosticsTests
     [InlineData("DIMM1", "BANK 1", null)]
     public void Memory_channel_letter_is_read_from_slot_names(string locator, string bank, string expected) =>
         Assert.Equal(expected, PcDiagnostics.ChannelOf(locator, bank));
+
+    [Fact]
+    public void Intel_controllers_are_separate_channels()
+    {
+        // Intel 12th gen and newer: Controller0 and Controller1 are the two channels, though both say "ChannelA".
+        var keys = new[] { "Controller0-ChannelA-DIMM0", "Controller0-ChannelA-DIMM1", "Controller1-ChannelA-DIMM0", "Controller1-ChannelA-DIMM1" }
+            .Select(l => PcDiagnostics.ChannelKey(l, "BANK 0")).Distinct().Count();
+        Assert.Equal(2, keys);
+        Assert.Equal("A", PcDiagnostics.ChannelKey("DIMM_A1", "BANK 0"));
+    }
 }
