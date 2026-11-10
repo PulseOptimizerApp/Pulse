@@ -494,6 +494,27 @@ public static class TweakCatalog
         },
         new Tweak
         {
+            Id = "more-ads", Category = TweakCategory.Privacy, Risk = Risk.Safe, Evidence = Evidence.NoPerformanceClaim,
+            Title = "Stop ads in File Explorer, Settings and after updates",
+            Summary = "Stops OneDrive and Microsoft 365 ads in File Explorer, suggested content in Settings, the \"finish setting up\" screens after updates, and promoted apps for new accounts.",
+            Explain = "File Explorer's own sync-provider switch, the per-user suggestion values Settings uses, and Microsoft's consumer-features policies (the policies are honored on Enterprise and Education; on Home and Pro the per-user switches do the work).",
+            Changes = @"Explorer\Advanced\ShowSyncProviderNotifications = 0 · ContentDeliveryManager → SubscribedContent-310093, -338393, -353698 = 0 · UserProfileEngagement\ScoobeSystemSettingEnabled = 0 · Policies\CloudContent → DisableWindowsConsumerFeatures, DisableSoftLanding, DisableCloudOptimizedContent = 1",
+            Gain = "A Windows without sales pitches in Explorer, Settings or after updates.",
+            Tradeoff = "No Windows tips or \"get the most out of Windows\" screens.",
+            Actions =
+            {
+                CU(@"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced", "ShowSyncProviderNotifications", 0, def: 1),
+                CU(Cdm, "SubscribedContent-310093Enabled", 0, def: 1),
+                CU(Cdm, "SubscribedContent-338393Enabled", 0, def: 1),
+                CU(Cdm, "SubscribedContent-353698Enabled", 0, def: 1),
+                CU(@"Software\Microsoft\Windows\CurrentVersion\UserProfileEngagement", "ScoobeSystemSettingEnabled", 0, def: 1),
+                LM(@"SOFTWARE\Policies\Microsoft\Windows\CloudContent", "DisableWindowsConsumerFeatures", 1),
+                LM(@"SOFTWARE\Policies\Microsoft\Windows\CloudContent", "DisableSoftLanding", 1),
+                LM(@"SOFTWARE\Policies\Microsoft\Windows\CloudContent", "DisableCloudOptimizedContent", 1),
+            }
+        },
+        new Tweak
+        {
             Id = "ad-id", Category = TweakCategory.Privacy, Risk = Risk.Safe, Evidence = Evidence.NoPerformanceClaim,
             Title = "Turn off the advertising ID",
             Summary = "Apps can no longer use a Windows ID to track your interests for ads.",
