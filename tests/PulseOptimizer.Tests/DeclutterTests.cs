@@ -24,13 +24,23 @@ public class DeclutterTests
     }
 
     [Fact]
-    public void XboxAppsNeededForGamesAreMarkedKeep()
+    public void XboxAppAndGameBarCanGoButOnlyAfterACheck()
     {
+        // Removable at the owner's request, never pre-ticked as "safe": Game Pass and some games use them.
         foreach (var pkg in new[] { "Microsoft.GamingApp", "Microsoft.XboxGamingOverlay" })
         {
             var rule = DeclutterEngine.StoreBloat.First(b => pkg.Contains(b.match, StringComparison.OrdinalIgnoreCase));
-            Assert.Equal(AppAdvice.Keep, rule.advice);
+            Assert.Equal(AppAdvice.Check, rule.advice);
         }
+    }
+
+    [Fact]
+    public void GameBarOffLeavesNoPopupsAndUndoes()
+    {
+        var t = Pulse.Core.TweakCatalog.All.Single(x => x.Id == "gamebar-off");
+        Assert.NotEqual(Pulse.Core.Risk.Safe, t.Risk);
+        Assert.False(t.Recommended);
+        Assert.Contains(t.Actions, a => a is Pulse.Core.PsAction);
     }
 
     [Fact]

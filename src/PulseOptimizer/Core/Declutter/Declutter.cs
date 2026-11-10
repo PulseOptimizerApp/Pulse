@@ -359,6 +359,25 @@ public static class DeclutterEngine
         ("Microsoft.MixedReality.Portal", AppAdvice.Safe, "For VR headsets only"),
         ("Microsoft.Microsoft3DViewer", AppAdvice.Safe, "3D model viewer"),
         ("Microsoft.SkypeApp", AppAdvice.Safe, "Skype (discontinued)"),
+        ("Microsoft.WindowsCommunicationsApps", AppAdvice.Safe, "Mail and Calendar (Microsoft retired them)"),
+        ("Microsoft.MSPaint", AppAdvice.Safe, "Paint 3D (discontinued; the normal Paint stays)"),
+        ("Microsoft.Print3D", AppAdvice.Safe, "3D printing app"),
+        ("Microsoft.Messaging", AppAdvice.Safe, "Old messaging app"),
+        ("Microsoft.OneConnect", AppAdvice.Safe, "Mobile plans"),
+        ("Microsoft.Wallet", AppAdvice.Safe, "Old wallet app"),
+        ("Microsoft.BingSearch", AppAdvice.Safe, "Bing search app"),
+        ("Microsoft.BingFinance", AppAdvice.Safe, "Money (news app)"),
+        ("Microsoft.BingSports", AppAdvice.Safe, "Sports (news app)"),
+        ("Microsoft.MicrosoftJournal", AppAdvice.Safe, "Pen note-taking app"),
+        ("Microsoft.Whiteboard", AppAdvice.Safe, "Whiteboard"),
+        ("LinkedIn", AppAdvice.Safe, "LinkedIn shortcut installed by Windows"),
+        ("Microsoft.Copilot", AppAdvice.Check, "Copilot app"),
+        ("Microsoft.OutlookForWindows", AppAdvice.Check, "New Outlook (keep it if you use it for email)"),
+        ("Microsoft.Office.OneNote", AppAdvice.Check, "OneNote"),
+        ("MicrosoftCorporationII.MicrosoftFamily", AppAdvice.Check, "Microsoft Family Safety"),
+        ("Microsoft.BingTranslator", AppAdvice.Check, "Translator"),
+        ("Microsoft.WindowsAlarms", AppAdvice.Check, "Clock and alarms"),
+        ("Microsoft.Edge.GameAssist", AppAdvice.Check, "Edge Game Assist overlay"),
         ("Disney", AppAdvice.Safe, "Streaming app shortcut installed by Windows"),
         ("TikTok", AppAdvice.Check, "Social app installed by Windows"),
         ("BytedancePte", AppAdvice.Check, "Social app installed by Windows"),
@@ -378,9 +397,9 @@ public static class DeclutterEngine
         ("Microsoft.WindowsSoundRecorder", AppAdvice.Check, "Sound Recorder"),
         ("MicrosoftCorporationII.QuickAssist", AppAdvice.Check, "Lets someone control your PC to help you"),
         // Xbox Identity Provider, Xbox Live in-game (TCUI) and Gaming Services are never offered: Game Pass, Minecraft
-        // and Xbox PC games stop signing in or starting without them.
-        ("Microsoft.GamingApp", AppAdvice.Keep, "Xbox app: needed for Game Pass games"),
-        ("Microsoft.XboxGamingOverlay", AppAdvice.Keep, "Game Bar: some games use it"),
+        // and Xbox PC games stop signing in or starting without them. The Xbox app and Game Bar can go.
+        ("Microsoft.GamingApp", AppAdvice.Check, "Xbox app. Remove it if you don't play Game Pass or Xbox PC games: they install and update through it"),
+        ("Microsoft.XboxGamingOverlay", AppAdvice.Check, "Xbox Game Bar (Win+G). Turn on \"Turn off Xbox Game Bar\" in Tweaks too, so games don't show popups. Keep it on Ryzen 7950X3D/7900X3D"),
         ("Microsoft.XboxApp", AppAdvice.Safe, "Xbox Console Companion (old app Microsoft replaced)"),
         ("Microsoft.XboxSpeechToTextOverlay", AppAdvice.Check, "Xbox chat speech-to-text"),
     };
@@ -398,6 +417,14 @@ public static class DeclutterEngine
         ("Driver Easy", AppAdvice.Safe, "Driver updaters often bundle adware; get drivers from the maker instead"),
         ("Advanced SystemCare", AppAdvice.Safe, "System 'optimizers' like this mostly apply placebo tweaks"),
         ("WinZip", AppAdvice.Check, "Windows opens zip files on its own"),
+        ("Microsoft OneDrive", AppAdvice.Check, "Cloud sync. Remove it if you don't keep files in OneDrive (your files stay in the cloud)"),
+        ("Microsoft 365 -", AppAdvice.Check, "Preinstalled Office trial. Keep it if you pay for Microsoft 365"),
+        ("HP Wolf Security", AppAdvice.Check, "Preinstalled by HP. Windows Security already protects you"),
+        ("HP Support Assistant", AppAdvice.Check, "HP's helper. Useful for HP driver updates, otherwise optional"),
+        ("Dell SupportAssist", AppAdvice.Check, "Dell's helper. Useful for Dell driver updates, otherwise optional"),
+        ("Overwolf", AppAdvice.Check, "Runs in the background for in-game apps. Keep it only if you use its apps"),
+        ("NZXT CAM", AppAdvice.Check, "Uses CPU in the background. Keep it if it runs your fans, pump or lights"),
+        ("Armoury Crate", AppAdvice.Check, "Heavy in the background. Keep it if it runs your lights or fans"),
     };
 
     static readonly string[] GamePublishers =
