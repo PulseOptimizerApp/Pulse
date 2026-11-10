@@ -26,6 +26,8 @@ public class BhMods
     public bool Stretch { get; set; }
     /// <summary>Game file (relative) → SHA-256 of what Pulse last wrote, to spot game updates.</summary>
     public Dictionary<string, string> Written { get; set; } = new();
+    /// <summary>Changes picked since the last Apply (they aren't in the game yet).</summary>
+    public bool Pending { get; set; }
     public bool FastGpu { get; set; }
     public bool HighPriority { get; set; }
 
@@ -503,6 +505,8 @@ public static class BrawlhallaMods
             TweakEngine.AddLog("brawlhalla", "Brawlhalla mods: " + string.Join("; ", problems));
             return Ui.Loc.F("{0} file(s) couldn't be changed; the rest are done.", problems.Count);
         }
+        M.Pending = false;
+        TweakEngine.Save();
         TweakEngine.AddLog("brawlhalla", "Brawlhalla mods applied");
         return null;
     }

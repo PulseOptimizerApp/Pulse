@@ -22,7 +22,7 @@ public sealed partial class BrawlhallaPage
     string _mode = "stats", _modTab = "skins", _skinSearch = "", _bgTheme = "clean", _modStatus, _openColor;
     List<BhSkin> _skins;
     double _skinsProgress;
-    bool _skinsLoading, _modBusy, _modDirty, _restoreArmed;
+    bool _skinsLoading, _modBusy, _restoreArmed;
     BhSkin _skin;
     List<SwfPart> _skinParts = new();
     List<(int Rgb, int Count)> _skinPalette = new();
@@ -111,8 +111,8 @@ public sealed partial class BrawlhallaPage
         if (_modBusy) state = Loc.T("Putting your changes into Brawlhalla…");
         else if (_modStatus != null) { state = _modStatus; }
         else if (BrawlhallaMods.NeedsReapply()) { state = Loc.T("A Brawlhalla update put the original files back. Apply to get your changes again."); color = Res("WarnBrush"); }
-        else if (_modDirty) { state = Loc.T("You have changes that aren't in the game yet."); color = new SolidColorBrush(Gold); }
-        else if (Mods.Any) state = Loc.T("Your changes are in the game.");
+        else if (Mods.Pending) { state = Loc.T("You have changes that aren't in the game yet."); color = new SolidColorBrush(Gold); }
+        else if (Mods.Any && Mods.Written.Count > 0) state = Loc.T("Your changes are in the game.");
         else state = Loc.T("Nothing changed yet. Pick something below, then Apply.");
         left.Children.Add(new TextBlock { Text = state, FontSize = 14, FontWeight = FontWeights.SemiBold, Foreground = color, TextWrapping = TextWrapping.Wrap });
         left.Children.Add(Dim(running ? Loc.T("Brawlhalla is open: close it to apply.") : Loc.T("Changes Brawlhalla's own files on this PC. Only you see them, at your own risk. Recommended: only change skins you own."), 12, 3)
@@ -142,7 +142,6 @@ public sealed partial class BrawlhallaPage
         try { error = await StaTask(work); }
         catch (Exception ex) { error = ex.Message; }
         _modBusy = false;
-        _modDirty = error != null;
         _modStatus = error ?? done;
         MainWindow.Instance.Toast(error ?? done, error == null ? ToastKind.Success : ToastKind.Info);
         Build();
@@ -163,7 +162,7 @@ public sealed partial class BrawlhallaPage
         return tcs.Task;
     }
 
-    void Changed() { _modDirty = true; _modStatus = null; TweakEngine.Save(); }
+    void Changed() { Mods.Pending = true; _modStatus = null; TweakEngine.Save(); }
 
     // ───────── skins: the browser both Skins and Colors use ─────────
 
