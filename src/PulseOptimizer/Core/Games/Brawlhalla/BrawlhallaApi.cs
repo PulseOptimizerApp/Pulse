@@ -76,7 +76,16 @@ public static class Brawlhalla
 
     static async Task<JsonDocument> Get(string path, CancellationToken ct)
     {
-        using var res = await Http.GetAsync(Api + path, ct);
+        // Their servers sometimes answer 502/503 for a moment: try twice more, a little later each time.
+        HttpResponseMessage res = null;
+        for (int attempt = 0; ; attempt++)
+        {
+            res?.Dispose();
+            res = await Http.GetAsync(Api + path, ct);
+            if ((int)res.StatusCode is < 500 or > 504 || attempt == 2) break;
+            await Task.Delay(800 * (attempt + 1), ct);
+        }
+        using var _ = res;
         if ((int)res.StatusCode == 404) return null;
         if ((int)res.StatusCode == 429) throw new HttpRequestException("Brawlhalla's servers say too many requests. Try again in a few minutes.");
         if (!res.IsSuccessStatusCode) throw new HttpRequestException($"Brawlhalla's servers answered {(int)res.StatusCode}.");
@@ -116,7 +125,10 @@ public static class Brawlhalla
         var all = new List<BhLegend>();
         for (int page = 1; page <= 5; page++)
         {
-            using var doc = await Get($"static/legends?max_results=100&page={page}", ct);
+            JsonDocument doc;
+            try { doc = await Get($"static/legends?max_results=100&page={page}", ct); }
+            catch (Exception) when (all.Count > 0) { break; }   // keep the legends already read
+            using var __ = doc;
             if (doc == null || !doc.RootElement.TryGetProperty("legends", out var arr) || arr.ValueKind != JsonValueKind.Array) break;
             foreach (var l in arr.EnumerateArray())
                 all.Add(new BhLegend(I(l, "legend_id"), S(l, "bio_name") is { Length: > 0 } n ? n : S(l, "legend_name"), S(l, "weapon_one"), S(l, "weapon_two")));
