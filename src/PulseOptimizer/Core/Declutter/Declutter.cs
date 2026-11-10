@@ -397,9 +397,9 @@ public static class DeclutterEngine
         ("Microsoft.WindowsSoundRecorder", AppAdvice.Check, "Sound Recorder"),
         ("MicrosoftCorporationII.QuickAssist", AppAdvice.Check, "Lets someone control your PC to help you"),
         // Xbox Identity Provider, Xbox Live in-game (TCUI) and Gaming Services are never offered: Game Pass, Minecraft
-        // and Xbox PC games stop signing in or starting without them.
-        ("Microsoft.GamingApp", AppAdvice.Keep, "Xbox app: needed for Game Pass games"),
-        ("Microsoft.XboxGamingOverlay", AppAdvice.Keep, "Game Bar: some games use it"),
+        // and Xbox PC games stop signing in or starting without them. The Xbox app and Game Bar can go.
+        ("Microsoft.GamingApp", AppAdvice.Check, "Xbox app. Remove it if you don't play Game Pass or Xbox PC games: they install and update through it"),
+        ("Microsoft.XboxGamingOverlay", AppAdvice.Check, "Xbox Game Bar (Win+G). Turn on \"Turn off Xbox Game Bar\" in Tweaks too, so games don't show popups. Keep it on Ryzen 7950X3D/7900X3D"),
         ("Microsoft.XboxApp", AppAdvice.Safe, "Xbox Console Companion (old app Microsoft replaced)"),
         ("Microsoft.XboxSpeechToTextOverlay", AppAdvice.Check, "Xbox chat speech-to-text"),
     };

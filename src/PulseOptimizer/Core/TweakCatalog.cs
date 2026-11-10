@@ -105,6 +105,23 @@ public static class TweakCatalog
         },
         new Tweak
         {
+            Id = "gamebar-off", Category = TweakCategory.Gaming, Risk = Risk.Moderate, Evidence = Evidence.NoPerformanceClaim,
+            Title = "Turn off Xbox Game Bar",
+            Summary = "The Xbox button and games stop opening Game Bar, its background capture is off, and there are no \"you'll need a new app to open this ms-gamingoverlay link\" popups if you remove it.",
+            Explain = "Game Bar's own switches (Settings → Gaming → Xbox Game Bar), plus a do-nothing handler for the links games and the Xbox button use to open it, so removing Game Bar on the Debloat page doesn't leave popups behind. The handler points at Windows' own systray.exe, which does nothing. Undo removes it.",
+            Changes = @"GameBar\UseNexusForGameBarEnabled = 0 · GameDVR\AppCaptureEnabled = 0 · GameConfigStore\GameDVR_Enabled = 0 · HKCU\Software\Classes\ms-gamebar, ms-gamebarservices, ms-gamingoverlay → systray.exe",
+            Gain = "No Game Bar popping up over games, and no leftover popups after removing it.",
+            Tradeoff = "Win+G, Game Bar widgets and Game Bar screenshots stop working. On AMD Ryzen 7950X3D/7900X3D, keep Game Bar installed: AMD's driver uses it to put games on the right cores.",
+            Actions =
+            {
+                CU(@"Software\Microsoft\GameBar", "UseNexusForGameBarEnabled", 0, def: 1),
+                CU(@"Software\Microsoft\Windows\CurrentVersion\GameDVR", "AppCaptureEnabled", 0, def: 1),
+                CU(@"System\GameConfigStore", "GameDVR_Enabled", 0, def: 1),
+                new PsAction(@"foreach ($p in 'ms-gamebar','ms-gamebarservices','ms-gamingoverlay') { $k = ""HKCU:\Software\Classes\$p""; New-Item -Path ""$k\shell\open\command"" -Force | Out-Null; Set-ItemProperty -Path $k -Name '(default)' -Value ""URL:$p""; Set-ItemProperty -Path $k -Name 'URL Protocol' -Value ''; Set-ItemProperty -Path $k -Name 'NoOpenWith' -Value ''; Set-ItemProperty -Path ""$k\shell\open\command"" -Name '(default)' -Value ('""' + $env:SystemRoot + '\System32\systray.exe""') }", @"foreach ($p in 'ms-gamebar','ms-gamebarservices','ms-gamingoverlay') { Remove-Item -Path ""HKCU:\Software\Classes\$p"" -Recurse -Force -ErrorAction SilentlyContinue }", @"[bool]((Get-ItemProperty -Path 'HKCU:\Software\Classes\ms-gamingoverlay\shell\open\command' -ErrorAction SilentlyContinue).'(default)' -like '*systray.exe*')"),
+            }
+        },
+        new Tweak
+        {
             Id = "delivery-opt", Category = TweakCategory.Network, Risk = Risk.Safe,
             Evidence = Evidence.Documented, Proof = ProofMetric.None, Recommended = true,
             SourceName = "Microsoft Learn: Delivery Optimization reference", SourceUrl = SrcDo,
