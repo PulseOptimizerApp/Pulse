@@ -260,6 +260,36 @@ public class CoachTests
     }
 
     [Fact]
+    public void Lineups_sit_on_the_map_by_callout_or_by_the_spot_you_placed()
+    {
+        MapGeo.Reset();
+        var meta = JsonDocument.Parse("""{"maps":{"ascent":{"m":[0.00007,-0.00007,0.813895,0.573242],"c":[["Main","B",-3000,2000],["Site","B",-5000,-1000],["Site","A",4500,-6000]]}}}""").RootElement;
+        MapGeo.LoadFrom(meta);
+        var byCallout = new Lineup { Map = "Ascent", Stand = "B Main", Land = "B Site" };
+        var (s, d) = Lineups.Spots(byCallout);
+        Assert.Equal(MapGeo.ToMinimap("Ascent", -3000, 2000), s);
+        Assert.Equal(MapGeo.ToMinimap("Ascent", -5000, -1000), d);
+        var placed = new Lineup { Map = "Ascent", Stand = "B Main", StandX = 0.2, StandY = 0.3, LandX = 0.6, LandY = 0.7 };
+        Assert.Equal(new System.Windows.Point(0.2, 0.3), Lineups.Spots(placed).Stand);
+        Assert.Equal(new System.Windows.Point(0.6, 0.7), Lineups.Spots(placed).Land);
+        Assert.Null(Lineups.Spots(new Lineup { Map = "Ascent", Stand = "Nowhere" }).Stand);
+        Assert.Equal(new[] { "B", "A" }, MapGeo.Sites("Ascent").Select(x => x.Letter));
+        Assert.Equal("B Main", MapGeo.CalloutNear("Ascent", MapGeo.ToMinimap("Ascent", -2900, 2100)!.Value));
+        MapGeo.Reset();
+    }
+
+    [Fact]
+    public void Every_library_lineup_says_where_you_stand_and_where_it_lands()
+    {
+        Assert.NotEmpty(Lineups.Library);
+        Assert.All(Lineups.Library, l =>
+        {
+            Assert.False(string.IsNullOrWhiteSpace(l.Stand), l.Title);
+            Assert.False(string.IsNullOrWhiteSpace(l.Land), l.Title);
+        });
+    }
+
+    [Fact]
     public void The_store_is_read_with_prices_discounts_and_tiers()
     {
         var front = JsonDocument.Parse("""

@@ -107,6 +107,35 @@ public static class MapGeo
         return i.Callouts.MinBy(c => (c.X - x) * (c.X - x) + (c.Y - y) * (c.Y - y))!.Name;
     }
 
+    /// <summary>Where a callout ("B Main") sits on the minimap, 0 to 1; null when the map or callout isn't known.</summary>
+    public static Point? CalloutPoint(string map, string callout)
+    {
+        Load();
+        if (string.IsNullOrWhiteSpace(callout) || !_maps.TryGetValue(MatchArt.Key(map), out var i)) return null;
+        var c = i.Callouts.FirstOrDefault(c => string.Equals(c.Name, callout.Trim(), StringComparison.OrdinalIgnoreCase));
+        return c == null ? null : ToMinimap(map, c.X, c.Y);
+    }
+
+    /// <summary>The map's sites ("A", "B", "C") and where each sits on the minimap, for labels.</summary>
+    public static List<(string Letter, Point At)> Sites(string map)
+    {
+        Load();
+        var list = new List<(string, Point)>();
+        if (!_maps.TryGetValue(MatchArt.Key(map), out var i)) return list;
+        foreach (var c in i.Callouts.Where(c => c.Name.EndsWith(" Site", StringComparison.OrdinalIgnoreCase) && c.Name.Length == 6))
+            if (ToMinimap(map, c.X, c.Y) is Point p) list.Add((c.Name[..1], p));
+        return list;
+    }
+
+    /// <summary>The nearest callout to a point on the minimap (0 to 1), for naming a spot you clicked; "" when unknown.</summary>
+    public static string CalloutNear(string map, Point mini)
+    {
+        Load();
+        if (!_maps.TryGetValue(MatchArt.Key(map), out var i) || i.Callouts.Count == 0) return "";
+        return i.Callouts.Select(c => (c, p: ToMinimap(map, c.X, c.Y))).Where(x => x.p != null)
+            .MinBy(x => (x.p.Value.X - mini.X) * (x.p.Value.X - mini.X) + (x.p.Value.Y - mini.Y) * (x.p.Value.Y - mini.Y)).c?.Name ?? "";
+    }
+
     public static string Weapon(string id)
     {
         Load();

@@ -28,6 +28,15 @@ public sealed class Lineup
     /// <summary>Where a lineup from Pulse's library was written up (credited on its card), or empty for your own.</summary>
     public string Source { get; set; } = "";
     public string SourceName { get; set; } = "";
+    /// <summary>The callout you throw from ("B Main"), for lineups placed by callout (the library's).</summary>
+    public string Stand { get; set; } = "";
+    /// <summary>The callout it lands in ("B Site").</summary>
+    public string Land { get; set; } = "";
+    /// <summary>Exactly where you stand and where it lands on the minimap, 0 to 1 across and down; -1 when not placed (then the callouts are used).</summary>
+    public double StandX { get; set; } = -1;
+    public double StandY { get; set; } = -1;
+    public double LandX { get; set; } = -1;
+    public double LandY { get; set; } = -1;
     /// <summary>True for lineups from Pulse's built-in library (they can be copied to yours, not edited).</summary>
     [System.Text.Json.Serialization.JsonIgnore] public bool BuiltIn { get; set; }
 }
@@ -81,6 +90,17 @@ public static class Lineups
             catch { }
             return _library = list;
         }
+    }
+
+    /// <summary>
+    /// Where a lineup's throw and landing sit on the minimap (0 to 1): the spots you placed, else the callouts' centres.
+    /// Null for either one that isn't known.
+    /// </summary>
+    public static (System.Windows.Point? Stand, System.Windows.Point? Land) Spots(Lineup l)
+    {
+        System.Windows.Point? stand = l.StandX >= 0 && l.StandY >= 0 ? new(l.StandX, l.StandY) : MapGeo.CalloutPoint(l.Map, l.Stand);
+        System.Windows.Point? land = l.LandX >= 0 && l.LandY >= 0 ? new(l.LandX, l.LandY) : MapGeo.CalloutPoint(l.Map, l.Land);
+        return (stand, land);
     }
 
     /// <summary>A YouTube search for a lineup (opened in the browser; Pulse itself doesn't go online for it).</summary>
