@@ -525,6 +525,25 @@ public sealed partial class BrawlhallaPage
         var sp = new StackPanel();
         sp.Children.Add(Heading("Effect colors"));
         sp.Children.Add(Dim(Loc.T("Give dashes, dodges, gravity cancels and attacks your own color. Pulse tints each effect and keeps its bright highlights, so it still glows. The plain swing trail on light attacks is drawn by the game's code, so it can't change; each weapon's slashes, sparks and signature effects can."), 12.5, 6));
+        // One-click looks: one color for dashes, dodges, gravity cancels, jumps, trails and KOs.
+        sp.Children.Add(new TextBlock { Text = Loc.T("Effect packs"), FontSize = 14, FontWeight = FontWeights.SemiBold, Foreground = Res("TextBrush"), Margin = new Thickness(0, 16, 0, 0) });
+        var packs = new WrapPanel { Margin = new Thickness(0, 8, 0, 0) };
+        foreach (var pack in BrawlhallaMods.Packs)
+        {
+            bool on = pack.Effects.All(k => Mods.Effects.GetValueOrDefault(k) == BrawlhallaMods.ToHex(pack.Rgb));
+            var chip = new StackPanel { Orientation = Orientation.Horizontal };
+            chip.Children.Add(new Border { Width = 16, Height = 16, CornerRadius = new CornerRadius(8), Background = new SolidColorBrush(Rgb(pack.Rgb)), Margin = new Thickness(0, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center });
+            chip.Children.Add(new TextBlock { Text = Loc.T(pack.Name), FontSize = 12.5, FontWeight = FontWeights.SemiBold, Foreground = Res("TextBrush"), VerticalAlignment = VerticalAlignment.Center });
+            var b = new Border { Child = chip, Padding = new Thickness(12, 7, 14, 7), Margin = new Thickness(0, 0, 8, 8), CornerRadius = new CornerRadius(999), Cursor = Cursors.Hand,
+                Background = new SolidColorBrush(Inset), BorderThickness = new Thickness(on ? 2 : 1), BorderBrush = on ? new SolidColorBrush(Gold) : new SolidColorBrush(Line) };
+            var p = pack;
+            b.MouseLeftButtonUp += (_, _) => { foreach (var k in p.Effects) Mods.Effects[k] = BrawlhallaMods.ToHex(p.Rgb); Changed(); Build(); };
+            packs.Children.Add(b);
+        }
+        var none = Ghost(Loc.T("All original"), () => { Mods.Effects.Clear(); Changed(); Build(); });
+        none.Margin = new Thickness(0, 0, 8, 8);
+        packs.Children.Add(none);
+        sp.Children.Add(packs);
         foreach (var e in BrawlhallaMods.EffectList())
         {
             var cur = Mods.Effects.GetValueOrDefault(e.Key);

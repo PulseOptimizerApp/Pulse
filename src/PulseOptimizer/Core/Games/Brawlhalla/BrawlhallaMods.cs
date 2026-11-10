@@ -54,7 +54,13 @@ public sealed record BhSkin(string File, string Name, string Legend, List<string
 }
 
 /// <summary>An effect Pulse can recolor: which file it's in and which parts are it.</summary>
-public sealed record BhEffect(string Key, string Name, string Detail, string File, Func<string, bool> Takes);
+public sealed record BhEffect(string Key, string Name, string Detail, string[] Files, Func<string, bool> Takes)
+{
+    public BhEffect(string key, string name, string detail, string file, Func<string, bool> takes) : this(key, name, detail, new[] { file }, takes) { }
+}
+
+/// <summary>A one-click look: one color for a set of effects.</summary>
+public sealed record BhEffectPack(string Name, int Rgb, string[] Effects);
 
 /// <summary>A map background theme.</summary>
 public sealed record BhTheme(string Key, string Name, string Detail);
@@ -271,6 +277,8 @@ public static class BrawlhallaMods
             new("dodge", "Dodges", "The flash when you dodge, and the dodge cooldown.", "SFX_1.swf", s => Starts(s, "a_DodgeFX", "a_DodgeCooldown")),
             new("gc", "Gravity cancels", "The ring when you gravity cancel.", "SFX_1.swf", s => Starts(s, "a_GravityCancelFX")),
             new("jump", "Jumps and walls", "Jump dust, wall slides and wall jumps.", "SFX_1.swf", s => Starts(s, "a_JumpDust", "a_WallSlip", "a_DustWallTouch")),
+            new("trail", "Knockback trails", "The smoke and fire behind a fighter sent flying.", new[] { "SFX_1.swf", "SFX_KO.swf" }, s => Starts(s, "a_SmokeTrailREDUX", "a_SmokeTrailFire", "a_SmokeTrailSuperUltraFast", "a_SmokeTrail03", "a_SmokeTrail04")),
+            new("ko", "KO effects", "The burst when someone is knocked out, including the KO effect you have on.", new[] { "SFX_KO.swf", "SFX_KO2.swf" }, s => Starts(s, "a_SmokeTrailEnd", "a_KFPKOglow", "a_MegamanKO", "SkelaughKO", "StreetFighterKO", "a_OffScreenBubble")),
         };
         var dir = GameDir;
         foreach (var (file, weapon) in new[] { ("SFX_Sword.swf", "Sword"), ("SFX_Spear.swf", "Spear"), ("SFX_Hammer.swf", "Hammer"), ("SFX_Axe.swf", "Axe"), ("SFX_Katar.swf", "Katars"), ("SFX_Bow.swf", "Bow"),
@@ -282,6 +290,17 @@ public static class BrawlhallaMods
         }
         return list;
     }
+
+    /// <summary>One-click looks for the movement and KO effects.</summary>
+    public static readonly List<BhEffectPack> Packs = new()
+    {
+        new("Royal Gold", 0xFFC93C, new[] { "dash", "dodge", "gc", "jump", "trail", "ko" }),
+        new("Ice", 0x5CE1FF, new[] { "dash", "dodge", "gc", "jump", "trail", "ko" }),
+        new("Inferno", 0xFF4A1F, new[] { "dash", "dodge", "gc", "jump", "trail", "ko" }),
+        new("Shadow", 0x8A4DFF, new[] { "dash", "dodge", "gc", "jump", "trail", "ko" }),
+        new("Toxic", 0x8BFF3B, new[] { "dash", "dodge", "gc", "jump", "trail", "ko" }),
+        new("Sakura", 0xFF7CC8, new[] { "dash", "dodge", "gc", "jump", "trail", "ko" }),
+    };
 
     // ───────── map backgrounds ─────────
 
@@ -476,7 +495,7 @@ public static class BrawlhallaMods
         foreach (var (f, p) in M.Pictures) if (p.Count > 0) set.Add(f);
         foreach (var (k, c) in M.Colors) if (!c.IsOriginal) set.Add(k.Split('|')[0]);
         var effects = EffectList();
-        foreach (var (k, v) in M.Effects) if (v.Length > 0 && effects.FirstOrDefault(e => e.Key == k) is { } e) set.Add(e.File);
+        foreach (var (k, v) in M.Effects) if (v.Length > 0 && effects.FirstOrDefault(e => e.Key == k) is { } e) set.UnionWith(e.Files);
         foreach (var f in M.Backgrounds.Keys) set.Add(BackgroundPath(f));
         foreach (var f in M.Written.Keys) set.Add(f);
         if (Directory.Exists(Originals))
@@ -566,7 +585,7 @@ public static class BrawlhallaMods
             var parts = swf.Symbols.Where(x => x.StartsWith("a_", StringComparison.Ordinal) && SkinOf(x, fileName) == bits[1]).ToList();
             if (parts.Count > 0 && swf.Recolor(ColorMap(colors), parts) > 0) any = true;
         }
-        foreach (var e in EffectList().Where(e => e.File.Equals(name, StringComparison.OrdinalIgnoreCase)))
+        foreach (var e in EffectList().Where(e => e.Files.Contains(name, StringComparer.OrdinalIgnoreCase)))
         {
             if (!M.Effects.TryGetValue(e.Key, out var hex) || !TryHex(hex, out var target)) continue;
             var parts = swf.Symbols.Where(e.Takes).ToList();

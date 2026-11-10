@@ -5822,5 +5822,17 @@
  "Overall Graphics Quality: Low": "Calidad gráfica general: Baja",
  "Fewer effects in busy fights, so frame times stay even.": "Menos efectos en peleas intensas, así los tiempos de fotograma se mantienen estables.",
  "Play on a wired connection": "Juega con conexión por cable",
- "Brawlhalla's rollback netcode turns unstable ping into stutter, even at high FPS.": "El netcode con rollback de Brawlhalla convierte el ping inestable en tirones, incluso con muchos FPS."
+ "Brawlhalla's rollback netcode turns unstable ping into stutter, even at high FPS.": "El netcode con rollback de Brawlhalla convierte el ping inestable en tirones, incluso con muchos FPS.",
+ "Knockback trails": "Estelas de impacto",
+ "The smoke and fire behind a fighter sent flying.": "El humo y el fuego detrás de un luchador que sale volando.",
+ "KO effects": "Efectos de KO",
+ "The burst when someone is knocked out, including the KO effect you have on.": "La explosión cuando alguien queda KO, incluido el efecto de KO que llevas puesto.",
+ "Effect packs": "Packs de efectos",
+ "Royal Gold": "Oro real",
+ "Ice": "Hielo",
+ "Inferno": "Infierno",
+ "Shadow": "Sombra",
+ "Toxic": "Tóxico",
+ "Sakura": "Sakura",
+ "All original": "Todo original"
 }
