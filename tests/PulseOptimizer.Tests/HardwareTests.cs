@@ -149,3 +149,47 @@ public class HardwareShots
         if (error != null) throw new Exception("Screenshot failed", error);
     }
 }
+
+public class HardwarePriceTests
+{
+    [Fact]
+    public void Every_desktop_part_has_a_price()
+    {
+        Assert.All(HardwareDb.Cpus.Where(c => c.Kind == "desktop"), c => Assert.True(c.Price > 0, c.Name));
+        Assert.All(HardwareDb.Gpus.Where(g => g.Kind == "desktop"), g => Assert.True(g.Price > 0, g.Name));
+        Assert.All(HardwareDb.Cpus.Where(c => c.Kind == "laptop"), c => Assert.Equal(0, c.Price));
+    }
+
+    [Fact]
+    public void Prices_read_well()
+    {
+        Assert.Equal("$420", HardwareDb.PriceText(HardwareDb.Cpus.First(c => c.Name == "Ryzen 7 9800X3D")));
+        Assert.EndsWith("used", HardwareDb.PriceText(HardwareDb.Gpus.First(g => g.Name == "GeForce GTX 1080 Ti")));
+        Assert.Equal("$4,290", HardwareDb.PriceText(HardwareDb.Gpus.First(g => g.Name == "GeForce RTX 5090")));
+    }
+
+    [Fact]
+    public void Memory_costs_more_for_more_and_faster()
+    {
+        Assert.True(HardwareDb.RamPrice(new HwRam(32, "DDR5", 6000, true)) > HardwareDb.RamPrice(new HwRam(16, "DDR5", 6000, true)));
+        Assert.True(HardwareDb.RamPrice(new HwRam(32, "DDR5", 6000, true)) > HardwareDb.RamPrice(new HwRam(32, "DDR4", 3200, true)));
+        Assert.True(HardwareDb.RamPrice(new HwRam(32, "DDR5", 7200, true)) > HardwareDb.RamPrice(new HwRam(32, "DDR5", 4800, true)));
+    }
+
+    [Fact]
+    public void Builds_go_from_low_end_to_the_best()
+    {
+        var b = HardwareDb.Builds();
+        Assert.Equal(6, b.Count);
+        var ladder = b.Where(x => x.Name != "Competitive").ToList();
+        for (int i = 1; i < ladder.Count; i++)
+        {
+            Assert.True(ladder[i].Total > ladder[i - 1].Total, ladder[i].Name);
+            Assert.True(ladder[i].Gpu.Score >= ladder[i - 1].Gpu.Score, ladder[i].Name);
+        }
+        var val = HardwareDb.Games.First(g => g.Name == "Valorant");
+        var comp = b.First(x => x.Name == "Competitive");
+        var mid = b.First(x => x.Name == "Mid range");
+        Assert.True(HardwareDb.Estimate(comp.Cpu, comp.Gpu, comp.Ram, val, 1080).Fps > HardwareDb.Estimate(mid.Cpu, mid.Gpu, mid.Ram, val, 1080).Fps);
+    }
+}

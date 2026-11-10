@@ -558,7 +558,7 @@ public static class Tracker
     {
         int score = 0;
         var signs = new List<string>();
-        // The account's own signs (RR per win, act win rate, level, peak) from Riot.
+        // The account's own signs (act win rate, level, peak) from Riot.
         score += account.Score;
         signs.AddRange(account.Signs);
         var t = p.Totals;

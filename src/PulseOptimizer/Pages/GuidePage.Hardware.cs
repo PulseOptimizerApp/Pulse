@@ -112,7 +112,7 @@ public partial class GuidePage
         {
             var right = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
             right.Children.Add(Bar(score / max, TierColor(tier), 200));
-            right.Children.Add(Faint(Loc.T(tier), 11, 3));
+            right.Children.Add(Faint(Loc.T(tier) + (PriceOf(part) is { } price ? "  ·  " + price : ""), 11, 3));
             Grid.SetColumn(right, 2);
             g.Children.Add(right);
         }
@@ -132,6 +132,16 @@ public partial class GuidePage
         HwRam r => ("Memory", r.Label, r.Type == "DDR5" ? Loc.T("For AMD AM5 and Intel 12th gen and newer boards that take DDR5") : Loc.T("For DDR4 boards (AMD AM4, Intel up to 14th gen)"),
             HardwareDb.RamFactor(r), 1.02, RamTier(r)),
         _ => ("", "", "", 0, 1, ""),
+    };
+
+    const string PriceNote = "Rough US price, November 2026. Graphics cards and memory cost far more than usual right now; check a store before buying.";
+
+    static string PriceOf(object part) => part switch
+    {
+        HwCpu c => c.Kind == "laptop" ? null : HardwareDb.PriceText(c),
+        HwGpu g => g.Kind != "desktop" ? null : HardwareDb.PriceText(g),
+        HwRam r => HardwareDb.PriceText(r),
+        _ => null,
     };
 
     static string RamTier(HwRam r) => HardwareDb.RamFactor(r) is var f && f >= 0.99 ? "Top gaming" : f >= 0.95 ? "High end" : f >= 0.88 ? "Mid range" : "Entry level";
@@ -160,6 +170,8 @@ public partial class GuidePage
         var title = new StackPanel { Orientation = Orientation.Horizontal };
         title.Children.Add(Heading(name, 20));
         title.Children.Add(Pill(Loc.T(tier), TierColor(tier)).Also(p => p.Margin = new Thickness(12, 0, 0, 0)));
+        if (PriceOf(part) is { } price)
+            title.Children.Add(new TextBlock { Text = price, FontSize = 15, FontWeight = FontWeights.Bold, Foreground = Res("TextBrush"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 0, 0), ToolTip = Loc.T(PriceNote) });
         left.Children.Add(title);
         left.Children.Add(Dim(detail, 12.5, 4));
         head.Children.Add(left);
@@ -249,16 +261,17 @@ public partial class GuidePage
             head.Children.Add(reset);
         }
         sp.Children.Add(head);
-        sp.Children.Add(Dim(isMine ? Loc.T("This is your PC as Windows reports it. Change any part to see what it would do.") : Loc.T("Your own parts are marked; the frame rates below are for this build."), 12.5, 4));
+        sp.Children.Add(Dim(isMine ? Loc.T("This is your PC as Windows reports it. Change any part to see what it would do, or start from a ready-made build.") : Loc.T("Your own parts are marked; the frame rates below are for this build."), 12.5, 4));
+        sp.Children.Add(BuildPicker());
 
         var grid = new Grid { Margin = new Thickness(0, 14, 0, 0) };
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(110) });
         grid.ColumnDefinitions.Add(new ColumnDefinition());
         for (int i = 0; i < 3; i++) grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
-        var cpuBox = Combo(HardwareDb.Cpus.OrderByDescending(c => c.Score).Select(c => (object)c), _bCpu, o => ((HwCpu)o).Name + (o == _myCpu ? "  ·  " + Loc.T("yours") : ""), 380);
+        var cpuBox = Combo(HardwareDb.Cpus.OrderByDescending(c => c.Score).Select(c => (object)c), _bCpu, o => PartLabel(((HwCpu)o).Name, PriceOf(o), o == _myCpu), 400, o => HardwareDb.Tier((HwCpu)o));
         cpuBox.SelectionChanged += (_, _) => { if (cpuBox.SelectedItem is ComboBoxItem { Tag: HwCpu c } && c != _bCpu) { _bCpu = c; ShowTab("hardware", animate: false); } };
-        var gpuBox = Combo(HardwareDb.Gpus.OrderByDescending(g => g.Score).Select(g => (object)g), _bGpu, o => ((HwGpu)o).Name + (o == _myGpu ? "  ·  " + Loc.T("yours") : ""), 380);
+        var gpuBox = Combo(HardwareDb.Gpus.OrderByDescending(g => g.Score).Select(g => (object)g), _bGpu, o => PartLabel(((HwGpu)o).Name, PriceOf(o), o == _myGpu), 400, o => HardwareDb.Tier((HwGpu)o));
         gpuBox.SelectionChanged += (_, _) => { if (gpuBox.SelectedItem is ComboBoxItem { Tag: HwGpu g } && g != _bGpu) { _bGpu = g; ShowTab("hardware", animate: false); } };
 
         var ram = new WrapPanel();
@@ -284,7 +297,7 @@ public partial class GuidePage
         ram.Children.Add(speed.Also(c => c.Margin = new Thickness(0, 0, 8, 0)));
         ram.Children.Add(chan);
 
-        void Row(int r, string label, FrameworkElement pick, string tier)
+        void Row(int r, string label, FrameworkElement pick, string tier, string price)
         {
             var l = new TextBlock { Text = Loc.T(label), FontSize = 13, FontWeight = FontWeights.SemiBold, Foreground = Res("TextBrush"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 0, 10) };
             Grid.SetRow(l, r);
@@ -292,23 +305,100 @@ public partial class GuidePage
             var right = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 10) };
             right.Children.Add(pick);
             if (tier != null) right.Children.Add(Pill(Loc.T(tier), TierColor(tier)).Also(p => p.Margin = new Thickness(12, 0, 0, 0)));
+            if (price != null) right.Children.Add(new TextBlock { Text = price, FontSize = 13, FontWeight = FontWeights.SemiBold, Foreground = Res("TextBrush"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 0, 0), ToolTip = Loc.T(PriceNote) });
             Grid.SetRow(right, r); Grid.SetColumn(right, 1);
             grid.Children.Add(right);
         }
-        Row(0, "CPU", cpuBox, _bCpu != null ? HardwareDb.Tier(_bCpu) : null);
-        Row(1, "Graphics", gpuBox, _bGpu != null ? HardwareDb.Tier(_bGpu) : null);
-        Row(2, "Memory", ram, _bRam != null ? RamTier(_bRam) : null);
+        Row(0, "CPU", cpuBox, _bCpu != null ? HardwareDb.Tier(_bCpu) : null, PriceOf(_bCpu));
+        Row(1, "Graphics", gpuBox, _bGpu != null ? HardwareDb.Tier(_bGpu) : null, PriceOf(_bGpu));
+        Row(2, "Memory", ram, _bRam != null ? RamTier(_bRam) : null, PriceOf(_bRam));
         sp.Children.Add(grid);
+        sp.Children.Add(PriceSummary());
         if (_myCpu == null || _myGpu == null)
             sp.Children.Add(Faint(Loc.F("Pulse couldn't find {0} in its list ({1}). Pick the closest one above.", _myCpu == null ? Loc.T("your CPU") : Loc.T("your graphics card"), _myCpu == null ? SystemInfo.Cpu : SystemInfo.GpuText), 11.5, 2));
         return Card(sp);
     }
 
-    ComboBox Combo(IEnumerable<object> items, object selected, Func<object, string> label, double width)
+    static string PartLabel(string name, string price, bool yours) =>
+        name + (price != null ? "   " + price : "") + (yours ? "   ·  " + Loc.T("yours") : "");
+
+    /// <summary>The cost of this build: the three parts, and the whole PC with the rest it needs.</summary>
+    FrameworkElement PriceSummary()
+    {
+        if (_bCpu == null || _bGpu == null) return new Border();
+        bool laptop = _bCpu.Kind == "laptop" || _bGpu.Kind != "desktop";
+        var box = new Border { Background = Res("SurfaceBrush"), CornerRadius = new CornerRadius(10), Padding = new Thickness(14, 10, 14, 10), Margin = new Thickness(0, 4, 0, 0), HorizontalAlignment = HorizontalAlignment.Left };
+        var sp = new StackPanel();
+        box.Child = sp;
+        if (laptop)
+        {
+            sp.Children.Add(Faint(Loc.T("Laptop and built-in chips aren't sold on their own, so this build has no price. Pick desktop parts to see one."), 12));
+            return box;
+        }
+        int parts = _bCpu.Price + _bGpu.Price + HardwareDb.RamPrice(_bRam);
+        int rest = HardwareDb.RestOfPc(_bCpu, _bGpu);
+        var line = new StackPanel { Orientation = Orientation.Horizontal };
+        line.Children.Add(new TextBlock { Text = Loc.F("About {0} for the whole PC", "$" + (parts + rest).ToString("N0", CultureInfo.InvariantCulture)), FontSize = 15, FontWeight = FontWeights.Bold, Foreground = Res("TextBrush") });
+        sp.Children.Add(line);
+        sp.Children.Add(Faint(Loc.F("{0} for the parts above, plus about {1} for a motherboard, 1 TB SSD, power supply, case and cooler.",
+            "$" + parts.ToString("N0", CultureInfo.InvariantCulture), "$" + rest.ToString("N0", CultureInfo.InvariantCulture)), 11.5, 2));
+        if (_bCpu.Used || _bGpu.Used)
+            sp.Children.Add(Faint(Loc.T("Used parts are priced as used: no longer sold new."), 11.5, 2));
+        sp.Children.Add(Faint(Loc.T(PriceNote), 11, 4));
+        return box;
+    }
+
+    /// <summary>Ready-made builds from low end to the best: one click puts the whole build in the builder.</summary>
+    FrameworkElement BuildPicker()
+    {
+        var wrap = new WrapPanel { Margin = new Thickness(0, 12, 0, 2) };
+        foreach (var b in HardwareDb.Builds())
+        {
+            bool on = _bCpu == b.Cpu && _bGpu == b.Gpu && _bRam == b.Ram;
+            string tier = b.Name == "Low end" ? "Basic" : b.Name == "Competitive" ? "High end" : b.Name;
+            var c = TierColor(tier);
+            var sp = new StackPanel();
+            var top = new DockPanel();
+            top.Children.Add(new TextBlock { Text = "$" + b.Total.ToString("N0", CultureInfo.InvariantCulture), FontSize = 13, FontWeight = FontWeights.Bold, Foreground = Res("TextBrush") }.Also(t => DockPanel.SetDock(t, Dock.Right)));
+            top.Children.Add(new TextBlock { Text = Loc.T(b.Name), FontSize = 13.5, FontWeight = FontWeights.Bold, Foreground = B(c) });
+            sp.Children.Add(top);
+            sp.Children.Add(Faint(b.Cpu.Name, 11.5, 4));
+            sp.Children.Add(Faint(b.Gpu.Name, 11.5, 0));
+            sp.Children.Add(Faint(b.Ram.Label, 11.5, 0));
+            var tile = new Border
+            {
+                Width = 196, Padding = new Thickness(12, 9, 12, 10), Margin = new Thickness(0, 0, 8, 8), CornerRadius = new CornerRadius(10), Cursor = Cursors.Hand,
+                Background = on ? B(c, 0x22) : Res("SurfaceBrush"), BorderBrush = on ? B(c) : Res("BorderBrush"), BorderThickness = new Thickness(1),
+                ToolTip = Loc.T(b.Why) + "\n" + Loc.F("About {0} for the whole PC", "$" + b.Total.ToString("N0", CultureInfo.InvariantCulture)), Child = sp,
+            };
+            if (!on)
+            {
+                tile.MouseEnter += (_, _) => tile.Background = Res("SurfaceHoverBrush");
+                tile.MouseLeave += (_, _) => tile.Background = Res("SurfaceBrush");
+            }
+            var pick = b;
+            tile.MouseLeftButtonUp += (_, _) => { _bCpu = pick.Cpu; _bGpu = pick.Gpu; _bRam = pick.Ram; ShowTab("hardware", animate: false); };
+            wrap.Children.Add(tile);
+        }
+        return wrap;
+    }
+
+    ComboBox Combo(IEnumerable<object> items, object selected, Func<object, string> label, double width, Func<object, string> group = null)
     {
         var c = new ComboBox { Width = width, MaxDropDownHeight = 420 };
+        string last = null;
         foreach (var i in items)
         {
+            // Headings between the tiers (Top gaming, High end… Basic) so the long lists are easy to scan.
+            if (group?.Invoke(i) is { } g && g != last)
+            {
+                last = g;
+                c.Items.Add(new ComboBoxItem
+                {
+                    Content = Loc.T(g), IsEnabled = false, Focusable = false, FontWeight = FontWeights.Bold, FontSize = 11.5,
+                    Foreground = B(TierColor(g)), Padding = new Thickness(8, c.Items.Count == 0 ? 4 : 10, 8, 2),
+                });
+            }
             var item = new ComboBoxItem { Content = label(i), Tag = i };
             c.Items.Add(item);
             if (Equals(i, selected)) c.SelectedItem = item;

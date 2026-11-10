@@ -418,7 +418,7 @@ public class TrackerTests
         Assert.Equal(0, clean.Score);
     }
 
-    /// <summary>A Radiant player on a Diamond 2 account: 80% of 10 won, K/D 1.46, +25 RR a win, KAST 76%.</summary>
+    /// <summary>A Radiant player on a Diamond 2 account: 80% of 10 won, K/D 1.46, KAST 76%.</summary>
     static Profile RadiantOnDiamond()
     {
         var p = new Profile { Tier = 17, CompareTier = 17, ActWinPct = 80, ActGames = 10 };
@@ -427,12 +427,13 @@ public class TrackerTests
     }
 
     [Fact]
-    public void A_radiant_smurfing_in_diamond_reads_as_a_certain_smurf()
+    public void A_radiant_smurfing_in_diamond_reads_as_a_likely_smurf()
     {
         var p = RadiantOnDiamond();
         var account = Pulse.Core.Games.Live.ValorantLobby.SmurfSigns(0, 17, 17, 80, 10, new[] { 25, 26, 24, -12, 25, 25 });
         var s = Tracker.SmurfChance(p, account);
-        Assert.Equal(100, s.Score);
+        Assert.Equal("Likely smurf", s.Label);
+        Assert.DoesNotContain(s.Signs, x => x.Contains("RR"));
     }
 
     [Fact]
