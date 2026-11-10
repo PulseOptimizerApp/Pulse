@@ -14,6 +14,10 @@ public class BrawlhallaSettings
     public bool TrackMatches { get; set; } = true;
     /// <summary>When a match you played shows up: a small summary in the corner.</summary>
     public bool MatchPopup { get; set; } = true;
+    /// <summary>Players you checked in Matchup, newest first.</summary>
+    public List<BhRecent> Opponents { get; set; } = new();
+    /// <summary>Ctrl+Shift+B while Brawlhalla is open: Pulse comes up on Matchup.</summary>
+    public bool MatchupHotkey { get; set; } = true;
 }
 
 public class BhRecent { public long Id { get; set; } public string Name { get; set; } = ""; }

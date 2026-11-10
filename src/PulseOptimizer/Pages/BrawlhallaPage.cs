@@ -55,10 +55,16 @@ public sealed partial class BrawlhallaPage : UserControl, IPage
 
     readonly ScrollViewer _scroll;
 
-    /// <summary>"matches" (from the after-match popup): your matches.</summary>
+    /// <summary>"matches" (from the after-match popup): your matches. "matchup" (Ctrl+Shift+B): the matchup panel.</summary>
     public void OnShown(object parameter)
     {
         bool matches = parameter as string == "matches" && S.MyId > 0;
+        if (parameter as string == "matchup")
+        {
+            if (!_shown) { _shown = true; _ = Task.Run(() => Brawlhalla.Legends()).ContinueWith(t => { if (t.Status == TaskStatus.RanToCompletion) _legends = t.Result; }, TaskScheduler.FromCurrentSynchronizationContext()); }
+            ShowMatchup();
+            return;
+        }
         if (!_shown)
         {
             _shown = true;
@@ -66,6 +72,7 @@ public sealed partial class BrawlhallaPage : UserControl, IPage
             return;
         }
         if (!matches) return;
+        _matchup = false;
         if (_profile?.Id == S.MyId) { _matches = BrawlhallaMatches.For(S.MyId); _tab = "matches"; Build(); }
         else _ = Open(S.MyId, "matches");
     }
@@ -89,6 +96,7 @@ public sealed partial class BrawlhallaPage : UserControl, IPage
             Text = Loc.T("Ranked, legends and weapons for any player, and the ranked leaderboards, from Brawlhalla's official stats."),
         });
         _root.Children.Add(Card(SearchPanel()));
+        if (_matchup) { foreach (var m in MatchupParts()) _root.Children.Add(m); return; }
         if (_results is { Count: > 0 }) _root.Children.Add(Card(ResultsPanel()));
         if (_profile == null) { _root.Children.Add(Card(BoardPanel())); return; }
 
@@ -136,10 +144,11 @@ public sealed partial class BrawlhallaPage : UserControl, IPage
         });
 
         var chips = new WrapPanel { Margin = new Thickness(0, 8, 0, 0) };
-        if (S.MyId > 0) chips.Children.Add(Chip(Loc.T("You") + (S.MyName is { Length: > 0 } my ? " · " + my : ""), _profile?.Id == S.MyId, () => _ = Open(S.MyId)));
+        chips.Children.Add(Chip(Loc.T("Matchup"), _matchup, ShowMatchup));
+        if (S.MyId > 0) chips.Children.Add(Chip(Loc.T("You") + (S.MyName is { Length: > 0 } my ? " · " + my : ""), !_matchup && _profile?.Id == S.MyId, () => { _matchup = false; _ = Open(S.MyId); }));
         foreach (var r in S.Recent.Where(r => r.Id != S.MyId).Take(6))
-            chips.Children.Add(Chip(r.Name.Length > 0 ? r.Name : r.Id.ToString(CultureInfo.InvariantCulture), _profile?.Id == r.Id, () => _ = Open(r.Id)));
-        if (_profile != null) chips.Children.Add(Chip(Loc.T("Leaderboards"), false, () => { _profile = null; _results = null; Build(); if (_board.Rows == null) _ = LoadBoard(); }));
+            chips.Children.Add(Chip(r.Name.Length > 0 ? r.Name : r.Id.ToString(CultureInfo.InvariantCulture), !_matchup && _profile?.Id == r.Id, () => { _matchup = false; _ = Open(r.Id); }));
+        if (_profile != null || _matchup) chips.Children.Add(Chip(Loc.T("Leaderboards"), false, () => { _matchup = false; _profile = null; _results = null; Build(); if (_board.Rows == null) _ = LoadBoard(); }));
         if (chips.Children.Count > 0) sp.Children.Add(chips);
         return sp;
     }
@@ -184,7 +193,7 @@ public sealed partial class BrawlhallaPage : UserControl, IPage
 
     FrameworkElement BoardHeader() => GridRow(BoardCols, true, "Rank", "Player", "Tier", "Rating", "Peak", "Record", "Region");
 
-    FrameworkElement RankRow(BhRanking r, bool showRank, bool oneVsOne)
+    FrameworkElement RankRow(BhRanking r, bool showRank, bool oneVsOne, Action click = null)
     {
         int games = r.Wins + r.Losses;
         var row = GridRow(BoardCols, false,
@@ -193,7 +202,7 @@ public sealed partial class BrawlhallaPage : UserControl, IPage
         PutIn(row, 2, TierPill(r.Tier.Length > 0 ? r.Tier : Brawlhalla.TierOf(r.Rating)));
         // Teams (2v2) open the first player.
         // From the 1v1 board, its tier (Valhallan) carries over: the profile can't always look it up (names with accents).
-        return Clickable(row, r.Id > 0 ? () => _ = Open(r.Id, tier1v1: oneVsOne ? r.Tier : null) : null);
+        return Clickable(row, click ?? (r.Id > 0 ? () => _ = Open(r.Id, tier1v1: oneVsOne ? r.Tier : null) : null));
     }
 
     // ───────── a player: header and tabs ─────────
@@ -361,7 +370,7 @@ public sealed partial class BrawlhallaPage : UserControl, IPage
 
     FrameworkElement LegendHeader() => GridRow(LegendCols, true, "Legend", "Games", "Win %", "KOs / game", "Falls / game", "Damage / game", "Ranked", "Time");
 
-    FrameworkElement LegendRow(BhLegendStats l, int allGames)
+    FrameworkElement LegendRow(BhLegendStats l, int allGames, bool clickable = true)
     {
         double win = 100.0 * l.Wins / l.Games;
         var row = GridRow(LegendCols, false, null, null, null, (l.Kos / (double)l.Games).ToString("0.00", CultureInfo.CurrentCulture),
@@ -389,7 +398,7 @@ public sealed partial class BrawlhallaPage : UserControl, IPage
         }
         else PutIn(row, 6, new TextBlock { Text = "–", FontSize = 13, Foreground = Res("TextFaintBrush"), HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 0, 8, 0) });
 
-        return Clickable(row, () => ShowLegend(l.LegendId));
+        return clickable ? Clickable(row, () => ShowLegend(l.LegendId)) : row;
     }
 
     // ───────── Weapons ─────────
@@ -555,6 +564,7 @@ public sealed partial class BrawlhallaPage : UserControl, IPage
             else
             {
                 if (tier1v1 is { Length: > 0 } && p.OneVsOne is { BoardTier: null } one) one.BoardTier = tier1v1;
+                _matchup = false;
                 _profile = p; _matches = matches; _results = null; _status = null; _tab = tab; _openLegend = 0; _legendLimit = 10; _weaponFilter = null;
                 S.Recent.RemoveAll(r => r.Id == p.Id);
                 S.Recent.Insert(0, new BhRecent { Id = p.Id, Name = p.Name });

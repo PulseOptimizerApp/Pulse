@@ -105,6 +105,29 @@ public class BrawlhallaTests
         Assert.True(BrawlhallaMatches.Smurf(Player(level: 60, games: 2000, wins: 1000, rating: 1300, rankedGames: 100, rankedWins: 80, hours: 400)).Score <= 40);
     }
 
+    [Fact]
+    public void Win_chance_follows_the_ratings()
+    {
+        Assert.Equal(0.5, BrawlhallaMatchup.Elo(1500, 1500), 3);
+        Assert.Equal(0.909, BrawlhallaMatchup.Elo(1900, 1500), 3);   // 400 apart: 10 to 1
+        Assert.Equal(0.091, BrawlhallaMatchup.Elo(1500, 1900), 3);
+        Assert.Equal(0.5, BrawlhallaMatchup.Log5(0.6, 0.6), 3);
+        Assert.True(BrawlhallaMatchup.Log5(0.6, 0.4) > 0.65);
+    }
+
+    [Fact]
+    public void Odds_use_ranked_when_both_have_it_otherwise_win_rates()
+    {
+        var a = Player(level: 60, games: 1000, wins: 600, rating: 1800, rankedGames: 100, rankedWins: 60, hours: 300);
+        var b = Player(level: 60, games: 1000, wins: 500, rating: 1600, rankedGames: 100, rankedWins: 50, hours: 300);
+        var o = BrawlhallaMatchup.Odds(a, b);
+        Assert.Equal("ranked", o.Basis);
+        Assert.True(o.Chance > 0.7);
+        b.OneVsOne = null;
+        Assert.Equal("winrate", BrawlhallaMatchup.Odds(a, b).Basis);
+        Assert.Null(BrawlhallaMatchup.Odds(a, Player(1, 5, 2, 0, 0, 0, 1)));
+    }
+
     [Theory]
     [InlineData("Sir Roland", "sirroland")]
     [InlineData("Bödvar", "bodvar")]
@@ -134,6 +157,7 @@ public class BrawlhallaPageShots
         var legends = Brawlhalla.Legends().GetAwaiter().GetResult();
         var board = Brawlhalla.Rankings("1v1", "ALL", 1, null, 10).GetAwaiter().GetResult();
         var profile = Brawlhalla.Profile(board.Rows[0].Id).GetAwaiter().GetResult();
+        var me = Brawlhalla.Profile(board.Rows[5].Id).GetAwaiter().GetResult();
         Exception error = null;
         var th = new Thread(() =>
         {
@@ -195,6 +219,14 @@ public class BrawlhallaPageShots
                     p.GetType().GetField("_matches", F)!.SetValue(p, ms);
                 });
                 Shot("brawlhalla-ranked.png", p => Tab(p, "ranked"));
+                Shot("brawlhalla-matchup.png", p =>
+                {
+                    var t = p.GetType();
+                    t.GetField("_matchup", F)!.SetValue(p, true);
+                    t.GetField("_me", F)!.SetValue(p, me);
+                    t.GetField("_foe", F)!.SetValue(p, profile);
+                    t.GetField("_board", F)!.SetValue(p, board);
+                });
                 // Someone else, for the smurf factor.
                 Shot("brawlhalla-other.png", p =>
                 {
