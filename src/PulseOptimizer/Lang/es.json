@@ -5337,5 +5337,6 @@
  "{0:0.00} per fall": "{0:0.00} por caída",
  "{0:0.0} h": "{0:0.0} h",
  "{0} KOs": "{0} KOs",
- "{0} hits": "{0} impactos"
+ "{0} hits": "{0} impactos",
+ "Brawlhalla's search doesn't take accented letters or symbols. Use their Brawlhalla ID instead (in game: Inventory, Profile).": "La búsqueda de Brawlhalla no admite letras con acento ni símbolos. Usa su ID de Brawlhalla (en el juego: Inventario, Perfil)."
 }

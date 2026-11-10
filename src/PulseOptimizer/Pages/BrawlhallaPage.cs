@@ -297,7 +297,11 @@ public sealed class BrawlhallaPage : UserControl, IPage
             _status = _results.Count == 0 ? Loc.T("No ranked player with that name. Try their Brawlhalla ID instead.") : null;
             if (_results.Count == 1 && _results[0].Id > 0) { _busy = false; await Open(_results[0].Id); return; }
         }
-        catch (Exception ex) { _status = Problem(ex); }
+        catch (Exception ex)
+        {
+            // Brawlhalla's search refuses names with accents or symbols outside plain English letters.
+            _status = text.Any(c => c > 127) ? Loc.T("Brawlhalla's search doesn't take accented letters or symbols. Use their Brawlhalla ID instead (in game: Inventory, Profile).") : Problem(ex);
+        }
         _busy = false;
         Build();
     }
