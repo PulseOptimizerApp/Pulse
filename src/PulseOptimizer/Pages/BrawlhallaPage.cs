@@ -120,7 +120,7 @@ public sealed class BrawlhallaPage : UserControl, IPage
         var sp = new StackPanel();
         sp.Children.Add(Heading("Players found"));
         sp.Children.Add(BoardHeader());
-        foreach (var r in _results) sp.Children.Add(RankRow(r, showRank: true));
+        foreach (var r in _results) sp.Children.Add(RankRow(r, showRank: true, oneVsOne: false));
         return sp;
     }
 
@@ -143,7 +143,7 @@ public sealed class BrawlhallaPage : UserControl, IPage
         sp.Children.Add(regions);
         if (_board.Rows == null) { sp.Children.Add(Dim(_busy ? Loc.T("Loading…") : Loc.T("Couldn't load the leaderboard."), 12.5, 6)); return sp; }
         sp.Children.Add(BoardHeader());
-        foreach (var r in _board.Rows) sp.Children.Add(RankRow(r, showRank: true));
+        foreach (var r in _board.Rows) sp.Children.Add(RankRow(r, showRank: true, oneVsOne: _boardMode == "1v1"));
         var nav = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 10, 0, 0) };
         if (_boardPage > 1) nav.Children.Add(Ghost("← " + Loc.T("Previous"), () => { _boardPage--; _ = LoadBoard(); }));
         if (_boardPage < _board.Pages) nav.Children.Add(Ghost(Loc.T("Next") + " →", () => { _boardPage++; _ = LoadBoard(); }));
@@ -155,7 +155,7 @@ public sealed class BrawlhallaPage : UserControl, IPage
 
     FrameworkElement BoardHeader() => GridRow(BoardCols, true, "Rank", "Player", "Tier", "Rating", "Peak", "Record", "Region");
 
-    FrameworkElement RankRow(BhRanking r, bool showRank)
+    FrameworkElement RankRow(BhRanking r, bool showRank, bool oneVsOne)
     {
         int games = r.Wins + r.Losses;
         var row = GridRow(BoardCols, false,
@@ -163,7 +163,8 @@ public sealed class BrawlhallaPage : UserControl, IPage
             r.BestRating.ToString("N0", CultureInfo.CurrentCulture), games > 0 ? $"{r.Wins}–{r.Losses} · {100.0 * r.Wins / games:0}%" : "", r.Region);
         PutIn(row, 2, TierPill(r.Tier.Length > 0 ? r.Tier : Brawlhalla.TierOf(r.Rating)));
         // Teams (2v2) open the first player.
-        return Clickable(row, r.Id > 0 ? () => _ = Open(r.Id) : null);
+        // From the 1v1 board, its tier (Valhallan) carries over: the profile can't always look it up (names with accents).
+        return Clickable(row, r.Id > 0 ? () => _ = Open(r.Id, oneVsOne ? r.Tier : null) : null);
     }
 
     // ───────── a player: header and tabs ─────────
@@ -388,7 +389,7 @@ public sealed class BrawlhallaPage : UserControl, IPage
         var left = new StackPanel();
         left.Children.Add(Caps("Weapons", 10, Res("TextFaintBrush")));
         long held = Math.Max(1, l.TimeWeaponOne + l.TimeWeaponTwo);
-        foreach (var (name, dmg, ko, t, c) in new[] { (info?.WeaponOne ?? Loc.T("Weapon 1"), l.DamageWeaponOne, l.KoWeaponOne, l.TimeWeaponOne, Gold), (info?.WeaponTwo ?? Loc.T("Weapon 2"), l.DamageWeaponTwo, l.KoWeaponTwo, l.TimeWeaponTwo, Blue) })
+        foreach (var (name, dmg, ko, t, c) in new[] { (Spaced(info?.WeaponOne) ?? Loc.T("Weapon 1"), l.DamageWeaponOne, l.KoWeaponOne, l.TimeWeaponOne, Gold), (Spaced(info?.WeaponTwo) ?? Loc.T("Weapon 2"), l.DamageWeaponTwo, l.KoWeaponTwo, l.TimeWeaponTwo, Blue) })
         {
             var r = new Grid { Margin = new Thickness(0, 10, 0, 0) };
             r.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(100) });
@@ -440,7 +441,7 @@ public sealed class BrawlhallaPage : UserControl, IPage
             Add(info.WeaponOne, l.LegendId, l.DamageWeaponOne, l.KoWeaponOne, l.TimeWeaponOne);
             Add(info.WeaponTwo, l.LegendId, l.DamageWeaponTwo, l.KoWeaponTwo, l.TimeWeaponTwo);
         }
-        return by.Select(x => new WeaponLine(x.Key, x.Value.Damage, x.Value.Kos, x.Value.Time, x.Value.Legends.Count)).ToList();
+        return by.Select(x => new WeaponLine(Spaced(x.Key), x.Value.Damage, x.Value.Kos, x.Value.Time, x.Value.Legends.Count)).ToList();
     }
 
     static readonly double[] WeaponCols = { 140, double.NaN, 80, 90, 90, 100, 80 };
@@ -562,7 +563,7 @@ public sealed class BrawlhallaPage : UserControl, IPage
         Build();
     }
 
-    async Task Open(long id)
+    async Task Open(long id, string tier1v1 = null)
     {
         _cts?.Cancel();
         _cts = new CancellationTokenSource();
@@ -576,6 +577,7 @@ public sealed class BrawlhallaPage : UserControl, IPage
             if (p == null) _status = Loc.T("No player with that Brawlhalla ID.");
             else
             {
+                if (tier1v1 is { Length: > 0 } && p.OneVsOne is { BoardTier: null } one) one.BoardTier = tier1v1;
                 _profile = p; _results = null; _status = null; _tab = "overview"; _openLegend = 0;
                 S.Recent.RemoveAll(r => r.Id == p.Id);
                 S.Recent.Insert(0, new BhRecent { Id = p.Id, Name = p.Name });
@@ -607,6 +609,7 @@ public sealed class BrawlhallaPage : UserControl, IPage
 
     string LegendName(int id) => _legends.TryGetValue(id, out var l) && l.Name.Length > 0 ? l.Name : Loc.F("Legend {0}", id);
 
+    static string Spaced(string weapon) => string.IsNullOrEmpty(weapon) ? null : System.Text.RegularExpressions.Regex.Replace(weapon, "(?<=[a-z])(?=[A-Z])", " ");
     static Color A(Color c, byte a) => Color.FromArgb(a, c.R, c.G, c.B);
     static string Hours(long seconds) => seconds >= 3600 ? Loc.F("{0:0.0} h", seconds / 3600.0) : Loc.F("{0} min", seconds / 60);
     static string Clock(long seconds) => $"{seconds / 60}:{seconds % 60:00}";
@@ -688,7 +691,7 @@ public sealed class BrawlhallaPage : UserControl, IPage
         sp.Children.Add(Dim(detail, 12, 2));
         var b = new Border
         {
-            Child = sp, Width = 214, Margin = new Thickness(0, 0, 12, 12), Padding = new Thickness(16, 14, 16, 14), CornerRadius = new CornerRadius(12),
+            Child = sp, Width = 206, Margin = new Thickness(0, 0, 12, 12), Padding = new Thickness(16, 14, 16, 14), CornerRadius = new CornerRadius(12),
             Background = new LinearGradientBrush(A(c, 0x18), A(c, 0x03), 90), BorderBrush = new SolidColorBrush(A(c, 0x45)), BorderThickness = new Thickness(1),
         };
         return legendId > 0 ? Clickable(b, () => { _tab = "legends"; _openLegend = legendId; Build(); }) : b;
@@ -700,7 +703,7 @@ public sealed class BrawlhallaPage : UserControl, IPage
         sp.Children.Add(new TextBlock { Text = Loc.T(label), FontSize = 12, Foreground = Res("TextDimBrush") });
         sp.Children.Add(new TextBlock { Text = value, FontSize = 22, FontWeight = FontWeights.Bold, Foreground = valueColor is { } vc ? new SolidColorBrush(vc) : Res("TextBrush"), Margin = new Thickness(0, 2, 0, 0) });
         if (sub != null) sp.Children.Add(new TextBlock { Text = sub, FontSize = 11.5, Foreground = Res("TextFaintBrush"), TextTrimming = TextTrimming.CharacterEllipsis });
-        return new Border { Child = sp, Width = 214, Margin = new Thickness(0, 0, 12, 12), Padding = new Thickness(16, 12, 16, 12), CornerRadius = new CornerRadius(10), Background = new SolidColorBrush(Inset) };
+        return new Border { Child = sp, Width = 206, Margin = new Thickness(0, 0, 12, 12), Padding = new Thickness(16, 12, 16, 12), CornerRadius = new CornerRadius(10), Background = new SolidColorBrush(Inset) };
     }
 
     FrameworkElement Stat(string label, string value)
