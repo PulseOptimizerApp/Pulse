@@ -14,6 +14,10 @@ public class BrawlhallaSettings
     public bool TrackMatches { get; set; } = true;
     /// <summary>When a match you played shows up: a small summary in the corner.</summary>
     public bool MatchPopup { get; set; } = true;
+    /// <summary>Players you checked in Matchup, newest first.</summary>
+    public List<BhRecent> Opponents { get; set; } = new();
+    /// <summary>Ctrl+Shift+B while Brawlhalla is open: Pulse comes up on Matchup.</summary>
+    public bool MatchupHotkey { get; set; } = true;
 }
 
 public class BhRecent { public long Id { get; set; } public string Name { get; set; } = ""; }
@@ -65,6 +69,8 @@ public sealed class BhProfile
     public BhRanked OneVsOne, ThreeVsThree;
     public List<BhTeam> Teams = new();
     public string Guild = "", GuildRank = "";
+    /// <summary>Set when Brawlhalla's servers didn't answer and this is the copy Pulse saved then.</summary>
+    [System.Text.Json.Serialization.JsonIgnore] public DateTime? SavedAt;
 }
 
 public sealed record BhRanking(int Rank, long Id, string Name, int Rating, int BestRating, int Wins, int Losses, string Region, string Tier);
@@ -86,14 +92,14 @@ public static class Brawlhalla
 
     static async Task<JsonDocument> Get(string path, CancellationToken ct)
     {
-        // Their servers sometimes answer 502/503 for a moment: try twice more, a little later each time.
+        // Their servers often answer 502/503 for a moment: try three more times, a little later each time.
         HttpResponseMessage res = null;
         for (int attempt = 0; ; attempt++)
         {
             res?.Dispose();
             res = await Http.GetAsync(Api + path, ct);
-            if ((int)res.StatusCode is < 500 or > 504 || attempt == 2) break;
-            await Task.Delay(800 * (attempt + 1), ct);
+            if ((int)res.StatusCode is < 500 or > 504 || attempt == 3) break;
+            await Task.Delay(700 * (attempt + 1), ct);
         }
         using var _ = res;
         if ((int)res.StatusCode == 404) return null;
@@ -200,8 +206,17 @@ public static class Brawlhalla
         var threeTask = Optional($"player/stats?brawlhalla_id={id}&mode=ranked_3v3", ct);
         var teamsTask = Optional($"player/teams?brawlhalla_id={id}", ct);
         var guildTask = Optional($"player/guild?brawlhalla_id={id}", ct);
-        using var all = await allTask;
-        if (all == null) return null;
+        var allDoc = await allTask;
+        // Their servers often say "Player not found" for a player who exists, for a few seconds or longer: ask a few
+        // more times, then fall back to the copy saved last time this player loaded.
+        for (int attempt = 0; allDoc == null && attempt < 3; attempt++)
+        {
+            await Task.Delay(1500 * (attempt + 1), ct);
+            try { allDoc = await Get($"player/stats?brawlhalla_id={id}&mode=all", ct); }
+            catch (HttpRequestException) when (attempt < 2) { }
+        }
+        using var all = allDoc;
+        if (all == null) return Saved(id);
         var r = all.RootElement;
         var p = new BhProfile
         {
@@ -258,10 +273,43 @@ public static class Brawlhalla
                     });
                 }
         p.Teams = p.Teams.OrderByDescending(x => x.Rating).ToList();
+        // Ranked that didn't answer this time: last time's (it can't vanish mid-season).
+        if (p.OneVsOne == null && Saved(id) is { OneVsOne: { } savedOne } saved && saved.SavedAt > DateTime.Now.AddDays(-7))
+        {
+            p.OneVsOne = savedOne;
+            foreach (var l in p.Legends)
+                if (l.Rating == 0 && saved.Legends.FirstOrDefault(x => x.LegendId == l.LegendId) is { Rating: > 0 } sl)
+                { l.Rating = sl.Rating; l.PeakRating = sl.PeakRating; l.Tier = sl.Tier; l.RankedGames = sl.RankedGames; l.RankedWins = sl.RankedWins; }
+        }
         using (var guild = await guildTask)
             if (guild?.RootElement.TryGetProperty("guild", out var g) == true && g.ValueKind == JsonValueKind.Object)
             { p.Guild = S(g, "guild_name"); p.GuildRank = S(g, "rank"); }
+        Save(p);
         return p;
+    }
+
+    // ───────── the last copy of each profile, for when their servers don't answer ─────────
+
+    static readonly JsonSerializerOptions Fields = new() { IncludeFields = true };
+    static string SavedFile(long id) => Path.Combine(Dir, $"profile-{id}.json");
+
+    static void Save(BhProfile p)
+    {
+        try { Directory.CreateDirectory(Dir); File.WriteAllText(SavedFile(p.Id), JsonSerializer.Serialize(p, Fields)); } catch { }
+    }
+
+    /// <summary>The profile saved last time (with <see cref="BhProfile.SavedAt"/>), or null.</summary>
+    static BhProfile Saved(long id)
+    {
+        try
+        {
+            var f = SavedFile(id);
+            if (!File.Exists(f)) return null;
+            var p = JsonSerializer.Deserialize<BhProfile>(File.ReadAllText(f), Fields);
+            if (p != null) p.SavedAt = File.GetLastWriteTime(f);
+            return p;
+        }
+        catch { return null; }
     }
 
     static BhRanked Ranked(JsonElement e, string mode)

@@ -29,6 +29,7 @@ public sealed partial class BrawlhallaPage : UserControl, IPage
     int _boardPage = 1;
     string _status, _sort = "games", _tab = "overview";
     int _openLegend, _legendLimit = 10;
+    long _retryId;
     string _weaponFilter;
     List<BhMatch> _matches = new();
     bool _busy, _shown;
@@ -54,10 +55,16 @@ public sealed partial class BrawlhallaPage : UserControl, IPage
 
     readonly ScrollViewer _scroll;
 
-    /// <summary>"matches" (from the after-match popup): your matches.</summary>
+    /// <summary>"matches" (from the after-match popup): your matches. "matchup" (Ctrl+Shift+B): the matchup panel.</summary>
     public void OnShown(object parameter)
     {
         bool matches = parameter as string == "matches" && S.MyId > 0;
+        if (parameter as string == "matchup")
+        {
+            if (!_shown) { _shown = true; _ = Task.Run(() => Brawlhalla.Legends()).ContinueWith(t => { if (t.Status == TaskStatus.RanToCompletion) _legends = t.Result; }, TaskScheduler.FromCurrentSynchronizationContext()); }
+            ShowMatchup();
+            return;
+        }
         if (!_shown)
         {
             _shown = true;
@@ -65,6 +72,7 @@ public sealed partial class BrawlhallaPage : UserControl, IPage
             return;
         }
         if (!matches) return;
+        _matchup = false;
         if (_profile?.Id == S.MyId) { _matches = BrawlhallaMatches.For(S.MyId); _tab = "matches"; Build(); }
         else _ = Open(S.MyId, "matches");
     }
@@ -88,10 +96,20 @@ public sealed partial class BrawlhallaPage : UserControl, IPage
             Text = Loc.T("Ranked, legends and weapons for any player, and the ranked leaderboards, from Brawlhalla's official stats."),
         });
         _root.Children.Add(Card(SearchPanel()));
+        if (_matchup) { foreach (var m in MatchupParts()) _root.Children.Add(m); return; }
         if (_results is { Count: > 0 }) _root.Children.Add(Card(ResultsPanel()));
         if (_profile == null) { _root.Children.Add(Card(BoardPanel())); return; }
 
         _root.Children.Add(Header(_profile));
+        if (_profile.SavedAt is { } saved)
+        {
+            // Their servers didn't answer: say so, show the saved copy, and offer another try.
+            var row = new WrapPanel();
+            row.Children.Add(new TextBlock { Text = Loc.F("Brawlhalla's servers aren't sending this player's stats right now, so this is what Pulse saved {0}.", Ago(saved)), FontSize = 12.5, Foreground = Res("WarnBrush"), TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 12, 0) });
+            long again = _profile.Id;
+            row.Children.Add(Ghost(Loc.T("Try again"), () => _ = Open(again, _tab)));
+            _root.Children.Add(new Border { Child = row, Margin = new Thickness(0, 10, 0, 0), Padding = new Thickness(16, 10, 16, 10), CornerRadius = new CornerRadius(10), Background = Res("WarnSoftBrush") });
+        }
         _root.Children.Add(Tabs());
         var parts = _tab switch
         {
@@ -120,7 +138,14 @@ public sealed partial class BrawlhallaPage : UserControl, IPage
         go.Click += (_, _) => _ = Search(box.Text);
         box.KeyDown += (_, e) => { if (e.Key == Key.Enter) { e.Handled = true; _ = Search(box.Text); } };
 
-        if (_status != null) sp.Children.Add(new TextBlock { Text = _status, FontSize = 12, Foreground = Res(_busy ? "TextDimBrush" : "BadBrush"), Margin = new Thickness(0, 8, 0, 0), TextWrapping = TextWrapping.Wrap });
+        if (_status != null)
+        {
+            var line = new WrapPanel { Margin = new Thickness(0, 8, 0, 0) };
+            line.Children.Add(new TextBlock { Text = _status, FontSize = 12, Foreground = Res(_busy ? "TextDimBrush" : "BadBrush"), TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 10, 0) });
+            // Their servers have hiccups: one click to ask again.
+            if (!_busy && _retryId > 0) { long again = _retryId; line.Children.Add(Ghost(Loc.T("Try again"), () => _ = Open(again))); }
+            sp.Children.Add(line);
+        }
         sp.Children.Add(new TextBlock
         {
             Text = Loc.T("Names search the ranked leaderboards. For someone who doesn't play ranked, use their Brawlhalla ID (in game: Inventory, Profile)."),
@@ -128,10 +153,11 @@ public sealed partial class BrawlhallaPage : UserControl, IPage
         });
 
         var chips = new WrapPanel { Margin = new Thickness(0, 8, 0, 0) };
-        if (S.MyId > 0) chips.Children.Add(Chip(Loc.T("You") + (S.MyName is { Length: > 0 } my ? " · " + my : ""), _profile?.Id == S.MyId, () => _ = Open(S.MyId)));
+        chips.Children.Add(Chip(Loc.T("Matchup"), _matchup, ShowMatchup));
+        if (S.MyId > 0) chips.Children.Add(Chip(Loc.T("You") + (S.MyName is { Length: > 0 } my ? " · " + my : ""), !_matchup && _profile?.Id == S.MyId, () => { _matchup = false; _ = Open(S.MyId); }));
         foreach (var r in S.Recent.Where(r => r.Id != S.MyId).Take(6))
-            chips.Children.Add(Chip(r.Name.Length > 0 ? r.Name : r.Id.ToString(CultureInfo.InvariantCulture), _profile?.Id == r.Id, () => _ = Open(r.Id)));
-        if (_profile != null) chips.Children.Add(Chip(Loc.T("Leaderboards"), false, () => { _profile = null; _results = null; Build(); if (_board.Rows == null) _ = LoadBoard(); }));
+            chips.Children.Add(Chip(r.Name.Length > 0 ? r.Name : r.Id.ToString(CultureInfo.InvariantCulture), !_matchup && _profile?.Id == r.Id, () => { _matchup = false; _ = Open(r.Id); }));
+        if (_profile != null || _matchup) chips.Children.Add(Chip(Loc.T("Leaderboards"), false, () => { _matchup = false; _profile = null; _results = null; Build(); if (_board.Rows == null) _ = LoadBoard(); }));
         if (chips.Children.Count > 0) sp.Children.Add(chips);
         return sp;
     }
@@ -176,7 +202,7 @@ public sealed partial class BrawlhallaPage : UserControl, IPage
 
     FrameworkElement BoardHeader() => GridRow(BoardCols, true, "Rank", "Player", "Tier", "Rating", "Peak", "Record", "Region");
 
-    FrameworkElement RankRow(BhRanking r, bool showRank, bool oneVsOne)
+    FrameworkElement RankRow(BhRanking r, bool showRank, bool oneVsOne, Action click = null)
     {
         int games = r.Wins + r.Losses;
         var row = GridRow(BoardCols, false,
@@ -185,7 +211,7 @@ public sealed partial class BrawlhallaPage : UserControl, IPage
         PutIn(row, 2, TierPill(r.Tier.Length > 0 ? r.Tier : Brawlhalla.TierOf(r.Rating)));
         // Teams (2v2) open the first player.
         // From the 1v1 board, its tier (Valhallan) carries over: the profile can't always look it up (names with accents).
-        return Clickable(row, r.Id > 0 ? () => _ = Open(r.Id, tier1v1: oneVsOne ? r.Tier : null) : null);
+        return Clickable(row, click ?? (r.Id > 0 ? () => _ = Open(r.Id, tier1v1: oneVsOne ? r.Tier : null) : null));
     }
 
     // ───────── a player: header and tabs ─────────
@@ -353,7 +379,7 @@ public sealed partial class BrawlhallaPage : UserControl, IPage
 
     FrameworkElement LegendHeader() => GridRow(LegendCols, true, "Legend", "Games", "Win %", "KOs / game", "Falls / game", "Damage / game", "Ranked", "Time");
 
-    FrameworkElement LegendRow(BhLegendStats l, int allGames)
+    FrameworkElement LegendRow(BhLegendStats l, int allGames, bool clickable = true)
     {
         double win = 100.0 * l.Wins / l.Games;
         var row = GridRow(LegendCols, false, null, null, null, (l.Kos / (double)l.Games).ToString("0.00", CultureInfo.CurrentCulture),
@@ -381,7 +407,7 @@ public sealed partial class BrawlhallaPage : UserControl, IPage
         }
         else PutIn(row, 6, new TextBlock { Text = "–", FontSize = 13, Foreground = Res("TextFaintBrush"), HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 0, 8, 0) });
 
-        return Clickable(row, () => ShowLegend(l.LegendId));
+        return clickable ? Clickable(row, () => ShowLegend(l.LegendId)) : row;
     }
 
     // ───────── Weapons ─────────
@@ -542,10 +568,12 @@ public sealed partial class BrawlhallaPage : UserControl, IPage
             // Turn what changed since Pulse last saw them into matches.
             var matches = p == null ? new List<BhMatch>() : await Task.Run(() => { BrawlhallaMatches.Record(p); return BrawlhallaMatches.For(p.Id); });
             if (ct.IsCancellationRequested) return;
-            if (p == null) _status = Loc.T("No player with that Brawlhalla ID.");
+            _retryId = 0;
+            if (p == null) { _status = Loc.T("Brawlhalla's servers sent no stats for that player. If the ID is right, try again in a moment."); _retryId = id; }
             else
             {
                 if (tier1v1 is { Length: > 0 } && p.OneVsOne is { BoardTier: null } one) one.BoardTier = tier1v1;
+                _matchup = false;
                 _profile = p; _matches = matches; _results = null; _status = null; _tab = tab; _openLegend = 0; _legendLimit = 10; _weaponFilter = null;
                 S.Recent.RemoveAll(r => r.Id == p.Id);
                 S.Recent.Insert(0, new BhRecent { Id = p.Id, Name = p.Name });
@@ -555,7 +583,7 @@ public sealed partial class BrawlhallaPage : UserControl, IPage
             }
         }
         catch (OperationCanceledException) { return; }
-        catch (Exception ex) { _status = Problem(ex); }
+        catch (Exception ex) { _status = Problem(ex); _retryId = id; }
         _busy = false;
         Build();
     }
@@ -570,7 +598,9 @@ public sealed partial class BrawlhallaPage : UserControl, IPage
     }
 
     static string Problem(Exception ex) => ex is HttpRequestException or TaskCanceledException
-        ? (ex.Message.StartsWith("Brawlhalla's servers say", StringComparison.Ordinal) ? Loc.T(ex.Message) : Loc.T("Couldn't reach Brawlhalla's stats. Check your connection and try again."))
+        ? (ex.Message.StartsWith("Brawlhalla's servers say", StringComparison.Ordinal) ? Loc.T(ex.Message)
+            : ex.Message.StartsWith("Brawlhalla's servers answered", StringComparison.Ordinal) ? Loc.T("Brawlhalla's servers are having a hiccup. Try again in a moment.")
+            : Loc.T("Couldn't reach Brawlhalla's stats. Check your connection and try again."))
         : Loc.T("Something went wrong reading Brawlhalla's stats.");
 
     // ───────── pieces ─────────
