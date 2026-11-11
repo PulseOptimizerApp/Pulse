@@ -619,6 +619,61 @@ public static class BrawlhallaMods
         return outPx;
     }
 
+    // ───────── browsing: characters and weapons, with pictures ─────────
+
+    /// <summary>A skin that is only a weapon (every part is a weapon piece).</summary>
+    public static bool IsWeaponSkin(BhSkin s) => s.Parts.Count > 0 && s.Parts.All(p => GroupKind(PartGroup(p)) == "Weapons");
+
+    /// <summary>The weapon a skin is mostly made of ("Sword", "Rocket Lance"), or "".</summary>
+    public static string WeaponOf(BhSkin s) =>
+        s.Parts.Select(PartGroup).Where(g => GroupKind(g) == "Weapons").GroupBy(g => g).OrderByDescending(g => g.Count()).Select(g => g.Key).FirstOrDefault() ?? "";
+
+    static string ThumbDir => Path.Combine(Root, "thumbs");
+    [ThreadStatic] static string _thumbFile;
+    [ThreadStatic] static SwfFile _thumbSwf;
+    static readonly string[] FaceFirst = { "Hair", "Head", "Helmet", "Hat", "Mask" };
+
+    /// <summary>
+    /// A small picture of a skin to recognise it by: its hair or head (a weapon skin: its biggest piece), drawn from
+    /// the game's files on this PC and kept so it's instant next time. Null when nothing can be drawn. STA thread.
+    /// </summary>
+    public static BitmapSource Thumbnail(BhSkin s, int size = 128)
+    {
+        var orig = OriginalOrGame(s.File);
+        var info = new FileInfo(orig);
+        if (!info.Exists) return null;
+        var cache = Path.Combine(ThumbDir, $"{Squash(s.File + "_" + s.Name)}_{info.Length}_{size}.png");
+        if (File.Exists(cache))
+        {
+            try
+            {
+                var bi = new BitmapImage();
+                bi.BeginInit(); bi.CacheOption = BitmapCacheOption.OnLoad; bi.UriSource = new Uri(cache); bi.EndInit(); bi.Freeze();
+                return bi;
+            }
+            catch { }
+        }
+        if (_thumbFile != orig) { _thumbSwf = SwfFile.Load(File.ReadAllBytes(orig)); _thumbFile = orig; }
+        var mine = s.Parts.ToHashSet(StringComparer.Ordinal);
+        var parts = _thumbSwf.Parts().Where(p => mine.Contains(p.Name) && p.Width > 3 && p.Height > 3).ToList();
+        if (parts.Count == 0) return null;
+        double Area(SwfPart p) => p.Width * p.Height;
+        var pick = IsWeaponSkin(s) ? null : parts.Where(p => FaceFirst.Contains(PartGroup(p.Name))).MaxBy(Area);
+        pick ??= parts.Where(p => PartGroup(p.Name) == "Torso").MaxBy(Area) ?? parts.MaxBy(Area);
+        var bmp = RenderPart(_thumbSwf, pick!.Name, 100, size);
+        if (bmp == null) return null;
+        try
+        {
+            Directory.CreateDirectory(ThumbDir);
+            var enc = new PngBitmapEncoder();
+            enc.Frames.Add(BitmapFrame.Create(bmp));
+            using var fs = File.Create(cache);
+            enc.Save(fs);
+        }
+        catch { }
+        return bmp;
+    }
+
     // ───────── preview ─────────
 
     /// <summary>

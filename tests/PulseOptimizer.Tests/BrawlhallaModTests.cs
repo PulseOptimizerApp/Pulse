@@ -185,6 +185,16 @@ public class BrawlhallaModTests
     }
 
     [Fact]
+    public void Weapon_skins_sort_apart_from_characters()
+    {
+        var sword = new BhSkin("Gfx_X.swf", "Shark", "", new() { "a_WeaponSwordBlade_Shark", "a_WeaponSwordHilt_Shark" });
+        var legend = new BhSkin("Gfx_X.swf", "Shark", "", new() { "a_HairBack_Shark", "a_Torso1_Shark", "a_WeaponSpearTip_Shark" });
+        Assert.True(BrawlhallaMods.IsWeaponSkin(sword));
+        Assert.False(BrawlhallaMods.IsWeaponSkin(legend));
+        Assert.Equal("Sword", BrawlhallaMods.WeaponOf(sword));
+    }
+
+    [Fact]
     public void Styles_keep_outlines_and_empty_space()
     {
         // 3×1 BGRA: transparent, black outline, mid grey.

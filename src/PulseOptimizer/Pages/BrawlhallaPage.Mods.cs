@@ -32,7 +32,6 @@ public sealed partial class BrawlhallaPage
     List<(int Rgb, int Count)> _skinPalette = new();
     readonly HashSet<string> _openGroups = new();
     readonly Dictionary<string, BitmapSource> _bgThumbs = new();
-    StackPanel _skinList;
 
     static BhMods Mods => S.Mods ??= new BhMods();
 
@@ -279,37 +278,162 @@ public sealed partial class BrawlhallaPage
             sp.Children.Add(new ProgressBar { Value = _skinsProgress * 100, Height = 4, Margin = new Thickness(0, 14, 0, 0), MaxWidth = 420, HorizontalAlignment = HorizontalAlignment.Left });
             return Card(sp);
         }
-        var grid = new Grid { Margin = new Thickness(0, 14, 0, 0) };
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(300) });
-        grid.ColumnDefinitions.Add(new ColumnDefinition());
 
-        var left = new StackPanel();
-        var search = new TextBox { Style = (Style)FindResource("SearchBox"), Tag = Loc.T("Search skins or legends (Mikasa, Mordex…)"), Text = _skinSearch, FontSize = 13.5 };
-        _skinList = new StackPanel { Margin = new Thickness(0, 10, 0, 0) };
-        search.TextChanged += (_, _) => { _skinSearch = search.Text; FillSkinList(); };
-        left.Children.Add(search);
-        left.Children.Add(new ScrollViewer { Content = _skinList, MaxHeight = 620, VerticalScrollBarVisibility = ScrollBarVisibility.Auto });
-        FillSkinList();
-        var leftCard = Card(left);
-        leftCard.Margin = new Thickness(0, 0, 14, 0);
-        leftCard.VerticalAlignment = VerticalAlignment.Top;
-        grid.Children.Add(leftCard);
-
-        FrameworkElement right;
-        if (_skin == null)
+        // A skin is open: just it, with a way back.
+        if (_skin != null)
         {
-            var sp = new StackPanel();
-            sp.Children.Add(Heading(_modTab == "colors" ? "Pick a skin to recolor" : "Pick a skin"));
-            sp.Children.Add(Dim(_modTab == "colors"
-                ? Loc.T("Choose a skin on the left. You'll see every color it uses: click one to change it, or turn all of them at once.")
-                : Loc.T("Choose a skin on the left, then a picture for any part: hair, eyes, torso, weapon. Pulse fits the picture into that part in every pose."), 12.5, 6));
-            right = Card(sp);
+            var wrap = new StackPanel { Margin = new Thickness(0, 14, 0, 0) };
+            var back = Ghost("← " + Loc.T("All skins"), () => { _skin = null; Build(); });
+            back.HorizontalAlignment = HorizontalAlignment.Left;
+            wrap.Children.Add(back);
+            wrap.Children.Add(Card(detail(_skin)).Also(c => c.Margin = new Thickness(0, 10, 0, 0)));
+            return wrap;
         }
-        else right = Card(detail(_skin));
-        right.Margin = new Thickness(0);
-        Grid.SetColumn(right, 1);
-        grid.Children.Add(right);
-        return grid;
+
+        var box = new StackPanel();
+        var top = new Grid();
+        top.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        top.ColumnDefinitions.Add(new ColumnDefinition());
+        top.Children.Add(Segments(new[]
+        {
+            (Loc.T("Characters"), _skinCat == "characters", (Action)(() => { _skinCat = "characters"; _skinShow = 48; Build(); })),
+            (Loc.T("Weapons"), _skinCat == "weapons", (Action)(() => { _skinCat = "weapons"; _skinShow = 48; Build(); })),
+        }));
+        var search = new TextBox { Style = (Style)FindResource("SearchBox"), Tag = Loc.T("Search by name (Mikasa, Mordex, Shark…)"), Text = _skinSearch, FontSize = 13.5, Margin = new Thickness(14, 0, 0, 0), MaxWidth = 420, HorizontalAlignment = HorizontalAlignment.Left };
+        search.TextChanged += (_, _) => { _skinSearch = search.Text; _skinShow = 48; FillTiles(); };
+        Grid.SetColumn(search, 1); top.Children.Add(search);
+        box.Children.Add(top);
+        box.Children.Add(Dim(_modTab == "colors"
+            ? Loc.T("Click a skin to change its colors.")
+            : Loc.T("Click a skin to change how it looks."), 12.5, 10));
+
+        if (_skinCat == "weapons")
+        {
+            var kinds = _skins.Where(BrawlhallaMods.IsWeaponSkin).Select(BrawlhallaMods.WeaponOf).Where(w => w.Length > 0).Distinct().OrderBy(w => w).ToList();
+            var chips = new WrapPanel { Margin = new Thickness(0, 12, 0, 0) };
+            foreach (var w in new[] { "" }.Concat(kinds))
+            {
+                bool on = _weaponKind == w;
+                var b = new Border { Padding = new Thickness(12, 5, 12, 5), Margin = new Thickness(0, 0, 6, 6), CornerRadius = new CornerRadius(999), Cursor = Cursors.Hand,
+                    Background = on ? new SolidColorBrush(Gold) : new SolidColorBrush(Inset), BorderBrush = new SolidColorBrush(on ? Gold : Line), BorderThickness = new Thickness(1),
+                    Child = new TextBlock { Text = w.Length == 0 ? Loc.T("All weapons") : Loc.T(w), FontSize = 12.5, FontWeight = on ? FontWeights.SemiBold : FontWeights.Normal, Foreground = on ? Brushes.Black : Res("TextBrush") } };
+                var pick = w;
+                b.MouseLeftButtonUp += (_, _) => { _weaponKind = pick; _skinShow = 48; Build(); };
+                chips.Children.Add(b);
+            }
+            box.Children.Add(chips);
+        }
+
+        _tileArea = new StackPanel { Margin = new Thickness(0, 12, 0, 0) };
+        box.Children.Add(_tileArea);
+        FillTiles();
+        return Card(box).Also(c => c.Margin = new Thickness(0, 14, 0, 0));
+    }
+
+    StackPanel _tileArea;
+    string _skinCat = "characters", _weaponKind = "";
+    int _skinShow = 48;
+
+    List<BhSkin> TileSkins()
+    {
+        var q = _skinSearch.Trim();
+        IEnumerable<BhSkin> list = _skins.Where(s => (_skinCat == "weapons") == BrawlhallaMods.IsWeaponSkin(s));
+        if (_skinCat == "weapons" && _weaponKind.Length > 0) list = list.Where(s => BrawlhallaMods.WeaponOf(s) == _weaponKind);
+        if (q.Length > 0) list = list.Where(s => Pretty(s.Name).Contains(q, StringComparison.OrdinalIgnoreCase) || s.Name.Contains(q, StringComparison.OrdinalIgnoreCase) || s.Legend.Contains(q, StringComparison.OrdinalIgnoreCase));
+        // One tile per name: the version with the most parts is the real skin.
+        return list.GroupBy(s => s.Name, StringComparer.OrdinalIgnoreCase).Select(g => g.OrderByDescending(s => s.Parts.Count).First())
+            .OrderByDescending(IsChanged).ThenBy(s => Pretty(s.Name), StringComparer.OrdinalIgnoreCase).ToList();
+    }
+
+    void FillTiles()
+    {
+        if (_tileArea == null || _skins == null) return;
+        _tileArea.Children.Clear();
+        var list = TileSkins();
+        if (list.Count == 0) { _tileArea.Children.Add(Dim(Loc.T("No skin by that name. Skins use the game's own names: try part of it."), 12.5, 4)); return; }
+        var wrap = new WrapPanel();
+        foreach (var s in list.Take(_skinShow)) wrap.Children.Add(SkinTile(s));
+        _tileArea.Children.Add(wrap);
+        if (list.Count > _skinShow)
+        {
+            var more = Ghost(Loc.F("Show more ({0} left)", list.Count - _skinShow), () => { _skinShow += 48; FillTiles(); });
+            more.HorizontalAlignment = HorizontalAlignment.Center;
+            more.Margin = new Thickness(0, 10, 0, 0);
+            _tileArea.Children.Add(more);
+        }
+    }
+
+    FrameworkElement SkinTile(BhSkin s)
+    {
+        var img = new Image { Width = 84, Height = 84, Stretch = Stretch.Uniform };
+        RenderOptions.SetBitmapScalingMode(img, BitmapScalingMode.HighQuality);
+        if (_thumbs.TryGetValue(s.Key, out var have)) img.Source = have;
+        else QueueThumb(s, img);
+        var pic = new Grid { Height = 100 };
+        pic.Children.Add(new Border { CornerRadius = new CornerRadius(10), Background = new LinearGradientBrush(Color.FromRgb(0x2C, 0x31, 0x3D), Color.FromRgb(0x17, 0x1A, 0x21), 90) });
+        pic.Children.Add(img);
+        if (s.Legend.Length > 0 && BrawlhallaArt.Legend(s.Legend) is { } face)
+            pic.Children.Add(new Border { Width = 26, Height = 26, CornerRadius = new CornerRadius(13), ClipToBounds = true, HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(5),
+                BorderBrush = new SolidColorBrush(Line), BorderThickness = new Thickness(1), Background = new ImageBrush(face) { Stretch = Stretch.UniformToFill } });
+        if (IsChanged(s))
+            pic.Children.Add(new Border { Padding = new Thickness(6, 1, 6, 1), CornerRadius = new CornerRadius(999), Background = new SolidColorBrush(Gold), HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(5),
+                Child = new TextBlock { Text = Loc.T("Changed"), FontSize = 10, FontWeight = FontWeights.SemiBold, Foreground = Brushes.Black } });
+        var st = new StackPanel();
+        st.Children.Add(pic);
+        st.Children.Add(new TextBlock { Text = Pretty(s.Name).Replace('_', ' '), FontSize = 12.5, FontWeight = FontWeights.SemiBold, Foreground = Res("TextBrush"), TextTrimming = TextTrimming.CharacterEllipsis, TextAlignment = TextAlignment.Center, Margin = new Thickness(0, 7, 0, 0) });
+        var sub = s.Legend.Length > 0 ? s.Legend : _skinCat == "weapons" ? Loc.T(BrawlhallaMods.WeaponOf(s)) : "";
+        if (sub.Length > 0) st.Children.Add(new TextBlock { Text = sub, FontSize = 11, Foreground = Res("TextDimBrush"), TextAlignment = TextAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis });
+        var b = new Border { Child = st, Width = 132, Padding = new Thickness(8), Margin = new Thickness(0, 0, 10, 10), CornerRadius = new CornerRadius(12), Cursor = Cursors.Hand,
+            Background = new SolidColorBrush(Inset), BorderBrush = new SolidColorBrush(Line), BorderThickness = new Thickness(1), ToolTip = Pretty(s.Name) };
+        b.MouseEnter += (_, _) => b.BorderBrush = new SolidColorBrush(Gold);
+        b.MouseLeave += (_, _) => b.BorderBrush = new SolidColorBrush(Line);
+        b.MouseLeftButtonUp += async (_, _) => await OpenSkin(s);
+        return b;
+    }
+
+    // Skin pictures are drawn one at a time on a background thread, and each tile fills in as its picture arrives.
+    static readonly Dictionary<string, ImageSource> _thumbs = new();
+    readonly Dictionary<string, List<Image>> _thumbWaiting = new();
+    readonly Queue<BhSkin> _thumbQueue = new();
+    bool _thumbWorker;
+
+    void QueueThumb(BhSkin s, Image img)
+    {
+        if (_thumbWaiting.TryGetValue(s.Key, out var l)) { l.Add(img); return; }
+        _thumbWaiting[s.Key] = new() { img };
+        _thumbQueue.Enqueue(s);
+        if (_thumbWorker) return;
+        _thumbWorker = true;
+        var ui = Dispatcher;
+        var t = new Thread(() =>
+        {
+            while (true)
+            {
+                BhSkin next = null;
+                ui.Invoke(() =>
+                {
+                    // Skip tiles no longer on screen.
+                    while (_thumbQueue.Count > 0 && next == null)
+                    {
+                        var c = _thumbQueue.Dequeue();
+                        if (_thumbWaiting.TryGetValue(c.Key, out var w) && w.Any(i => PresentationSource.FromVisual(i) != null || !i.IsLoaded)) next = c;
+                        else _thumbWaiting.Remove(c.Key);
+                    }
+                    if (next == null) _thumbWorker = false;
+                });
+                if (next == null) return;
+                ImageSource got = null;
+                try { got = BrawlhallaMods.Thumbnail(next); } catch { }
+                var key = next.Key;
+                ui.BeginInvoke(() =>
+                {
+                    _thumbs[key] = got;
+                    if (_thumbWaiting.Remove(key, out var imgs)) foreach (var i in imgs) i.Source = got;
+                });
+            }
+        }) { IsBackground = true, Priority = ThreadPriority.BelowNormal };
+        t.SetApartmentState(ApartmentState.STA);
+        t.Start();
     }
 
     async Task LoadSkins()
@@ -326,34 +450,6 @@ public sealed partial class BrawlhallaPage
         catch { _skins = new(); }
         _skinsLoading = false;
         if (_mode == "customize") Build();
-    }
-
-    void FillSkinList()
-    {
-        if (_skinList == null || _skins == null) return;
-        _skinList.Children.Clear();
-        var q = _skinSearch.Trim();
-        var list = (q.Length == 0 ? _skins : _skins.Where(s => s.Name.Contains(q, StringComparison.OrdinalIgnoreCase) || s.Legend.Contains(q, StringComparison.OrdinalIgnoreCase) || s.File.Contains(q, StringComparison.OrdinalIgnoreCase)))
-            .OrderByDescending(s => IsChanged(s)).ThenBy(s => s.Name, StringComparer.OrdinalIgnoreCase).ToList();
-        if (list.Count == 0) { _skinList.Children.Add(Dim(Loc.T("No skin by that name. Skins use the game's own names: try part of it."), 12.5, 4)); return; }
-        foreach (var s in list.Take(80))
-        {
-            bool on = _skin?.Key == s.Key;
-            var row = new Grid();
-            row.ColumnDefinitions.Add(new ColumnDefinition());
-            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            var t = new StackPanel();
-            t.Children.Add(new TextBlock { Text = Pretty(s.Name), FontSize = 13, FontWeight = on ? FontWeights.SemiBold : FontWeights.Normal, Foreground = Res("TextBrush"), TextTrimming = TextTrimming.CharacterEllipsis });
-            t.Children.Add(new TextBlock { Text = (s.Legend.Length > 0 ? s.Legend + " · " : "") + Loc.F("{0} parts", s.Parts.Count), FontSize = 11, Foreground = Res("TextDimBrush") });
-            row.Children.Add(t);
-            if (IsChanged(s)) row.Children.Add(new TextBlock { Text = Loc.T("Changed"), FontSize = 10.5, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Gold), VerticalAlignment = VerticalAlignment.Center }.Also(x => Grid.SetColumn(x, 1)));
-            var b = new Border { Child = row, Padding = new Thickness(10, 7, 10, 7), CornerRadius = new CornerRadius(8), Cursor = Cursors.Hand, Background = on ? new SolidColorBrush(Inset) : Brushes.Transparent, BorderBrush = on ? new SolidColorBrush(Gold) : Brushes.Transparent, BorderThickness = new Thickness(1) };
-            if (!on) { b.MouseEnter += (_, _) => b.Background = new SolidColorBrush(Inset); b.MouseLeave += (_, _) => b.Background = Brushes.Transparent; }
-            var pick = s;
-            b.MouseLeftButtonUp += async (_, _) => await OpenSkin(pick);
-            _skinList.Children.Add(b);
-        }
-        if (list.Count > 80) _skinList.Children.Add(Dim(Loc.F("{0} more: search to narrow it down.", list.Count - 80), 11.5, 8));
     }
 
     static string Pretty(string name) => System.Text.RegularExpressions.Regex.Replace(name, "([a-z])([A-Z0-9])", "$1 $2");
