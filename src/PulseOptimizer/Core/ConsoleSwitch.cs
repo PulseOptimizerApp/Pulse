@@ -13,9 +13,18 @@ public class ConsoleSwitchSettings
     /// <summary>Where the PC plays sound in each mode (Windows device ids); empty leaves it alone.</summary>
     public string PcSound { get; set; } = "";
     public string ConsoleSound { get; set; } = "";
-    /// <summary>Ctrl+Alt+F12 swaps, so you can get back with the screen on the console.</summary>
+    /// <summary>The key swaps, so you can get back with the screen on the console.</summary>
     public bool Hotkey { get; set; } = true;
+    /// <summary>The key: modifiers (1 Alt, 2 Ctrl, 4 Shift, 8 Win) and a virtual-key code. Ctrl+Alt+F12 by default.</summary>
+    public int HotkeyMods { get; set; } = 3;
+    public int HotkeyKey { get; set; } = 0x7B;
     public bool OnConsole { get; set; }
+    /// <summary>A key that only flips the PC's sound between two devices (no screen change). Ctrl+Alt+F11 by default.</summary>
+    public bool SoundKey { get; set; }
+    public int SoundKeyMods { get; set; } = 3;
+    public int SoundKeyKey { get; set; } = 0x7A;
+    public string SoundA { get; set; } = "";
+    public string SoundB { get; set; } = "";
     /// <summary>Your crosshair code from VALORANT on PC, to type in on console.</summary>
     public string CrosshairCode { get; set; } = "";
 }
@@ -45,15 +54,20 @@ public static class ConsoleSwitch
 
     // ───────── monitors ─────────
 
-    /// <summary>Monitors that answer DDC/CI, with the input each is on now.</summary>
+    /// <summary>
+    /// The monitors Windows can talk to, with the input each says it's on (0 when it won't say: many monitors switch
+    /// fine but don't report their input).
+    /// </summary>
     public static List<Screen> Screens()
     {
         var list = new List<Screen>();
         int i = 0;
         ForEachMonitor((name, h) =>
         {
-            int input = GetVCPFeatureAndVCPFeatureReply(h, 0x60, out _, out uint cur, out _) ? (int)(cur & 0xFF) : -1;
-            if (input >= 0) list.Add(new Screen(name, input, i));
+            int input = GetVCPFeatureAndVCPFeatureReply(h, 0x60, out _, out uint cur, out _) ? (int)(cur & 0xFF) : 0;
+            // Same name twice (two of the same monitor): number them.
+            var shown = list.Any(x => x.Name == name) ? $"{name} ({list.Count(x => x.Name.StartsWith(name, StringComparison.Ordinal)) + 1})" : name;
+            list.Add(new Screen(shown, input, i));
             i++;
             return false;
         });
@@ -63,15 +77,40 @@ public static class ConsoleSwitch
     /// <summary>Puts a monitor on an input. False when the monitor didn't take it.</summary>
     public static bool SetInput(string monitor, int input)
     {
+        // Find it by name (numbered when two share one), else the first monitor.
+        var screens = Screens();
+        int index = screens.FindIndex(x => x.Name == monitor);
+        if (index < 0) index = 0;
         bool ok = false;
+        int i = 0;
         ForEachMonitor((name, h) =>
         {
-            if (monitor.Length > 0 && name != monitor) return false;
-            if (!GetVCPFeatureAndVCPFeatureReply(h, 0x60, out _, out _, out _)) return false;
+            if (i++ != screens.ElementAtOrDefault(index)?.Index) return false;
             ok = SetVCPFeature(h, 0x60, (uint)input);
             return true;
         });
         return ok;
+    }
+
+    /// <summary>"Ctrl+Alt+F12" for a key setting.</summary>
+    public static string KeyText(int mods, int vk)
+    {
+        var parts = new List<string>();
+        if ((mods & 2) != 0) parts.Add("Ctrl");
+        if ((mods & 1) != 0) parts.Add("Alt");
+        if ((mods & 4) != 0) parts.Add("Shift");
+        if ((mods & 8) != 0) parts.Add("Win");
+        string key = vk switch
+        {
+            >= 0x70 and <= 0x87 => "F" + (vk - 0x6F),
+            >= 0x30 and <= 0x39 or >= 0x41 and <= 0x5A => ((char)vk).ToString(),
+            >= 0x60 and <= 0x69 => "Num " + (vk - 0x60),
+            0x24 => "Home", 0x23 => "End", 0x2D => "Insert", 0x2E => "Delete", 0x21 => "Page Up", 0x22 => "Page Down",
+            0x13 => "Pause", 0x91 => "Scroll Lock", 0x20 => "Space",
+            _ => "Key " + vk,
+        };
+        parts.Add(key);
+        return string.Join("+", parts);
     }
 
     static void ForEachMonitor(Func<string, IntPtr, bool> each)
@@ -204,6 +243,19 @@ public static class ConsoleSwitch
         [PreserveSig] int SetDefaultEndpoint([MarshalAs(UnmanagedType.LPWStr)] string id, int role);
     }
 
+    /// <summary>
+    /// Flips the PC's sound to the other of two devices: to B when it's on A, otherwise to A. Returns the device's
+    /// name, or null when it didn't work.
+    /// </summary>
+    public static string FlipSound(ConsoleSwitchSettings s)
+    {
+        if (string.IsNullOrEmpty(s.SoundA) || string.IsNullOrEmpty(s.SoundB)) return null;
+        var (devices, current) = Sound();
+        var to = current == s.SoundA ? s.SoundB : s.SoundA;
+        if (!SetSound(to)) return null;
+        return devices.FirstOrDefault(d => d.Id == to)?.Name ?? "";
+    }
+
     // ───────── the swap ─────────
 
     /// <summary>Moves to the console (or back to the PC). Returns what happened, for people.</summary>
@@ -216,6 +268,6 @@ public static class ConsoleSwitch
         if (screen) { s.OnConsole = toConsole; TweakEngine.Save(); }
         if (!screen) return Ui.Loc.T("Your monitor didn't switch. Turn on DDC/CI in its on-screen menu, then try again.");
         if (!snd) return Ui.Loc.T("Switched the screen, but Windows didn't take the sound change.");
-        return toConsole ? Ui.Loc.T("On console. Press Ctrl+Alt+F12 to come back.") : Ui.Loc.T("Back on PC.");
+        return toConsole ? Ui.Loc.F("On console. Press {0} to come back.", KeyText(s.HotkeyMods, s.HotkeyKey)) : Ui.Loc.T("Back on PC.");
     }
 }
