@@ -55,6 +55,8 @@ public class AppState
 {
     /// <summary>Swapping the monitor and sound between PC and console.</summary>
     public ConsoleSwitchSettings ConsoleSwitch { get; set; } = new();
+    /// <summary>Making games more vibrant through the graphics card.</summary>
+    public Display.VibranceSettings Vibrance { get; set; } = new();
     /// <summary>The first-run setup. Null in settings saved before it existed (those users aren't new).</summary>
     public SetupState Setup { get; set; }
     /// <summary>Tweak id → backups of everything it changed, in order.</summary>
