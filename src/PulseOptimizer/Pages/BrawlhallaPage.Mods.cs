@@ -839,12 +839,33 @@ public sealed partial class BrawlhallaPage
     }
 
     /// <summary>Preset colors, your own hex, and "original".</summary>
-    FrameworkElement ColorChoices(string current, Action<string> pick)
+    /// <summary>A rainbow brush for anything that means RGB.</summary>
+    static Brush RainbowBrush()
+    {
+        var g = new LinearGradientBrush { StartPoint = new Point(0, 0), EndPoint = new Point(1, 1) };
+        for (int i = 0; i <= 6; i++) g.GradientStops.Add(new GradientStop(Rgb(BrawlhallaMods.FromHsl(i * 60 % 360, 1, 0.55)), i / 6.0));
+        g.Freeze();
+        return g;
+    }
+
+    FrameworkElement ColorChoices(string current, Action<string> pick, bool rgb = false)
     {
         var wrap = new WrapPanel { Margin = new Thickness(0, 10, 0, 0) };
         var orig = Ghost(Loc.T("Original"), () => pick(null));
         orig.Margin = new Thickness(0, 0, 8, 8);
         wrap.Children.Add(orig);
+        if (rgb)
+        {
+            bool on = current == BrawlhallaMods.Rgb;
+            var chip = new StackPanel { Orientation = Orientation.Horizontal };
+            chip.Children.Add(new Border { Width = 16, Height = 16, CornerRadius = new CornerRadius(8), Background = RainbowBrush(), Margin = new Thickness(0, 0, 7, 0), VerticalAlignment = VerticalAlignment.Center });
+            chip.Children.Add(new TextBlock { Text = "RGB", FontSize = 12.5, FontWeight = FontWeights.Bold, Foreground = Res("TextBrush"), VerticalAlignment = VerticalAlignment.Center });
+            var b = new Border { Child = chip, Height = 30, Padding = new Thickness(8, 0, 12, 0), Margin = new Thickness(0, 0, 8, 8), CornerRadius = new CornerRadius(15), Cursor = Cursors.Hand,
+                ToolTip = Loc.T("Cycles through the rainbow as the effect plays"), Background = new SolidColorBrush(Inset), BorderThickness = new Thickness(on ? 3 : 1), BorderBrush = on ? Brushes.White : new SolidColorBrush(Line) };
+            b.MouseLeftButtonUp += (_, _) => pick(BrawlhallaMods.Rgb);
+            wrap.Children.Add(b);
+        }
+        if (current == BrawlhallaMods.Rgb) current = null;
         foreach (var (name, rgb) in Presets)
         {
             bool on = current != null && BrawlhallaMods.TryHex(current, out var cur) && cur == rgb;
@@ -889,6 +910,17 @@ public sealed partial class BrawlhallaPage
             b.MouseLeftButtonUp += (_, _) => { foreach (var k in allKeys) Mods.Effects[k] = BrawlhallaMods.ToHex(p.Rgb); Changed(); Build(); };
             packs.Children.Add(b);
         }
+        {
+            // RGB: every effect cycles through the rainbow as it plays.
+            bool on = allKeys.All(k => Mods.Effects.GetValueOrDefault(k) == BrawlhallaMods.Rgb);
+            var chip = new StackPanel { Orientation = Orientation.Horizontal };
+            chip.Children.Add(new Border { Width = 16, Height = 16, CornerRadius = new CornerRadius(8), Background = RainbowBrush(), Margin = new Thickness(0, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center });
+            chip.Children.Add(new TextBlock { Text = "RGB", FontSize = 12.5, FontWeight = FontWeights.Bold, Foreground = Res("TextBrush"), VerticalAlignment = VerticalAlignment.Center });
+            var b = new Border { Child = chip, Padding = new Thickness(12, 7, 14, 7), Margin = new Thickness(0, 0, 8, 8), CornerRadius = new CornerRadius(999), Cursor = Cursors.Hand,
+                ToolTip = Loc.T("Every effect cycles through the rainbow as it plays"), Background = new SolidColorBrush(Inset), BorderThickness = new Thickness(on ? 2 : 1), BorderBrush = on ? new SolidColorBrush(Gold) : new SolidColorBrush(Line) };
+            b.MouseLeftButtonUp += (_, _) => { foreach (var k in allKeys) Mods.Effects[k] = BrawlhallaMods.Rgb; Changed(); Build(); };
+            packs.Children.Insert(0, b);
+        }
         var none = Ghost(Loc.T("All original"), () => { Mods.Effects.Clear(); Changed(); Build(); });
         none.Margin = new Thickness(0, 0, 8, 8);
         packs.Children.Add(none);
@@ -929,8 +961,8 @@ public sealed partial class BrawlhallaPage
             var cur = Mods.Effects.GetValueOrDefault(e.Key);
             var row = new StackPanel { Margin = new Thickness(0, 12, 0, 0) };
             var head = new StackPanel { Orientation = Orientation.Horizontal };
-            if (BrawlhallaMods.TryHex(cur, out var rgb))
-                head.Children.Add(new Border { Width = 14, Height = 14, CornerRadius = new CornerRadius(7), Background = new SolidColorBrush(Rgb(rgb)), Margin = new Thickness(0, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center });
+            if (cur == BrawlhallaMods.Rgb || BrawlhallaMods.TryHex(cur, out _))
+                head.Children.Add(new Border { Width = 14, Height = 14, CornerRadius = new CornerRadius(7), Background = cur == BrawlhallaMods.Rgb ? RainbowBrush() : new SolidColorBrush(Rgb(BrawlhallaMods.TryHex(cur, out var rgb) ? rgb : 0)), Margin = new Thickness(0, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center });
             head.Children.Add(new TextBlock { Text = Loc.T(e.Name), FontSize = 14, FontWeight = FontWeights.SemiBold, Foreground = Res("TextBrush") });
             row.Children.Add(head);
             row.Children.Add(Dim(Loc.T(e.Detail), 12, 2));
@@ -939,7 +971,7 @@ public sealed partial class BrawlhallaPage
             {
                 if (hex == null) Mods.Effects.Remove(key); else Mods.Effects[key] = hex;
                 Changed(); Build();
-            }));
+            }, rgb: true));
             sp.Children.Add(row);
         }
         return sp;

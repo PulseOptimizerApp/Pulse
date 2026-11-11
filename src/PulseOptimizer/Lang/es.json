@@ -5933,5 +5933,9 @@
  "Carbon fiber": "Fibra de carbono",
  "Drawing the skin…": "Dibujando el skin…",
  "Every part of the skin, laid out. In the game they move and overlap as the legend animates.": "Todas las partes del skin, una al lado de otra. En el juego se mueven y se superponen con las animaciones de la leyenda.",
- "With my changes": "Con mis cambios"
+ "With my changes": "Con mis cambios",
+ "Cycles through the rainbow as the effect plays": "Recorre el arcoíris mientras se reproduce el efecto",
+ "Every effect cycles through the rainbow as it plays": "Cada efecto recorre el arcoíris mientras se reproduce",
+ "RGB": "RGB",
+ "A rainbow across the whole map.": "Un arcoíris por todo el mapa."
 }
