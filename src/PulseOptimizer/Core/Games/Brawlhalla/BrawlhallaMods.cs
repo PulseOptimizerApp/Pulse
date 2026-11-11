@@ -261,8 +261,10 @@ public static class BrawlhallaMods
     // ───────── editable PNGs of a skin ─────────
 
     /// <summary>Where a skin's editable PNGs go: Documents\Pulse\Brawlhalla skins\&lt;skin&gt;.</summary>
+    static string SkinsRoot => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Pulse", "Brawlhalla skins");
+
     public static string SkinFolder(BhSkin s) =>
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Pulse", "Brawlhalla skins",
+        Path.Combine(SkinsRoot,
             string.Concat((Regex.Replace(s.Name, "([a-z])([A-Z0-9])", "$1 $2") + (s.Legend.Length > 0 ? " (" + s.Legend + ")" : "")).Split(Path.GetInvalidFileNameChars())));
 
     const string SkinManifest = "pulse-skin.json";
@@ -367,6 +369,372 @@ public static class BrawlhallaMods
         if (map.Count == 0) M.Pictures.Remove(s.File);
         if (n > 0) { M.Pending = true; TweakEngine.Save(); }
         return n;
+    }
+
+    // ───────── styles: a new look made for you ─────────
+
+    public sealed record BhStyle(string Key, string Name);
+
+    public static readonly List<BhStyle> Styles = new()
+    {
+        new("gold", "Gold chrome"), new("chrome", "Silver chrome"), new("galaxy", "Galaxy"), new("neon", "Neon"),
+        new("camo", "Camo"), new("ice", "Ice"), new("lava", "Lava"), new("carbon", "Carbon fiber"),
+    };
+
+    static double Hash(int x, int y, int seed)
+    {
+        unchecked
+        {
+            uint h = (uint)(x * 374761393 + y * 668265263 + seed * 1442695041);
+            h = (h ^ (h >> 13)) * 1274126177u;
+            h ^= h >> 16;
+            return (h & 0xFFFFFF) / 16777215.0;
+        }
+    }
+
+    static double Noise(double x, double y, int seed)
+    {
+        int xi = (int)Math.Floor(x), yi = (int)Math.Floor(y);
+        double fx = x - xi, fy = y - yi;
+        double u = fx * fx * (3 - 2 * fx), v = fy * fy * (3 - 2 * fy);
+        double a = Hash(xi, yi, seed), b = Hash(xi + 1, yi, seed), c = Hash(xi, yi + 1, seed), d = Hash(xi + 1, yi + 1, seed);
+        return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
+    }
+
+    static double Fbm(double x, double y, int seed = 1)
+    {
+        double sum = 0, amp = 0.5, f = 1;
+        for (int i = 0; i < 4; i++) { sum += amp * Noise(x * f, y * f, seed + i); f *= 2; amp *= 0.5; }
+        return sum / 0.9375;
+    }
+
+    static (double R, double G, double B) Mix((double R, double G, double B) a, (double R, double G, double B) b, double t)
+    {
+        t = Math.Clamp(t, 0, 1);
+        return (a.R + (b.R - a.R) * t, a.G + (b.G - a.G) * t, a.B + (b.B - a.B) * t);
+    }
+
+    /// <summary>A style's color at a pixel (0–1 per channel). <paramref name="edge"/> is 1 at the part's edges, 0 inside.</summary>
+    public static (double R, double G, double B) StyleColor(string style, int x, int y, double edge)
+    {
+        switch (style)
+        {
+            case "gold":
+            {
+                double t = 0.5 + 0.5 * Math.Sin(y * 0.045 + Fbm(x * 0.01, y * 0.01) * 5);
+                return Mix((0.5, 0.33, 0.06), (1.0, 0.9, 0.55), t);
+            }
+            case "chrome":
+            {
+                double t = 0.5 + 0.5 * Math.Sin(y * 0.05 + Fbm(x * 0.01, y * 0.01, 9) * 5);
+                return Mix((0.32, 0.34, 0.38), (0.97, 0.98, 1.0), t);
+            }
+            case "galaxy":
+            {
+                if (Hash(x, y, 7) > 0.9965) return (1, 1, 1);
+                if (Hash(x / 3, y / 3, 8) > 0.9992) return (0.85, 0.9, 1);
+                var c = Mix((0.04, 0.02, 0.14), (0.42, 0.1, 0.58), Fbm(x * 0.006, y * 0.006, 3));
+                return Mix(c, (0.1, 0.35, 0.85), Math.Pow(Fbm(x * 0.008, y * 0.008, 11), 2.5) * 1.6);
+            }
+            case "neon":
+            {
+                var glow = Mix((0.1, 1.0, 0.95), (1.0, 0.25, 0.85), 0.5 + 0.5 * Math.Sin(x * 0.01 + y * 0.012));
+                return Mix((0.05, 0.05, 0.09), glow, edge);
+            }
+            case "camo":
+            {
+                double n = Fbm(x * 0.012, y * 0.012, 4);
+                return n < 0.4 ? (0.17, 0.2, 0.12) : n < 0.5 ? (0.36, 0.42, 0.22) : n < 0.6 ? (0.24, 0.29, 0.16) : (0.5, 0.45, 0.3);
+            }
+            case "ice":
+            {
+                if (Math.Abs(Fbm(x * 0.02, y * 0.02, 5) - 0.5) < 0.012) return (1, 1, 1);
+                return Mix((0.45, 0.78, 0.98), (0.92, 0.98, 1.0), Fbm(x * 0.01, y * 0.01, 6));
+            }
+            case "lava":
+            {
+                double v = Math.Abs(Fbm(x * 0.01, y * 0.01, 3) - 0.5);
+                var c = Mix((0.1, 0.03, 0.02), (1.0, 0.45, 0.08), 1 - v * 12);
+                return Mix(c, (1.0, 0.9, 0.45), 1 - v * 40);
+            }
+            case "carbon":
+            {
+                int cx = x / 8, cy = y / 8;
+                bool across = ((cx + cy) & 1) == 0;
+                double s = Math.Sin(((across ? x : y) % 8) / 8.0 * Math.PI);
+                double g = 0.07 + 0.13 * s;
+                return (g, g, g * 1.08);
+            }
+            default: return (0.5, 0.5, 0.5);
+        }
+    }
+
+    /// <summary>A round sample of a style, for picking one.</summary>
+    public static BitmapSource StyleSwatch(string style, int size)
+    {
+        var px = new byte[size * size * 4];
+        double r = size / 2.0;
+        for (int y = 0; y < size; y++)
+            for (int x = 0; x < size; x++)
+            {
+                double d = Math.Sqrt((x + 0.5 - r) * (x + 0.5 - r) + (y + 0.5 - r) * (y + 0.5 - r));
+                if (d > r) continue;
+                double edge = Math.Clamp(1 - (r - d) / 5.0, 0, 1);
+                var (cr, cg, cb) = StyleColor(style, x * 4, y * 4, edge);
+                int i = (y * size + x) * 4;
+                px[i] = (byte)(cb * 255); px[i + 1] = (byte)(cg * 255); px[i + 2] = (byte)(cr * 255); px[i + 3] = 255;
+            }
+        var bmp = BitmapSource.Create(size, size, 96, 96, PixelFormats.Bgra32, null, px, size * 4);
+        bmp.Freeze();
+        return bmp;
+    }
+
+    static readonly HashSet<string> FaceGroups = new(StringComparer.OrdinalIgnoreCase) { "Eyes", "Eye", "Mouth", "Brow" };
+
+    /// <summary>The parts a style goes on: "all" (everything but eyes and mouths), "body", "weapons" or "head".</summary>
+    public static List<string> StyleTargets(IEnumerable<string> parts, string target) => parts.Where(p =>
+    {
+        var g = PartGroup(p);
+        if (FaceGroups.Contains(g)) return false;
+        var kind = GroupKind(g);
+        return target switch { "body" => kind == "Body", "weapons" => kind == "Weapons", "head" => kind == "Head", _ => true };
+    }).ToList();
+
+    /// <summary>
+    /// Gives a skin a new look: each part's own shape filled with a style (or <paramref name="picture"/>, cut to the
+    /// shape), keeping the skin's dark outlines and its shading. Returns how many parts changed. Needs an STA thread.
+    /// </summary>
+    public static int StyleSkin(BhSkin s, string style, string target, string picture = null)
+    {
+        var swf = SwfFile.Load(File.ReadAllBytes(OriginalOrGame(s.File)));
+        var pic = picture != null ? LoadPicture(picture, 2048) : null;
+        if (!M.Pictures.TryGetValue(s.File, out var map)) M.Pictures[s.File] = map = new();
+        Directory.CreateDirectory(PictureDir);
+        int n = 0;
+        foreach (var part in StyleTargets(s.Parts, target))
+        {
+            var bmp = RenderPart(swf, part);
+            if (bmp == null) continue;
+            int w = bmp.PixelWidth, h = bmp.PixelHeight;
+            var px = new byte[w * h * 4];
+            new FormatConvertedBitmap(bmp, PixelFormats.Bgra32, null, 0).CopyPixels(px, w * 4, 0);
+            var styled = Restyle(px, w, h, style, pic);
+            if (styled == null) continue;
+            var outBmp = BitmapSource.Create(w, h, 96, 96, PixelFormats.Bgra32, null, styled, w * 4);
+            var name = Guid.NewGuid().ToString("N") + ".png";
+            var enc = new PngBitmapEncoder();
+            enc.Frames.Add(BitmapFrame.Create(outBmp));
+            using (var fs = File.Create(Path.Combine(PictureDir, name))) enc.Save(fs);
+            map[part] = name;
+            n++;
+        }
+        if (map.Count == 0) M.Pictures.Remove(s.File);
+        if (n > 0) { M.Pending = true; TweakEngine.Save(); }
+        return n;
+    }
+
+    /// <summary>
+    /// Restyles one part's pixels (BGRA): dark outline pixels stay, every other pixel takes the style's color, lit by
+    /// how bright the original was there. Null when the part is empty.
+    /// </summary>
+    internal static byte[] Restyle(byte[] px, int w, int h, string style, SwfImage pic)
+    {
+        int count = w * h;
+        var lum = new double[count];
+        var solid = new bool[count];
+        bool any = false;
+        for (int i = 0; i < count; i++)
+        {
+            int a = px[i * 4 + 3];
+            if (a == 0) continue;
+            double l = (0.0722 * px[i * 4] + 0.7152 * px[i * 4 + 1] + 0.2126 * px[i * 4 + 2]) / 255.0;
+            lum[i] = l;
+            solid[i] = l >= 0.13;
+            any |= solid[i];
+        }
+        if (!any) return null;
+        double avg = 0; int ns = 0;
+        for (int i = 0; i < count; i++) if (solid[i]) { avg += lum[i]; ns++; }
+        avg /= ns;
+
+        // Distance (in pixels) to the nearest edge or outline, for the neon glow: two passes of a chamfer.
+        float[] dist = null;
+        if (style == "neon")
+        {
+            dist = new float[count];
+            for (int i = 0; i < count; i++) dist[i] = solid[i] ? 1e6f : 0;
+            for (int y = 0; y < h; y++)
+                for (int x = 0; x < w; x++)
+                {
+                    int i = y * w + x; if (dist[i] == 0) continue;
+                    float d = dist[i];
+                    if (x > 0) d = Math.Min(d, dist[i - 1] + 1); else d = Math.Min(d, 1);
+                    if (y > 0) d = Math.Min(d, dist[i - w] + 1); else d = Math.Min(d, 1);
+                    if (x > 0 && y > 0) d = Math.Min(d, dist[i - w - 1] + 1.41f);
+                    if (x < w - 1 && y > 0) d = Math.Min(d, dist[i - w + 1] + 1.41f);
+                    dist[i] = d;
+                }
+            for (int y = h - 1; y >= 0; y--)
+                for (int x = w - 1; x >= 0; x--)
+                {
+                    int i = y * w + x; if (dist[i] == 0) continue;
+                    float d = dist[i];
+                    if (x < w - 1) d = Math.Min(d, dist[i + 1] + 1); else d = Math.Min(d, 1);
+                    if (y < h - 1) d = Math.Min(d, dist[i + w] + 1); else d = Math.Min(d, 1);
+                    if (x < w - 1 && y < h - 1) d = Math.Min(d, dist[i + w + 1] + 1.41f);
+                    if (x > 0 && y < h - 1) d = Math.Min(d, dist[i + w - 1] + 1.41f);
+                    dist[i] = d;
+                }
+        }
+
+        // A wrapped picture covers the part, centred, keeping its shape.
+        double k = 0, ox = 0, oy = 0;
+        if (pic != null) { k = Math.Max(w / (double)pic.Width, h / (double)pic.Height); ox = (pic.Width * k - w) / 2; oy = (pic.Height * k - h) / 2; }
+
+        var outPx = (byte[])px.Clone();
+        for (int y = 0; y < h; y++)
+            for (int x = 0; x < w; x++)
+            {
+                int i = y * w + x;
+                if (!solid[i]) continue;
+                (double R, double G, double B) c;
+                double shade = Math.Clamp(lum[i] / avg, 0.55, 1.35);
+                if (pic != null)
+                {
+                    int sx = Math.Clamp((int)((x + ox) / k), 0, pic.Width - 1), sy = Math.Clamp((int)((y + oy) / k), 0, pic.Height - 1);
+                    int j = (sy * pic.Width + sx) * 4;
+                    c = (pic.Rgba[j] / 255.0, pic.Rgba[j + 1] / 255.0, pic.Rgba[j + 2] / 255.0);
+                    shade = 0.7 + 0.3 * shade;
+                }
+                else
+                {
+                    double edge = dist == null ? 0 : Math.Clamp(1 - (dist[i] - 1) / 7.0, 0, 1);
+                    c = StyleColor(style, x, y, edge);
+                    if (style == "neon") shade = 1;
+                }
+                outPx[i * 4] = (byte)Math.Clamp(c.B * shade * 255, 0, 255);
+                outPx[i * 4 + 1] = (byte)Math.Clamp(c.G * shade * 255, 0, 255);
+                outPx[i * 4 + 2] = (byte)Math.Clamp(c.R * shade * 255, 0, 255);
+            }
+        return outPx;
+    }
+
+    // ───────── preview ─────────
+
+    /// <summary>
+    /// A skin's parts as pictures, drawn from the game's files on this PC: as the game has them, or with your changes
+    /// (colors, pictures, styles) when <paramref name="after"/>. Eye and mouth poses show once. Sizes are in game
+    /// pixels so parts keep their size against each other. Needs an STA thread; the pictures are frozen.
+    /// </summary>
+    public static List<(string Part, ImageSource Image, double Width, double Height)> Preview(BhSkin s, bool after)
+    {
+        var swf = SwfFile.Load(File.ReadAllBytes(OriginalOrGame(s.File)));
+        if (after && M.Colors.TryGetValue(s.Key, out var c) && !c.IsOriginal) swf.Recolor(ColorMap(c), s.Parts);
+        var pics = after && M.Pictures.TryGetValue(s.File, out var p) ? p : null;
+        var sizes = swf.Parts().ToDictionary(x => x.Name, x => x);
+        var shownFaces = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var order = new[] { "Head", "Body", "Weapons" };
+        var list = new List<(string, ImageSource, double, double)>();
+        foreach (var part in s.Parts.OrderBy(x => Array.IndexOf(order, GroupKind(PartGroup(x)))).ThenBy(x => PartGroup(x)).ThenBy(x => x, StringComparer.Ordinal))
+        {
+            if (!sizes.TryGetValue(part, out var size) || size.Width < 2 || size.Height < 2) continue;
+            var g = PartGroup(part);
+            if (FaceGroups.Contains(g) && !shownFaces.Add(g)) continue;
+            ImageSource img = null;
+            if (pics != null && pics.TryGetValue(part, out var file) && File.Exists(Path.Combine(PictureDir, file)))
+            {
+                try
+                {
+                    var bi = new BitmapImage();
+                    bi.BeginInit(); bi.CacheOption = BitmapCacheOption.OnLoad; bi.DecodePixelWidth = (int)Math.Min(400, size.Width * 2 + 1); bi.UriSource = new Uri(Path.Combine(PictureDir, file)); bi.EndInit(); bi.Freeze();
+                    img = bi;
+                }
+                catch { }
+            }
+            img ??= RenderPart(swf, part, 2, 400);
+            if (img != null) list.Add((part, img, size.Width, size.Height));
+        }
+        return list;
+    }
+
+    // ───────── many pictures at once ─────────
+
+    static string Squash(string s) => Regex.Replace(s.ToLowerInvariant(), "[^a-z0-9]", "");
+
+    static readonly string[] PictureTypes = { ".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif" };
+
+    /// <summary>
+    /// Which parts of a skin a picture's file name points to: the part's own name ("a_Hair_Mikasa"), its label as
+    /// Pulse saves it ("Hair Back", "Hair Back 2"), its group ("Hair", "Spear": every piece), or "Weapons" / "Head" /
+    /// "Body" for all of those. Empty when the name fits nothing.
+    /// </summary>
+    public static List<string> PartsNamed(IReadOnlyList<string> skinParts, string fileName)
+    {
+        var key = Squash(Path.GetFileNameWithoutExtension(fileName));
+        if (key.Length == 0) return new();
+        var sorted = skinParts.OrderBy(p => p, StringComparer.Ordinal).ToList();
+        var exact = sorted.FirstOrDefault(p => Squash(p) == key);
+        if (exact != null) return new() { exact };
+        // Labels, numbered the way Pulse names the PNGs it saves.
+        var seen = new HashSet<string>();
+        foreach (var p in sorted)
+        {
+            var label = Squash(PartLabel(p));
+            var name = label;
+            for (int i = 2; !seen.Add(name); i++) name = label + i;
+            if (name == key) return new() { p };
+        }
+        var group = sorted.Where(p => Squash(PartGroup(p)) == key).ToList();
+        if (group.Count > 0) return group;
+        var singular = key.EndsWith('s') ? key[..^1] : key;
+        var kind = sorted.Where(p => Squash(GroupKind(PartGroup(p))) is var k && (k == key || k == key + "s" || k == singular)).ToList();
+        return kind;
+    }
+
+    /// <summary>
+    /// Puts many of your pictures on a skin at once, each on the parts its file name points to (see
+    /// <see cref="PartsNamed"/>); folders are searched for pictures. Another skin's art as Pulse saved it isn't put on
+    /// this one. Returns what went where and what didn't fit.
+    /// </summary>
+    public static (int Pictures, int Parts, List<string> NoMatch, List<string> OtherSkin) BulkAdd(BhSkin s, IEnumerable<string> paths)
+    {
+        var files = new List<string>();
+        foreach (var p in paths)
+        {
+            if (Directory.Exists(p)) files.AddRange(Directory.EnumerateFiles(p, "*", SearchOption.AllDirectories).Where(f => PictureTypes.Contains(Path.GetExtension(f).ToLowerInvariant())));
+            else if (File.Exists(p)) files.Add(p);
+        }
+        // Pictures Pulse saved from other skins, untouched: those are another skin's own art, not yours.
+        var others = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (Directory.Exists(SkinsRoot))
+            foreach (var m in Directory.EnumerateFiles(SkinsRoot, SkinManifest, SearchOption.AllDirectories))
+            {
+                try
+                {
+                    var sheet = JsonSerializer.Deserialize<SkinSheet>(File.ReadAllText(m));
+                    if (sheet?.Parts != null && sheet.File != s.File) foreach (var v in sheet.Parts.Values) others.Add(v.Sha);
+                }
+                catch { }
+            }
+        if (!M.Pictures.TryGetValue(s.File, out var map)) M.Pictures[s.File] = map = new();
+        int pics = 0, parts = 0;
+        var noMatch = new List<string>();
+        var other = new List<string>();
+        foreach (var f in files)
+        {
+            var name = Path.GetFileName(f);
+            if (!PictureTypes.Contains(Path.GetExtension(f).ToLowerInvariant())) { noMatch.Add(name); continue; }
+            var targets = PartsNamed(s.Parts, name);
+            if (targets.Count == 0) { noMatch.Add(name); continue; }
+            if (others.Count > 0 && others.Contains(Sha(f))) { other.Add(name); continue; }
+            string stored;
+            try { stored = AddPicture(f); } catch { noMatch.Add(name); continue; }
+            foreach (var t in targets) map[t] = stored;
+            pics++; parts += targets.Count;
+        }
+        if (map.Count == 0) M.Pictures.Remove(s.File);
+        if (pics > 0) { M.Pending = true; TweakEngine.Save(); }
+        return (pics, parts, noMatch, other);
     }
 
     /// <summary>Reads a picture as RGBA, scaled down so its longer side is at most <paramref name="maxSide"/>.</summary>

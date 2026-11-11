@@ -23,6 +23,10 @@ public sealed partial class BrawlhallaPage
     List<BhSkin> _skins;
     double _skinsProgress;
     bool _skinsLoading, _modBusy, _restoreArmed, _skinAdvanced;
+    string _styleTarget = "all", _previewKey;
+    bool _previewAfter = true, _previewLoading;
+    List<(string Part, ImageSource Image, double Width, double Height)> _preview;
+    static readonly Dictionary<string, BitmapSource> _swatches = new();
     BhSkin _skin;
     List<SwfPart> _skinParts = new();
     List<(int Rgb, int Count)> _skinPalette = new();
@@ -394,10 +398,13 @@ public sealed partial class BrawlhallaPage
             if (Mods.Pictures.TryGetValue(s.File, out var p)) foreach (var part in s.Parts) p.Remove(part);
             Changed(); Build();
         }));
+        sp.Children.Add(PreviewBox(s));
+        sp.Children.Add(StyleBox(s));
         sp.Children.Add(PngSteps(s));
         sp.Children.Add(Switch("Or pick pictures part by part (advanced)", _skinAdvanced, v => { _skinAdvanced = v; Build(); }).Also(x => x.Margin = new Thickness(0, 18, 0, 4)));
         if (!_skinAdvanced) return sp;
-        sp.Children.Add(Dim(Loc.T("Click Choose picture next to a part, or drag a picture onto it. A PNG with a transparent background looks best."), 12.5, 8));
+        sp.Children.Add(BulkBox(s));
+        sp.Children.Add(Dim(Loc.T("Or one at a time: click Choose picture next to a part, or drag a picture onto it. A PNG with a transparent background looks best."), 12.5, 14));
         if (_skinAdvanced)
         {
             sp.Children.Add(Dim(Loc.T("Make pictures about 4 times the size shown so they stay sharp. Pieces lets you give one piece (say, the back hair) its own picture."), 12, 4));
@@ -413,6 +420,120 @@ public sealed partial class BrawlhallaPage
             foreach (var g in groups) sp.Children.Add(PartGroupRow(s, g.Key, g.ToList(), pics));
         }
         return sp;
+    }
+
+    /// <summary>What the skin looks like, before and after your changes, so nobody has to open the game to check.</summary>
+    FrameworkElement PreviewBox(BhSkin s)
+    {
+        Mods.Pictures.TryGetValue(s.File, out var pics);
+        Mods.Colors.TryGetValue(s.Key, out var col);
+        var key = s.Key + "|" + _previewAfter + "|" + (pics == null ? "" : string.Join(",", pics.Where(kv => s.Parts.Contains(kv.Key)).OrderBy(kv => kv.Key).Select(kv => kv.Key + "=" + kv.Value)))
+            + "|" + (col == null ? "" : System.Text.Json.JsonSerializer.Serialize(col));
+        if (key != _previewKey && !_previewLoading) _ = LoadPreview(s, key);
+
+        var box = new StackPanel();
+        var top = new Grid();
+        top.ColumnDefinitions.Add(new ColumnDefinition());
+        top.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        top.Children.Add(new TextBlock { Text = Loc.T("Preview"), FontSize = 15, FontWeight = FontWeights.SemiBold, Foreground = Res("TextBrush"), VerticalAlignment = VerticalAlignment.Center });
+        var seg = Segments(new[]
+        {
+            (Loc.T("Before"), !_previewAfter, (Action)(() => { _previewAfter = false; Build(); })),
+            (Loc.T("With my changes"), _previewAfter, (Action)(() => { _previewAfter = true; Build(); })),
+        });
+        Grid.SetColumn(seg, 1); top.Children.Add(seg);
+        box.Children.Add(top);
+        box.Children.Add(Dim(Loc.T("Every part of the skin, laid out. In the game they move and overlap as the legend animates."), 11.5, 4));
+
+        var stage = new Border { Margin = new Thickness(0, 10, 0, 0), Padding = new Thickness(12), CornerRadius = new CornerRadius(10), MinHeight = 120,
+            Background = new LinearGradientBrush(Color.FromRgb(0x2A, 0x2F, 0x3A), Color.FromRgb(0x16, 0x19, 0x20), 90) };
+        if (_preview == null || key != _previewKey)
+            stage.Child = new TextBlock { Text = Loc.T("Drawing the skin…"), FontSize = 12.5, Foreground = Brushes.White, Opacity = 0.7, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+        else if (_preview.Count == 0)
+            stage.Child = new TextBlock { Text = Loc.T("Pulse couldn't draw this skin's parts."), FontSize = 12.5, Foreground = Brushes.White, Opacity = 0.7, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+        else
+        {
+            // One scale for every part, so a sword looks sword-sized next to the hair.
+            double biggest = _preview.Max(p => Math.Max(p.Width, p.Height));
+            double k = Math.Clamp(150 / biggest, 0.4, 2);
+            var wrap = new WrapPanel { HorizontalAlignment = HorizontalAlignment.Center };
+            foreach (var p in _preview)
+                wrap.Children.Add(new Image { Source = p.Image, Width = Math.Max(14, p.Width * k), Height = Math.Max(14, p.Height * k), Stretch = Stretch.Uniform, Margin = new Thickness(6), VerticalAlignment = VerticalAlignment.Bottom,
+                    ToolTip = BrawlhallaMods.PartLabel(p.Part) });
+            stage.Child = new ScrollViewer { Content = wrap, MaxHeight = 420, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+        }
+        box.Children.Add(stage);
+        return new Border { Child = box, Padding = new Thickness(16), Margin = new Thickness(0, 14, 0, 0), CornerRadius = new CornerRadius(12), Background = new SolidColorBrush(Inset), BorderBrush = new SolidColorBrush(Line), BorderThickness = new Thickness(1) };
+    }
+
+    async Task LoadPreview(BhSkin s, string key)
+    {
+        _previewLoading = true;
+        List<(string, ImageSource, double, double)> list = null;
+        bool after = _previewAfter;
+        try { await StaTask(() => { list = BrawlhallaMods.Preview(s, after); return null; }); }
+        catch { list = new(); }
+        _previewLoading = false;
+        if (_skin?.Key != s.Key) return;
+        _preview = list; _previewKey = key;
+        Build();
+    }
+
+    /// <summary>One click: a style (or your picture) filling each part's shape, outlines and shading kept.</summary>
+    FrameworkElement StyleBox(BhSkin s)
+    {
+        var box = new StackPanel();
+        box.Children.Add(new TextBlock { Text = Loc.T("Style it for me"), FontSize = 15, FontWeight = FontWeights.SemiBold, Foreground = Res("TextBrush") });
+        box.Children.Add(Dim(Loc.T("Pick a look and Pulse paints it onto the skin for you. It keeps the skin's outlines and shading, so it still looks like a real skin."), 12.5, 4));
+        box.Children.Add(Segments(new[] { ("all", "Whole skin"), ("body", "Outfit"), ("weapons", "Weapons"), ("head", "Hair and head") }
+            .Select(t => (Loc.T(t.Item2), _styleTarget == t.Item1, (Action)(() => { _styleTarget = t.Item1; Build(); }))))
+            .Also(x => x.Margin = new Thickness(0, 12, 0, 0)));
+
+        var wrap = new WrapPanel { Margin = new Thickness(0, 12, 0, 0) };
+        FrameworkElement Chip(ImageSource img, string label, Action go)
+        {
+            var st = new StackPanel { Width = 78 };
+            st.Children.Add(new Border { Width = 52, Height = 52, CornerRadius = new CornerRadius(26), ClipToBounds = true, BorderBrush = new SolidColorBrush(Line), BorderThickness = new Thickness(1), Background = new SolidColorBrush(PanelBg),
+                Child = img != null ? new Image { Source = img, Stretch = Stretch.UniformToFill } : new TextBlock { Text = "+", FontSize = 22, Foreground = Res("TextBrush"), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center } });
+            st.Children.Add(new TextBlock { Text = label, FontSize = 11.5, Foreground = Res("TextBrush"), TextAlignment = TextAlignment.Center, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 0) });
+            var b = new Border { Child = st, Padding = new Thickness(4, 6, 4, 6), Margin = new Thickness(0, 0, 6, 6), CornerRadius = new CornerRadius(10), Cursor = _modBusy ? Cursors.Wait : Cursors.Hand, Background = Brushes.Transparent };
+            b.MouseEnter += (_, _) => b.Background = new SolidColorBrush(PanelBg);
+            b.MouseLeave += (_, _) => b.Background = Brushes.Transparent;
+            b.MouseLeftButtonUp += (_, _) => { if (!_modBusy) go(); };
+            return b;
+        }
+        foreach (var st in BrawlhallaMods.Styles)
+        {
+            if (!_swatches.TryGetValue(st.Key, out var sw)) _swatches[st.Key] = sw = BrawlhallaMods.StyleSwatch(st.Key, 104);
+            var key = st.Key;
+            wrap.Children.Add(Chip(sw, Loc.T(st.Name), () => _ = RunStyle(s, key, null)));
+        }
+        wrap.Children.Add(Chip(null, Loc.T("Wrap my picture"), () =>
+        {
+            var dlg = new Microsoft.Win32.OpenFileDialog { Filter = Loc.T("Pictures") + "|*.png;*.jpg;*.jpeg;*.webp;*.bmp;*.gif" };
+            if (dlg.ShowDialog() == true) _ = RunStyle(s, "wrap", dlg.FileName);
+        }));
+        box.Children.Add(wrap);
+        box.Children.Add(Dim(Loc.T("Don't like it? Pick another look, or Put this skin back at the top."), 11.5, 2));
+        return new Border { Child = box, Padding = new Thickness(16), Margin = new Thickness(0, 14, 0, 0), CornerRadius = new CornerRadius(12), Background = new SolidColorBrush(Inset), BorderBrush = new SolidColorBrush(Gold), BorderThickness = new Thickness(1) };
+    }
+
+    async Task RunStyle(BhSkin s, string style, string picture)
+    {
+        _modBusy = true; _modStatus = Loc.T("Styling the skin…"); Build();
+        string msg; bool ok = false;
+        var target = _styleTarget;
+        try
+        {
+            int n = 0;
+            await StaTask(() => { n = BrawlhallaMods.StyleSkin(s, style, target, picture); return null; });
+            ok = n > 0;
+            msg = ok ? Loc.F("Styled {0} part(s). Press Apply to put them in the game.", n) : Loc.T("This skin has nothing to style there. Try Whole skin.");
+        }
+        catch (Exception ex) { msg = ex is InvalidDataException ? ex.Message : Loc.F("Couldn't style the skin: {0}", ex.Message); }
+        _modBusy = false; _modStatus = null;
+        MainWindow.Instance.Toast(msg, ok ? ToastKind.Success : ToastKind.Info);
+        Build();
     }
 
     /// <summary>The easy way: the skin's own parts as PNGs to paint over, then back in with one click.</summary>
@@ -482,6 +603,57 @@ public sealed partial class BrawlhallaPage
             box.Children.Add(redo);
         }
         return new Border { Child = box, Padding = new Thickness(16), Margin = new Thickness(0, 14, 0, 0), CornerRadius = new CornerRadius(12), Background = new SolidColorBrush(Inset), BorderBrush = new SolidColorBrush(Gold), BorderThickness = new Thickness(1) };
+    }
+
+    /// <summary>Many pictures at once, each named after the part it's for.</summary>
+    FrameworkElement BulkBox(BhSkin s)
+    {
+        var box = new StackPanel();
+        var top = new Grid();
+        top.ColumnDefinitions.Add(new ColumnDefinition());
+        top.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        var t = new StackPanel();
+        t.Children.Add(new TextBlock { Text = Loc.T("Add many pictures at once"), FontSize = 14, FontWeight = FontWeights.SemiBold, Foreground = Res("TextBrush") });
+        t.Children.Add(Dim(Loc.T("Name each picture after the part it's for, then pick them all (or drop them, or a folder, here). Each goes on every piece of that part."), 12, 2));
+        top.Children.Add(t);
+        var pick = new Button { Style = (Style)FindResource("PrimaryButton"), Content = Loc.T("Add pictures"), Padding = new Thickness(16, 7, 16, 7), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 0, 0) };
+        pick.Click += (_, _) =>
+        {
+            var dlg = new Microsoft.Win32.OpenFileDialog { Filter = Loc.T("Pictures") + "|*.png;*.jpg;*.jpeg;*.webp;*.bmp;*.gif", Multiselect = true };
+            if (dlg.ShowDialog() == true) Bulk(s, dlg.FileNames);
+        };
+        Grid.SetColumn(pick, 1); top.Children.Add(pick);
+        box.Children.Add(top);
+
+        // The names this skin understands, so nobody has to guess.
+        var names = new WrapPanel { Margin = new Thickness(0, 10, 0, 0) };
+        names.Children.Add(new TextBlock { Text = Loc.T("Names this skin uses:"), FontSize = 12, Foreground = Res("TextDimBrush"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 6) });
+        foreach (var g in _skinParts.Select(p => BrawlhallaMods.PartGroup(p.Name)).Distinct().OrderBy(g => Array.IndexOf(new[] { "Head", "Body", "Weapons" }, BrawlhallaMods.GroupKind(g))).ThenBy(g => g))
+            names.Children.Add(new Border { Padding = new Thickness(9, 3, 9, 3), Margin = new Thickness(0, 0, 6, 6), CornerRadius = new CornerRadius(999), Background = new SolidColorBrush(PanelBg), BorderBrush = new SolidColorBrush(Line), BorderThickness = new Thickness(1),
+                Child = new TextBlock { Text = g.Replace(" ", "") + ".png", FontSize = 11.5, Foreground = Res("TextBrush") } });
+        box.Children.Add(names);
+
+        var border = new Border { Child = box, Padding = new Thickness(14), Margin = new Thickness(0, 10, 0, 0), CornerRadius = new CornerRadius(10), Background = new SolidColorBrush(Inset), BorderBrush = new SolidColorBrush(Line), BorderThickness = new Thickness(1) };
+        border.AllowDrop = true;
+        border.DragOver += (_, e) => { e.Effects = e.Data.GetDataPresent(DataFormats.FileDrop) ? DragDropEffects.Copy : DragDropEffects.None; e.Handled = true; };
+        border.DragEnter += (_, _) => border.BorderBrush = new SolidColorBrush(Gold);
+        border.DragLeave += (_, _) => border.BorderBrush = new SolidColorBrush(Line);
+        border.Drop += (_, e) => { if (e.Data.GetData(DataFormats.FileDrop) is string[] { Length: > 0 } f) { e.Handled = true; Bulk(s, f); } };
+        return border;
+    }
+
+    void Bulk(BhSkin s, string[] files)
+    {
+        try
+        {
+            var (pics, parts, noMatch, other) = BrawlhallaMods.BulkAdd(s, files);
+            _modStatus = null;
+            if (pics > 0) MainWindow.Instance.Toast(Loc.F("Put {0} picture(s) on {1} piece(s). Press Apply to put them in the game.", pics, parts), ToastKind.Success);
+            if (noMatch.Count > 0) MainWindow.Instance.Toast(Loc.F("{0} didn't match a part of this skin. Rename them to one of the names shown.", string.Join(", ", noMatch.Take(4)) + (noMatch.Count > 4 ? "…" : "")), ToastKind.Info);
+            if (other.Count > 0) MainWindow.Instance.Toast(Loc.T("Some pictures are another skin's own art, saved by Pulse, so they weren't used. Edit them into your own design first."), ToastKind.Info);
+        }
+        catch (Exception ex) { MainWindow.Instance.Toast(ex.Message, ToastKind.Info); }
+        Build();
     }
 
     FrameworkElement PartGroupRow(BhSkin s, string group, List<SwfPart> parts, Dictionary<string, string> pics)
@@ -604,6 +776,7 @@ public sealed partial class BrawlhallaPage
         sp.Children.Add(Dim(Loc.T("Some skins use stand-in colors (bright green, peach) that the game swaps for the color you pick in Brawlhalla. Change one of those and that part keeps your color whatever color you pick in game."), 11.5, 6));
         if (_skinPalette.Count == 0) { sp.Children.Add(Dim(Loc.T("Reading this skin's colors…"), 12.5, 12)); return sp; }
 
+        sp.Children.Add(PreviewBox(s));
         var map = BrawlhallaMods.ColorMap(c);
         var swatches = new WrapPanel { Margin = new Thickness(0, 14, 0, 0) };
         var live = new List<(Border After, int Rgb)>();

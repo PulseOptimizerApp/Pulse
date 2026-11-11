@@ -171,6 +171,40 @@ public class BrawlhallaModTests
     public void Backgrounds_get_readable_names(string file, string label) =>
         Assert.Equal(label, BrawlhallaMods.BackgroundLabel(file));
 
+    [Theory]
+    [InlineData("Hair.png", "a_HairBack_Zuko,a_HairFront_Zuko")]
+    [InlineData("hair back.png", "a_HairBack_Zuko")]
+    [InlineData("Spear.PNG", "a_SpearShaft_Zuko,a_WeaponSpearTip_Zuko")]
+    [InlineData("weapons.png", "a_SpearShaft_Zuko,a_WeaponSpearTip_Zuko")]
+    [InlineData("a_Torso1_Zuko.png", "a_Torso1_Zuko")]
+    [InlineData("Cat.png", "")]
+    public void Bulk_pictures_go_where_their_names_say(string file, string expected)
+    {
+        var parts = new[] { "a_HairBack_Zuko", "a_HairFront_Zuko", "a_SpearShaft_Zuko", "a_WeaponSpearTip_Zuko", "a_Torso1_Zuko" };
+        Assert.Equal(expected, string.Join(",", BrawlhallaMods.PartsNamed(parts, file).OrderBy(x => x, StringComparer.Ordinal)));
+    }
+
+    [Fact]
+    public void Styles_keep_outlines_and_empty_space()
+    {
+        // 3×1 BGRA: transparent, black outline, mid grey.
+        var px = new byte[] { 0, 0, 0, 0, 0, 0, 0, 255, 128, 128, 128, 255 };
+        var outPx = BrawlhallaMods.Restyle(px, 3, 1, "lava", null);
+        Assert.Equal(px[..8], outPx[..8]);
+        Assert.Equal(255, outPx[11]);
+        Assert.NotEqual(px[8..11], outPx[8..11]);
+        Assert.Null(BrawlhallaMods.Restyle(new byte[] { 0, 0, 0, 255 }, 1, 1, "gold", null));
+    }
+
+    [Fact]
+    public void Styles_skip_eyes_and_mouths_and_pick_the_right_parts()
+    {
+        var parts = new[] { "a_EyesAngry_Zuko", "a_Mouth_Zuko", "a_HairBack_Zuko", "a_Torso1_Zuko", "a_WeaponSpearTip_Zuko" };
+        Assert.Equal(new[] { "a_HairBack_Zuko", "a_Torso1_Zuko", "a_WeaponSpearTip_Zuko" }, BrawlhallaMods.StyleTargets(parts, "all"));
+        Assert.Equal(new[] { "a_Torso1_Zuko" }, BrawlhallaMods.StyleTargets(parts, "body"));
+        Assert.Equal(new[] { "a_WeaponSpearTip_Zuko" }, BrawlhallaMods.StyleTargets(parts, "weapons"));
+    }
+
     [Fact]
     public void A_part_draws_as_its_own_shapes_and_colors()
     {
