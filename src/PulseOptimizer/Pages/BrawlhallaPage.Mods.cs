@@ -848,13 +848,13 @@ public sealed partial class BrawlhallaPage
         return g;
     }
 
-    FrameworkElement ColorChoices(string current, Action<string> pick, bool rgb = false)
+    FrameworkElement ColorChoices(string current, Action<string> pick, bool allowRgb = false)
     {
         var wrap = new WrapPanel { Margin = new Thickness(0, 10, 0, 0) };
         var orig = Ghost(Loc.T("Original"), () => pick(null));
         orig.Margin = new Thickness(0, 0, 8, 8);
         wrap.Children.Add(orig);
-        if (rgb)
+        if (allowRgb)
         {
             bool on = current == BrawlhallaMods.Rgb;
             var chip = new StackPanel { Orientation = Orientation.Horizontal };
@@ -971,7 +971,7 @@ public sealed partial class BrawlhallaPage
             {
                 if (hex == null) Mods.Effects.Remove(key); else Mods.Effects[key] = hex;
                 Changed(); Build();
-            }, rgb: true));
+            }, allowRgb: true));
             sp.Children.Add(row);
         }
         return sp;

@@ -185,6 +185,21 @@ public class BrawlhallaModTests
     }
 
     [Fact]
+    public void Rgb_tints_every_frame_and_the_file_still_reads()
+    {
+        var swf = SwfFile.Load(SkinFile());
+        var frames = new List<int>();
+        Assert.Equal(1, swf.Cycle(new[] { "a_Hair_Test" }, (f, n) => { frames.Add(f); Assert.Equal(2, n); return 0x0000FF; }));
+        Assert.Equal(new[] { 0, 1 }, frames);
+        var again = SwfFile.Load(swf.Save());
+        Assert.Equal(2, again.Parts().Count);
+        // Red hair, tinted blue by multiplying: black, fully opaque. The sword isn't touched.
+        Assert.Equal(0xFF000000u, Assert.Single(again.Draw("a_Hair_Test")!.Value.Items).Argb);
+        Assert.Equal(0xFF0000FFu, Assert.Single(again.Draw("a_WeaponSword_Test")!.Value.Items).Argb);
+        Assert.NotEqual(BrawlhallaMods.RainbowAt(0, 6), BrawlhallaMods.RainbowAt(3, 6));
+    }
+
+    [Fact]
     public void Styles_keep_outlines_and_empty_space()
     {
         // 3×1 BGRA: transparent, black outline, mid grey.
