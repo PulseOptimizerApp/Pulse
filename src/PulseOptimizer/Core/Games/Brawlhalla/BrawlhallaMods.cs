@@ -26,12 +26,23 @@ public class BhMods
     public bool Stretch { get; set; }
     /// <summary>Game file (relative) → SHA-256 of what Pulse last wrote, to spot game updates.</summary>
     public Dictionary<string, string> Written { get; set; } = new();
+    /// <summary>Mods you installed (downloaded from GameBanana and the like), oldest first; later ones win.</summary>
+    public List<BhInstalled> Installed { get; set; } = new();
     /// <summary>Changes picked since the last Apply (they aren't in the game yet).</summary>
     public bool Pending { get; set; }
     public bool FastGpu { get; set; }
     public bool HighPriority { get; set; }
 
-    public bool Any => Pictures.Values.Any(p => p.Count > 0) || Colors.Values.Any(c => !c.IsOriginal) || Effects.Values.Any(e => e.Length > 0) || Backgrounds.Count > 0;
+    public bool Any => Installed.Count > 0 || Pictures.Values.Any(p => p.Count > 0) || Colors.Values.Any(c => !c.IsOriginal) || Effects.Values.Any(e => e.Length > 0) || Backgrounds.Count > 0;
+}
+
+/// <summary>A mod you installed: its name and the game files it replaces (relative path → its copy in Pulse's folder).</summary>
+public class BhInstalled
+{
+    public string Id { get; set; } = Guid.NewGuid().ToString("N");
+    public string Name { get; set; } = "";
+    public Dictionary<string, string> Files { get; set; } = new();
+    public DateTime Added { get; set; } = DateTime.UtcNow;
 }
 
 public class BhColors
@@ -60,7 +71,7 @@ public sealed record BhEffect(string Key, string Name, string Detail, string[] F
 }
 
 /// <summary>A one-click look: one color for a set of effects.</summary>
-public sealed record BhEffectPack(string Name, int Rgb, string[] Effects);
+public sealed record BhEffectPack(string Name, int Rgb);
 
 /// <summary>A map background theme.</summary>
 public sealed record BhTheme(string Key, string Name, string Detail);
@@ -262,7 +273,103 @@ public static class BrawlhallaMods
         return new SwfImage(w, h, px);
     }
 
+    // ───────── installing mods ─────────
+
+    static string InstalledDir => Path.Combine(Root, "installed");
+    static readonly string[] ModTypes = { ".swf", ".jpg", ".jpeg", ".png" };
+
+    /// <summary>Every art file in the game, by name, so a mod's files can be matched to where they go.</summary>
+    static Dictionary<string, string> GameFiles()
+    {
+        var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (GameDir == null) return map;
+        foreach (var f in Directory.EnumerateFiles(GameDir, "*", SearchOption.AllDirectories))
+        {
+            if (!ModTypes.Contains(Path.GetExtension(f), StringComparer.OrdinalIgnoreCase)) continue;
+            var rel = Path.GetRelativePath(GameDir, f);
+            if (rel.StartsWith("Adobe AIR", StringComparison.OrdinalIgnoreCase) || rel.StartsWith("META-INF", StringComparison.OrdinalIgnoreCase)) continue;
+            map.TryAdd(Path.GetFileName(f), rel);
+        }
+        return map;
+    }
+
+    /// <summary>
+    /// Installs a downloaded mod: a .zip, or a single .swf or picture. Each file is matched to the game file with the
+    /// same name and kept in Pulse's folder; Apply puts it in the game (with the original kept, as always). Returns the
+    /// mod and the files in it that don't match anything in Brawlhalla. Throws with a message for people when nothing fits.
+    /// </summary>
+    public static (BhInstalled Mod, List<string> Skipped) InstallMod(string path)
+    {
+        if (GameDir == null) throw new InvalidDataException(Ui.Loc.T("Brawlhalla isn't installed through Steam on this PC."));
+        var ext = Path.GetExtension(path).ToLowerInvariant();
+        if (ext is ".rar" or ".7z") throw new InvalidDataException(Ui.Loc.T("Unzip this mod first (it's a .rar or .7z), then drop in the files inside, or zip them as a .zip."));
+        var files = new List<(string Name, byte[] Bytes)>();
+        if (ext == ".zip")
+        {
+            using var zip = System.IO.Compression.ZipFile.OpenRead(path);
+            foreach (var e in zip.Entries)
+            {
+                if (e.Length == 0 || e.Length > 200_000_000 || !ModTypes.Contains(Path.GetExtension(e.Name), StringComparer.OrdinalIgnoreCase)) continue;
+                using var s = e.Open();
+                using var ms = new MemoryStream();
+                s.CopyTo(ms);
+                files.Add((e.Name, ms.ToArray()));
+            }
+        }
+        else if (ModTypes.Contains(ext)) files.Add((Path.GetFileName(path), File.ReadAllBytes(path)));
+        else throw new InvalidDataException(Ui.Loc.T("Pulse installs mods as .zip, .swf, .jpg or .png files."));
+
+        var game = GameFiles();
+        var mod = new BhInstalled { Name = Path.GetFileNameWithoutExtension(path) };
+        var skipped = new List<string>();
+        foreach (var (name, bytes) in files)
+        {
+            if (!game.TryGetValue(name, out var rel)) { skipped.Add(name); continue; }
+            // A .swf has to be one Pulse (and the game) can read.
+            if (name.EndsWith(".swf", StringComparison.OrdinalIgnoreCase)) { try { SwfFile.Load(bytes); } catch { skipped.Add(name); continue; } }
+            var store = Path.Combine(InstalledDir, mod.Id);
+            Directory.CreateDirectory(store);
+            File.WriteAllBytes(Path.Combine(store, name), bytes);
+            mod.Files[rel] = name;
+        }
+        if (mod.Files.Count == 0)
+            throw new InvalidDataException(Ui.Loc.T("None of this mod's files match a Brawlhalla file. It may be for an older version of the game, or need its own installer."));
+        M.Installed.Add(mod);
+        M.Pending = true;
+        TweakEngine.Save();
+        return (mod, skipped);
+    }
+
+    /// <summary>Takes an installed mod out (Apply puts the game's own files back).</summary>
+    public static void RemoveMod(string id)
+    {
+        var mod = M.Installed.FirstOrDefault(m => m.Id == id);
+        if (mod == null) return;
+        M.Installed.Remove(mod);
+        M.Pending = true;
+        try { Directory.Delete(Path.Combine(InstalledDir, mod.Id), true); } catch { }
+        TweakEngine.Save();
+    }
+
+    /// <summary>The installed mod file that replaces a game file (the latest one wins), or null.</summary>
+    static byte[] Replacement(string rel)
+    {
+        for (int i = M.Installed.Count - 1; i >= 0; i--)
+        {
+            var m = M.Installed[i];
+            if (m.Files.TryGetValue(rel, out var name))
+            {
+                var p = Path.Combine(InstalledDir, m.Id, name);
+                if (File.Exists(p)) return File.ReadAllBytes(p);
+            }
+        }
+        return null;
+    }
+
     // ───────── effects ─────────
+
+    // Effects files that aren't one legend's or skin's own: shared, weapons, menus, maps.
+    static readonly Regex NotLegendFx = new(@"^SFX_(1|KO|KO2|HitReacts|Emote|GameModes|Level|MapArtAnims|.*_MapArtAnims|BP\d+|Sword|Spear|Hammer|Axe|Katar|Bow|Pistols|Lance|Scythe|Cannon|Orb|GreatSword|Fists|Chakram|SWBlasters|Sabers)\.swf$", RegexOptions.IgnoreCase);
 
     static readonly Regex BodyPart = new(@"^a_(Hand|Arm|Forearm|Shoulder|Torso|Waist|Head|Leg|Foot|Thigh|Shin|Jaw|Eye|Mouth|Hair|Pelvis|Neck|Calf|Belt|Accent|Helmet|Nose|Weapon)", RegexOptions.IgnoreCase);
 
@@ -278,9 +385,18 @@ public static class BrawlhallaMods
             new("gc", "Gravity cancels", "The ring when you gravity cancel.", "SFX_1.swf", s => Starts(s, "a_GravityCancelFX")),
             new("jump", "Jumps and walls", "Jump dust, wall slides and wall jumps.", "SFX_1.swf", s => Starts(s, "a_JumpDust", "a_WallSlip", "a_DustWallTouch")),
             new("trail", "Knockback trails", "The smoke and fire behind a fighter sent flying.", new[] { "SFX_1.swf", "SFX_KO.swf" }, s => Starts(s, "a_SmokeTrailREDUX", "a_SmokeTrailFire", "a_SmokeTrailSuperUltraFast", "a_SmokeTrail03", "a_SmokeTrail04")),
+            new("hit", "Hit sparks", "The flash when an attack lands, for every weapon.", "SFX_HitReacts.swf", s => Starts(s, "a_HitReact", "a_SteamHit", "a_Apoc04Hit")),
+            new("boom", "Explosions", "Bombs, mines, snowballs and other item blasts.", "SFX_1.swf", s => Starts(s, "a_Explosion", "a_FlashBangExplosion", "a_Snowball_Impact")),
             new("ko", "KO effects", "The burst when someone is knocked out, including the KO effect you have on.", new[] { "SFX_KO.swf", "SFX_KO2.swf" }, s => Starts(s, "a_SmokeTrailEnd", "a_KFPKOglow", "a_MegamanKO", "SkelaughKO", "StreetFighterKO", "a_OffScreenBubble")),
         };
         var dir = GameDir;
+        // Each legend's and crossover's own effects file: signatures, special trails and sparks.
+        if (dir != null)
+        {
+            var own = Directory.GetFiles(dir, "SFX_*.swf").Select(Path.GetFileName).Where(f => !NotLegendFx.IsMatch(f!)).OrderBy(f => f).ToArray();
+            if (own.Length > 0)
+                list.Add(new BhEffect("legend", "Legend and skin effects", "Signature attacks and special effects that belong to a legend or crossover skin.", own!, s => !BodyPart.IsMatch(s)));
+        }
         foreach (var (file, weapon) in new[] { ("SFX_Sword.swf", "Sword"), ("SFX_Spear.swf", "Spear"), ("SFX_Hammer.swf", "Hammer"), ("SFX_Axe.swf", "Axe"), ("SFX_Katar.swf", "Katars"), ("SFX_Bow.swf", "Bow"),
                      ("SFX_Pistols.swf", "Blasters"), ("SFX_Lance.swf", "Rocket Lance"), ("SFX_Scythe.swf", "Scythe"), ("SFX_Cannon.swf", "Cannon"), ("SFX_Orb.swf", "Orb"), ("SFX_GreatSword.swf", "Greatsword"),
                      ("SFX_Fists.swf", "Gauntlets"), ("SFX_Chakram.swf", "Chakram") })
@@ -291,15 +407,20 @@ public static class BrawlhallaMods
         return list;
     }
 
-    /// <summary>One-click looks for the movement and KO effects.</summary>
+    /// <summary>One-click looks: one color for every effect.</summary>
     public static readonly List<BhEffectPack> Packs = new()
     {
-        new("Royal Gold", 0xFFC93C, new[] { "dash", "dodge", "gc", "jump", "trail", "ko" }),
-        new("Ice", 0x5CE1FF, new[] { "dash", "dodge", "gc", "jump", "trail", "ko" }),
-        new("Inferno", 0xFF4A1F, new[] { "dash", "dodge", "gc", "jump", "trail", "ko" }),
-        new("Shadow", 0x8A4DFF, new[] { "dash", "dodge", "gc", "jump", "trail", "ko" }),
-        new("Toxic", 0x8BFF3B, new[] { "dash", "dodge", "gc", "jump", "trail", "ko" }),
-        new("Sakura", 0xFF7CC8, new[] { "dash", "dodge", "gc", "jump", "trail", "ko" }),
+        new("Royal Gold", 0xFFC93C), new("Ice", 0x5CE1FF), new("Inferno", 0xFF4A1F),
+        new("Shadow", 0x8A4DFF), new("Toxic", 0x8BFF3B), new("Sakura", 0xFF7CC8),
+    };
+
+    /// <summary>Which group an effect sits in on the Effects tab: Movement, Hits, Weapons or Legends.</summary>
+    public static string EffectGroup(string key) => key switch
+    {
+        "dash" or "dodge" or "gc" or "jump" or "trail" => "Movement",
+        "hit" or "boom" or "ko" => "Hits and KOs",
+        "legend" => "Legends and crossovers",
+        _ => "Weapons",
     };
 
     // ───────── map backgrounds ─────────
@@ -497,6 +618,7 @@ public static class BrawlhallaMods
         var effects = EffectList();
         foreach (var (k, v) in M.Effects) if (v.Length > 0 && effects.FirstOrDefault(e => e.Key == k) is { } e) set.UnionWith(e.Files);
         foreach (var f in M.Backgrounds.Keys) set.Add(BackgroundPath(f));
+        foreach (var m in M.Installed) set.UnionWith(m.Files.Keys);
         foreach (var f in M.Written.Keys) set.Add(f);
         if (Directory.Exists(Originals))
             foreach (var f in Directory.EnumerateFiles(Originals, "*", SearchOption.AllDirectories)) set.Add(Path.GetRelativePath(Originals, f));
@@ -547,7 +669,9 @@ public static class BrawlhallaMods
             File.WriteAllBytes(origPath, current);
         }
         var original = File.ReadAllBytes(origPath);
-        var result = Build(rel, original);
+        // An installed mod's file takes the original's place; your colors and effects still go on top.
+        var basis = Replacement(rel);
+        var result = Build(rel, basis ?? original) ?? basis;
         if (result == null)
         {
             // Nothing to change any more: the original goes back and Pulse forgets the file.
@@ -614,6 +738,7 @@ public static class BrawlhallaMods
         if (GameRunning()) return Ui.Loc.T("Close Brawlhalla first: its files can't change while it's running.");
         var m = M;
         m.Pictures.Clear(); m.Colors.Clear(); m.Effects.Clear(); m.Backgrounds.Clear();
+        foreach (var mod in m.Installed.ToList()) RemoveMod(mod.Id);
         var result = ApplyAll();
         return result;
     }
