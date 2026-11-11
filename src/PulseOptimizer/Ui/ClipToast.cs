@@ -37,6 +37,14 @@ public static class ClipToast
     const int WS_EX_TRANSPARENT = 0x20, WS_EX_TOOLWINDOW = 0x80, WS_EX_NOACTIVATE = 0x08000000, WS_EX_TOPMOST = 0x8;
     [DllImport("user32.dll")] static extern int GetWindowLong(IntPtr h, int i);
     [DllImport("user32.dll")] static extern int SetWindowLong(IntPtr h, int i, int v);
+    [DllImport("user32.dll")] static extern bool GetCursorPos(out PointI p);
+    [DllImport("user32.dll")] static extern bool GetWindowRect(IntPtr h, out RectI r);
+    [StructLayout(LayoutKind.Sequential)] struct PointI { public int X, Y; }
+    [StructLayout(LayoutKind.Sequential)] struct RectI { public int L, T, R, B; }
+
+    /// <summary>How long hovering can keep a popup up past its time, so it can never get stuck.</summary>
+    static readonly TimeSpan MaxHover = TimeSpan.FromSeconds(8);
+    static DateTime _due;
 
     /// <summary>Where the popup shows: TopRight, TopLeft, BottomRight or BottomLeft.</summary>
     public static string Corner { get => _corner; set => _corner = value is "TopLeft" or "BottomRight" or "BottomLeft" ? value : "TopRight"; }
@@ -107,10 +115,9 @@ public static class ClipToast
             SetWindowLong(_hwnd, GWL_EXSTYLE, GetWindowLong(_hwnd, GWL_EXSTYLE) | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE | WS_EX_TOPMOST);
             Clickable(_clip != null);
         };
-        // A popup about a saved clip can be clicked to watch it; hovering keeps it up.
+        // A popup about a saved clip can be clicked to watch it. Hovering keeps it up a little (checked by where the
+        // cursor really is: games hold the mouse, so "the mouse left" events can't be trusted to come).
         root.MouseLeftButtonUp += (_, _) => { if (_clip != null) OpenClip(app, _clip); };
-        root.MouseEnter += (_, _) => { if (_clip != null) _hide?.Stop(); };
-        root.MouseLeave += (_, _) => { if (_clip != null && !_hiding) _hide?.Start(); };
         _w.Loaded += (s, _) =>
         {
             var w = (Window)s;
@@ -186,9 +193,22 @@ public static class ClipToast
             && drain.RenderTransform is ScaleTransform st)
             st.BeginAnimation(ScaleTransform.ScaleXProperty, new DoubleAnimation(1, 0, stay));
 
+        _due = DateTime.UtcNow + stay;
         _hide = new DispatcherTimer { Interval = stay };
-        _hide.Tick += (_, _) => { _hide.Stop(); Hide(); };
+        _hide.Tick += (_, _) =>
+        {
+            // Under the cursor (and clickable): wait a second more, but never past the hover limit.
+            if (_clip != null && CursorOver() && DateTime.UtcNow < _due + MaxHover) { _hide.Interval = TimeSpan.FromSeconds(1); return; }
+            _hide.Stop();
+            Hide();
+        };
         _hide.Start();
+    }
+
+    static bool CursorOver()
+    {
+        if (_hwnd == IntPtr.Zero || !GetCursorPos(out var p) || !GetWindowRect(_hwnd, out var r)) return false;
+        return p.X >= r.L && p.X < r.R && p.Y >= r.T && p.Y < r.B;
     }
 
     static void Hide()
@@ -206,6 +226,23 @@ public static class ClipToast
         };
         _slide?.BeginAnimation(TranslateTransform.XProperty, new DoubleAnimation(Left ? -Travel : Travel, TimeSpan.FromMilliseconds(240)) { EasingFunction = ease });
         w.BeginAnimation(UIElement.OpacityProperty, fade);
+    }
+
+    static BitmapImage _logo;
+    static BitmapImage Logo
+    {
+        get
+        {
+            if (_logo != null) return _logo;
+            try
+            {
+                var b = new BitmapImage();
+                b.BeginInit(); b.UriSource = new Uri("pack://application:,,,/Pulse;component/Assets/logo-128.png"); b.DecodePixelWidth = 48; b.CacheOption = BitmapCacheOption.OnLoad; b.EndInit(); b.Freeze();
+                _logo = b;
+            }
+            catch { }
+            return _logo;
+        }
     }
 
     static FrameworkElement Card(Application app, string title, string detail, Kind kind, string clip)
@@ -261,12 +298,21 @@ public static class ClipToast
         if (!string.IsNullOrEmpty(detail))
             text.Children.Add(new TextBlock { Text = detail, FontSize = 12, Foreground = new SolidColorBrush(Color.FromRgb(0xA9, 0xA6, 0xA0)), Margin = new Thickness(0, 2, 0, 0), TextWrapping = TextWrapping.Wrap });
 
-        var row = new Grid { Margin = new Thickness(14, 12, 16, 13) };
+        var row = new Grid { Margin = new Thickness(14, 12, 14, 13) };
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         row.ColumnDefinitions.Add(new ColumnDefinition());
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         row.Children.Add(badge);
         Grid.SetColumn(text, 1);
         row.Children.Add(text);
+        // Pulse's logo, so it's clear where the popup comes from.
+        var brand = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(10, 1, 0, 0), Opacity = 0.85 };
+        var logo = new Image { Source = Logo, Width = 16, Height = 16 };
+        RenderOptions.SetBitmapScalingMode(logo, BitmapScalingMode.HighQuality);
+        brand.Children.Add(logo);
+        brand.Children.Add(new TextBlock { Text = "Pulse", FontSize = 11, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Color.FromRgb(0xA9, 0xA6, 0xA0)), Margin = new Thickness(5, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center });
+        Grid.SetColumn(brand, 2);
+        row.Children.Add(brand);
 
         var drain = new Rectangle
         {
@@ -309,7 +355,7 @@ public static class ClipToast
                 picture.BeginAnimation(FrameworkElement.HeightProperty, new DoubleAnimation(0, h, TimeSpan.FromMilliseconds(260)) { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } });
                 picture.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(1, TimeSpan.FromMilliseconds(260)));
                 // Give people a moment to see the picture.
-                if (_hide != null && _hide.IsEnabled) { _hide.Stop(); _hide.Interval = TimeSpan.FromSeconds(3); _hide.Start(); }
+                if (_hide != null && _hide.IsEnabled) { _hide.Stop(); _hide.Interval = TimeSpan.FromSeconds(3); _due = DateTime.UtcNow.AddSeconds(3); _hide.Start(); }
                 if (drain.RenderTransform is ScaleTransform st) st.BeginAnimation(ScaleTransform.ScaleXProperty, new DoubleAnimation(1, 0, TimeSpan.FromSeconds(3)));
             }
             catch { }
