@@ -32,8 +32,39 @@ public class BhMods
     public bool Pending { get; set; }
     public bool FastGpu { get; set; }
     public bool HighPriority { get; set; }
+    /// <summary>Saved looks: whole setups to switch between and share.</summary>
+    public List<BhLook> Looks { get; set; } = new();
+    /// <summary>Skin key → the legend it belongs to, when you said so (or Pulse worked it out and you kept it).</summary>
+    public Dictionary<string, string> SkinLegends { get; set; } = new();
+    /// <summary>"file|part" → how its picture was made by Style it for me, so a shared look can make it again.</summary>
+    public Dictionary<string, BhStyled> Styled { get; set; } = new();
+    /// <summary>The before/after clip in progress: the two clips' paths.</summary>
+    public string ClipBefore { get; set; }
+    public string ClipAfter { get; set; }
 
     public bool Any => Installed.Count > 0 || Pictures.Values.Any(p => p.Count > 0) || Colors.Values.Any(c => !c.IsOriginal) || Effects.Values.Any(e => e.Length > 0) || Backgrounds.Count > 0;
+}
+
+/// <summary>A whole setup: pictures, colors, effects and map themes, with a name.</summary>
+public class BhLook
+{
+    public string Id { get; set; } = Guid.NewGuid().ToString("N");
+    public string Name { get; set; } = "";
+    public DateTime Saved { get; set; } = DateTime.UtcNow;
+    public Dictionary<string, Dictionary<string, string>> Pictures { get; set; } = new();
+    public Dictionary<string, BhColors> Colors { get; set; } = new();
+    public Dictionary<string, string> Effects { get; set; } = new();
+    public Dictionary<string, string> Backgrounds { get; set; } = new();
+    public bool Stretch { get; set; }
+    public Dictionary<string, BhStyled> Styled { get; set; } = new();
+}
+
+/// <summary>A part's picture made by a style: which style, the picture it made, and the picture it wrapped (if any).</summary>
+public class BhStyled
+{
+    public string Style { get; set; } = "";
+    public string Picture { get; set; } = "";
+    public string Wrap { get; set; }
 }
 
 /// <summary>A mod you installed: its name and the game files it replaces (relative path → its copy in Pulse's folder).</summary>
@@ -520,30 +551,268 @@ public static class BrawlhallaMods
     public static int StyleSkin(BhSkin s, string style, string target, string picture = null)
     {
         var swf = SwfFile.Load(File.ReadAllBytes(OriginalOrGame(s.File)));
-        var pic = picture != null ? LoadPicture(picture, 2048) : null;
+        // A wrapped picture is kept in Pulse's folder too, so a shared look can carry it.
+        string wrap = picture != null ? AddPicture(picture) : null;
+        var pic = wrap != null ? LoadPicture(Path.Combine(PictureDir, wrap), 2048) : null;
         if (!M.Pictures.TryGetValue(s.File, out var map)) M.Pictures[s.File] = map = new();
         Directory.CreateDirectory(PictureDir);
         int n = 0;
         foreach (var part in StyleTargets(s.Parts, target))
         {
-            var bmp = RenderPart(swf, part);
-            if (bmp == null) continue;
-            int w = bmp.PixelWidth, h = bmp.PixelHeight;
-            var px = new byte[w * h * 4];
-            new FormatConvertedBitmap(bmp, PixelFormats.Bgra32, null, 0).CopyPixels(px, w * 4, 0);
-            var styled = Restyle(px, w, h, style, pic);
-            if (styled == null) continue;
-            var outBmp = BitmapSource.Create(w, h, 96, 96, PixelFormats.Bgra32, null, styled, w * 4);
-            var name = Guid.NewGuid().ToString("N") + ".png";
-            var enc = new PngBitmapEncoder();
-            enc.Frames.Add(BitmapFrame.Create(outBmp));
-            using (var fs = File.Create(Path.Combine(PictureDir, name))) enc.Save(fs);
+            var name = StylePart(swf, part, style, pic);
+            if (name == null) continue;
             map[part] = name;
+            M.Styled[s.File + "|" + part] = new BhStyled { Style = style, Picture = name, Wrap = wrap };
             n++;
         }
         if (map.Count == 0) M.Pictures.Remove(s.File);
         if (n > 0) { M.Pending = true; TweakEngine.Save(); }
         return n;
+    }
+
+    /// <summary>Draws one part in a style and keeps it as a picture in Pulse's folder; its file name, or null.</summary>
+    static string StylePart(SwfFile swf, string part, string style, SwfImage pic)
+    {
+        var bmp = RenderPart(swf, part);
+        if (bmp == null) return null;
+        int w = bmp.PixelWidth, h = bmp.PixelHeight;
+        var px = new byte[w * h * 4];
+        new FormatConvertedBitmap(bmp, PixelFormats.Bgra32, null, 0).CopyPixels(px, w * 4, 0);
+        var styled = Restyle(px, w, h, style, pic);
+        if (styled == null) return null;
+        var outBmp = BitmapSource.Create(w, h, 96, 96, PixelFormats.Bgra32, null, styled, w * 4);
+        var name = Guid.NewGuid().ToString("N") + ".png";
+        Directory.CreateDirectory(PictureDir);
+        var enc = new PngBitmapEncoder();
+        enc.Frames.Add(BitmapFrame.Create(outBmp));
+        using (var fs = File.Create(Path.Combine(PictureDir, name))) enc.Save(fs);
+        return name;
+    }
+
+    // ───────── saved looks ─────────
+
+    static T Copy<T>(T x) => JsonSerializer.Deserialize<T>(JsonSerializer.Serialize(x))!;
+
+    /// <summary>Saves what you have now as a look.</summary>
+    public static BhLook SaveLook(string name)
+    {
+        var look = new BhLook
+        {
+            Name = string.IsNullOrWhiteSpace(name) ? Ui.Loc.F("Look {0}", M.Looks.Count + 1) : name.Trim(),
+            Pictures = Copy(M.Pictures), Colors = Copy(M.Colors), Effects = Copy(M.Effects), Backgrounds = Copy(M.Backgrounds), Stretch = M.Stretch,
+            Styled = Copy(StyledNow()),
+        };
+        M.Looks.Add(look);
+        TweakEngine.Save();
+        return look;
+    }
+
+    /// <summary>The styled parts whose picture is still the one the style made.</summary>
+    static Dictionary<string, BhStyled> StyledNow() => M.Styled.Where(kv =>
+    {
+        var bar = kv.Key.IndexOf('|');
+        return bar > 0 && M.Pictures.TryGetValue(kv.Key[..bar], out var p) && p.GetValueOrDefault(kv.Key[(bar + 1)..]) == kv.Value.Picture;
+    }).ToDictionary(kv => kv.Key, kv => kv.Value);
+
+    /// <summary>Puts a look in place of what you have now (Apply puts it in the game).</summary>
+    public static void UseLook(string id)
+    {
+        var look = M.Looks.FirstOrDefault(l => l.Id == id);
+        if (look == null) return;
+        M.Pictures = Copy(look.Pictures); M.Colors = Copy(look.Colors); M.Effects = Copy(look.Effects); M.Backgrounds = Copy(look.Backgrounds);
+        M.Stretch = look.Stretch;
+        foreach (var (k, v) in look.Styled) M.Styled[k] = Copy(v);
+        M.Pending = true;
+        TweakEngine.Save();
+    }
+
+    public static void DeleteLook(string id)
+    {
+        M.Looks.RemoveAll(l => l.Id == id);
+        TweakEngine.Save();
+    }
+
+    /// <summary>"3 skins · 5 effects · 2 maps" for a look.</summary>
+    public static (int Skins, int Effects, int Maps) LookSize(BhLook l) =>
+        (l.Pictures.Keys.Concat(l.Colors.Keys.Select(k => k.Split('|')[0])).Distinct().Count(), l.Effects.Count(e => e.Value.Length > 0), l.Backgrounds.Count);
+
+    sealed record SharedStyle(string File, string Part, string Style, string Wrap);
+
+    /// <summary>
+    /// Writes a look to a file to send to friends (.pulselook, a zip). Your own pictures go in; parts made by a style
+    /// go in as the style's name, and the friend's Pulse draws them from their own game.
+    /// </summary>
+    public static void ExportLook(string id, string path)
+    {
+        var look = M.Looks.FirstOrDefault(l => l.Id == id) ?? throw new InvalidDataException("No such look.");
+        var shared = Copy(look);
+        var styles = new List<SharedStyle>();
+        var files = new HashSet<string>();
+        foreach (var (file, parts) in look.Pictures)
+            foreach (var (part, pic) in parts)
+            {
+                if (look.Styled.TryGetValue(file + "|" + part, out var st) && st.Picture == pic)
+                {
+                    styles.Add(new SharedStyle(file, part, st.Style, st.Wrap));
+                    shared.Pictures[file].Remove(part);
+                    if (st.Wrap != null) files.Add(st.Wrap);
+                }
+                else files.Add(pic);
+            }
+        foreach (var bg in look.Backgrounds.Values.Where(v => v.StartsWith("pic:", StringComparison.Ordinal))) files.Add(bg[4..]);
+        shared.Styled = new();
+        foreach (var k in shared.Pictures.Where(p => p.Value.Count == 0).Select(p => p.Key).ToList()) shared.Pictures.Remove(k);
+        if (File.Exists(path)) File.Delete(path);
+        using var zip = System.IO.Compression.ZipFile.Open(path, System.IO.Compression.ZipArchiveMode.Create);
+        using (var w = new StreamWriter(zip.CreateEntry("look.json").Open())) w.Write(JsonSerializer.Serialize(shared, new JsonSerializerOptions { WriteIndented = true }));
+        using (var w = new StreamWriter(zip.CreateEntry("styles.json").Open())) w.Write(JsonSerializer.Serialize(styles));
+        foreach (var f in files)
+        {
+            var src = Path.Combine(PictureDir, Path.GetFileName(f));
+            if (File.Exists(src)) zip.CreateEntryFromFile(src, "pictures/" + Path.GetFileName(f));
+        }
+    }
+
+    /// <summary>
+    /// Reads a look a friend sent and adds it to your looks. Only pictures come out of the file (checked as pictures),
+    /// and style-made parts are drawn here from your own game. Needs an STA thread.
+    /// </summary>
+    public static BhLook ImportLook(string path)
+    {
+        if (new FileInfo(path).Length > 250_000_000) throw new InvalidDataException(Ui.Loc.T("That look file is too big."));
+        using var zip = System.IO.Compression.ZipFile.OpenRead(path);
+        var entry = zip.GetEntry("look.json") ?? throw new InvalidDataException(Ui.Loc.T("That isn't a Pulse look file."));
+        BhLook look;
+        using (var r = new StreamReader(entry.Open())) look = JsonSerializer.Deserialize<BhLook>(r.ReadToEnd()) ?? throw new InvalidDataException(Ui.Loc.T("That isn't a Pulse look file."));
+        var styles = new List<SharedStyle>();
+        if (zip.GetEntry("styles.json") is { } se) using (var r = new StreamReader(se.Open())) styles = JsonSerializer.Deserialize<List<SharedStyle>>(r.ReadToEnd()) ?? new();
+
+        // Pictures: copied in under new names, each checked to be a picture.
+        Directory.CreateDirectory(PictureDir);
+        var renamed = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        string Bring(string name)
+        {
+            if (string.IsNullOrEmpty(name)) return null;
+            name = Path.GetFileName(name);
+            if (renamed.TryGetValue(name, out var have)) return have;
+            var e = zip.GetEntry("pictures/" + name);
+            var ext = Path.GetExtension(name).ToLowerInvariant();
+            if (e == null || e.Length > 25_000_000 || ext is not (".png" or ".jpg" or ".jpeg" or ".webp" or ".bmp" or ".gif")) return renamed[name] = null;
+            var tmp = Path.Combine(PictureDir, Guid.NewGuid().ToString("N") + ext);
+            using (var s = e.Open()) using (var o = File.Create(tmp)) s.CopyTo(o);
+            try { LoadPicture(tmp, 64); }
+            catch { File.Delete(tmp); return renamed[name] = null; }
+            return renamed[name] = Path.GetFileName(tmp);
+        }
+        var clean = new BhLook { Name = string.IsNullOrWhiteSpace(look.Name) ? Path.GetFileNameWithoutExtension(path) : look.Name, Stretch = look.Stretch };
+        var skinFile = new System.Text.RegularExpressions.Regex(@"^Gfx_[\w\-]+\.swf$");
+        foreach (var (file, parts) in look.Pictures ?? new())
+        {
+            if (!skinFile.IsMatch(file)) continue;
+            foreach (var (part, pic) in parts) if (Bring(pic) is { } mine) (clean.Pictures.TryGetValue(file, out var m) ? m : clean.Pictures[file] = new())[part] = mine;
+        }
+        foreach (var (k, c) in look.Colors ?? new()) if (c != null && skinFile.IsMatch(k.Split('|')[0])) clean.Colors[k] = c;
+        foreach (var (k, v) in look.Effects ?? new()) if (v == Rgb || TryHex(v, out _)) clean.Effects[k] = v;
+        foreach (var (k, v) in look.Backgrounds ?? new())
+        {
+            if (Path.GetFileName(k) != k) continue;
+            if (v.StartsWith("pic:", StringComparison.Ordinal)) { if (Bring(v[4..]) is { } mine) clean.Backgrounds[k] = "pic:" + mine; }
+            else if (Themes.Any(t => t.Key == v)) clean.Backgrounds[k] = v;
+        }
+        // Style-made parts: drawn from this PC's game.
+        foreach (var g in styles.Where(x => skinFile.IsMatch(x.File) && (Styles.Any(st => st.Key == x.Style) || x.Style == "wrap")).GroupBy(x => x.File))
+        {
+            SwfFile swf;
+            try { swf = SwfFile.Load(File.ReadAllBytes(OriginalOrGame(g.Key))); } catch { continue; }
+            foreach (var x in g)
+            {
+                var wrap = Bring(x.Wrap);
+                if (x.Style == "wrap" && wrap == null) continue;
+                var pic = wrap != null ? LoadPicture(Path.Combine(PictureDir, wrap), 2048) : null;
+                var name = StylePart(swf, x.Part, x.Style, pic);
+                if (name == null) continue;
+                (clean.Pictures.TryGetValue(g.Key, out var m) ? m : clean.Pictures[g.Key] = new())[x.Part] = name;
+                clean.Styled[g.Key + "|" + x.Part] = new BhStyled { Style = x.Style, Picture = name, Wrap = wrap };
+            }
+        }
+        M.Looks.Add(clean);
+        TweakEngine.Save();
+        return clean;
+    }
+
+    // ───────── which legend a skin belongs to ─────────
+
+    static string WeaponKey(string w)
+    {
+        var k = Squash(w ?? "");
+        return k switch
+        {
+            "pistol" or "pistols" or "blaster" or "blasters" => "blasters",
+            "rocketlance" or "lance" => "lance",
+            "fists" or "gauntlet" or "gauntlets" => "gauntlets",
+            "katar" or "katars" => "katars",
+            "boots" or "battleboots" => "boots",
+            "greatsword" => "greatsword",
+            _ => k.TrimEnd('s'),
+        };
+    }
+
+    /// <summary>
+    /// The legends a skin could belong to, from the two weapons it comes with (most skins bring both of their
+    /// legend's weapons). One name: it's that legend. Several: ask. None: no idea.
+    /// </summary>
+    public static List<string> LegendGuesses(BhSkin s, IEnumerable<(string Name, string W1, string W2)> legends)
+    {
+        var weapons = s.Parts.Select(PartGroup).Where(g => GroupKind(g) == "Weapons").Select(WeaponKey).ToHashSet();
+        if (weapons.Count < 2) return new();
+        return legends.Where(l => weapons.Contains(WeaponKey(l.W1)) && weapons.Contains(WeaponKey(l.W2))).Select(l => l.Name).Distinct().OrderBy(n => n).ToList();
+    }
+
+    /// <summary>The legend a skin belongs to: what you said, else what Pulse knows for sure, else "".</summary>
+    public static string LegendOf(BhSkin s, IEnumerable<(string Name, string W1, string W2)> legends)
+    {
+        if (M.SkinLegends.TryGetValue(s.Key, out var said)) return said;
+        if (s.Legend.Length > 0) return s.Legend;
+        var g = LegendGuesses(s, legends);
+        return g.Count == 1 ? g[0] : "";
+    }
+
+    public static void SetLegend(BhSkin s, string legend)
+    {
+        if (string.IsNullOrEmpty(legend)) M.SkinLegends.Remove(s.Key); else M.SkinLegends[s.Key] = legend;
+        TweakEngine.Save();
+    }
+
+    // ───────── before / after clip ─────────
+
+    /// <summary>Puts the game's own files back but keeps everything you picked (for recording "before").</summary>
+    public static string OriginalsForNow()
+    {
+        if (GameDir == null) return Ui.Loc.T("Brawlhalla isn't installed through Steam on this PC.");
+        if (GameRunning()) return Ui.Loc.T("Close Brawlhalla first: its files can't change while it's running.");
+        foreach (var rel in M.Written.Keys.ToList())
+        {
+            var orig = Path.Combine(Originals, rel);
+            try { if (File.Exists(orig)) File.Copy(orig, Path.Combine(GameDir, rel), true); M.Written.Remove(rel); }
+            catch (Exception ex) { return ex.Message; }
+        }
+        M.Pending = true;
+        TweakEngine.Save();
+        return null;
+    }
+
+    /// <summary>The ffmpeg arguments that make the before/after video: the last seconds of each, labelled, tall for phones.</summary>
+    public static string BeforeAfterArgs(string before, string after, string output, bool audio, int seconds = 8)
+    {
+        static string Esc(string p) => p.Replace("\\", "/");
+        const string font = "fontfile='C\\:/Windows/Fonts/arialbd.ttf'";
+        string Chain(int i, string label, string color) =>
+            $"[{i}:v]fps=60,scale=1080:-2,setsar=1,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:color=0x101014," +
+            $"drawtext={font}:text='{label}':fontsize=110:fontcolor={color}:x=(w-text_w)/2:y=250,format=yuv420p[v{i}]";
+        var filter = Chain(0, "BEFORE", "white") + ";" + Chain(1, "AFTER", "0xFFC93C") + ";" +
+            (audio ? "[0:a:0]aresample=48000[a0];[1:a:0]aresample=48000[a1];[v0][a0][v1][a1]concat=n=2:v=1:a=1[v][a]" : "[v0][v1]concat=n=2:v=1:a=0[v]");
+        return $"-y -sseof -{seconds} -i \"{Esc(before)}\" -sseof -{seconds} -i \"{Esc(after)}\" -filter_complex \"{filter}\" -map \"[v]\"" +
+            (audio ? " -map \"[a]\" -c:a aac -b:a 160k" : "") + $" -c:v libx264 -preset veryfast -crf 20 -movflags +faststart \"{Esc(output)}\"";
     }
 
     /// <summary>

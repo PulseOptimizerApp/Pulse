@@ -56,7 +56,7 @@ public sealed partial class BrawlhallaPage
         }
         if (!Mods.Acknowledged) { yield return Card(ModsNotice()); yield break; }
         yield return ApplyBar();
-        yield return Segments(new[] { ("skins", "Skins"), ("colors", "Colors"), ("effects", "Effects"), ("maps", "Map themes"), ("smooth", "Smoother") }
+        yield return Segments(new[] { ("skins", "Skins"), ("colors", "Colors"), ("effects", "Effects"), ("maps", "Map themes"), ("looks", "My looks"), ("smooth", "Smoother") }
             .Select(t => (Loc.T(t.Item2), _modTab == t.Item1, (Action)(() => { _modTab = t.Item1; _openColor = null; Build(); }))))
             .Also(s => s.Margin = new Thickness(0, 16, 0, 0));
         switch (_modTab)
@@ -69,8 +69,230 @@ public sealed partial class BrawlhallaPage
             case "colors": yield return SkinBrowser(SkinColors); break;
             case "effects": yield return Card(EffectsPanel()); break;
             case "maps": foreach (var p in MapsPanel()) yield return p; break;
+            case "looks": yield return Card(LooksPanel()); yield return Card(BeforeAfterPanel()).Also(c => c.Margin = new Thickness(0, 14, 0, 0)); break;
             default: yield return Card(SmoothPanel()); break;
         }
+    }
+
+    // ───────── my looks ─────────
+
+    string _lookName = "";
+
+    FrameworkElement LooksPanel()
+    {
+        var sp = new StackPanel();
+        sp.Children.Add(Heading("My looks"));
+        sp.Children.Add(Dim(Loc.T("Save everything you've set up (skins, colors, effects, maps) as a look. Switch between looks in one click, or send one to a friend."), 12.5, 4));
+
+        var save = new Grid { Margin = new Thickness(0, 14, 0, 0) };
+        save.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MaxWidth = 360 });
+        save.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        var name = new TextBox { Style = (Style)FindResource("SearchBox"), Tag = Loc.T("Name it (say, Galaxy main)"), Text = _lookName };
+        name.TextChanged += (_, _) => _lookName = name.Text;
+        save.Children.Add(name);
+        var saveBtn = new Button { Style = (Style)FindResource("PrimaryButton"), Content = Loc.T("Save what I have now"), Padding = new Thickness(16, 7, 16, 7), Margin = new Thickness(10, 0, 0, 0), IsEnabled = Mods.Any };
+        saveBtn.Click += (_, _) => { var l = BrawlhallaMods.SaveLook(_lookName); _lookName = ""; MainWindow.Instance.Toast(Loc.F("Saved {0}.", l.Name), ToastKind.Success); Build(); };
+        Grid.SetColumn(saveBtn, 1); save.Children.Add(saveBtn);
+        sp.Children.Add(save);
+        if (!Mods.Any) sp.Children.Add(Faint(Loc.T("Change a skin, an effect or a map first, then save it here."), 11.5, 6));
+
+        // Open a look a friend sent: button or drop.
+        var open = new Border { Padding = new Thickness(14, 12, 14, 12), Margin = new Thickness(0, 16, 0, 0), CornerRadius = new CornerRadius(10), Background = new SolidColorBrush(Inset), BorderBrush = new SolidColorBrush(Line), BorderThickness = new Thickness(1), AllowDrop = true };
+        var og = new Grid();
+        og.ColumnDefinitions.Add(new ColumnDefinition());
+        og.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        og.Children.Add(new TextBlock { Text = Loc.T("Got a look from a friend? Drop the .pulselook file here."), FontSize = 13, Foreground = Res("TextBrush"), VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap });
+        var pick = Ghost(Loc.T("Open a look"), () =>
+        {
+            var dlg = new Microsoft.Win32.OpenFileDialog { Filter = Loc.T("Pulse looks") + "|*.pulselook" };
+            if (dlg.ShowDialog() == true) _ = ImportLook(dlg.FileName);
+        });
+        Grid.SetColumn(pick, 1); og.Children.Add(pick);
+        open.Child = og;
+        open.DragOver += (_, e) => { e.Effects = e.Data.GetDataPresent(DataFormats.FileDrop) ? DragDropEffects.Copy : DragDropEffects.None; e.Handled = true; };
+        open.Drop += (_, e) => { if (e.Data.GetData(DataFormats.FileDrop) is string[] { Length: > 0 } f) { e.Handled = true; _ = ImportLook(f[0]); } };
+        sp.Children.Add(open);
+
+        foreach (var l in Mods.Looks.AsEnumerable().Reverse())
+        {
+            var (skins, effects, maps) = BrawlhallaMods.LookSize(l);
+            var row = new Grid { Margin = new Thickness(0, 12, 0, 0) };
+            row.ColumnDefinitions.Add(new ColumnDefinition());
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            var t = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+            t.Children.Add(new TextBlock { Text = l.Name, FontSize = 14, FontWeight = FontWeights.SemiBold, Foreground = Res("TextBrush"), TextTrimming = TextTrimming.CharacterEllipsis });
+            var bits = new List<string>();
+            if (skins > 0) bits.Add(skins == 1 ? Loc.T("1 skin") : Loc.F("{0} skins", skins));
+            if (effects > 0) bits.Add(effects == 1 ? Loc.T("1 effect") : Loc.F("{0} effects", effects));
+            if (maps > 0) bits.Add(maps == 1 ? Loc.T("1 map") : Loc.F("{0} maps", maps));
+            t.Children.Add(Dim(string.Join(" · ", bits), 11.5, 2));
+            row.Children.Add(t);
+            var btns = new StackPanel { Orientation = Orientation.Horizontal };
+            var id = l.Id; var nm = l.Name;
+            var use = new Button { Style = (Style)FindResource("PrimaryButton"), Content = Loc.T("Use"), Padding = new Thickness(14, 6, 14, 6) };
+            use.Click += (_, _) => { BrawlhallaMods.UseLook(id); _modStatus = null; MainWindow.Instance.Toast(Loc.F("{0} is set. Press Apply to put it in the game.", nm), ToastKind.Success); Build(); };
+            btns.Children.Add(use);
+            var share = Ghost(Loc.T("Share"), () =>
+            {
+                var dlg = new Microsoft.Win32.SaveFileDialog { Filter = Loc.T("Pulse looks") + "|*.pulselook", FileName = string.Concat(nm.Split(System.IO.Path.GetInvalidFileNameChars())) + ".pulselook" };
+                if (dlg.ShowDialog() != true) return;
+                try
+                {
+                    BrawlhallaMods.ExportLook(id, dlg.FileName);
+                    MainWindow.Instance.Toast(Loc.T("Saved. Send the file to a friend: they open it in Pulse's My looks."), ToastKind.Success);
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe", "/select,\"" + dlg.FileName + "\"") { UseShellExecute = true });
+                }
+                catch (Exception ex) { MainWindow.Instance.Toast(Loc.F("Couldn't save the look: {0}", ex.Message), ToastKind.Info); }
+            });
+            share.Margin = new Thickness(8, 0, 0, 0);
+            btns.Children.Add(share);
+            var del = Ghost(Loc.T("Delete"), () => { BrawlhallaMods.DeleteLook(id); Build(); });
+            del.Margin = new Thickness(8, 0, 0, 0);
+            btns.Children.Add(del);
+            Grid.SetColumn(btns, 1); row.Children.Add(btns);
+            sp.Children.Add(row);
+        }
+        return sp;
+    }
+
+    async Task ImportLook(string path)
+    {
+        try
+        {
+            BhLook look = null;
+            await StaTask(() => { look = BrawlhallaMods.ImportLook(path); return null; });
+            MainWindow.Instance.Toast(Loc.F("Added {0} to your looks. Press Use, then Apply.", look.Name), ToastKind.Success);
+        }
+        catch (InvalidDataException ex) { MainWindow.Instance.Toast(ex.Message, ToastKind.Info); }
+        catch (Exception ex) { MainWindow.Instance.Toast(Loc.F("Couldn't open that look: {0}", ex.Message), ToastKind.Info); }
+        Build();
+    }
+
+    // ───────── before / after clip ─────────
+
+    string _clipWait;
+    bool _clipHooked, _clipMaking;
+
+    static string KeyText(int mods, int vk)
+    {
+        var parts = new List<string>();
+        if ((mods & 2) != 0) parts.Add("Ctrl");
+        if ((mods & 1) != 0) parts.Add("Alt");
+        if ((mods & 4) != 0) parts.Add("Shift");
+        parts.Add(vk is >= 0x70 and <= 0x87 ? "F" + (vk - 0x6F) : ((char)vk).ToString());
+        return string.Join("+", parts);
+    }
+
+    FrameworkElement BeforeAfterPanel()
+    {
+        var clips = TweakEngine.State.Clips;
+        if (!_clipHooked)
+        {
+            _clipHooked = true;
+            ClipsService.Saved += path =>
+            {
+                if (_clipWait == null || string.IsNullOrEmpty(path)) return;
+                if (_clipWait == "before") Mods.ClipBefore = path; else Mods.ClipAfter = path;
+                _clipWait = null;
+                TweakEngine.Save();
+                if (_mode == "customize" && _modTab == "looks") Build();
+            };
+        }
+        var sp = new StackPanel();
+        sp.Children.Add(Heading("Before / after video"));
+        sp.Children.Add(Dim(Loc.T("Show off your look: Pulse records a few seconds of the game without your changes, then with them, and puts them together as a tall video for TikTok, Shorts or Reels."), 12.5, 4));
+        if (clips is not { Enabled: true })
+        {
+            sp.Children.Add(Dim(Loc.T("This uses Pulse's Clips. Turn them on first."), 12.5, 12));
+            var go = Ghost(Loc.T("Open Clips"), () => MainWindow.Instance.Navigate("clips"));
+            go.HorizontalAlignment = HorizontalAlignment.Left;
+            go.Margin = new Thickness(0, 10, 0, 0);
+            sp.Children.Add(go);
+            return sp;
+        }
+        var key = KeyText(clips.HotkeyModifiers, clips.HotkeyKey);
+        bool haveBefore = File.Exists(Mods.ClipBefore ?? ""), haveAfter = File.Exists(Mods.ClipAfter ?? "");
+
+        FrameworkElement Step(string n, string title, string text, bool done, Button b)
+        {
+            var g = new Grid { Margin = new Thickness(0, 14, 0, 0) };
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            g.ColumnDefinitions.Add(new ColumnDefinition());
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            g.Children.Add(new Border { Width = 26, Height = 26, CornerRadius = new CornerRadius(13), Background = done ? Res("GoodBrush") : new SolidColorBrush(Gold), VerticalAlignment = VerticalAlignment.Top,
+                Child = new TextBlock { Text = done ? "✓" : n, FontSize = 13, FontWeight = FontWeights.Bold, Foreground = Brushes.Black, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center } });
+            var t = new StackPanel { Margin = new Thickness(10, 0, 12, 0) };
+            t.Children.Add(new TextBlock { Text = Loc.T(title), FontSize = 13.5, FontWeight = FontWeights.SemiBold, Foreground = Res("TextBrush") });
+            t.Children.Add(Dim(text, 12, 2));
+            Grid.SetColumn(t, 1); g.Children.Add(t);
+            if (b != null) { b.VerticalAlignment = VerticalAlignment.Center; Grid.SetColumn(b, 2); g.Children.Add(b); }
+            return g;
+        }
+        Button Act(string text, bool primary, Action go)
+        {
+            var b = new Button { Style = (Style)FindResource(primary ? "PrimaryButton" : "GhostButton"), Content = Loc.T(text), Padding = new Thickness(14, 6, 14, 6), IsEnabled = !_clipMaking && !_modBusy };
+            b.Click += (_, _) => go();
+            return b;
+        }
+
+        // 1: before.
+        var before = Act(_clipWait == "before" ? "Waiting for your clip…" : haveBefore ? "Record again" : "Record before", !haveBefore, async () =>
+        {
+            _modBusy = true; Build();
+            var err = await Task.Run(BrawlhallaMods.OriginalsForNow);
+            _modBusy = false;
+            if (err != null) { MainWindow.Instance.Toast(err, ToastKind.Info); Build(); return; }
+            _clipWait = "before";
+            Build();
+        });
+        sp.Children.Add(Step("1", "Record before", _clipWait == "before"
+            ? Loc.F("The game's own look is back. Open Brawlhalla, play a few seconds, then press {0}. Close the game after.", key)
+            : Loc.T("Pulse puts the game's own look back for a moment, you play a few seconds and clip it."), haveBefore && _clipWait != "before", before));
+
+        // 2: after.
+        var after = Act(_clipWait == "after" ? "Waiting for your clip…" : haveAfter ? "Record again" : "Record after", haveBefore && !haveAfter, async () =>
+        {
+            _modBusy = true; Build();
+            var err = await StaTask(BrawlhallaMods.ApplyAll);
+            _modBusy = false;
+            if (err != null) { MainWindow.Instance.Toast(err, ToastKind.Info); Build(); return; }
+            _clipWait = "after";
+            Build();
+        });
+        after.IsEnabled &= haveBefore;
+        sp.Children.Add(Step("2", "Record after", _clipWait == "after"
+            ? Loc.F("Your look is in the game. Open Brawlhalla, play the same thing, then press {0}.", key)
+            : Loc.T("Pulse puts your look in, you play the same few seconds and clip it."), haveAfter && _clipWait != "after", after));
+
+        // 3: the video.
+        var make = Act(_clipMaking ? "Making it…" : "Make the video", true, async () =>
+        {
+            if (!Pulse.Core.Clips.Ffmpeg.Installed) { MainWindow.Instance.Toast(Loc.T("Pulse's video tools aren't installed yet: open Clips once and let them download."), ToastKind.Info); return; }
+            _clipMaking = true; Build();
+            var folder = clips.ClipsFolder;
+            var output = System.IO.Path.Combine(folder, $"Brawlhalla before-after {DateTime.Now:yyyy-MM-dd HH-mm}.mp4");
+            string msg = null;
+            try
+            {
+                // Sound only when both clips have it.
+                async Task<bool> HasAudio(string p) => Pulse.Core.Clips.ClipLibrary.CountAudio((await Pulse.Core.Clips.Ffmpeg.Run($"-hide_banner -i \"{p}\"")).Err) > 0;
+                bool audio = await HasAudio(Mods.ClipBefore) && await HasAudio(Mods.ClipAfter);
+                var (code, err) = await Pulse.Core.Clips.Ffmpeg.Run(BrawlhallaMods.BeforeAfterArgs(Mods.ClipBefore, Mods.ClipAfter, output, audio));
+                if (code != 0 || !File.Exists(output)) msg = Loc.T("Couldn't make the video.") + " " + err?.Split('\n').LastOrDefault(l => l.Trim().Length > 0)?.Trim();
+            }
+            catch (Exception ex) { msg = Loc.F("Couldn't make the video: {0}", ex.Message); }
+            _clipMaking = false;
+            if (msg != null) MainWindow.Instance.Toast(msg, ToastKind.Info);
+            else
+            {
+                MainWindow.Instance.Toast(Loc.T("Your before/after video is ready."), ToastKind.Success);
+                try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe", "/select,\"" + output + "\"") { UseShellExecute = true }); } catch { }
+            }
+            Build();
+        });
+        make.IsEnabled &= haveBefore && haveAfter;
+        sp.Children.Add(Step("3", "Make the video", Loc.T("The last 8 seconds of each, labelled BEFORE and AFTER, saved with your clips."), false, make));
+        return sp;
     }
 
     // ───────── notice ─────────
@@ -307,6 +529,31 @@ public sealed partial class BrawlhallaPage
             ? Loc.T("Click a skin to change its colors.")
             : Loc.T("Click a skin to change how it looks."), 12.5, 10));
 
+        if (_skinCat == "characters" && _legends.Count > 0)
+        {
+            // Browse by legend: every legend with skins here, with its face.
+            var counts = _skins.Where(s => !BrawlhallaMods.IsWeaponSkin(s)).GroupBy(s => s.Name, StringComparer.OrdinalIgnoreCase).Select(g => g.First())
+                .GroupBy(LegendOf).ToDictionary(g => g.Key, g => g.Count());
+            var row = new WrapPanel { Margin = new Thickness(0, 12, 0, 0) };
+            FrameworkElement LegendChip(string key, string label, ImageSource face, int n)
+            {
+                bool on = _legendPick == key;
+                var st = new StackPanel { Orientation = Orientation.Horizontal };
+                if (face != null) st.Children.Add(new Border { Width = 22, Height = 22, CornerRadius = new CornerRadius(11), Margin = new Thickness(0, 0, 7, 0), Background = new ImageBrush(face) { Stretch = Stretch.UniformToFill } });
+                st.Children.Add(new TextBlock { Text = label, FontSize = 12.5, FontWeight = on ? FontWeights.SemiBold : FontWeights.Normal, Foreground = on ? Brushes.Black : Res("TextBrush"), VerticalAlignment = VerticalAlignment.Center });
+                if (n > 0) st.Children.Add(new TextBlock { Text = " " + n, FontSize = 11, Foreground = on ? Brushes.Black : Res("TextDimBrush"), VerticalAlignment = VerticalAlignment.Center });
+                var b = new Border { Child = st, Padding = new Thickness(face != null ? 4 : 12, 4, 12, 4), Margin = new Thickness(0, 0, 6, 6), CornerRadius = new CornerRadius(999), Cursor = Cursors.Hand,
+                    Background = on ? new SolidColorBrush(Gold) : new SolidColorBrush(Inset), BorderBrush = new SolidColorBrush(on ? Gold : Line), BorderThickness = new Thickness(1) };
+                b.MouseLeftButtonUp += (_, _) => { _legendPick = key; _skinShow = 48; Build(); };
+                return b;
+            }
+            row.Children.Add(LegendChip("", Loc.T("All legends"), null, 0));
+            foreach (var (name, n) in counts.Where(c => c.Key.Length > 0).OrderBy(c => c.Key))
+                row.Children.Add(LegendChip(name, name, BrawlhallaArt.Legend(name), n));
+            if (counts.TryGetValue("", out var unknown)) row.Children.Add(LegendChip("?", Loc.T("Not sure yet"), null, unknown));
+            box.Children.Add(new ScrollViewer { Content = row, MaxHeight = 150, VerticalScrollBarVisibility = ScrollBarVisibility.Auto });
+        }
+
         if (_skinCat == "weapons")
         {
             var kinds = _skins.Where(BrawlhallaMods.IsWeaponSkin).Select(BrawlhallaMods.WeaponOf).Where(w => w.Length > 0).Distinct().OrderBy(w => w).ToList();
@@ -331,6 +578,11 @@ public sealed partial class BrawlhallaPage
     }
 
     StackPanel _tileArea;
+    string _legendPick = "";
+
+    IEnumerable<(string Name, string W1, string W2)> LegendWeapons => _legends.Values.Select(l => (l.Name, l.WeaponOne, l.WeaponTwo));
+
+    string LegendOf(BhSkin s) => BrawlhallaMods.LegendOf(s, LegendWeapons);
     string _skinCat = "characters", _weaponKind = "";
     int _skinShow = 48;
 
@@ -339,7 +591,8 @@ public sealed partial class BrawlhallaPage
         var q = _skinSearch.Trim();
         IEnumerable<BhSkin> list = _skins.Where(s => (_skinCat == "weapons") == BrawlhallaMods.IsWeaponSkin(s));
         if (_skinCat == "weapons" && _weaponKind.Length > 0) list = list.Where(s => BrawlhallaMods.WeaponOf(s) == _weaponKind);
-        if (q.Length > 0) list = list.Where(s => Pretty(s.Name).Contains(q, StringComparison.OrdinalIgnoreCase) || s.Name.Contains(q, StringComparison.OrdinalIgnoreCase) || s.Legend.Contains(q, StringComparison.OrdinalIgnoreCase));
+        if (_skinCat == "characters" && _legendPick.Length > 0) list = list.Where(s => _legendPick == "?" ? LegendOf(s).Length == 0 : LegendOf(s) == _legendPick);
+        if (q.Length > 0) list = list.Where(s => Pretty(s.Name).Contains(q, StringComparison.OrdinalIgnoreCase) || s.Name.Contains(q, StringComparison.OrdinalIgnoreCase) || LegendOf(s).Contains(q, StringComparison.OrdinalIgnoreCase));
         // One tile per name: the version with the most parts is the real skin.
         return list.GroupBy(s => s.Name, StringComparer.OrdinalIgnoreCase).Select(g => g.OrderByDescending(s => s.Parts.Count).First())
             .OrderByDescending(IsChanged).ThenBy(s => Pretty(s.Name), StringComparer.OrdinalIgnoreCase).ToList();
@@ -372,7 +625,8 @@ public sealed partial class BrawlhallaPage
         var pic = new Grid { Height = 100 };
         pic.Children.Add(new Border { CornerRadius = new CornerRadius(10), Background = new LinearGradientBrush(Color.FromRgb(0x2C, 0x31, 0x3D), Color.FromRgb(0x17, 0x1A, 0x21), 90) });
         pic.Children.Add(img);
-        if (s.Legend.Length > 0 && BrawlhallaArt.Legend(s.Legend) is { } face)
+        var legend = LegendOf(s);
+        if (legend.Length > 0 && BrawlhallaArt.Legend(legend) is { } face)
             pic.Children.Add(new Border { Width = 26, Height = 26, CornerRadius = new CornerRadius(13), ClipToBounds = true, HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(5),
                 BorderBrush = new SolidColorBrush(Line), BorderThickness = new Thickness(1), Background = new ImageBrush(face) { Stretch = Stretch.UniformToFill } });
         if (IsChanged(s))
@@ -381,7 +635,7 @@ public sealed partial class BrawlhallaPage
         var st = new StackPanel();
         st.Children.Add(pic);
         st.Children.Add(new TextBlock { Text = Pretty(s.Name).Replace('_', ' '), FontSize = 12.5, FontWeight = FontWeights.SemiBold, Foreground = Res("TextBrush"), TextTrimming = TextTrimming.CharacterEllipsis, TextAlignment = TextAlignment.Center, Margin = new Thickness(0, 7, 0, 0) });
-        var sub = s.Legend.Length > 0 ? s.Legend : _skinCat == "weapons" ? Loc.T(BrawlhallaMods.WeaponOf(s)) : "";
+        var sub = legend.Length > 0 ? legend : _skinCat == "weapons" ? Loc.T(BrawlhallaMods.WeaponOf(s)) : "";
         if (sub.Length > 0) st.Children.Add(new TextBlock { Text = sub, FontSize = 11, Foreground = Res("TextDimBrush"), TextAlignment = TextAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis });
         var b = new Border { Child = st, Width = 132, Padding = new Thickness(8), Margin = new Thickness(0, 0, 10, 10), CornerRadius = new CornerRadius(12), Cursor = Cursors.Hand,
             Background = new SolidColorBrush(Inset), BorderBrush = new SolidColorBrush(Line), BorderThickness = new Thickness(1), ToolTip = Pretty(s.Name) };
@@ -467,6 +721,31 @@ public sealed partial class BrawlhallaPage
         Build();
     }
 
+    /// <summary>"Whose skin is this?" when Pulse isn't sure (one click), or a quiet way to correct it.</summary>
+    FrameworkElement LegendPicker(BhSkin s, string legend)
+    {
+        var guesses = BrawlhallaMods.LegendGuesses(s, LegendWeapons);
+        var row = new WrapPanel { Margin = new Thickness(0, 8, 0, 0) };
+        if (legend.Length == 0)
+        {
+            row.Children.Add(new TextBlock { Text = Loc.T("Whose skin is this?"), FontSize = 12.5, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Gold), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 10, 6) });
+            foreach (var g in guesses.Take(6))
+            {
+                var name = g;
+                var b = Ghost(name, () => { BrawlhallaMods.SetLegend(s, name); Build(); });
+                b.Margin = new Thickness(0, 0, 6, 6);
+                row.Children.Add(b);
+            }
+        }
+        var all = new ComboBox { MinWidth = 160, Margin = new Thickness(0, 0, 6, 6), ToolTip = Loc.T("Pick the legend this skin belongs to") };
+        all.Items.Add(new ComboBoxItem { Content = legend.Length == 0 ? (guesses.Count > 0 ? Loc.T("Someone else…") : Loc.T("Pick the legend…")) : Loc.T("Not this legend?"), Tag = null });
+        foreach (var n in _legends.Values.Select(l => l.Name).Distinct().OrderBy(n => n)) all.Items.Add(new ComboBoxItem { Content = n, Tag = n });
+        all.SelectedIndex = 0;
+        all.SelectionChanged += (_, _) => { if (((ComboBoxItem)all.SelectedItem).Tag is string n) { BrawlhallaMods.SetLegend(s, n); Build(); } };
+        row.Children.Add(all);
+        return row;
+    }
+
     FrameworkElement SkinHeader(BhSkin s, string resetLabel, Action reset)
     {
         var top = new Grid();
@@ -474,7 +753,9 @@ public sealed partial class BrawlhallaPage
         top.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         var t = new StackPanel();
         t.Children.Add(new TextBlock { Text = Pretty(s.Name), FontSize = 20, FontWeight = FontWeights.SemiBold, Foreground = Res("TextBrush"), FontFamily = (FontFamily)FindResource("DisplayFont") });
-        t.Children.Add(Dim((s.Legend.Length > 0 ? s.Legend + " · " : "") + s.File, 12, 2));
+        var legend = LegendOf(s);
+        t.Children.Add(Dim((legend.Length > 0 ? legend + " · " : "") + s.File, 12, 2));
+        if (!BrawlhallaMods.IsWeaponSkin(s) && _legends.Count > 0) t.Children.Add(LegendPicker(s, legend));
         top.Children.Add(t);
         var r = Ghost(Loc.T(resetLabel), reset);
         r.VerticalAlignment = VerticalAlignment.Top;
