@@ -210,6 +210,31 @@ public class BrawlhallaModTests
     }
 
     [Fact]
+    public void Skins_find_their_legend_from_their_two_weapons()
+    {
+        var legends = new[] { ("Bödvar", "Hammer", "Sword"), ("Cassidy", "Pistol", "Hammer"), ("Orion", "RocketLance", "Spear"), ("Lord Vraxx", "RocketLance", "Pistol"), ("Twin", "Sword", "Hammer") };
+        var skin = new BhSkin("Gfx_X.swf", "Shark", "", new() { "a_HairBack_Shark", "a_WeaponHammerHead_Shark", "a_WeaponSwordBlade_Shark" });
+        Assert.Equal(new[] { "Bödvar", "Twin" }, BrawlhallaMods.LegendGuesses(skin, legends));
+        var lance = new BhSkin("Gfx_X.swf", "Rocket", "", new() { "a_Torso1_Rocket", "a_WeaponRocketLanceTip_Rocket", "a_WeaponPistolBarrel_Rocket" });
+        Assert.Equal(new[] { "Lord Vraxx" }, BrawlhallaMods.LegendGuesses(lance, legends));
+        Assert.Empty(BrawlhallaMods.LegendGuesses(new BhSkin("Gfx_X.swf", "Bare", "", new() { "a_Torso1_Bare" }), legends));
+    }
+
+    [Fact]
+    public void Before_after_video_is_tall_labelled_and_keeps_sound_only_when_both_have_it()
+    {
+        var with = BrawlhallaMods.BeforeAfterArgs(@"C:\c\a.mp4", @"C:\c\b.mp4", @"C:\c\out.mp4", true);
+        Assert.Contains("-sseof -8 -i \"C:/c/a.mp4\"", with);
+        Assert.Contains("pad=1080:1920", with);
+        Assert.Contains("text='BEFORE'", with);
+        Assert.Contains("text='AFTER'", with);
+        Assert.Contains("concat=n=2:v=1:a=1", with);
+        var quiet = BrawlhallaMods.BeforeAfterArgs("a.mp4", "b.mp4", "out.mp4", false);
+        Assert.Contains("concat=n=2:v=1:a=0", quiet);
+        Assert.DoesNotContain("-map \"[a]\"", quiet);
+    }
+
+    [Fact]
     public void Styles_keep_outlines_and_empty_space()
     {
         // 3×1 BGRA: transparent, black outline, mid grey.
