@@ -5953,5 +5953,9 @@
  "Orb": "Orbe",
  "Scythe": "Guadaña",
  "Boots": "Botas",
- "Chakram": "Chakram"
+ "Chakram": "Chakram",
+ "Cycles through the rainbow as the effect plays": "Recorre el arcoíris mientras se reproduce el efecto",
+ "Every effect cycles through the rainbow as it plays": "Cada efecto recorre el arcoíris mientras se reproduce",
+ "RGB": "RGB",
+ "A rainbow across the whole map.": "Un arcoíris por todo el mapa."
 }

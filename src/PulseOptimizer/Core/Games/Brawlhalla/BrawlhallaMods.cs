@@ -378,8 +378,16 @@ public static class BrawlhallaMods
     public static readonly List<BhStyle> Styles = new()
     {
         new("gold", "Gold chrome"), new("chrome", "Silver chrome"), new("galaxy", "Galaxy"), new("neon", "Neon"),
-        new("camo", "Camo"), new("ice", "Ice"), new("lava", "Lava"), new("carbon", "Carbon fiber"),
+        new("camo", "Camo"), new("ice", "Ice"), new("lava", "Lava"), new("carbon", "Carbon fiber"), new("rgb", "RGB"),
     };
+
+    /// <summary>A map pixel washed with a diagonal rainbow, keeping its light and dark.</summary>
+    static (double, double, double) RainbowWash(double y, double fx, double fy)
+    {
+        int c = FromHsl((fx * 0.8 + fy * 0.4) * 360 % 360, 0.9, 0.5);
+        double k = 0.35 + y / 255.0 * 0.9;
+        return (((c >> 16) & 255) * k, ((c >> 8) & 255) * k, (c & 255) * k);
+    }
 
     static double Hash(int x, int y, int seed)
     {
@@ -456,6 +464,11 @@ public static class BrawlhallaMods
                 double v = Math.Abs(Fbm(x * 0.01, y * 0.01, 3) - 0.5);
                 var c = Mix((0.1, 0.03, 0.02), (1.0, 0.45, 0.08), 1 - v * 12);
                 return Mix(c, (1.0, 0.9, 0.45), 1 - v * 40);
+            }
+            case "rgb":
+            {
+                int c = FromHsl(((x + y * 0.6) * 0.35) % 360, 1, 0.55);
+                return (((c >> 16) & 255) / 255.0, ((c >> 8) & 255) / 255.0, (c & 255) / 255.0);
             }
             case "carbon":
             {
@@ -941,6 +954,12 @@ public static class BrawlhallaMods
         return list;
     }
 
+    /// <summary>The effect color that means "RGB": the rainbow, changing as the effect plays.</summary>
+    public const string Rgb = "rgb";
+
+    /// <summary>The rainbow color for a frame of an animation: one full turn of the wheel over its frames.</summary>
+    public static int RainbowAt(int frame, int frames) => FromHsl(360.0 * frame / Math.Max(1, frames), 1, 0.55);
+
     /// <summary>One-click looks: one color for every effect.</summary>
     public static readonly List<BhEffectPack> Packs = new()
     {
@@ -967,6 +986,7 @@ public static class BrawlhallaMods
         new("mono", "Black & white", "No color, so the fighters' colors pop."),
         new("sunset", "Sunset", "Warm orange and purple."),
         new("vivid", "Vivid", "Richer, brighter colors."),
+        new("rgb", "RGB", "A rainbow across the whole map."),
     };
 
     /// <summary>The background pictures in the game ("BG_Grove.jpg"), in mapArt\Backgrounds.</summary>
@@ -1042,6 +1062,7 @@ public static class BrawlhallaMods
                     "mono" => (y * 0.85, y * 0.85, y * 0.85),
                     "sunset" => (r * 0.55 + (1 - fy) * 120 + 20, g * 0.45 + 30 * fy, b * 0.5 + fy * 90 + 40),
                     "vivid" => (y + (r - y) * 1.45, y + (g - y) * 1.45, y + (b - y) * 1.45),
+                    "rgb" => RainbowWash(y, (i / 4 % w) / (double)w, fy),
                     _ => (r, g, b),
                 };
                 px[i] = Clamp(b); px[i + 1] = Clamp(g); px[i + 2] = Clamp(r); px[i + 3] = 255;
@@ -1245,9 +1266,17 @@ public static class BrawlhallaMods
         }
         foreach (var e in EffectList().Where(e => e.Files.Contains(name, StringComparer.OrdinalIgnoreCase)))
         {
-            if (!M.Effects.TryGetValue(e.Key, out var hex) || !TryHex(hex, out var target)) continue;
+            if (!M.Effects.TryGetValue(e.Key, out var hex)) continue;
             var parts = swf.Symbols.Where(e.Takes).ToList();
             if (parts.Count == 0) continue;
+            if (hex == Rgb)
+            {
+                // RGB: light grey first, so every frame's color shows true, then a full rainbow over the effect.
+                swf.Recolor(rgb => Tint(rgb, 0xFFFFFF), parts);
+                if (swf.Cycle(parts, RainbowAt) > 0) any = true;
+                continue;
+            }
+            if (!TryHex(hex, out var target)) continue;
             if (swf.Recolor(rgb => Tint(rgb, target), parts) > 0) any = true;
         }
         if (M.Pictures.TryGetValue(name, out var pics) && pics.Count > 0)
