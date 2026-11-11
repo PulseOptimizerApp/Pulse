@@ -22,7 +22,7 @@ public sealed partial class BrawlhallaPage
     string _mode = "stats", _modTab = "skins", _skinSearch = "", _bgTheme = "clean", _modStatus, _openColor;
     List<BhSkin> _skins;
     double _skinsProgress;
-    bool _skinsLoading, _modBusy, _restoreArmed;
+    bool _skinsLoading, _modBusy, _restoreArmed, _skinAdvanced;
     BhSkin _skin;
     List<SwfPart> _skinParts = new();
     List<(int Rgb, int Count)> _skinPalette = new();
@@ -58,7 +58,11 @@ public sealed partial class BrawlhallaPage
             .Also(s => s.Margin = new Thickness(0, 16, 0, 0));
         switch (_modTab)
         {
-            case "skins": yield return SkinBrowser(SkinPictures); break;
+            case "skins":
+                yield return SkinSteps();
+                yield return ModInstaller();
+                yield return SkinBrowser(SkinPictures);
+                break;
             case "colors": yield return SkinBrowser(SkinColors); break;
             case "effects": yield return Card(EffectsPanel()); break;
             case "maps": foreach (var p in MapsPanel()) yield return p; break;
@@ -163,6 +167,100 @@ public sealed partial class BrawlhallaPage
     }
 
     void Changed() { Mods.Pending = true; _modStatus = null; TweakEngine.Save(); }
+
+    // ───────── skins: how it works, and installing downloaded mods ─────────
+
+    FrameworkElement SkinSteps()
+    {
+        var grid = new UniformGrid { Columns = 3, Margin = new Thickness(0, 14, 0, 0) };
+        foreach (var (n, title, text) in new[]
+        {
+            ("1", "Pick a skin", "Search on the left: a skin's name or its legend."),
+            ("2", "Choose a picture", "For the hair, the body or a weapon. Pulse fits it in every pose."),
+            ("3", "Apply", "Close Brawlhalla, press Apply at the top, then play."),
+        })
+        {
+            var row = new Grid();
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            row.ColumnDefinitions.Add(new ColumnDefinition());
+            row.Children.Add(new Border { Width = 26, Height = 26, CornerRadius = new CornerRadius(13), Background = new SolidColorBrush(Gold), VerticalAlignment = VerticalAlignment.Top,
+                Child = new TextBlock { Text = n, FontSize = 13, FontWeight = FontWeights.Bold, Foreground = Brushes.Black, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center } });
+            var t = new StackPanel { Margin = new Thickness(10, 0, 12, 0) };
+            t.Children.Add(new TextBlock { Text = Loc.T(title), FontSize = 13.5, FontWeight = FontWeights.SemiBold, Foreground = Res("TextBrush") });
+            t.Children.Add(Dim(Loc.T(text), 12, 2));
+            Grid.SetColumn(t, 1); row.Children.Add(t);
+            grid.Children.Add(row);
+        }
+        return Card(grid);
+    }
+
+    /// <summary>Drop a downloaded mod (GameBanana and the like) and Pulse installs it, with the original kept.</summary>
+    FrameworkElement ModInstaller()
+    {
+        var sp = new StackPanel();
+        var drop = new Border { Padding = new Thickness(16, 14, 16, 14), CornerRadius = new CornerRadius(10), Background = new SolidColorBrush(Inset), BorderBrush = new SolidColorBrush(Line), BorderThickness = new Thickness(1), Cursor = Cursors.Hand };
+        var dg = new Grid();
+        dg.ColumnDefinitions.Add(new ColumnDefinition());
+        dg.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        var dt = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+        dt.Children.Add(new TextBlock { Text = Loc.T("Got a mod from GameBanana? Drop it here"), FontSize = 14, FontWeight = FontWeights.SemiBold, Foreground = Res("TextBrush") });
+        dt.Children.Add(Dim(Loc.T("The .zip you downloaded, or the .swf, .jpg or .png files inside it. Pulse finds where each file goes, keeps the original, and puts it in when you Apply."), 12, 2));
+        dg.Children.Add(dt);
+        var pick = Ghost(Loc.T("Choose mod file"), () =>
+        {
+            var dlg = new Microsoft.Win32.OpenFileDialog { Filter = Loc.T("Brawlhalla mods") + "|*.zip;*.swf;*.jpg;*.jpeg;*.png;*.rar;*.7z", Multiselect = true };
+            if (dlg.ShowDialog() == true) InstallMods(dlg.FileNames);
+        });
+        pick.Margin = new Thickness(16, 0, 0, 0);
+        pick.VerticalAlignment = VerticalAlignment.Center;
+        Grid.SetColumn(pick, 1); dg.Children.Add(pick);
+        drop.Child = dg;
+        drop.AllowDrop = true;
+        drop.DragOver += (_, e) => { e.Effects = e.Data.GetDataPresent(DataFormats.FileDrop) ? DragDropEffects.Copy : DragDropEffects.None; e.Handled = true; };
+        drop.DragEnter += (_, _) => drop.BorderBrush = new SolidColorBrush(Gold);
+        drop.DragLeave += (_, _) => drop.BorderBrush = new SolidColorBrush(Line);
+        drop.Drop += (_, e) => { if (e.Data.GetData(DataFormats.FileDrop) is string[] { Length: > 0 } f) { e.Handled = true; InstallMods(f); } };
+        sp.Children.Add(drop);
+
+        foreach (var m in Mods.Installed.AsEnumerable().Reverse())
+        {
+            var row = new Grid { Margin = new Thickness(0, 10, 0, 0) };
+            row.ColumnDefinitions.Add(new ColumnDefinition());
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            var t = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+            t.Children.Add(new TextBlock { Text = m.Name, FontSize = 13.5, FontWeight = FontWeights.SemiBold, Foreground = Res("TextBrush"), TextTrimming = TextTrimming.CharacterEllipsis });
+            var names = m.Files.Keys.Select(System.IO.Path.GetFileName).ToList();
+            t.Children.Add(Dim((names.Count == 1 ? Loc.T("Replaces 1 file") : Loc.F("Replaces {0} files", names.Count)) + ": " + string.Join(", ", names.Take(3)) + (names.Count > 3 ? "…" : ""), 11.5, 2));
+            row.Children.Add(t);
+            var id = m.Id;
+            var rm = Ghost(Loc.T("Remove"), () => { BrawlhallaMods.RemoveMod(id); _modStatus = null; Build(); });
+            Grid.SetColumn(rm, 1); row.Children.Add(rm);
+            sp.Children.Add(row);
+        }
+        return Card(sp).Also(c => c.Margin = new Thickness(0, 14, 0, 0));
+    }
+
+    void InstallMods(IEnumerable<string> files)
+    {
+        var done = new List<string>();
+        foreach (var f in files)
+        {
+            try
+            {
+                var (mod, skipped) = BrawlhallaMods.InstallMod(f);
+                done.Add(mod.Name);
+                if (skipped.Count > 0) MainWindow.Instance.Toast(Loc.F("{0}: {1} file(s) didn't match anything in Brawlhalla and were left out.", mod.Name, skipped.Count), ToastKind.Info);
+            }
+            catch (InvalidDataException ex) { MainWindow.Instance.Toast(ex.Message, ToastKind.Info); }
+            catch (Exception ex) { MainWindow.Instance.Toast(Loc.F("Couldn't install {0}: {1}", System.IO.Path.GetFileName(f), ex.Message), ToastKind.Info); }
+        }
+        if (done.Count > 0)
+        {
+            _modStatus = null;
+            MainWindow.Instance.Toast(Loc.F("Installed {0}. Press Apply to put it in the game.", string.Join(", ", done)), ToastKind.Success);
+        }
+        Build();
+    }
 
     // ───────── skins: the browser both Skins and Colors use ─────────
 
@@ -296,8 +394,13 @@ public sealed partial class BrawlhallaPage
             if (Mods.Pictures.TryGetValue(s.File, out var p)) foreach (var part in s.Parts) p.Remove(part);
             Changed(); Build();
         }));
-        sp.Children.Add(Dim(Loc.T("Choose a picture for a part, or drag one onto it. Pulse fits it into that part's space in every pose. PNGs with a transparent background look best; make them about 4 times the size shown so they stay sharp."), 12.5, 12));
-        sp.Children.Add(Switch("Stretch pictures to fill each part exactly", Mods.Stretch, v => { Mods.Stretch = v; Changed(); Build(); }).Also(x => x.Margin = new Thickness(0, 12, 0, 4)));
+        sp.Children.Add(Dim(Loc.T("Click Choose picture next to a part, or drag a picture onto it. A PNG with a transparent background looks best."), 12.5, 12));
+        sp.Children.Add(Switch("Show every piece and size (advanced)", _skinAdvanced, v => { _skinAdvanced = v; Build(); }).Also(x => x.Margin = new Thickness(0, 12, 0, 4)));
+        if (_skinAdvanced)
+        {
+            sp.Children.Add(Dim(Loc.T("Make pictures about 4 times the size shown so they stay sharp. Pieces lets you give one piece (say, the back hair) its own picture."), 12, 4));
+            sp.Children.Add(Switch("Stretch pictures to fill each part exactly", Mods.Stretch, v => { Mods.Stretch = v; Changed(); Build(); }).Also(x => x.Margin = new Thickness(0, 8, 0, 4)));
+        }
         if (_skinParts.Count == 0) { sp.Children.Add(Dim(Loc.T("Reading this skin…"), 12.5, 12)); return sp; }
 
         foreach (var kind in new[] { "Head", "Body", "Weapons" })
@@ -346,12 +449,12 @@ public sealed partial class BrawlhallaPage
         t.Children.Add(new TextBlock { Text = group, FontSize = 14, FontWeight = FontWeights.SemiBold, Foreground = Res("TextBrush") });
         double w = parts.Max(p => p.Width), h = parts.Max(p => p.Height);
         string state = distinct.Count == 0 ? Loc.T("Original") : all && distinct.Count == 1 ? Loc.T("Your picture") : Loc.T("Partly yours");
-        t.Children.Add(Dim((parts.Count == 1 ? Loc.T("1 piece") : Loc.F("{0} pieces", parts.Count)) + " · " + Loc.F("about {0} × {1}", (int)Math.Round(w), (int)Math.Round(h)) + " · " + state, 11.5, 2));
+        t.Children.Add(Dim(_skinAdvanced ? (parts.Count == 1 ? Loc.T("1 piece") : Loc.F("{0} pieces", parts.Count)) + " · " + Loc.F("about {0} × {1}", (int)Math.Round(w), (int)Math.Round(h)) + " · " + state : state, 11.5, 2));
         Grid.SetColumn(t, 1); row.Children.Add(t);
         var btns = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
         btns.Children.Add(Ghost(distinct.Count > 0 ? Loc.T("Change picture") : Loc.T("Choose picture"), () => Choose(parts)));
         if (distinct.Count > 0) btns.Children.Add(Ghost(Loc.T("Original"), () => Set(parts, null)));
-        if (parts.Count > 1)
+        if (parts.Count > 1 && _skinAdvanced)
         {
             bool open = _openGroups.Contains(s.Key + group);
             btns.Children.Add(Ghost(open ? Loc.T("Hide pieces") : Loc.T("Pieces"), () => { if (!_openGroups.Remove(s.Key + group)) _openGroups.Add(s.Key + group); Build(); }));
@@ -359,7 +462,7 @@ public sealed partial class BrawlhallaPage
         Grid.SetColumn(btns, 2); row.Children.Add(btns);
         box.Children.Add(row);
 
-        if (parts.Count > 1 && _openGroups.Contains(s.Key + group))
+        if (parts.Count > 1 && _skinAdvanced && _openGroups.Contains(s.Key + group))
         {
             var list = new StackPanel { Margin = new Thickness(64, 8, 0, 0) };
             foreach (var p in parts.OrderBy(p => p.Name))
@@ -524,30 +627,63 @@ public sealed partial class BrawlhallaPage
     {
         var sp = new StackPanel();
         sp.Children.Add(Heading("Effect colors"));
-        sp.Children.Add(Dim(Loc.T("Give dashes, dodges, gravity cancels and attacks your own color. Pulse tints each effect and keeps its bright highlights, so it still glows. The plain swing trail on light attacks is drawn by the game's code, so it can't change; each weapon's slashes, sparks and signature effects can."), 12.5, 6));
-        // One-click looks: one color for dashes, dodges, gravity cancels, jumps, trails and KOs.
-        sp.Children.Add(new TextBlock { Text = Loc.T("Effect packs"), FontSize = 14, FontWeight = FontWeights.SemiBold, Foreground = Res("TextBrush"), Margin = new Thickness(0, 16, 0, 0) });
+        sp.Children.Add(Dim(Loc.T("Give your effects your own color. Pulse tints each one and keeps its bright highlights, so it still glows."), 12.5, 6));
+        var effects = BrawlhallaMods.EffectList();
+        var allKeys = effects.Select(e => e.Key).ToList();
+        // One-click looks: one color for every effect.
+        sp.Children.Add(new TextBlock { Text = Loc.T("One color for everything"), FontSize = 14, FontWeight = FontWeights.SemiBold, Foreground = Res("TextBrush"), Margin = new Thickness(0, 16, 0, 0) });
         var packs = new WrapPanel { Margin = new Thickness(0, 8, 0, 0) };
         foreach (var pack in BrawlhallaMods.Packs)
         {
-            bool on = pack.Effects.All(k => Mods.Effects.GetValueOrDefault(k) == BrawlhallaMods.ToHex(pack.Rgb));
+            bool on = allKeys.All(k => Mods.Effects.GetValueOrDefault(k) == BrawlhallaMods.ToHex(pack.Rgb));
             var chip = new StackPanel { Orientation = Orientation.Horizontal };
             chip.Children.Add(new Border { Width = 16, Height = 16, CornerRadius = new CornerRadius(8), Background = new SolidColorBrush(Rgb(pack.Rgb)), Margin = new Thickness(0, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center });
             chip.Children.Add(new TextBlock { Text = Loc.T(pack.Name), FontSize = 12.5, FontWeight = FontWeights.SemiBold, Foreground = Res("TextBrush"), VerticalAlignment = VerticalAlignment.Center });
             var b = new Border { Child = chip, Padding = new Thickness(12, 7, 14, 7), Margin = new Thickness(0, 0, 8, 8), CornerRadius = new CornerRadius(999), Cursor = Cursors.Hand,
                 Background = new SolidColorBrush(Inset), BorderThickness = new Thickness(on ? 2 : 1), BorderBrush = on ? new SolidColorBrush(Gold) : new SolidColorBrush(Line) };
             var p = pack;
-            b.MouseLeftButtonUp += (_, _) => { foreach (var k in p.Effects) Mods.Effects[k] = BrawlhallaMods.ToHex(p.Rgb); Changed(); Build(); };
+            b.MouseLeftButtonUp += (_, _) => { foreach (var k in allKeys) Mods.Effects[k] = BrawlhallaMods.ToHex(p.Rgb); Changed(); Build(); };
             packs.Children.Add(b);
         }
         var none = Ghost(Loc.T("All original"), () => { Mods.Effects.Clear(); Changed(); Build(); });
         none.Margin = new Thickness(0, 0, 8, 8);
         packs.Children.Add(none);
         sp.Children.Add(packs);
-        foreach (var e in BrawlhallaMods.EffectList())
+
+        // Where each effect is, so nothing has to be hunted for.
+        var guide = new StackPanel();
+        guide.Children.Add(new TextBlock { Text = Loc.T("Where's the effect I want?"), FontSize = 13.5, FontWeight = FontWeights.SemiBold, Foreground = Res("TextBrush") });
+        foreach (var (what, where) in new[]
         {
+            ("Dash, dodge, gravity cancel, jump", "Movement"),
+            ("The flash when a hit lands, KO bursts, bombs", "Hits and KOs"),
+            ("Slashes and sparks of a weapon's attacks and signatures", "Weapons: pick that weapon"),
+            ("Effects of a legend or crossover skin (its own trails, signature effects)", "Legends and crossovers"),
+            ("A skin's own colors (hair, outfit, weapon art)", "the Colors tab"),
+            ("The plain white swing trail on light attacks", "can't change: the game draws it in code"),
+        })
+        {
+            var r = new Grid { Margin = new Thickness(0, 6, 0, 0) };
+            r.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            r.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            r.Children.Add(new TextBlock { Text = Loc.T(what), FontSize = 12, Foreground = Res("TextDimBrush"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 12, 0) });
+            var wt = new TextBlock { Text = "→ " + Loc.T(where), FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Gold), TextWrapping = TextWrapping.Wrap };
+            Grid.SetColumn(wt, 1); r.Children.Add(wt);
+            guide.Children.Add(r);
+        }
+        sp.Children.Add(new Border { Child = guide, Padding = new Thickness(14, 12, 14, 12), Margin = new Thickness(0, 8, 0, 0), CornerRadius = new CornerRadius(10), Background = new SolidColorBrush(Inset), BorderBrush = new SolidColorBrush(Line), BorderThickness = new Thickness(1) });
+
+        string lastGroup = null;
+        foreach (var e in effects.OrderBy(e => Array.IndexOf(new[] { "Movement", "Hits and KOs", "Weapons", "Legends and crossovers" }, BrawlhallaMods.EffectGroup(e.Key))))
+        {
+            var g = BrawlhallaMods.EffectGroup(e.Key);
+            if (g != lastGroup)
+            {
+                lastGroup = g;
+                sp.Children.Add(Caps(g, 11, Res("TextFaintBrush")).Also(c => c.Margin = new Thickness(0, 24, 0, 0)));
+            }
             var cur = Mods.Effects.GetValueOrDefault(e.Key);
-            var row = new StackPanel { Margin = new Thickness(0, 16, 0, 0) };
+            var row = new StackPanel { Margin = new Thickness(0, 12, 0, 0) };
             var head = new StackPanel { Orientation = Orientation.Horizontal };
             if (BrawlhallaMods.TryHex(cur, out var rgb))
                 head.Children.Add(new Border { Width = 14, Height = 14, CornerRadius = new CornerRadius(7), Background = new SolidColorBrush(Rgb(rgb)), Margin = new Thickness(0, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center });

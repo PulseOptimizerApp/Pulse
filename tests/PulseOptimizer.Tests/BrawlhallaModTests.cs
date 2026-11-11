@@ -171,6 +171,14 @@ public class BrawlhallaModTests
     public void Backgrounds_get_readable_names(string file, string label) =>
         Assert.Equal(label, BrawlhallaMods.BackgroundLabel(file));
 
+    [Theory]
+    [InlineData("dash", "Movement")]
+    [InlineData("hit", "Hits and KOs")]
+    [InlineData("legend", "Legends and crossovers")]
+    [InlineData("attack-Sword", "Weapons")]
+    public void Effects_sit_where_people_look_for_them(string key, string group) =>
+        Assert.Equal(group, BrawlhallaMods.EffectGroup(key));
+
     [Fact]
     public void Part_labels_are_readable() =>
         Assert.Equal("Weapon Spear Bend 1 Back", BrawlhallaMods.PartLabel("a_WeaponSpearBend1Back_Mikasa"));
