@@ -6069,5 +6069,17 @@
  "Record after": "Grabar después",
  "Make the video": "Hacer el vídeo",
  "Waiting for your clip…": "Esperando tu clip…",
- "Making it…": "Haciéndolo…"
+ "Making it…": "Haciéndolo…",
+ "A little more": "Un poco más",
+ "Maximum": "Máximo",
+ "More vibrant colours in VALORANT": "Colores más vivos en VALORANT",
+ "Pulse couldn't find a vibrance control on this PC. It works with NVIDIA (Digital Vibrance) and AMD (Saturation) graphics cards. On Intel, use Saturation in Intel Graphics Software.": "Pulse no encontró un control de intensidad de color en este PC. Funciona con tarjetas NVIDIA (Digital Vibrance) y AMD (Saturación). En Intel, usa Saturación en Intel Graphics Software.",
+ "Richer colours make enemies and their outlines pop. Pulse turns up your graphics card's own vibrance only while VALORANT is in front, and puts it back to normal when you leave the game.": "Colores más intensos hacen que los enemigos y sus contornos resalten. Pulse sube la intensidad de tu tarjeta gráfica solo mientras VALORANT está al frente y la vuelve a la normalidad al salir del juego.",
+ "Strength: {0}% · {1}": "Intensidad: {0}% · {1}",
+ "Tip: about 75% is what most players use. Higher makes reds and yellows very strong.": "Consejo: la mayoría usa alrededor del 75%. Más alto hace los rojos y amarillos muy fuertes.",
+ "Uses your {0} graphics card's own setting, the same slider as its control panel. Nothing in the game is changed.": "Usa el ajuste propio de tu tarjeta gráfica {0}, el mismo control de su panel. No se cambia nada del juego.",
+ "Vivid (most players' pick)": "Vivo (lo que usan la mayoría)",
+ "Make VALORANT more vibrant": "Haz VALORANT más vivo",
+ "Preview for 3 seconds": "Vista previa de 3 segundos",
+ "Vibrance": "Intensidad"
 }
