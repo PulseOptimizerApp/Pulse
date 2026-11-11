@@ -63,6 +63,7 @@ public static class MatchService
         _watch = new System.Threading.Timer(_ => Watch(), null, 3000, 5000);
         BrawlhallaWatch.Init();
         StoreWatch.Init();
+        ConsoleSwitchService.Init();
     }
 
     public static void Shutdown()
@@ -70,6 +71,7 @@ public static class MatchService
         _watch?.Dispose();
         BrawlhallaWatch.Shutdown();
         StoreWatch.Shutdown();
+        ConsoleSwitchService.Shutdown();
         _gsi?.Dispose();
         League.Dispose();
         Valorant.Dispose();
