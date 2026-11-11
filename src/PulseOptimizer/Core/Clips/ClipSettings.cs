@@ -151,6 +151,14 @@ public class ClipSettings
 
     /// <summary>VALORANT: a summary a few seconds after each match (result, your numbers, the one thing that mattered most).</summary>
     public bool PostMatchSummary { get; set; } = true;
+    /// <summary>VALORANT store wishlist: skins you want, newest first.</summary>
+    public List<Pulse.Core.Games.Live.WishSkin> Wishlist { get; set; } = new();
+    /// <summary>Tell me when a wishlist skin is in my store (checked once per store refresh while the Riot Client is open).</summary>
+    public bool WishlistAlerts { get; set; } = true;
+    /// <summary>Wishlist alerts already shown ("20261110:skin-level-id"), so each one comes once.</summary>
+    public List<string> WishlistSeen { get; set; } = new();
+    /// <summary>When the store was last checked for the wishlist (UTC).</summary>
+    public DateTime WishlistChecked { get; set; }
     /// <summary>VALORANT tracker: searching any Riot ID (off until the user accepts the risk).</summary>
     public bool PlayerSearch { get; set; }
     /// <summary>Riot IDs searched recently in the tracker, newest first (on this PC only).</summary>

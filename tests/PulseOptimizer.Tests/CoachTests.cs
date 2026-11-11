@@ -290,6 +290,50 @@ public class CoachTests
     }
 
     [Fact]
+    public void The_skin_list_skips_free_skins_and_knows_every_level()
+    {
+        var doc = JsonDocument.Parse("""
+        {"data":[
+          {"uuid":"s1","displayName":"Reaver Vandal","contentTierUuid":"t","displayIcon":null,"levels":[{"uuid":"l1","displayIcon":"https://media.valorant-api.com/x.png"},{"uuid":"l2"}]},
+          {"uuid":"s2","displayName":"Standard Vandal","contentTierUuid":null,"levels":[{"uuid":"l3"}]},
+          {"uuid":"s3","displayName":"Random Favorite Skin","contentTierUuid":"t","levels":[]},
+          {"uuid":"s4","displayName":"Prime Phantom","contentTierUuid":"t","displayIcon":"https://media.valorant-api.com/p.png","levels":[{"uuid":"l4"}]}
+        ]}
+        """).RootElement;
+        var skins = ValorantStore.ParseSkins(doc);
+        Assert.Equal(new[] { "Prime Phantom", "Reaver Vandal" }, skins.Select(x => x.Name));
+        var reaver = skins.Single(x => x.Name == "Reaver Vandal");
+        Assert.Equal(new[] { "s1", "l1", "l2" }, reaver.Ids);
+        Assert.Equal("https://media.valorant-api.com/x.png", reaver.Icon);
+    }
+
+    [Fact]
+    public void Wishlist_skins_are_found_in_the_daily_store_and_night_market()
+    {
+        var sf = new Storefront(
+            new List<StoreItem> { new("l1", "Reaver Vandal", 1775, 1775, 0, null, "Premium"), new("x", "Other", 875, 875, 0, null, "Select") }, TimeSpan.Zero,
+            new List<StoreItem> { new("L4", "Prime Phantom", 900, 1775, 49, null, "Premium") }, TimeSpan.Zero,
+            null, TimeSpan.Zero, 0, 0, 0);
+        var wish = new List<WishSkin>
+        {
+            new() { Id = "s1", Name = "Reaver Vandal", Ids = { "s1", "l1", "l2" } },
+            new() { Id = "s4", Name = "Prime Phantom", Ids = { "s4", "l4" } },
+            new() { Id = "s9", Name = "Not There", Ids = { "s9", "l9" } },
+        };
+        var found = ValorantStore.WishMatches(sf, wish);
+        Assert.Equal(2, found.Count);
+        Assert.Contains(found, f => f.Skin.Name == "Reaver Vandal" && f.Where == "daily");
+        Assert.Contains(found, f => f.Skin.Name == "Prime Phantom" && f.Where == "night" && f.Item.DiscountPercent == 49);
+    }
+
+    [Fact]
+    public void The_store_day_starts_at_midnight_UTC()
+    {
+        Assert.Equal(new DateTime(2026, 11, 10), Pulse.Ui.StoreWatch.StoreDay(new DateTime(2026, 11, 10, 23, 59, 0, DateTimeKind.Utc)));
+        Assert.Equal(new DateTime(2026, 11, 11), Pulse.Ui.StoreWatch.StoreDay(new DateTime(2026, 11, 11, 0, 1, 0, DateTimeKind.Utc)));
+    }
+
+    [Fact]
     public void The_store_is_read_with_prices_discounts_and_tiers()
     {
         var front = JsonDocument.Parse("""

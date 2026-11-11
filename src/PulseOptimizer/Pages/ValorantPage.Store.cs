@@ -1,8 +1,10 @@
 using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using Pulse.Core;
 using Pulse.Core.Games.Live;
 using Pulse.Ui;
 
@@ -54,6 +56,8 @@ public partial class ValorantPage
         risk.Children.Add(Faint(Loc.T("Reads the same store data as the game's own store screen, using the Riot Client's login on this PC (like the match recaps). It isn't an official Riot app feature, so it carries the same small risk as other store-checker apps. Skin names and pictures come from valorant-api.com; only the skin's id is sent."), 11.5, 10));
         head.Children.Add(risk);
         Root.Children.Add(Card(head));
+
+        Root.Children.Add(Card(WishlistPanel()));
 
         if (_store == null)
         {
@@ -117,6 +121,118 @@ public partial class ValorantPage
         return Card(sp);
     }
 
+    // ───────── wishlist ─────────
+
+    static List<WishSkin> _allSkins;
+    static bool _skinsLoading;
+    static string _wishSearch = "";
+    StackPanel _wishResults;
+
+    bool Wished(StoreItem i) => S.Wishlist.Any(w => w.Ids.Contains(i.Id, StringComparer.OrdinalIgnoreCase));
+
+    /// <summary>Skins you want: Pulse checks your store after each refresh and tells you when one is in it.</summary>
+    FrameworkElement WishlistPanel()
+    {
+        var sp = new StackPanel();
+        var top = new Grid();
+        top.ColumnDefinitions.Add(new ColumnDefinition());
+        top.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        var left = new StackPanel();
+        left.Children.Add(Heading("Wishlist"));
+        left.Children.Add(Dim(Loc.T("Add skins you want. After each store refresh, while the Riot Client is open, Pulse checks your store and Night Market and tells you when one is there."), 12.5, 4));
+        top.Children.Add(left);
+        var alerts = new CheckBox { Style = (Style)FindResource("Switch"), IsChecked = S.WishlistAlerts, Content = Loc.T("Notify me"), VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(16, 2, 0, 0), Foreground = Res("TextBrush") };
+        alerts.Click += (_, _) => { S.WishlistAlerts = alerts.IsChecked == true; TweakEngine.Save(); };
+        Grid.SetColumn(alerts, 1); top.Children.Add(alerts);
+        sp.Children.Add(top);
+
+        if (S.Wishlist.Count > 0)
+        {
+            var chips = new WrapPanel { Margin = new Thickness(0, 12, 0, 0) };
+            foreach (var w in S.Wishlist)
+            {
+                var row = new StackPanel { Orientation = Orientation.Horizontal };
+                var pic = new Border { Width = 64, Height = 28, Margin = new Thickness(0, 0, 8, 0) };
+                row.Children.Add(pic);
+                _ = SetPicture(pic, w);
+                bool inStore = _store != null && ValorantStore.WishMatches(_store, new[] { w }).Count > 0;
+                row.Children.Add(new TextBlock { Text = w.Name, FontSize = 12.5, FontWeight = inStore ? FontWeights.SemiBold : FontWeights.Normal, Foreground = inStore ? Res("GoodBrush") : Res("TextBrush"), VerticalAlignment = VerticalAlignment.Center });
+                if (inStore) row.Children.Add(new TextBlock { Text = "  " + Loc.T("in your store now"), FontSize = 11, Foreground = Res("GoodBrush"), VerticalAlignment = VerticalAlignment.Center });
+                var x = new TextBlock { Text = "  ✕", FontSize = 12, Foreground = Res("TextDimBrush"), Cursor = Cursors.Hand, VerticalAlignment = VerticalAlignment.Center, ToolTip = Loc.T("Remove from wishlist") };
+                var me = w;
+                x.MouseLeftButtonUp += (_, _) => { S.Wishlist.Remove(me); TweakEngine.Save(); Build(); };
+                row.Children.Add(x);
+                chips.Children.Add(new Border { Child = row, Padding = new Thickness(8, 5, 10, 5), Margin = new Thickness(0, 0, 8, 8), CornerRadius = new CornerRadius(8), Background = Res("Surface2Brush"), BorderThickness = new Thickness(1),
+                    BorderBrush = inStore ? Res("GoodBrush") : new SolidColorBrush(Color.FromArgb(0, 0, 0, 0)) });
+            }
+            sp.Children.Add(chips);
+        }
+
+        var search = new TextBox { Style = (Style)FindResource("SearchBox"), Tag = Loc.T("Add a skin: search every skin (Reaver, Prime Vandal…)"), Text = _wishSearch, Margin = new Thickness(0, 12, 0, 0), MaxWidth = 520, HorizontalAlignment = HorizontalAlignment.Left };
+        _wishResults = new StackPanel { Margin = new Thickness(0, 6, 0, 0), MaxWidth = 520, HorizontalAlignment = HorizontalAlignment.Left };
+        search.TextChanged += (_, _) => { _wishSearch = search.Text; FillWishResults(); };
+        sp.Children.Add(search);
+        sp.Children.Add(_wishResults);
+        if (_allSkins == null && !_skinsLoading) _ = LoadAllSkins();
+        FillWishResults();
+        return sp;
+    }
+
+    async Task LoadAllSkins()
+    {
+        _skinsLoading = true;
+        try { _allSkins = await ValorantStore.Skins(); } catch { _allSkins = new(); }
+        _skinsLoading = false;
+        FillWishResults();
+    }
+
+    void FillWishResults()
+    {
+        if (_wishResults == null) return;
+        _wishResults.Children.Clear();
+        var q = _wishSearch.Trim();
+        if (q.Length < 2) return;
+        if (_allSkins == null) { _wishResults.Children.Add(Dim(Loc.T("Loading every skin…"), 12, 4)); return; }
+        if (_allSkins.Count == 0) { _wishResults.Children.Add(Dim(Loc.T("Couldn't load the skin list. Check your internet and try again."), 12, 4)); return; }
+        var words = q.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var hits = _allSkins.Where(s => words.All(w => s.Name.Contains(w, StringComparison.OrdinalIgnoreCase))).Take(8).ToList();
+        if (hits.Count == 0) { _wishResults.Children.Add(Dim(Loc.T("No skin by that name."), 12, 4)); return; }
+        foreach (var h in hits)
+        {
+            bool have = S.Wishlist.Any(w => w.Id == h.Id);
+            var row = new Grid { Margin = new Thickness(0, 2, 0, 2) };
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            row.ColumnDefinitions.Add(new ColumnDefinition());
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            var pic = new Border { Width = 80, Height = 32, Margin = new Thickness(0, 0, 10, 0) };
+            _ = SetPicture(pic, h);
+            row.Children.Add(pic);
+            var name = new TextBlock { Text = h.Name, FontSize = 13, Foreground = Res("TextBrush"), VerticalAlignment = VerticalAlignment.Center };
+            Grid.SetColumn(name, 1); row.Children.Add(name);
+            var add = Btn(have ? "On your wishlist" : "Add", !have);
+            add.IsEnabled = !have;
+            add.Margin = new Thickness(0);
+            var skin = h;
+            add.Click += (_, _) =>
+            {
+                S.Wishlist.Insert(0, new WishSkin { Id = skin.Id, Name = skin.Name, Icon = skin.Icon, Ids = skin.Ids.ToList() });
+                S.WishlistChecked = default; // check the store again with the new skin
+                TweakEngine.Save();
+                _wishSearch = "";
+                Build();
+                MainWindow.Instance.Toast(Loc.F("{0} is on your wishlist", skin.Name));
+            };
+            Grid.SetColumn(add, 2); row.Children.Add(add);
+            _wishResults.Children.Add(row);
+        }
+    }
+
+    async Task SetPicture(Border box, WishSkin w)
+    {
+        var file = await ValorantStore.SkinPicture(w);
+        if (LoadPicture(file) is { } src) box.Child = new Image { Source = src, Stretch = Stretch.Uniform };
+    }
+
     FrameworkElement ItemCard(StoreItem i, bool wide)
     {
         var c = TierColor(i.Tier);
@@ -145,6 +261,8 @@ public partial class ValorantPage
             // VALORANT's own tier names, kept as the game shows them (the diamond also keeps them out of the translation table).
             price.Children.Add(new TextBlock { Text = "   ◆ " + i.Tier, FontSize = 11.5, Foreground = new SolidColorBrush(c) });
         info.Children.Add(price);
+        if (Wished(i))
+            info.Children.Add(new TextBlock { Text = "★ " + Loc.T("On your wishlist"), FontSize = 11.5, FontWeight = FontWeights.SemiBold, Foreground = Res("GoodBrush"), Margin = new Thickness(0, 3, 0, 0) });
         Grid.SetRow(info, 1);
         g.Children.Add(info);
         return new Border

@@ -7,6 +7,16 @@ namespace Pulse.Core.Games.Live;
 
 public sealed record StoreItem(string Id, string Name, int Price, int FullPrice, int DiscountPercent, string Icon, string Tier);
 
+/// <summary>A skin on your wishlist: its id, name and picture, and the ids the store can show it under (each level).</summary>
+public sealed class WishSkin
+{
+    public string Id { get; set; } = "";
+    public string Name { get; set; } = "";
+    public string Icon { get; set; } = "";
+    public List<string> Ids { get; set; } = new();
+    public DateTime Added { get; set; } = DateTime.UtcNow;
+}
+
 public sealed record Storefront(
     List<StoreItem> Daily, TimeSpan DailyLeft,
     List<StoreItem> Night, TimeSpan NightLeft,
@@ -103,6 +113,78 @@ public static class ValorantStore
         if (wallet?.Get("Balances") is { ValueKind: JsonValueKind.Object } bal) { vp = bal.Int(Vp); rp = bal.Int(Rp); kc = bal.Int(Kc); }
         return new Storefront(daily, Secs(root, "SkinsPanelLayout", "SingleItemOffersRemainingDurationInSeconds"),
             night, Secs(root, "BonusStore", "BonusStoreRemainingDurationInSeconds"), bundle, bundleLeft, vp, rp, kc);
+    }
+
+    // ───────── every skin, for the wishlist (valorant-api.com, kept on this PC for a week) ─────────
+
+    static List<WishSkin> _skins;
+    static string SkinsFile => Path.Combine(Dir, "skins.json");
+
+    /// <summary>
+    /// Every weapon skin in the game (not the free Standard ones), to pick wishlist skins from. Downloaded from the
+    /// community mirror of the game's content once a week; empty when it can't be reached.
+    /// </summary>
+    public static async Task<List<WishSkin>> Skins()
+    {
+        if (_skins != null) return _skins;
+        try
+        {
+            if (File.Exists(SkinsFile) && DateTime.UtcNow - File.GetLastWriteTimeUtc(SkinsFile) < TimeSpan.FromDays(7))
+                return _skins = JsonSerializer.Deserialize<List<WishSkin>>(await File.ReadAllTextAsync(SkinsFile)) ?? new();
+        }
+        catch { }
+        try
+        {
+            using var doc = JsonDocument.Parse(await Content.GetStringAsync("https://valorant-api.com/v1/weapons/skins"));
+            var list = ParseSkins(doc.RootElement);
+            if (list.Count > 0)
+            {
+                Directory.CreateDirectory(Dir);
+                await File.WriteAllTextAsync(SkinsFile, JsonSerializer.Serialize(list));
+                return _skins = list;
+            }
+        }
+        catch { }
+        // Offline: last week's list is better than none.
+        try { if (File.Exists(SkinsFile)) return _skins = JsonSerializer.Deserialize<List<WishSkin>>(await File.ReadAllTextAsync(SkinsFile)) ?? new(); } catch { }
+        return new();
+    }
+
+    internal static List<WishSkin> ParseSkins(JsonElement root)
+    {
+        var list = new List<WishSkin>();
+        if (root.Get("data") is not { ValueKind: JsonValueKind.Array } data) return list;
+        foreach (var s in data.EnumerateArray())
+        {
+            var name = s.Str("displayName");
+            if (name.Length == 0 || name.StartsWith("Standard", StringComparison.OrdinalIgnoreCase) || name.StartsWith("Random", StringComparison.OrdinalIgnoreCase) || s.Str("contentTierUuid").Length == 0) continue;
+            var w = new WishSkin { Id = s.Str("uuid"), Name = name, Icon = s.Str("displayIcon") };
+            w.Ids.Add(w.Id);
+            if (s.Get("levels") is { ValueKind: JsonValueKind.Array } levels)
+                foreach (var l in levels.EnumerateArray())
+                {
+                    if (l.Str("uuid") is { Length: > 0 } id) w.Ids.Add(id);
+                    if (w.Icon.Length == 0) w.Icon = l.Str("displayIcon");
+                }
+            if (w.Id.Length > 0) list.Add(w);
+        }
+        return list.OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase).ToList();
+    }
+
+    /// <summary>A wishlist skin's picture, downloaded once and kept on this PC.</summary>
+    public static Task<string> SkinPicture(WishSkin w) => Picture(w.Id, w.Icon);
+
+    /// <summary>Wishlist skins in the store now: each match and where it is ("daily" or "night").</summary>
+    public static List<(WishSkin Skin, StoreItem Item, string Where)> WishMatches(Storefront sf, IEnumerable<WishSkin> wishlist)
+    {
+        var found = new List<(WishSkin, StoreItem, string)>();
+        foreach (var w in wishlist)
+        {
+            var ids = new HashSet<string>(w.Ids, StringComparer.OrdinalIgnoreCase);
+            foreach (var i in sf.Daily) if (ids.Contains(i.Id)) found.Add((w, i, "daily"));
+            foreach (var i in sf.Night) if (ids.Contains(i.Id)) found.Add((w, i, "night"));
+        }
+        return found;
     }
 
     // ───────── names and pictures (valorant-api.com, cached on this PC) ─────────
