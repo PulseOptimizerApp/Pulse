@@ -258,6 +258,117 @@ public static class BrawlhallaMods
         return name;
     }
 
+    // ───────── editable PNGs of a skin ─────────
+
+    /// <summary>Where a skin's editable PNGs go: Documents\Pulse\Brawlhalla skins\&lt;skin&gt;.</summary>
+    public static string SkinFolder(BhSkin s) =>
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Pulse", "Brawlhalla skins",
+            string.Concat((Regex.Replace(s.Name, "([a-z])([A-Z0-9])", "$1 $2") + (s.Legend.Length > 0 ? " (" + s.Legend + ")" : "")).Split(Path.GetInvalidFileNameChars())));
+
+    const string SkinManifest = "pulse-skin.json";
+    sealed record SkinSheet(string File, string Skin, Dictionary<string, SheetPart> Parts);
+    sealed record SheetPart(string Part, string Sha);
+
+    /// <summary>
+    /// Draws a part of the game's own art (from this PC's Brawlhalla files) as a PNG, <paramref name="pxPerPx"/> times
+    /// its size in the game, so it stays sharp after editing. Null when there's nothing to draw. Needs an STA thread.
+    /// </summary>
+    public static BitmapSource RenderPart(SwfFile swf, string part, double pxPerPx = 4, int maxSide = 2048)
+    {
+        if (swf.Draw(part) is not { } d) return null;
+        double w = (d.X1 - d.X0) / 20.0, h = (d.Y1 - d.Y0) / 20.0;
+        if (w < 0.5 || h < 0.5) return null;
+        double k = Math.Min(pxPerPx, maxSide / Math.Max(w, h));
+        int pw = Math.Max(1, (int)Math.Ceiling(w * k)), ph = Math.Max(1, (int)Math.Ceiling(h * k));
+        double scale = k / 20.0; // pixels per twip
+        var dv = new DrawingVisual();
+        using (var dc = dv.RenderOpen())
+        {
+            dc.PushTransform(new MatrixTransform(scale, 0, 0, scale, -d.X0 * scale, -d.Y0 * scale));
+            foreach (var item in d.Items)
+            {
+                var g = new StreamGeometry { FillRule = FillRule.EvenOdd };
+                bool fill = item.LineWidth == 0;
+                using (var ctx = g.Open())
+                    foreach (var fig in item.Figures)
+                    {
+                        if (fig.Count == 0) continue;
+                        ctx.BeginFigure(new Point(fig[0].X0, fig[0].Y0), fill, fill);
+                        foreach (var sg in fig)
+                            if (sg.Curve) ctx.QuadraticBezierTo(new Point(sg.Cx, sg.Cy), new Point(sg.X1, sg.Y1), true, true);
+                            else ctx.LineTo(new Point(sg.X1, sg.Y1), true, true);
+                    }
+                g.Freeze();
+                var brush = new SolidColorBrush(Color.FromArgb((byte)(item.Argb >> 24), (byte)(item.Argb >> 16), (byte)(item.Argb >> 8), (byte)item.Argb));
+                brush.Freeze();
+                if (fill) dc.DrawGeometry(brush, null, g);
+                else dc.DrawGeometry(null, new Pen(brush, item.LineWidth) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round, LineJoin = PenLineJoin.Round }, g);
+            }
+            dc.Pop();
+        }
+        var bmp = new RenderTargetBitmap(pw, ph, 96, 96, PixelFormats.Pbgra32);
+        bmp.Render(dv);
+        bmp.Freeze();
+        return bmp;
+    }
+
+    static string Sha(string path) { using var f = File.OpenRead(path); return Convert.ToHexString(SHA256.HashData(f)); }
+
+    /// <summary>
+    /// Saves every part of a skin as a PNG people can paint over, drawn from the game's original art on this PC, and
+    /// returns the folder. Runs on an STA thread.
+    /// </summary>
+    public static string ExportSkin(BhSkin s)
+    {
+        var swf = SwfFile.Load(File.ReadAllBytes(OriginalOrGame(s.File)));
+        var dir = SkinFolder(s);
+        Directory.CreateDirectory(dir);
+        var sheet = new SkinSheet(s.File, s.Name, new(StringComparer.OrdinalIgnoreCase));
+        foreach (var part in s.Parts.OrderBy(p => p, StringComparer.Ordinal))
+        {
+            var bmp = RenderPart(swf, part);
+            if (bmp == null) continue;
+            // "Hair Back.png"; a second piece with the same label gets "Hair Back 2.png".
+            var label = PartLabel(part);
+            var name = label + ".png";
+            for (int i = 2; sheet.Parts.ContainsKey(name); i++) name = $"{label} {i}.png";
+            var path = Path.Combine(dir, name);
+            var enc = new PngBitmapEncoder();
+            enc.Frames.Add(BitmapFrame.Create(bmp));
+            using (var fs = File.Create(path)) enc.Save(fs);
+            sheet.Parts[name] = new SheetPart(part, Sha(path));
+        }
+        if (sheet.Parts.Count == 0) throw new InvalidDataException(Ui.Loc.T("Pulse couldn't draw this skin's parts."));
+        File.WriteAllText(Path.Combine(dir, SkinManifest), JsonSerializer.Serialize(sheet, new JsonSerializerOptions { WriteIndented = true }));
+        return dir;
+    }
+
+    /// <summary>
+    /// Takes the PNGs you edited from a skin's folder (any you changed since Pulse saved them) and puts each on its
+    /// part. Returns how many parts got your picture.
+    /// </summary>
+    public static int ImportSkin(BhSkin s)
+    {
+        var dir = SkinFolder(s);
+        var manifest = Path.Combine(dir, SkinManifest);
+        if (!File.Exists(manifest)) throw new InvalidDataException(Ui.Loc.T("Get this skin's PNGs first, then edit them."));
+        var sheet = JsonSerializer.Deserialize<SkinSheet>(File.ReadAllText(manifest));
+        if (sheet?.Parts == null || sheet.File != s.File) throw new InvalidDataException(Ui.Loc.T("Get this skin's PNGs first, then edit them."));
+        var mine = s.Parts.ToHashSet(StringComparer.Ordinal);
+        if (!M.Pictures.TryGetValue(s.File, out var map)) M.Pictures[s.File] = map = new();
+        int n = 0;
+        foreach (var (name, info) in sheet.Parts)
+        {
+            var path = Path.Combine(dir, name);
+            if (!File.Exists(path) || !mine.Contains(info.Part) || Sha(path) == info.Sha) continue; // unchanged: the game's own art stays
+            map[info.Part] = AddPicture(path);
+            n++;
+        }
+        if (map.Count == 0) M.Pictures.Remove(s.File);
+        if (n > 0) { M.Pending = true; TweakEngine.Save(); }
+        return n;
+    }
+
     /// <summary>Reads a picture as RGBA, scaled down so its longer side is at most <paramref name="maxSide"/>.</summary>
     public static SwfImage LoadPicture(string path, int maxSide = 1024)
     {
