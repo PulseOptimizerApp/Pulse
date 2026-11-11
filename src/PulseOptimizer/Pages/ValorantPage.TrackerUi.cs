@@ -340,7 +340,7 @@ public partial class ValorantPage
 
     static string UnitOf(SkillScore s) => s.Skill.Unit switch { "%" => "%", "/100" => "/100", "" => s.Skill.Id is "utility" or "abil" ? "/round" : "", var u => u };
 
-    FrameworkElement SkillTile2(SkillScore s, int compareTier, string likeWord)
+    FrameworkElement SkillTile2(SkillScore s, int compareTier, string likeWord, bool console)
     {
         bool known = !double.IsNaN(s.Value);
         var c = known && s.PlaysLikeTier > 0 ? RankColor(s.PlaysLikeTier) : Grey;
@@ -361,7 +361,7 @@ public partial class ValorantPage
         sp.Children.Add(val);
 
         // The bar, with a mark where players at the compared rank usually are.
-        double max = Tracker.BarMax(s.Skill.Id, s.Value);
+        double max = Tracker.BarMax(s.Skill.Id, s.Value, console);
         var bar = new Grid { Height = 18 };
         bar.Children.Add(new Border { Height = 6, VerticalAlignment = VerticalAlignment.Top, CornerRadius = new CornerRadius(4), Background = B(Color.FromRgb(0x24, 0x26, 0x2D)) });
         var fill = new Border { Height = 6, VerticalAlignment = VerticalAlignment.Top, HorizontalAlignment = HorizontalAlignment.Left, CornerRadius = new CornerRadius(4), Width = 0,
@@ -371,7 +371,7 @@ public partial class ValorantPage
         var markText = new TextBlock { Text = Loc.T("rank avg"), FontSize = 9, Foreground = B(Color.FromRgb(0x6B, 0x6F, 0x78)), VerticalAlignment = VerticalAlignment.Bottom, HorizontalAlignment = HorizontalAlignment.Left, Visibility = Visibility.Collapsed };
         bar.Children.Add(mark);
         bar.Children.Add(markText);
-        double avg = compareTier >= 3 ? Tracker.MedianAt(s.Skill.Id, compareTier) : double.NaN;
+        double avg = compareTier >= 3 ? Tracker.MedianAt(s.Skill.Id, compareTier, console) : double.NaN;
         bar.SizeChanged += (_, e) =>
         {
             double w = e.NewSize.Width;
@@ -558,7 +558,8 @@ public partial class ValorantPage
 
             // Skills.
             var sk = new StackPanel();
-            int scaleN = VStore.All.Sum(m => m.Players.Count);
+            // Only the same platform counts: console players are compared with console players.
+            int scaleN = VStore.All.Where(m => m.Console == p.Console).Sum(m => m.Players.Count);
             sk.Children.Add(SectionHead("Skills", Loc.F("{0} matches · compared with {1:N0} players in your games", p.Matches.Count, scaleN)));
             var row = new Grid();
             row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(220) });
@@ -567,7 +568,7 @@ public partial class ValorantPage
             var grid = new UniformGrid { Columns = 3, Margin = new Thickness(0, 0, -10, 0) };
             var words = new Dictionary<string, string> { ["aim"] = "Aims like", ["positioning"] = "Positions like", ["utility"] = "Utility like", ["opening"] = "Duels like", ["clutch"] = "Clutches like", ["trading"] = "Trades like" };
             foreach (var id in new[] { "aim", "positioning", "utility", "opening", "clutch", "trading" })
-                if (p.Skills.FirstOrDefault(x => x.Skill.Id == id) is { } s) grid.Children.Add(SkillTile2(s, p.CompareTier, words[id]));
+                if (p.Skills.FirstOrDefault(x => x.Skill.Id == id) is { } s) grid.Children.Add(SkillTile2(s, p.CompareTier, words[id], p.Console));
             Grid.SetColumn(grid, 1);
             row.Children.Add(grid);
             sk.Children.Add(row);

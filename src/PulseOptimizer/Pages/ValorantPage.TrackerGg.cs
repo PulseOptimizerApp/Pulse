@@ -405,7 +405,7 @@ public partial class ValorantPage
         void Big(string label, string value, string topId, double raw, Color c)
         {
             var g = new Grid();
-            var top2 = topId != null ? Tracker.TopPercentOf(topId, raw) : double.NaN;
+            var top2 = topId != null ? Tracker.TopPercentOf(topId, raw, p.Console) : double.NaN;
             g.Children.Add(LabelValue(label, value, c, 17, sub: double.IsNaN(top2) ? null : Loc.F("Top {0:0}%", top2), subColor: !double.IsNaN(top2) && top2 <= 25 ? TgWin : TgDim));
             g.Children.Add(Txt("⋮", 15, TgRed, true, HorizontalAlignment.Right).Also(t => { t.VerticalAlignment = VerticalAlignment.Top; t.ToolTip = double.IsNaN(top2) ? Loc.T("Not ranked: needs more players at this rank.") : Loc.F("Better than {0:0}% of the players in the matches Pulse has seen.", 100 - top2); }));
             big.Children.Add(new Border { Background = B(TgCard), CornerRadius = new CornerRadius(4), Padding = new Thickness(12, 9, 10, 9), Margin = new Thickness(0, 0, 8, 0), Child = g });
@@ -419,7 +419,7 @@ public partial class ValorantPage
         var grid = new UniformGrid { Columns = 6, Margin = new Thickness(4, 14, 0, 0) };
         void Small(string label, string value, string topId = null, double raw = double.NaN, Color? c = null, string tip = null)
         {
-            var t = topId != null ? Tracker.TopPercentOf(topId, raw) : double.NaN;
+            var t = topId != null ? Tracker.TopPercentOf(topId, raw, p.Console) : double.NaN;
             grid.Children.Add(LabelValue(label, value, c, 15, tip, double.IsNaN(t) ? null : Loc.F("Top {0:0}%", t), !double.IsNaN(t) && t <= 25 ? TgWin : TgDim).Also(s => s.Margin = new Thickness(0, 0, 8, 12)));
         }
         Small("Wins", o.Wins.ToString(CultureInfo.CurrentCulture));
