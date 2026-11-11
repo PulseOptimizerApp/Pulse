@@ -6013,5 +6013,14 @@
  "{0} switches back and forth": "{0} alterna entre os dois",
  "Pick the PC's and the console's inputs below first.": "Primeiro escolha abaixo as entradas do PC e do console.",
  "Test: switch to console for 10 seconds": "Teste: trocar para o console por 10 segundos",
- "Change key": "Mudar tecla"
+ "Change key": "Mudar tecla",
+ "Flip the PC's sound between two devices, say your headset and your speakers, without unplugging anything. Works in any game, on its own or with the switch above.": "Alterne o som do PC entre dois dispositivos, como seu headset e suas caixas de som, sem desconectar nada. Funciona em qualquer jogo, sozinho ou com a troca acima.",
+ "Sound: {0}": "Som: {0}",
+ "Windows didn't take the sound change.": "O Windows não aceitou a mudança de som.",
+ "{0} now swaps the sound.": "{0} agora troca o som.",
+ "{0} swaps the sound": "{0} troca o som",
+ "Swap the PC's sound with a key": "Troque o som do PC com uma tecla",
+ "Device 1": "Dispositivo 1",
+ "Device 2": "Dispositivo 2",
+ "Swap now": "Trocar agora"
 }

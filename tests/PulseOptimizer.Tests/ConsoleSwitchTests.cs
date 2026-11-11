@@ -20,6 +20,13 @@ public class ConsoleSwitchTests
     public void Keys_read_the_way_people_say_them(int mods, int vk, string text) => Assert.Equal(text, ConsoleSwitch.KeyText(mods, vk));
 
     [Fact]
+    public void Sound_swap_needs_two_devices()
+    {
+        Assert.Null(ConsoleSwitch.FlipSound(new ConsoleSwitchSettings { SoundA = "a" }));
+        Assert.Null(ConsoleSwitch.FlipSound(new ConsoleSwitchSettings()));
+    }
+
+    [Fact]
     public void Swapping_before_setup_says_what_to_do_and_changes_nothing()
     {
         var s = new ConsoleSwitchSettings();

@@ -19,6 +19,12 @@ public class ConsoleSwitchSettings
     public int HotkeyMods { get; set; } = 3;
     public int HotkeyKey { get; set; } = 0x7B;
     public bool OnConsole { get; set; }
+    /// <summary>A key that only flips the PC's sound between two devices (no screen change). Ctrl+Alt+F11 by default.</summary>
+    public bool SoundKey { get; set; }
+    public int SoundKeyMods { get; set; } = 3;
+    public int SoundKeyKey { get; set; } = 0x7A;
+    public string SoundA { get; set; } = "";
+    public string SoundB { get; set; } = "";
     /// <summary>Your crosshair code from VALORANT on PC, to type in on console.</summary>
     public string CrosshairCode { get; set; } = "";
 }
@@ -235,6 +241,19 @@ public static class ConsoleSwitch
         [PreserveSig] int SetDeviceFormat(); [PreserveSig] int GetProcessingPeriod(); [PreserveSig] int SetProcessingPeriod();
         [PreserveSig] int GetShareMode(); [PreserveSig] int SetShareMode(); [PreserveSig] int GetPropertyValue(); [PreserveSig] int SetPropertyValue();
         [PreserveSig] int SetDefaultEndpoint([MarshalAs(UnmanagedType.LPWStr)] string id, int role);
+    }
+
+    /// <summary>
+    /// Flips the PC's sound to the other of two devices: to B when it's on A, otherwise to A. Returns the device's
+    /// name, or null when it didn't work.
+    /// </summary>
+    public static string FlipSound(ConsoleSwitchSettings s)
+    {
+        if (string.IsNullOrEmpty(s.SoundA) || string.IsNullOrEmpty(s.SoundB)) return null;
+        var (devices, current) = Sound();
+        var to = current == s.SoundA ? s.SoundB : s.SoundA;
+        if (!SetSound(to)) return null;
+        return devices.FirstOrDefault(d => d.Id == to)?.Name ?? "";
     }
 
     // ───────── the swap ─────────

@@ -20,6 +20,7 @@ public partial class ValorantPage
     void BuildConsole()
     {
         Root.Children.Add(SwitchCard());
+        if (_sounds is { Count: > 1 }) Root.Children.Add(SoundKeyCard());
         Root.Children.Add(ConsoleCrosshairCard());
         Root.Children.Add(MatchSettingsCard());
     }
@@ -183,6 +184,87 @@ public partial class ValorantPage
         hkRow.Children.Add(change);
         sp.Children.Add(hkRow);
         if (s.Hotkey && ready && !ConsoleSwitchService.HotkeyWorks) sp.Children.Add(Faint(Loc.F("Another app already uses {0}, so the key won't work. Pick other keys.", keyName), 11.5, 4));
+        return Card(sp);
+    }
+
+    /// <summary>A button that waits for a key combination and hands it to <paramref name="set"/> (mods, virtual key).</summary>
+    Button KeyButton(Action<int, int> set)
+    {
+        var b = Btn("Change key");
+        b.Click += (_, _) =>
+        {
+            b.Content = Loc.T("Press the new keys…");
+            b.Focus();
+            void Pick(object _, System.Windows.Input.KeyEventArgs e)
+            {
+                var key = e.Key == System.Windows.Input.Key.System ? e.SystemKey : e.Key;
+                if (key is System.Windows.Input.Key.LeftCtrl or System.Windows.Input.Key.RightCtrl or System.Windows.Input.Key.LeftAlt or System.Windows.Input.Key.RightAlt
+                    or System.Windows.Input.Key.LeftShift or System.Windows.Input.Key.RightShift or System.Windows.Input.Key.LWin or System.Windows.Input.Key.RWin) return;
+                e.Handled = true;
+                b.PreviewKeyDown -= Pick;
+                if (key == System.Windows.Input.Key.Escape) { Build(); return; }
+                var m = System.Windows.Input.Keyboard.Modifiers;
+                int mods = (m.HasFlag(System.Windows.Input.ModifierKeys.Alt) ? 1 : 0) | (m.HasFlag(System.Windows.Input.ModifierKeys.Control) ? 2 : 0)
+                    | (m.HasFlag(System.Windows.Input.ModifierKeys.Shift) ? 4 : 0) | (m.HasFlag(System.Windows.Input.ModifierKeys.Windows) ? 8 : 0);
+                int vk = System.Windows.Input.KeyInterop.VirtualKeyFromKey(key);
+                if (mods == 0 && !(vk is >= 0x7C and <= 0x87 or 0x13 or 0x91))
+                {
+                    MainWindow.Instance.Toast(Loc.T("Hold Ctrl, Alt or Shift with the key, so it doesn't go off while you type."), ToastKind.Info);
+                    Build();
+                    return;
+                }
+                set(mods, vk);
+            }
+            b.PreviewKeyDown += Pick;
+        };
+        return b;
+    }
+
+    FrameworkElement SoundKeyCard()
+    {
+        var s = ConsoleSet;
+        var keyName = ConsoleSwitch.KeyText(s.SoundKeyMods, s.SoundKeyKey);
+        var sp = new StackPanel();
+        sp.Children.Add(Heading("Swap the PC's sound with a key"));
+        sp.Children.Add(Dim(Loc.T("Flip the PC's sound between two devices, say your headset and your speakers, without unplugging anything. Works in any game, on its own or with the switch above."), 12.5, 4));
+
+        ComboBox Pick(string sel, Action<string> set)
+        {
+            var b = new ComboBox { MinWidth = 280, HorizontalAlignment = HorizontalAlignment.Left };
+            foreach (var d in _sounds) b.Items.Add(new ComboBoxItem { Content = d.Name, Tag = d.Id });
+            b.SelectedIndex = Math.Max(0, _sounds.FindIndex(d => d.Id == sel));
+            b.SelectionChanged += (_, _) => { set((string)((ComboBoxItem)b.SelectedItem).Tag); TweakEngine.Save(); ConsoleSwitchService.Refresh(); };
+            return b;
+        }
+        // Start with what Windows uses now, and the next device.
+        if (string.IsNullOrEmpty(s.SoundA)) s.SoundA = _defaultSound ?? _sounds[0].Id;
+        if (string.IsNullOrEmpty(s.SoundB)) s.SoundB = _sounds.FirstOrDefault(d => d.Id != s.SoundA)?.Id ?? "";
+        sp.Children.Add(Label("Device 1").Also(l => l.Margin = new Thickness(0, 16, 0, 6)));
+        sp.Children.Add(Pick(s.SoundA, v => s.SoundA = v));
+        sp.Children.Add(Label("Device 2").Also(l => l.Margin = new Thickness(0, 12, 0, 6)));
+        sp.Children.Add(Pick(s.SoundB, v => s.SoundB = v));
+
+        var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 16, 0, 0) };
+        var on = new CheckBox { Style = (Style)FindResource("Switch"), IsChecked = s.SoundKey, Content = Loc.F("{0} swaps the sound", keyName), Foreground = Res("TextBrush"), VerticalAlignment = VerticalAlignment.Center };
+        on.Checked += (_, _) => { s.SoundKey = true; TweakEngine.Save(); ConsoleSwitchService.Refresh(); Build(); };
+        on.Unchecked += (_, _) => { s.SoundKey = false; TweakEngine.Save(); ConsoleSwitchService.Refresh(); Build(); };
+        row.Children.Add(on);
+        var change = KeyButton((mods, vk) =>
+        {
+            s.SoundKeyMods = mods; s.SoundKeyKey = vk; s.SoundKey = true;
+            TweakEngine.Save();
+            ConsoleSwitchService.Refresh();
+            Build();
+            MainWindow.Instance.Toast(ConsoleSwitchService.SoundKeyWorks ? Loc.F("{0} now swaps the sound.", ConsoleSwitch.KeyText(mods, vk)) : Loc.F("Another app already uses {0}. Pick other keys.", ConsoleSwitch.KeyText(mods, vk)),
+                ConsoleSwitchService.SoundKeyWorks ? ToastKind.Success : ToastKind.Warning);
+        });
+        change.Margin = new Thickness(14, 0, 0, 0);
+        row.Children.Add(change);
+        var now = Btn("Swap now");
+        now.Click += async (_, _) => await ConsoleSwitchService.FlipSoundAsync();
+        row.Children.Add(now.Also(n => n.Margin = new Thickness(10, 0, 0, 0)));
+        sp.Children.Add(row);
+        if (s.SoundKey && !ConsoleSwitchService.SoundKeyWorks) sp.Children.Add(Faint(Loc.F("Another app already uses {0}, so the key won't work. Pick other keys.", keyName), 11.5, 4));
         return Card(sp);
     }
 
