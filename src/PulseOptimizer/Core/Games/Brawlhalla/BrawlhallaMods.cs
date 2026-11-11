@@ -669,7 +669,7 @@ public static class BrawlhallaMods
         foreach (var f in files)
         {
             var src = Path.Combine(PictureDir, Path.GetFileName(f));
-            if (File.Exists(src)) zip.CreateEntryFromFile(src, "pictures/" + Path.GetFileName(f));
+            if (File.Exists(src)) System.IO.Compression.ZipFileExtensions.CreateEntryFromFile(zip, src, "pictures/" + Path.GetFileName(f));
         }
     }
 

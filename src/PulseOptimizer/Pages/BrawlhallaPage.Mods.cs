@@ -94,7 +94,7 @@ public sealed partial class BrawlhallaPage
         saveBtn.Click += (_, _) => { var l = BrawlhallaMods.SaveLook(_lookName); _lookName = ""; MainWindow.Instance.Toast(Loc.F("Saved {0}.", l.Name), ToastKind.Success); Build(); };
         Grid.SetColumn(saveBtn, 1); save.Children.Add(saveBtn);
         sp.Children.Add(save);
-        if (!Mods.Any) sp.Children.Add(Faint(Loc.T("Change a skin, an effect or a map first, then save it here."), 11.5, 6));
+        if (!Mods.Any) sp.Children.Add(Dim(Loc.T("Change a skin, an effect or a map first, then save it here."), 11.5, 6));
 
         // Open a look a friend sent: button or drop.
         var open = new Border { Padding = new Thickness(14, 12, 14, 12), Margin = new Thickness(0, 16, 0, 0), CornerRadius = new CornerRadius(10), Background = new SolidColorBrush(Inset), BorderBrush = new SolidColorBrush(Line), BorderThickness = new Thickness(1), AllowDrop = true };
