@@ -378,8 +378,16 @@ public static class BrawlhallaMods
     public static readonly List<BhStyle> Styles = new()
     {
         new("gold", "Gold chrome"), new("chrome", "Silver chrome"), new("galaxy", "Galaxy"), new("neon", "Neon"),
-        new("camo", "Camo"), new("ice", "Ice"), new("lava", "Lava"), new("carbon", "Carbon fiber"),
+        new("camo", "Camo"), new("ice", "Ice"), new("lava", "Lava"), new("carbon", "Carbon fiber"), new("rgb", "RGB"),
     };
+
+    /// <summary>A map pixel washed with a diagonal rainbow, keeping its light and dark.</summary>
+    static (double, double, double) RainbowWash(double y, double fx, double fy)
+    {
+        int c = FromHsl((fx * 0.8 + fy * 0.4) * 360 % 360, 0.9, 0.5);
+        double k = 0.35 + y / 255.0 * 0.9;
+        return (((c >> 16) & 255) * k, ((c >> 8) & 255) * k, (c & 255) * k);
+    }
 
     static double Hash(int x, int y, int seed)
     {
@@ -456,6 +464,11 @@ public static class BrawlhallaMods
                 double v = Math.Abs(Fbm(x * 0.01, y * 0.01, 3) - 0.5);
                 var c = Mix((0.1, 0.03, 0.02), (1.0, 0.45, 0.08), 1 - v * 12);
                 return Mix(c, (1.0, 0.9, 0.45), 1 - v * 40);
+            }
+            case "rgb":
+            {
+                int c = FromHsl(((x + y * 0.6) * 0.35) % 360, 1, 0.55);
+                return (((c >> 16) & 255) / 255.0, ((c >> 8) & 255) / 255.0, (c & 255) / 255.0);
             }
             case "carbon":
             {
@@ -617,6 +630,61 @@ public static class BrawlhallaMods
                 outPx[i * 4 + 2] = (byte)Math.Clamp(c.R * shade * 255, 0, 255);
             }
         return outPx;
+    }
+
+    // ───────── browsing: characters and weapons, with pictures ─────────
+
+    /// <summary>A skin that is only a weapon (every part is a weapon piece).</summary>
+    public static bool IsWeaponSkin(BhSkin s) => s.Parts.Count > 0 && s.Parts.All(p => GroupKind(PartGroup(p)) == "Weapons");
+
+    /// <summary>The weapon a skin is mostly made of ("Sword", "Rocket Lance"), or "".</summary>
+    public static string WeaponOf(BhSkin s) =>
+        s.Parts.Select(PartGroup).Where(g => GroupKind(g) == "Weapons").GroupBy(g => g).OrderByDescending(g => g.Count()).Select(g => g.Key).FirstOrDefault() ?? "";
+
+    static string ThumbDir => Path.Combine(Root, "thumbs");
+    [ThreadStatic] static string _thumbFile;
+    [ThreadStatic] static SwfFile _thumbSwf;
+    static readonly string[] FaceFirst = { "Hair", "Head", "Helmet", "Hat", "Mask" };
+
+    /// <summary>
+    /// A small picture of a skin to recognise it by: its hair or head (a weapon skin: its biggest piece), drawn from
+    /// the game's files on this PC and kept so it's instant next time. Null when nothing can be drawn. STA thread.
+    /// </summary>
+    public static BitmapSource Thumbnail(BhSkin s, int size = 128)
+    {
+        var orig = OriginalOrGame(s.File);
+        var info = new FileInfo(orig);
+        if (!info.Exists) return null;
+        var cache = Path.Combine(ThumbDir, $"{Squash(s.File + "_" + s.Name)}_{info.Length}_{size}.png");
+        if (File.Exists(cache))
+        {
+            try
+            {
+                var bi = new BitmapImage();
+                bi.BeginInit(); bi.CacheOption = BitmapCacheOption.OnLoad; bi.UriSource = new Uri(cache); bi.EndInit(); bi.Freeze();
+                return bi;
+            }
+            catch { }
+        }
+        if (_thumbFile != orig) { _thumbSwf = SwfFile.Load(File.ReadAllBytes(orig)); _thumbFile = orig; }
+        var mine = s.Parts.ToHashSet(StringComparer.Ordinal);
+        var parts = _thumbSwf.Parts().Where(p => mine.Contains(p.Name) && p.Width > 3 && p.Height > 3).ToList();
+        if (parts.Count == 0) return null;
+        double Area(SwfPart p) => p.Width * p.Height;
+        var pick = IsWeaponSkin(s) ? null : parts.Where(p => FaceFirst.Contains(PartGroup(p.Name))).MaxBy(Area);
+        pick ??= parts.Where(p => PartGroup(p.Name) == "Torso").MaxBy(Area) ?? parts.MaxBy(Area);
+        var bmp = RenderPart(_thumbSwf, pick!.Name, 100, size);
+        if (bmp == null) return null;
+        try
+        {
+            Directory.CreateDirectory(ThumbDir);
+            var enc = new PngBitmapEncoder();
+            enc.Frames.Add(BitmapFrame.Create(bmp));
+            using var fs = File.Create(cache);
+            enc.Save(fs);
+        }
+        catch { }
+        return bmp;
     }
 
     // ───────── preview ─────────
@@ -886,6 +954,12 @@ public static class BrawlhallaMods
         return list;
     }
 
+    /// <summary>The effect color that means "RGB": the rainbow, changing as the effect plays.</summary>
+    public const string Rgb = "rgb";
+
+    /// <summary>The rainbow color for a frame of an animation: one full turn of the wheel over its frames.</summary>
+    public static int RainbowAt(int frame, int frames) => FromHsl(360.0 * frame / Math.Max(1, frames), 1, 0.55);
+
     /// <summary>One-click looks: one color for every effect.</summary>
     public static readonly List<BhEffectPack> Packs = new()
     {
@@ -912,6 +986,7 @@ public static class BrawlhallaMods
         new("mono", "Black & white", "No color, so the fighters' colors pop."),
         new("sunset", "Sunset", "Warm orange and purple."),
         new("vivid", "Vivid", "Richer, brighter colors."),
+        new("rgb", "RGB", "A rainbow across the whole map."),
     };
 
     /// <summary>The background pictures in the game ("BG_Grove.jpg"), in mapArt\Backgrounds.</summary>
@@ -987,6 +1062,7 @@ public static class BrawlhallaMods
                     "mono" => (y * 0.85, y * 0.85, y * 0.85),
                     "sunset" => (r * 0.55 + (1 - fy) * 120 + 20, g * 0.45 + 30 * fy, b * 0.5 + fy * 90 + 40),
                     "vivid" => (y + (r - y) * 1.45, y + (g - y) * 1.45, y + (b - y) * 1.45),
+                    "rgb" => RainbowWash(y, (i / 4 % w) / (double)w, fy),
                     _ => (r, g, b),
                 };
                 px[i] = Clamp(b); px[i + 1] = Clamp(g); px[i + 2] = Clamp(r); px[i + 3] = 255;
@@ -1190,9 +1266,17 @@ public static class BrawlhallaMods
         }
         foreach (var e in EffectList().Where(e => e.Files.Contains(name, StringComparer.OrdinalIgnoreCase)))
         {
-            if (!M.Effects.TryGetValue(e.Key, out var hex) || !TryHex(hex, out var target)) continue;
+            if (!M.Effects.TryGetValue(e.Key, out var hex)) continue;
             var parts = swf.Symbols.Where(e.Takes).ToList();
             if (parts.Count == 0) continue;
+            if (hex == Rgb)
+            {
+                // RGB: light grey first, so every frame's color shows true, then a full rainbow over the effect.
+                swf.Recolor(rgb => Tint(rgb, 0xFFFFFF), parts);
+                if (swf.Cycle(parts, RainbowAt) > 0) any = true;
+                continue;
+            }
+            if (!TryHex(hex, out var target)) continue;
             if (swf.Recolor(rgb => Tint(rgb, target), parts) > 0) any = true;
         }
         if (M.Pictures.TryGetValue(name, out var pics) && pics.Count > 0)

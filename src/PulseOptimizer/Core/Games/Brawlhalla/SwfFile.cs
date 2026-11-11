@@ -580,6 +580,76 @@ public sealed class SwfFile
         return ms.ToArray();
     }
 
+    // ───────── RGB: colors that change as an animation plays ─────────
+
+    /// <summary>
+    /// Makes the named animations change color on every frame: <paramref name="colorAt"/>(frame, frames) gives the
+    /// color (RGB) each frame is tinted with, on top of whatever fades the animation already has. Returns how many
+    /// animations changed.
+    /// </summary>
+    public int Cycle(IEnumerable<string> names, Func<int, int, int> colorAt)
+    {
+        var ids = new HashSet<int>();
+        foreach (var n in names)
+            if (_symbols.TryGetValue(n, out var id) && _defs.TryGetValue(id, out var t) && t.Code == 39) ids.Add(id);
+        if (ids.Count == 0) return 0;
+        var output = new MemoryStream();
+        output.Write(_body, 0, _tagsStart);
+        foreach (var t in _tags)
+        {
+            if (t.Code == 39 && ids.Contains(U16(t.Offset))) WriteTag(output, 39, CycledSprite(t, colorAt));
+            else WriteTag(output, t.Code, _body.AsSpan(t.Offset, t.Length));
+        }
+        _body = output.ToArray();
+        Index();
+        return ids.Count;
+    }
+
+    byte[] CycledSprite(Tag t, Func<int, int, int> colorAt)
+    {
+        int id = U16(t.Offset), frames = Math.Max(1, U16(t.Offset + 2));
+        var ms = new MemoryStream();
+        ms.Write(_body, t.Offset, 4);
+        var live = new SortedDictionary<int, (Tint Cx, bool Clip)>();
+        int frame = 0;
+        foreach (var c in ReadTags(t.Offset + 4, t.Offset + t.Length))
+        {
+            if (c.Code == 1)
+            {
+                // Before each frame shows: everything on screen gets this frame's color, over its own.
+                int rgb = colorAt(frame, frames);
+                var hue = new Tint(((rgb >> 16) & 255) / 255.0, ((rgb >> 8) & 255) / 255.0, (rgb & 255) / 255.0, 1, 0, 0, 0, 0);
+                foreach (var (depth, (cx, clip)) in live)
+                    if (!clip) WriteTag(ms, 26, MoveWithColor(depth, cx.Then(hue)));
+                frame++;
+            }
+            else if (c.Code == 28 && c.Length >= 2) live.Remove(U16(c.Offset));
+            else if (c.Code == 5 && c.Length >= 4) live.Remove(U16(c.Offset + 2));
+            else if (PlaceFull(c) is { } p)
+            {
+                if (p.Char >= 0) live[p.Depth] = (p.Cx ?? Tint.None, p.Clip);
+                else if (live.TryGetValue(p.Depth, out var old)) live[p.Depth] = (p.Cx ?? old.Cx, old.Clip);
+            }
+            WriteTag(ms, c.Code, _body.AsSpan(c.Offset, c.Length));
+            if (c.Code == 0) break;
+        }
+        return ms.ToArray();
+    }
+
+    /// <summary>A PlaceObject2 that only changes the color transform of what's at <paramref name="depth"/>.</summary>
+    static byte[] MoveWithColor(int depth, Tint cx)
+    {
+        static int M(double v) => Math.Clamp((int)Math.Round(v * 256), -2048, 2047);
+        static int A(double v) => Math.Clamp((int)Math.Round(v), -2048, 2047);
+        var w = new BitWriter();
+        w.U(0x09, 8); // move + color transform
+        w.U(depth & 0xFF, 8); w.U(depth >> 8, 8);
+        w.U(1, 1); w.U(1, 1); w.U(12, 4);
+        foreach (var v in new[] { M(cx.Mr), M(cx.Mg), M(cx.Mb), M(cx.Ma) }) w.S(v, 12);
+        foreach (var v in new[] { A(cx.Ar), A(cx.Ag), A(cx.Ab), A(cx.Aa) }) w.S(v, 12);
+        return w.ToArray();
+    }
+
     // ───────── colors ─────────
 
     /// <summary>Where each color sits in the vector art (byte offsets), and whether it has an alpha byte.</summary>
