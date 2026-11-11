@@ -176,7 +176,7 @@ public sealed partial class BrawlhallaPage
         foreach (var (n, title, text) in new[]
         {
             ("1", "Pick a skin", "Search on the left: a skin's name or its legend."),
-            ("2", "Choose a picture", "For the hair, the body or a weapon. Pulse fits it in every pose."),
+            ("2", "Edit its PNGs", "Get the skin as PNGs, paint over them in any editor, then load your edits."),
             ("3", "Apply", "Close Brawlhalla, press Apply at the top, then play."),
         })
         {
@@ -394,8 +394,10 @@ public sealed partial class BrawlhallaPage
             if (Mods.Pictures.TryGetValue(s.File, out var p)) foreach (var part in s.Parts) p.Remove(part);
             Changed(); Build();
         }));
-        sp.Children.Add(Dim(Loc.T("Click Choose picture next to a part, or drag a picture onto it. A PNG with a transparent background looks best."), 12.5, 12));
-        sp.Children.Add(Switch("Show every piece and size (advanced)", _skinAdvanced, v => { _skinAdvanced = v; Build(); }).Also(x => x.Margin = new Thickness(0, 12, 0, 4)));
+        sp.Children.Add(PngSteps(s));
+        sp.Children.Add(Switch("Or pick pictures part by part (advanced)", _skinAdvanced, v => { _skinAdvanced = v; Build(); }).Also(x => x.Margin = new Thickness(0, 18, 0, 4)));
+        if (!_skinAdvanced) return sp;
+        sp.Children.Add(Dim(Loc.T("Click Choose picture next to a part, or drag a picture onto it. A PNG with a transparent background looks best."), 12.5, 8));
         if (_skinAdvanced)
         {
             sp.Children.Add(Dim(Loc.T("Make pictures about 4 times the size shown so they stay sharp. Pieces lets you give one piece (say, the back hair) its own picture."), 12, 4));
@@ -411,6 +413,75 @@ public sealed partial class BrawlhallaPage
             foreach (var g in groups) sp.Children.Add(PartGroupRow(s, g.Key, g.ToList(), pics));
         }
         return sp;
+    }
+
+    /// <summary>The easy way: the skin's own parts as PNGs to paint over, then back in with one click.</summary>
+    FrameworkElement PngSteps(BhSkin s)
+    {
+        var folder = BrawlhallaMods.SkinFolder(s);
+        bool have = File.Exists(System.IO.Path.Combine(folder, "pulse-skin.json"));
+        var box = new StackPanel();
+        box.Children.Add(new TextBlock { Text = Loc.T("Edit this skin as PNGs"), FontSize = 15, FontWeight = FontWeights.SemiBold, Foreground = Res("TextBrush") });
+        box.Children.Add(Dim(Loc.T("Pulse saves each part of the skin (hair, body, weapons) as a PNG from your own game files. Paint over them in any editor, save, and load them back. Parts you don't touch stay as they are."), 12.5, 4));
+
+        FrameworkElement Step(string n, string text, Button b)
+        {
+            var g = new Grid { Margin = new Thickness(0, 12, 0, 0) };
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            g.ColumnDefinitions.Add(new ColumnDefinition());
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            g.Children.Add(new Border { Width = 24, Height = 24, CornerRadius = new CornerRadius(12), Background = new SolidColorBrush(Gold), VerticalAlignment = VerticalAlignment.Center,
+                Child = new TextBlock { Text = n, FontSize = 12, FontWeight = FontWeights.Bold, Foreground = Brushes.Black, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center } });
+            var t = new TextBlock { Text = Loc.T(text), FontSize = 13, Foreground = Res("TextBrush"), TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(10, 0, 12, 0) };
+            Grid.SetColumn(t, 1); g.Children.Add(t);
+            if (b != null) { b.VerticalAlignment = VerticalAlignment.Center; Grid.SetColumn(b, 2); g.Children.Add(b); }
+            return g;
+        }
+
+        var get = new Button { Style = (Style)FindResource(have ? "GhostButton" : "PrimaryButton"), Content = have ? Loc.T("Open the PNGs") : Loc.T("Get the PNGs"), Padding = new Thickness(16, 7, 16, 7), IsEnabled = !_modBusy };
+        get.Click += async (_, _) =>
+        {
+            if (!have)
+            {
+                _modBusy = true; Build();
+                string err = null;
+                try { await StaTask(() => { BrawlhallaMods.ExportSkin(s); return null; }); }
+                catch (Exception ex) { err = ex is InvalidDataException ? ex.Message : Loc.F("Couldn't save the PNGs: {0}", ex.Message); }
+                _modBusy = false; Build();
+                if (err != null) { MainWindow.Instance.Toast(err, ToastKind.Info); return; }
+            }
+            try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe", "\"" + folder + "\"") { UseShellExecute = true }); } catch { }
+        };
+        box.Children.Add(Step("1", have ? "Your PNGs are in Documents › Pulse › Brawlhalla skins." : "Save this skin's parts as PNGs. Pulse opens the folder.", get));
+        box.Children.Add(Step("2", "Paint over them in Paint, Photoshop, Krita or anything else. Keep the file names, and save as PNG.", null));
+        var load = new Button { Style = (Style)FindResource("PrimaryButton"), Content = Loc.T("Load my edits"), Padding = new Thickness(16, 7, 16, 7), IsEnabled = have && !_modBusy };
+        load.Click += (_, _) =>
+        {
+            try
+            {
+                int n = BrawlhallaMods.ImportSkin(s);
+                _modStatus = null;
+                MainWindow.Instance.Toast(n == 0 ? Loc.T("No edited PNGs yet: save your changes in the editor, then try again.")
+                    : Loc.F("Loaded {0} edited part(s). Press Apply to put them in the game.", n), n == 0 ? ToastKind.Info : ToastKind.Success);
+            }
+            catch (Exception ex) { MainWindow.Instance.Toast(ex.Message, ToastKind.Info); }
+            Build();
+        };
+        box.Children.Add(Step("3", "Load your edits, then press Apply at the top.", load));
+        if (have)
+        {
+            var redo = Ghost(Loc.T("Start over with fresh PNGs"), async () =>
+            {
+                _modBusy = true; Build();
+                try { await StaTask(() => { BrawlhallaMods.ExportSkin(s); return null; }); }
+                catch (Exception ex) { MainWindow.Instance.Toast(ex.Message, ToastKind.Info); }
+                _modBusy = false; Build();
+            });
+            redo.HorizontalAlignment = HorizontalAlignment.Left;
+            redo.Margin = new Thickness(0, 12, 0, 0);
+            box.Children.Add(redo);
+        }
+        return new Border { Child = box, Padding = new Thickness(16), Margin = new Thickness(0, 14, 0, 0), CornerRadius = new CornerRadius(12), Background = new SolidColorBrush(Inset), BorderBrush = new SolidColorBrush(Gold), BorderThickness = new Thickness(1) };
     }
 
     FrameworkElement PartGroupRow(BhSkin s, string group, List<SwfPart> parts, Dictionary<string, string> pics)

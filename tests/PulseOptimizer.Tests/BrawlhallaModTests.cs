@@ -171,6 +171,32 @@ public class BrawlhallaModTests
     public void Backgrounds_get_readable_names(string file, string label) =>
         Assert.Equal(label, BrawlhallaMods.BackgroundLabel(file));
 
+    [Fact]
+    public void A_part_draws_as_its_own_shapes_and_colors()
+    {
+        var swf = SwfFile.Load(SkinFile());
+        var d = swf.Draw("a_Hair_Test");
+        Assert.NotNull(d);
+        var item = Assert.Single(d.Value.Items);
+        Assert.Equal(0xFFFF0000u, item.Argb);
+        Assert.Equal(0, item.LineWidth);
+        Assert.Equal(200, d.Value.X1 - d.Value.X0);
+        Assert.Null(swf.Draw("a_Nope"));
+    }
+
+    [Fact]
+    public void A_part_renders_to_a_png_sized_four_times_its_game_size()
+    {
+        System.Windows.Media.Imaging.BitmapSource bmp = null;
+        Exception error = null;
+        var t = new Thread(() => { try { bmp = BrawlhallaMods.RenderPart(SwfFile.Load(SkinFile()), "a_WeaponSword_Test"); } catch (Exception e) { error = e; } });
+        t.SetApartmentState(ApartmentState.STA);
+        t.Start(); t.Join();
+        Assert.Null(error);
+        Assert.Equal(40, bmp.PixelWidth);
+        Assert.Equal(20, bmp.PixelHeight);
+    }
+
     [Theory]
     [InlineData("dash", "Movement")]
     [InlineData("hit", "Hits and KOs")]

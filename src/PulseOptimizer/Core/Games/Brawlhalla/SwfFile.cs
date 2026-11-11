@@ -9,6 +9,15 @@ public sealed record SwfImage(int Width, int Height, byte[] Rgba);
 /// <summary>A named part of a skin ("a_Hair_Mikasa") and its size at the game's base scale, in pixels.</summary>
 public sealed record SwfPart(string Name, int Id, double Width, double Height);
 
+/// <summary>One edge of a drawing, in twips: a line, or a curve through (Cx, Cy) when <see cref="Curve"/>.</summary>
+public readonly record struct SwfSeg(double X0, double Y0, double Cx, double Cy, double X1, double Y1, bool Curve);
+
+/// <summary>
+/// Something to paint, in order: a filled area (LineWidth 0) or a line, in one color (0xAARRGGBB), as closed figures
+/// for fills or open ones for lines.
+/// </summary>
+public sealed record SwfDraw(uint Argb, double LineWidth, List<List<SwfSeg>> Figures);
+
 /// <summary>
 /// Just enough of the Flash file format to customize Brawlhalla's art: reads the parts a skin file names, puts a
 /// picture in place of a part, and changes colors in the vector art. Everything is done on bytes in memory; the
@@ -198,6 +207,254 @@ public sealed class SwfFile
         }
         Walk(id);
         return found;
+    }
+
+    // ───────── drawing a part (so people get it as an editable picture) ─────────
+
+    /// <summary>Colors through a placement's color transform: multiply (÷256) and add, per channel.</summary>
+    readonly record struct Tint(double Mr, double Mg, double Mb, double Ma, double Ar, double Ag, double Ab, double Aa)
+    {
+        public static readonly Tint None = new(1, 1, 1, 1, 0, 0, 0, 0);
+        /// <summary>This, then <paramref name="o"/>.</summary>
+        public Tint Then(Tint o) => new(Mr * o.Mr, Mg * o.Mg, Mb * o.Mb, Ma * o.Ma, Ar * o.Mr + o.Ar, Ag * o.Mg + o.Ag, Ab * o.Mb + o.Ab, Aa * o.Ma + o.Aa);
+        public uint Apply(uint argb)
+        {
+            static uint C(double v) => (uint)Math.Clamp((int)Math.Round(v), 0, 255);
+            double a = argb >> 24, r = (argb >> 16) & 255, g = (argb >> 8) & 255, b = argb & 255;
+            return (C(a * Ma + Aa) << 24) | (C(r * Mr + Ar) << 16) | (C(g * Mg + Ag) << 8) | C(b * Mb + Ab);
+        }
+    }
+
+    /// <summary>A placement: depth, character (-1 when it only changes one), matrix, color transform, and whether it's a mask.</summary>
+    (int Depth, int Char, Matrix? M, Tint? Cx, bool Clip)? PlaceFull(Tag c)
+    {
+        if (c.Code is not (26 or 70)) return null;
+        int q = c.Offset;
+        byte f = _body[q++], f2 = 0;
+        if (c.Code == 70) f2 = _body[q++];
+        int depth = U16(q); q += 2;
+        if (c.Code == 70 && ((f2 & 0x08) != 0 || ((f2 & 0x10) != 0 && (f & 0x02) != 0))) q = Array.IndexOf(_body, (byte)0, q) + 1;
+        int ch = -1;
+        if ((f & 0x02) != 0) { ch = U16(q); q += 2; }
+        var r = new BitReader(_body, q);
+        Matrix? m = null;
+        if ((f & 0x04) != 0) m = r.Matrix();
+        Tint? cx = null;
+        if ((f & 0x08) != 0)
+        {
+            r.Align();
+            int hasAdd = r.U(1), hasMult = r.U(1), n = r.U(4);
+            double mr = 1, mg = 1, mb = 1, ma = 1, ar = 0, ag = 0, ab = 0, aa = 0;
+            if (hasMult == 1) { mr = r.S(n) / 256.0; mg = r.S(n) / 256.0; mb = r.S(n) / 256.0; ma = r.S(n) / 256.0; }
+            if (hasAdd == 1) { ar = r.S(n); ag = r.S(n); ab = r.S(n); aa = r.S(n); }
+            cx = new Tint(mr, mg, mb, ma, ar, ag, ab, aa);
+        }
+        return (depth, ch, m, cx, (f & 0x40) != 0);
+    }
+
+    /// <summary>
+    /// The part as it looks on its first frame: what to paint, in order, in twips, and the space it takes. Null when
+    /// the part isn't in the file. Masks are left out; bitmap fills (rare in skins) are left out too.
+    /// </summary>
+    public (List<SwfDraw> Items, double X0, double Y0, double X1, double Y1)? Draw(string part)
+    {
+        if (!_symbols.TryGetValue(part, out var id) || Bounds(id, Matrix.Identity, 0) is not { } box) return null;
+        var items = new List<SwfDraw>();
+        DrawInto(id, Matrix.Identity, Tint.None, 0, items);
+        return (items, box.X0, box.Y0, box.X1, box.Y1);
+    }
+
+    readonly Dictionary<int, List<(uint Argb, double Width, List<List<SwfSeg>> Figures)>> _shapeCache = new();
+
+    void DrawInto(int id, Matrix m, Tint cx, int depth, List<SwfDraw> items)
+    {
+        if (depth > 12 || !_defs.TryGetValue(id, out var t)) return;
+        if (ShapeCodes.Contains(t.Code))
+        {
+            if (!_shapeCache.TryGetValue(id, out var layers))
+            {
+                try { layers = ShapeLayers(t); } catch { layers = new(); }
+                _shapeCache[id] = layers;
+            }
+            double scale = Math.Sqrt(Math.Abs(m.Sx * m.Sy - m.R0 * m.R1));
+            foreach (var (argb, width, figs) in layers)
+            {
+                var color = cx.Apply(argb);
+                if (color >> 24 == 0) continue;
+                var moved = figs.Select(f => f.Select(sg =>
+                {
+                    var (x0, y0) = m.Apply(sg.X0, sg.Y0); var (cx1, cy1) = m.Apply(sg.Cx, sg.Cy); var (x1, y1) = m.Apply(sg.X1, sg.Y1);
+                    return new SwfSeg(x0, y0, cx1, cy1, x1, y1, sg.Curve);
+                }).ToList()).ToList();
+                items.Add(new SwfDraw(color, width * scale, moved));
+            }
+            return;
+        }
+        if (t.Code != 39) return;
+        var placed = new SortedDictionary<int, (int Char, Matrix M, Tint Cx, bool Clip)>();
+        foreach (var c in ReadTags(t.Offset + 4, t.Offset + t.Length))
+        {
+            if (c.Code == 1) break;
+            if (c.Code == 28 && c.Length >= 2) { placed.Remove(U16(c.Offset)); continue; }
+            if (PlaceFull(c) is not { } p) continue;
+            if (p.Char >= 0) placed[p.Depth] = (p.Char, p.M ?? Matrix.Identity, p.Cx ?? Tint.None, p.Clip);
+            else if (placed.TryGetValue(p.Depth, out var old)) placed[p.Depth] = (old.Char, p.M ?? old.M, p.Cx ?? old.Cx, old.Clip);
+        }
+        foreach (var (ch, mm, cc, clip) in placed.Values)
+            if (!clip) DrawInto(ch, mm.Then(m), cc.Then(cx), depth + 1, items);
+    }
+
+    /// <summary>A shape's fills and lines, in paint order, with fill edges joined into closed figures.</summary>
+    List<(uint Argb, double Width, List<List<SwfSeg>> Figures)> ShapeLayers(Tag t)
+    {
+        int version = t.Code switch { 2 => 1, 22 => 2, 32 => 3, _ => 4 };
+        bool alpha = version >= 3;
+        var r = new BitReader(_body, t.Offset + 2);
+        r.Rect();
+        if (version == 4) { r.Rect(); r.Align(); r.Skip(8); }
+        int end = t.Offset + t.Length;
+        var result = new List<(uint, double, List<List<SwfSeg>>)>();
+
+        uint Color()
+        {
+            uint cr = (uint)r.U(8), cg = (uint)r.U(8), cb = (uint)r.U(8), ca = alpha ? (uint)r.U(8) : 255;
+            return (ca << 24) | (cr << 16) | (cg << 8) | cb;
+        }
+        uint? FillStyle()
+        {
+            r.Align();
+            int type = r.U(8);
+            if (type == 0x00) return Color();
+            if (type is 0x10 or 0x12 or 0x13)
+            {
+                r.Matrix();
+                int count = r.U(8) & 0x0F;
+                double a = 0, cr = 0, cg = 0, cb = 0;
+                for (int g = 0; g < count; g++) { r.Skip(8); var c = Color(); a += c >> 24; cr += (c >> 16) & 255; cg += (c >> 8) & 255; cb += c & 255; }
+                if (type == 0x13) r.Skip(16);
+                if (count == 0) return null;
+                // A gradient becomes its average color: close enough to paint over.
+                return ((uint)(a / count) << 24) | ((uint)(cr / count) << 16) | ((uint)(cg / count) << 8) | (uint)(cb / count);
+            }
+            if (type is >= 0x40 and <= 0x43) { r.Skip(16); r.Matrix(); return null; }
+            throw new InvalidDataException("Unknown fill.");
+        }
+        List<uint?> fills = new();
+        List<(uint? Argb, double Width)> lines = new();
+        void Styles()
+        {
+            fills = new();
+            r.Align();
+            int n = r.U(8);
+            if (n == 0xFF && version >= 2) n = r.U(8) | (r.U(8) << 8);
+            for (int i = 0; i < n; i++) fills.Add(FillStyle());
+            lines = new();
+            r.Align();
+            n = r.U(8);
+            if (n == 0xFF && version >= 2) n = r.U(8) | (r.U(8) << 8);
+            for (int i = 0; i < n; i++)
+            {
+                r.Align();
+                int w = r.U(8) | (r.U(8) << 8);
+                if (version < 4) { lines.Add((Color(), w)); continue; }
+                r.U(2); int join = r.U(2); int hasFill = r.U(1); r.U(3); r.U(5); r.U(1); r.U(2);
+                if (join == 2) r.Skip(16);
+                lines.Add(hasFill == 1 ? (FillStyle(), w) : (Color(), w));
+            }
+        }
+
+        // Edges per style, for the current group of styles.
+        var fillEdges = new Dictionary<int, List<SwfSeg>>();
+        var lineEdges = new Dictionary<int, List<List<SwfSeg>>>();
+        void Flush()
+        {
+            foreach (var (i, edges) in fillEdges.OrderBy(k => k.Key))
+                if (i - 1 < fills.Count && fills[i - 1] is { } c && Join(edges) is { Count: > 0 } figs) result.Add((c, 0, figs));
+            foreach (var (i, figs) in lineEdges.OrderBy(k => k.Key))
+                if (i - 1 < lines.Count && lines[i - 1].Argb is { } c) result.Add((c, Math.Max(lines[i - 1].Width, 20), figs.Where(f => f.Count > 0).ToList()));
+            fillEdges.Clear(); lineEdges.Clear();
+        }
+
+        Styles();
+        int fillBits = r.U(4), lineBits = r.U(4);
+        int f0 = 0, f1 = 0, ln = 0;
+        double x = 0, y = 0;
+        List<SwfSeg> curLine = null;
+        while (r.BytePos < end)
+        {
+            if (r.U(1) == 0)
+            {
+                int flags = r.U(5);
+                if (flags == 0) break;
+                if ((flags & 1) != 0) { int nb = r.U(5); x = r.S(nb); y = r.S(nb); }
+                if ((flags & 2) != 0) f0 = r.U(fillBits);
+                if ((flags & 4) != 0) f1 = r.U(fillBits);
+                if ((flags & 8) != 0) ln = r.U(lineBits);
+                if ((flags & 16) != 0)
+                {
+                    Flush();
+                    Styles();
+                    fillBits = r.U(4); lineBits = r.U(4);
+                }
+                curLine = null;
+                continue;
+            }
+            SwfSeg seg;
+            int straight = r.U(1), bits = r.U(4) + 2;
+            if (straight == 1)
+            {
+                double dx = 0, dy = 0;
+                if (r.U(1) == 1) { dx = r.S(bits); dy = r.S(bits); }
+                else if (r.U(1) == 1) dy = r.S(bits);
+                else dx = r.S(bits);
+                seg = new SwfSeg(x, y, x, y, x + dx, y + dy, false);
+            }
+            else
+            {
+                double cdx = r.S(bits), cdy = r.S(bits), adx = r.S(bits), ady = r.S(bits);
+                seg = new SwfSeg(x, y, x + cdx, y + cdy, x + cdx + adx, y + cdy + ady, true);
+            }
+            x = seg.X1; y = seg.Y1;
+            // Fill on the right as drawn; fill on the left runs the other way round.
+            if (f1 > 0) (fillEdges.TryGetValue(f1, out var l1) ? l1 : fillEdges[f1] = new()).Add(seg);
+            if (f0 > 0) (fillEdges.TryGetValue(f0, out var l0) ? l0 : fillEdges[f0] = new()).Add(new SwfSeg(seg.X1, seg.Y1, seg.Cx, seg.Cy, seg.X0, seg.Y0, seg.Curve));
+            if (ln > 0)
+            {
+                if (curLine == null) { curLine = new(); (lineEdges.TryGetValue(ln, out var ll) ? ll : lineEdges[ln] = new()).Add(curLine); }
+                curLine.Add(seg);
+            }
+        }
+        Flush();
+        return result;
+    }
+
+    /// <summary>Joins loose edges end to start into figures.</summary>
+    static List<List<SwfSeg>> Join(List<SwfSeg> edges)
+    {
+        var byStart = new Dictionary<(double, double), List<int>>();
+        for (int i = 0; i < edges.Count; i++)
+        {
+            var k = (edges[i].X0, edges[i].Y0);
+            (byStart.TryGetValue(k, out var l) ? l : byStart[k] = new()).Add(i);
+        }
+        var used = new bool[edges.Count];
+        var figs = new List<List<SwfSeg>>();
+        for (int i = 0; i < edges.Count; i++)
+        {
+            if (used[i]) continue;
+            var fig = new List<SwfSeg>();
+            int cur = i;
+            while (cur >= 0 && !used[cur])
+            {
+                used[cur] = true;
+                fig.Add(edges[cur]);
+                var e = edges[cur];
+                if (e.X1 == edges[i].X0 && e.Y1 == edges[i].Y0) break;
+                cur = byStart.TryGetValue((e.X1, e.Y1), out var next) ? next.FirstOrDefault(n => !used[n], -1) : -1;
+            }
+            figs.Add(fig);
+        }
+        return figs;
     }
 
     // ───────── pictures ─────────
