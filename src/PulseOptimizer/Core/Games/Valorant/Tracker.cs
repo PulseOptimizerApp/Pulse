@@ -145,9 +145,9 @@ public static class Tracker
     /// Pulse Score, 0 to 1000: how one match's play ranks against every player-match Pulse has seen. 500 is the
     /// middle player, 900 means better than 90% of them. Needs about 100 player-matches to compare with.
     /// </summary>
-    public static double PulseScore(Dictionary<string, double> values)
+    public static double PulseScore(Dictionary<string, double> values, bool console = false)
     {
-        var s = Build(VStore.All);
+        var s = Build(console);
         var c = Combine(values, s.Spread);
         if (double.IsNaN(c)) return double.NaN;
         // Few players seen so far: place the value on the typical curve instead of Pulse's own list.
@@ -158,10 +158,11 @@ public static class Tracker
     }
 
     /// <summary>One player's Pulse Score in one match.</summary>
-    public static double MatchScore(VMatch m, string id) => m.Players.FirstOrDefault(p => p.Id == id) is { } p ? PulseScore(ScaleValues(m, p)) : double.NaN;
+    public static double MatchScore(VMatch m, string id) => m.Players.FirstOrDefault(p => p.Id == id) is { } p ? PulseScore(ScaleValues(m, p), m.Console) : double.NaN;
 
-    static Scale _scale;
-    static (int Matches, int Samples) _scaleKey = (-1, -1);
+    // One scale per platform: console players are compared with console players, PC with PC.
+    static readonly Dictionary<bool, (Scale Scale, (int Matches, int Samples) Key)> _scales = new();
+    static readonly object _scaleGate = new();
 
     /// <summary>One player's numbers in one match, for the scale (only the ones with enough behind them to mean something).</summary>
     /// <summary>
@@ -217,10 +218,16 @@ public static class Tracker
     /// Every player-match Pulse has seen, per skill, overall and by rank: all ten players of your saved matches, plus
     /// the anonymous rank samples from searched players' matches (rebuilt when either grows).
     /// </summary>
-    static Scale Build(IReadOnlyList<VMatch> matches)
+    static Scale Build(bool console)
     {
+        lock (_scaleGate) return BuildLocked(console);
+    }
+
+    static Scale BuildLocked(bool console)
+    {
+        var matches = VStore.All.Where(m => m.Console == console).ToList();
         var key = (matches.Count, RankSamples.Version);
-        if (_scale != null && _scaleKey == key) return _scale;
+        if (_scales.TryGetValue(console, out var have) && have.Key == key) return have.Scale;
         var s = new Scale();
         foreach (var k in Skills.Concat(StatTiles)) { s.All[k.Id] = new(); s.ByTier[k.Id] = new(); }
         foreach (var k in Skills) { s.All["adj:" + k.Id] = new(); s.ByTier["adj:" + k.Id] = new(); }
@@ -251,7 +258,7 @@ public static class Tracker
             if (!VMatch.Counts(m.Queue)) continue;
             foreach (var p in m.Players) Add(p.Tier, ScaleValues(m, p));
         }
-        foreach (var r in RankSamples.Rows) Add(r.T, r.V);
+        foreach (var r in RankSamples.Rows) if (r.C == console) Add(r.T, r.V);
         foreach (var l in s.All.Values) l.Sort();
         foreach (var d in s.ByTier.Values) foreach (var l in d.Values) l.Sort();
         foreach (var (id, _) in ScoreParts)
@@ -263,8 +270,7 @@ public static class Tracker
             }
         foreach (var r in rows) { var c = Combine(r, s.Spread); if (!double.IsNaN(c)) s.Composite.Add(c); }
         s.Composite.Sort();
-        _scale = s;
-        _scaleKey = key;
+        _scales[console] = (s, key);
         return s;
     }
 
@@ -318,7 +324,7 @@ public static class Tracker
     /// <summary>Fills in the skills of a profile against the players in the matches saved on this PC.</summary>
     public static void Score(Profile p)
     {
-        var scale = Build(VStore.All);
+        var scale = Build(p.Console);
         double f = LobbyFactor(EnemyTier(p.Matches, p.Puuid));
         SkillScore One(Skill k)
         {
@@ -368,23 +374,23 @@ public static class Tracker
     }
 
     /// <summary>"Top X%" for any number Pulse keeps per player-match ("adr", "kd", "hs", "kast", "dd", "acs", "kpr", "kad"…); NaN until there are 20.</summary>
-    public static double TopPercentOf(string id, double value)
+    public static double TopPercentOf(string id, double value, bool console = false)
     {
-        var scale = Build(VStore.All);
+        var scale = Build(console);
         return scale.All.TryGetValue(id, out var l) ? TopPercent(l, value) : double.NaN;
     }
 
     /// <summary>The typical value of a skill or stat at one rank (NaN when there aren't 8 players at it yet).</summary>
-    public static double MedianAt(string id, int tier)
+    public static double MedianAt(string id, int tier, bool console = false)
     {
-        var scale = Build(VStore.All);
+        var scale = Build(console);
         return scale.ByTier.TryGetValue(id, out var d) && d.TryGetValue(tier, out var l) && l.Count >= 8 ? Median(l) : double.NaN;
     }
 
     /// <summary>Where a bar for this skill or stat ends: about the best 5% of players in the saved matches.</summary>
-    public static double BarMax(string id, double value)
+    public static double BarMax(string id, double value, bool console = false)
     {
-        var scale = Build(VStore.All);
+        var scale = Build(console);
         var top = scale.All.TryGetValue(id, out var l) ? Quantile(l, 0.95) : double.NaN;
         if (double.IsNaN(top) || top <= 0) top = double.IsNaN(value) ? 1 : value * 1.25;
         return Math.Max(top, double.IsNaN(value) ? 0 : value) * 1.05;
@@ -406,7 +412,7 @@ public static class Tracker
     /// </summary>
     public static (Smurf Signals, int Checked) CheatSignals(Profile p)
     {
-        var scale = Build(VStore.All);
+        var scale = Build(p.Console);
         int tier = p.CompareTier;
         var signs = new List<string>();
         int done = 0;
@@ -789,7 +795,7 @@ public static class Tracker
     /// </summary>
     public static Smurf UnusualInMatch(VMatch m, string who, int tier)
     {
-        var scale = Build(VStore.All);
+        var scale = Build(m.Console);
         var t = Analysis.Totals(m, who);
         var signs = new List<string>();
         double Top(string id) => tier >= 3 && scale.ByTier[id].TryGetValue(tier, out var l) && l.Count >= 15 ? Quantile(l, 0.99) : Quantile(scale.All[id], 0.995);
@@ -805,5 +811,5 @@ public static class Tracker
     }
 
     /// <summary>For tests.</summary>
-    internal static void Reset() { _scale = null; _scaleKey = (-1, -1); }
+    internal static void Reset() { lock (_scaleGate) _scales.Clear(); }
 }

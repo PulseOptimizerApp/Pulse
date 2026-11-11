@@ -15,6 +15,8 @@ public static class RankSamples
     {
         public int T { get; set; }
         public Dictionary<string, double> V { get; set; } = new();
+        /// <summary>From a console match (console players are only compared with console players).</summary>
+        public bool C { get; set; }
     }
 
     sealed class Data
@@ -63,7 +65,7 @@ public static class RankSamples
             d.Seen.Add(m.Id);
             if (d.Seen.Count > MaxSeen) d.Seen.RemoveRange(0, d.Seen.Count - MaxSeen);
             foreach (var p in m.Players)
-                if (p.Tier >= 3) d.Rows.Add(new Row { T = p.Tier, V = values(m, p) });
+                if (p.Tier >= 3) d.Rows.Add(new Row { T = p.Tier, V = values(m, p), C = m.Console });
             if (d.Rows.Count > MaxRows) d.Rows.RemoveRange(0, d.Rows.Count - MaxRows);
             Version++;
         }
