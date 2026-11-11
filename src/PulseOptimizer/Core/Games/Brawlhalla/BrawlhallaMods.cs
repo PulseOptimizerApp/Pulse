@@ -261,8 +261,10 @@ public static class BrawlhallaMods
     // ───────── editable PNGs of a skin ─────────
 
     /// <summary>Where a skin's editable PNGs go: Documents\Pulse\Brawlhalla skins\&lt;skin&gt;.</summary>
+    static string SkinsRoot => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Pulse", "Brawlhalla skins");
+
     public static string SkinFolder(BhSkin s) =>
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Pulse", "Brawlhalla skins",
+        Path.Combine(SkinsRoot,
             string.Concat((Regex.Replace(s.Name, "([a-z])([A-Z0-9])", "$1 $2") + (s.Legend.Length > 0 ? " (" + s.Legend + ")" : "")).Split(Path.GetInvalidFileNameChars())));
 
     const string SkinManifest = "pulse-skin.json";
@@ -367,6 +369,86 @@ public static class BrawlhallaMods
         if (map.Count == 0) M.Pictures.Remove(s.File);
         if (n > 0) { M.Pending = true; TweakEngine.Save(); }
         return n;
+    }
+
+    // ───────── many pictures at once ─────────
+
+    static string Squash(string s) => Regex.Replace(s.ToLowerInvariant(), "[^a-z0-9]", "");
+
+    static readonly string[] PictureTypes = { ".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif" };
+
+    /// <summary>
+    /// Which parts of a skin a picture's file name points to: the part's own name ("a_Hair_Mikasa"), its label as
+    /// Pulse saves it ("Hair Back", "Hair Back 2"), its group ("Hair", "Spear": every piece), or "Weapons" / "Head" /
+    /// "Body" for all of those. Empty when the name fits nothing.
+    /// </summary>
+    public static List<string> PartsNamed(IReadOnlyList<string> skinParts, string fileName)
+    {
+        var key = Squash(Path.GetFileNameWithoutExtension(fileName));
+        if (key.Length == 0) return new();
+        var sorted = skinParts.OrderBy(p => p, StringComparer.Ordinal).ToList();
+        var exact = sorted.FirstOrDefault(p => Squash(p) == key);
+        if (exact != null) return new() { exact };
+        // Labels, numbered the way Pulse names the PNGs it saves.
+        var seen = new HashSet<string>();
+        foreach (var p in sorted)
+        {
+            var label = Squash(PartLabel(p));
+            var name = label;
+            for (int i = 2; !seen.Add(name); i++) name = label + i;
+            if (name == key) return new() { p };
+        }
+        var group = sorted.Where(p => Squash(PartGroup(p)) == key).ToList();
+        if (group.Count > 0) return group;
+        var singular = key.EndsWith('s') ? key[..^1] : key;
+        var kind = sorted.Where(p => Squash(GroupKind(PartGroup(p))) is var k && (k == key || k == key + "s" || k == singular)).ToList();
+        return kind;
+    }
+
+    /// <summary>
+    /// Puts many of your pictures on a skin at once, each on the parts its file name points to (see
+    /// <see cref="PartsNamed"/>); folders are searched for pictures. Another skin's art as Pulse saved it isn't put on
+    /// this one. Returns what went where and what didn't fit.
+    /// </summary>
+    public static (int Pictures, int Parts, List<string> NoMatch, List<string> OtherSkin) BulkAdd(BhSkin s, IEnumerable<string> paths)
+    {
+        var files = new List<string>();
+        foreach (var p in paths)
+        {
+            if (Directory.Exists(p)) files.AddRange(Directory.EnumerateFiles(p, "*", SearchOption.AllDirectories).Where(f => PictureTypes.Contains(Path.GetExtension(f).ToLowerInvariant())));
+            else if (File.Exists(p)) files.Add(p);
+        }
+        // Pictures Pulse saved from other skins, untouched: those are another skin's own art, not yours.
+        var others = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (Directory.Exists(SkinsRoot))
+            foreach (var m in Directory.EnumerateFiles(SkinsRoot, SkinManifest, SearchOption.AllDirectories))
+            {
+                try
+                {
+                    var sheet = JsonSerializer.Deserialize<SkinSheet>(File.ReadAllText(m));
+                    if (sheet?.Parts != null && sheet.File != s.File) foreach (var v in sheet.Parts.Values) others.Add(v.Sha);
+                }
+                catch { }
+            }
+        if (!M.Pictures.TryGetValue(s.File, out var map)) M.Pictures[s.File] = map = new();
+        int pics = 0, parts = 0;
+        var noMatch = new List<string>();
+        var other = new List<string>();
+        foreach (var f in files)
+        {
+            var name = Path.GetFileName(f);
+            if (!PictureTypes.Contains(Path.GetExtension(f).ToLowerInvariant())) { noMatch.Add(name); continue; }
+            var targets = PartsNamed(s.Parts, name);
+            if (targets.Count == 0) { noMatch.Add(name); continue; }
+            if (others.Count > 0 && others.Contains(Sha(f))) { other.Add(name); continue; }
+            string stored;
+            try { stored = AddPicture(f); } catch { noMatch.Add(name); continue; }
+            foreach (var t in targets) map[t] = stored;
+            pics++; parts += targets.Count;
+        }
+        if (map.Count == 0) M.Pictures.Remove(s.File);
+        if (pics > 0) { M.Pending = true; TweakEngine.Save(); }
+        return (pics, parts, noMatch, other);
     }
 
     /// <summary>Reads a picture as RGBA, scaled down so its longer side is at most <paramref name="maxSide"/>.</summary>

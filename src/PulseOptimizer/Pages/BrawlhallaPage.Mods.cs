@@ -397,7 +397,8 @@ public sealed partial class BrawlhallaPage
         sp.Children.Add(PngSteps(s));
         sp.Children.Add(Switch("Or pick pictures part by part (advanced)", _skinAdvanced, v => { _skinAdvanced = v; Build(); }).Also(x => x.Margin = new Thickness(0, 18, 0, 4)));
         if (!_skinAdvanced) return sp;
-        sp.Children.Add(Dim(Loc.T("Click Choose picture next to a part, or drag a picture onto it. A PNG with a transparent background looks best."), 12.5, 8));
+        sp.Children.Add(BulkBox(s));
+        sp.Children.Add(Dim(Loc.T("Or one at a time: click Choose picture next to a part, or drag a picture onto it. A PNG with a transparent background looks best."), 12.5, 14));
         if (_skinAdvanced)
         {
             sp.Children.Add(Dim(Loc.T("Make pictures about 4 times the size shown so they stay sharp. Pieces lets you give one piece (say, the back hair) its own picture."), 12, 4));
@@ -482,6 +483,57 @@ public sealed partial class BrawlhallaPage
             box.Children.Add(redo);
         }
         return new Border { Child = box, Padding = new Thickness(16), Margin = new Thickness(0, 14, 0, 0), CornerRadius = new CornerRadius(12), Background = new SolidColorBrush(Inset), BorderBrush = new SolidColorBrush(Gold), BorderThickness = new Thickness(1) };
+    }
+
+    /// <summary>Many pictures at once, each named after the part it's for.</summary>
+    FrameworkElement BulkBox(BhSkin s)
+    {
+        var box = new StackPanel();
+        var top = new Grid();
+        top.ColumnDefinitions.Add(new ColumnDefinition());
+        top.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        var t = new StackPanel();
+        t.Children.Add(new TextBlock { Text = Loc.T("Add many pictures at once"), FontSize = 14, FontWeight = FontWeights.SemiBold, Foreground = Res("TextBrush") });
+        t.Children.Add(Dim(Loc.T("Name each picture after the part it's for, then pick them all (or drop them, or a folder, here). Each goes on every piece of that part."), 12, 2));
+        top.Children.Add(t);
+        var pick = new Button { Style = (Style)FindResource("PrimaryButton"), Content = Loc.T("Add pictures"), Padding = new Thickness(16, 7, 16, 7), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 0, 0) };
+        pick.Click += (_, _) =>
+        {
+            var dlg = new Microsoft.Win32.OpenFileDialog { Filter = Loc.T("Pictures") + "|*.png;*.jpg;*.jpeg;*.webp;*.bmp;*.gif", Multiselect = true };
+            if (dlg.ShowDialog() == true) Bulk(s, dlg.FileNames);
+        };
+        Grid.SetColumn(pick, 1); top.Children.Add(pick);
+        box.Children.Add(top);
+
+        // The names this skin understands, so nobody has to guess.
+        var names = new WrapPanel { Margin = new Thickness(0, 10, 0, 0) };
+        names.Children.Add(new TextBlock { Text = Loc.T("Names this skin uses:"), FontSize = 12, Foreground = Res("TextDimBrush"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 6) });
+        foreach (var g in _skinParts.Select(p => BrawlhallaMods.PartGroup(p.Name)).Distinct().OrderBy(g => Array.IndexOf(new[] { "Head", "Body", "Weapons" }, BrawlhallaMods.GroupKind(g))).ThenBy(g => g))
+            names.Children.Add(new Border { Padding = new Thickness(9, 3, 9, 3), Margin = new Thickness(0, 0, 6, 6), CornerRadius = new CornerRadius(999), Background = new SolidColorBrush(PanelBg), BorderBrush = new SolidColorBrush(Line), BorderThickness = new Thickness(1),
+                Child = new TextBlock { Text = g.Replace(" ", "") + ".png", FontSize = 11.5, Foreground = Res("TextBrush") } });
+        box.Children.Add(names);
+
+        var border = new Border { Child = box, Padding = new Thickness(14), Margin = new Thickness(0, 10, 0, 0), CornerRadius = new CornerRadius(10), Background = new SolidColorBrush(Inset), BorderBrush = new SolidColorBrush(Line), BorderThickness = new Thickness(1) };
+        border.AllowDrop = true;
+        border.DragOver += (_, e) => { e.Effects = e.Data.GetDataPresent(DataFormats.FileDrop) ? DragDropEffects.Copy : DragDropEffects.None; e.Handled = true; };
+        border.DragEnter += (_, _) => border.BorderBrush = new SolidColorBrush(Gold);
+        border.DragLeave += (_, _) => border.BorderBrush = new SolidColorBrush(Line);
+        border.Drop += (_, e) => { if (e.Data.GetData(DataFormats.FileDrop) is string[] { Length: > 0 } f) { e.Handled = true; Bulk(s, f); } };
+        return border;
+    }
+
+    void Bulk(BhSkin s, string[] files)
+    {
+        try
+        {
+            var (pics, parts, noMatch, other) = BrawlhallaMods.BulkAdd(s, files);
+            _modStatus = null;
+            if (pics > 0) MainWindow.Instance.Toast(Loc.F("Put {0} picture(s) on {1} piece(s). Press Apply to put them in the game.", pics, parts), ToastKind.Success);
+            if (noMatch.Count > 0) MainWindow.Instance.Toast(Loc.F("{0} didn't match a part of this skin. Rename them to one of the names shown.", string.Join(", ", noMatch.Take(4)) + (noMatch.Count > 4 ? "…" : "")), ToastKind.Info);
+            if (other.Count > 0) MainWindow.Instance.Toast(Loc.T("Some pictures are another skin's own art, saved by Pulse, so they weren't used. Edit them into your own design first."), ToastKind.Info);
+        }
+        catch (Exception ex) { MainWindow.Instance.Toast(ex.Message, ToastKind.Info); }
+        Build();
     }
 
     FrameworkElement PartGroupRow(BhSkin s, string group, List<SwfPart> parts, Dictionary<string, string> pics)

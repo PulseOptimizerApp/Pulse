@@ -171,6 +171,19 @@ public class BrawlhallaModTests
     public void Backgrounds_get_readable_names(string file, string label) =>
         Assert.Equal(label, BrawlhallaMods.BackgroundLabel(file));
 
+    [Theory]
+    [InlineData("Hair.png", "a_HairBack_Zuko,a_HairFront_Zuko")]
+    [InlineData("hair back.png", "a_HairBack_Zuko")]
+    [InlineData("Spear.PNG", "a_SpearShaft_Zuko,a_WeaponSpearTip_Zuko")]
+    [InlineData("weapons.png", "a_SpearShaft_Zuko,a_WeaponSpearTip_Zuko")]
+    [InlineData("a_Torso1_Zuko.png", "a_Torso1_Zuko")]
+    [InlineData("Cat.png", "")]
+    public void Bulk_pictures_go_where_their_names_say(string file, string expected)
+    {
+        var parts = new[] { "a_HairBack_Zuko", "a_HairFront_Zuko", "a_SpearShaft_Zuko", "a_WeaponSpearTip_Zuko", "a_Torso1_Zuko" };
+        Assert.Equal(expected, string.Join(",", BrawlhallaMods.PartsNamed(parts, file).OrderBy(x => x, StringComparer.Ordinal)));
+    }
+
     [Fact]
     public void A_part_draws_as_its_own_shapes_and_colors()
     {

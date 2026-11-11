@@ -5905,5 +5905,13 @@
  "Your PNGs are in Documents › Pulse › Brawlhalla skins.": "Tus PNG están en Documentos › Pulse › Brawlhalla skins.",
  "Save this skin's parts as PNGs. Pulse opens the folder.": "Guarda las partes de este skin como PNG. Pulse abre la carpeta.",
  "Paint over them in Paint, Photoshop, Krita or anything else. Keep the file names, and save as PNG.": "Píntalas en Paint, Photoshop, Krita o lo que quieras. Mantén los nombres de archivo y guarda como PNG.",
- "Load your edits, then press Apply at the top.": "Carga tus cambios y pulsa Aplicar arriba."
+ "Load your edits, then press Apply at the top.": "Carga tus cambios y pulsa Aplicar arriba.",
+ "Add many pictures at once": "Añade muchas imágenes a la vez",
+ "Add pictures": "Añadir imágenes",
+ "Name each picture after the part it's for, then pick them all (or drop them, or a folder, here). Each goes on every piece of that part.": "Nombra cada imagen como la parte a la que va y elígelas todas (o suéltalas aquí, o una carpeta). Cada una va en todas las piezas de esa parte.",
+ "Names this skin uses:": "Nombres que usa este skin:",
+ "Or one at a time: click Choose picture next to a part, or drag a picture onto it. A PNG with a transparent background looks best.": "O de una en una: haz clic en Elegir imagen junto a una parte, o arrastra una imagen encima. Un PNG con fondo transparente queda mejor.",
+ "Put {0} picture(s) on {1} piece(s). Press Apply to put them in the game.": "Se pusieron {0} imagen(es) en {1} pieza(s). Pulsa Aplicar para ponerlas en el juego.",
+ "Some pictures are another skin's own art, saved by Pulse, so they weren't used. Edit them into your own design first.": "Algunas imágenes son el arte de otro skin guardado por Pulse, así que no se usaron. Primero conviértelas en tu propio diseño.",
+ "{0} didn't match a part of this skin. Rename them to one of the names shown.": "{0} no coincide con ninguna parte de este skin. Cámbiales el nombre a uno de los mostrados."
 }
