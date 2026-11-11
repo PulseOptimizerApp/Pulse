@@ -15,7 +15,7 @@ public partial class ValorantPage
     string _defaultSound;
     bool _screensLoading;
 
-    static ConsoleSwitchSettings CS => TweakEngine.State.ConsoleSwitch ??= new ConsoleSwitchSettings();
+    static ConsoleSwitchSettings ConsoleSet => TweakEngine.State.ConsoleSwitch ??= new ConsoleSwitchSettings();
 
     void BuildConsole()
     {
@@ -30,7 +30,7 @@ public partial class ValorantPage
         var (screens, sound) = await Task.Run(() => (ConsoleSwitch.Screens(), ConsoleSwitch.Sound()));
         _screens = screens; _sounds = sound.Devices; _defaultSound = sound.Default;
         _screensLoading = false;
-        var s = CS;
+        var s = ConsoleSet;
         // First time: the monitor and the input it's on now are the PC's.
         if (s.PcInput == 0 && _screens.Count > 0)
         {
@@ -44,7 +44,7 @@ public partial class ValorantPage
 
     FrameworkElement SwitchCard()
     {
-        var s = CS;
+        var s = ConsoleSet;
         var sp = new StackPanel();
         sp.Children.Add(Heading("Switch between PC and console"));
         sp.Children.Add(Dim(Loc.T("One click moves your monitor to the console and your PC's sound where you want it. Press Ctrl+Alt+F12 to come back, even while the screen shows the console."), 12.5, 4));
@@ -131,7 +131,7 @@ public partial class ValorantPage
 
     FrameworkElement ConsoleCrosshairCard()
     {
-        var s = CS;
+        var s = ConsoleSet;
         var sp = new StackPanel();
         sp.Children.Add(Heading("Your crosshair on console"));
         sp.Children.Add(Dim(Loc.T("Console VALORANT can import crosshair codes too. On PC, go to Settings › Crosshair and press Export, then paste the code here. Pulse shows it in short pieces that are easy to type."), 12.5, 4));
