@@ -17,7 +17,7 @@ public sealed record ImportSource(string App, string Folder, int Count);
 /// </summary>
 public static class ClipImport
 {
-    static readonly string[] VideoExt = { ".mp4" };
+    static readonly string[] VideoExt = { ".mp4", ".webm" };
     static readonly string[] SkipFolders = { "Thumbnails", ".thumbnails", "Editor", "Temp", "temp", "cache", "Cache", "Screenshots", "Uploads" };
 
     /// <summary>Folders of the clipping apps found on this PC, with how many clips each has that aren't in Pulse yet.</summary>
@@ -32,12 +32,38 @@ public static class ClipImport
         found.Add(("AMD", System.IO.Path.Combine(videos, "Radeon ReLive")));
         // NVIDIA's instant replay saves into Videos\<game>\ (or Videos\NVIDIA\<game>\).
         found.Add(("NVIDIA", System.IO.Path.Combine(videos, "NVIDIA")));
+        foreach (var f in PlayStationFolders()) found.Add(("PlayStation", f));
         var list = new List<ImportSource>();
         foreach (var (app, folder) in found.DistinctBy(x => x.Folder.ToLowerInvariant()))
         {
             if (!Directory.Exists(folder)) continue;
             int n = Scan(folder, app, s).Count;
             if (n > 0) list.Add(new ImportSource(app, folder, n));
+        }
+        return list;
+    }
+
+    /// <summary>
+    /// PS5 and PS4 captures on a USB drive: the console copies them into a "PS5" (or "PS4") folder at the drive's
+    /// root. Every drive except the Windows one is checked (USB sticks and USB SSDs both count).
+    /// </summary>
+    public static List<string> PlayStationFolders()
+    {
+        var list = new List<string>();
+        var system = System.IO.Path.GetPathRoot(Environment.SystemDirectory) ?? "C:\\";
+        foreach (var d in DriveInfo.GetDrives())
+        {
+            try
+            {
+                if (!d.IsReady || d.DriveType is DriveType.CDRom or DriveType.Network) continue;
+                if (string.Equals(d.RootDirectory.FullName, system, StringComparison.OrdinalIgnoreCase)) continue;
+                foreach (var name in new[] { "PS5", "PS4" })
+                {
+                    var f = System.IO.Path.Combine(d.RootDirectory.FullName, name);
+                    if (Directory.Exists(f)) list.Add(f);
+                }
+            }
+            catch { }
         }
         return list;
     }
@@ -78,7 +104,7 @@ public static class ClipImport
         var own = System.IO.Path.GetFullPath(s.ClipsFolder).TrimEnd('\\');
         try
         {
-            var opts = new EnumerationOptions { RecurseSubdirectories = true, MaxRecursionDepth = 3, IgnoreInaccessible = true };
+            var opts = new EnumerationOptions { RecurseSubdirectories = true, MaxRecursionDepth = app == "PlayStation" ? 5 : 3, IgnoreInaccessible = true };
             foreach (var path in Directory.EnumerateFiles(folder, "*.*", opts))
             {
                 if (!VideoExt.Contains(System.IO.Path.GetExtension(path), StringComparer.OrdinalIgnoreCase)) continue;
@@ -103,6 +129,8 @@ public static class ClipImport
         var parent = f.Directory?.Name ?? "";
         bool atRoot = string.Equals(f.DirectoryName?.TrimEnd('\\'), root.TrimEnd('\\'), StringComparison.OrdinalIgnoreCase);
         string game = parent;
+        // PlayStation: PS5\CREATE\Video Clips\<game>\…; a clip straight in "Video Clips" has no game folder.
+        if (parent is "Video Clips" or "CREATE" or "PS5" or "PS4" or "SHARE") return app;
         if (atRoot || parent.Equals("Clips", StringComparison.OrdinalIgnoreCase))
         {
             // Xbox Game Bar and others name the file after the game: "VALORANT 2026-11-04 20-11-03.mp4".
@@ -117,7 +145,8 @@ public static class ClipImport
     internal static string TargetName(string folder, ImportCandidate c)
     {
         var baseName = $"{c.Game} {c.Created:yyyy-MM-dd HH-mm-ss}";
-        var ext = System.IO.Path.GetExtension(c.Path).ToLowerInvariant();
+        // WebM (the PS5's default) is turned into MP4 on the way in, so it plays everywhere.
+        var ext = System.IO.Path.GetExtension(c.Path).ToLowerInvariant() == ".webm" ? ".mp4" : System.IO.Path.GetExtension(c.Path).ToLowerInvariant();
         var path = System.IO.Path.Combine(folder, baseName + ext);
         for (int i = 2; File.Exists(path); i++) path = System.IO.Path.Combine(folder, $"{baseName} ({i}){ext}");
         return path;
@@ -142,7 +171,15 @@ public static class ClipImport
             try
             {
                 var dest = TargetName(folder, c);
-                if (CreateHardLink(dest, c.Path, IntPtr.Zero)) linked++;
+                if (c.Path.EndsWith(".webm", StringComparison.OrdinalIgnoreCase))
+                {
+                    // Pulse's player and editors use MP4: convert (the original on the USB stays as it is).
+                    if (!Ffmpeg.Installed) continue;
+                    var (code, _) = Ffmpeg.Run($"-y -hide_banner -i \"{c.Path}\" -c:v libx264 -preset veryfast -crf 20 -c:a aac -b:a 160k -movflags +faststart \"{dest}\"", ct, 3_600_000).GetAwaiter().GetResult();
+                    if (code != 0 || !File.Exists(dest)) { try { File.Delete(dest); } catch { } continue; }
+                    copied += c.Size;
+                }
+                else if (CreateHardLink(dest, c.Path, IntPtr.Zero)) linked++;
                 else { File.Copy(c.Path, dest); copied += c.Size; }
                 try { File.SetCreationTime(dest, c.Created); } catch { }
                 s.ImportedSources.Add(c.Path + "|" + c.Size);

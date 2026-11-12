@@ -131,6 +131,8 @@ public class ClipSettings
     public Dictionary<string, string> Titles { get; set; } = new(StringComparer.OrdinalIgnoreCase);
     /// <summary>Clips already brought in from other apps ("path|size"), so they aren't added twice.</summary>
     public List<string> ImportedSources { get; set; } = new();
+    /// <summary>When a USB drive with PS5/PS4 captures is plugged in, bring the new clips in by themselves.</summary>
+    public bool AutoImportPlayStation { get; set; } = true;
     /// <summary>File names in the library that came from other apps: the storage limit leaves them alone.</summary>
     public List<string> ImportedNames { get; set; } = new();
     /// <summary>Clip big plays on their own: CS2 3K/4K/ACE, League triples to pentas and aces, Dota 2 triples and up.</summary>
