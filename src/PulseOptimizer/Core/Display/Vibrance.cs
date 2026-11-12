@@ -6,8 +6,19 @@ namespace Pulse.Core.Display;
 public class VibranceSettings
 {
     public bool Enabled { get; set; }
-    /// <summary>How vibrant VALORANT looks: 0–100, where 50 is normal and 100 is the most the graphics card allows.</summary>
-    public int Level { get; set; } = 75;
+    /// <summary>The Pulse Color look: "pop", "dark", "crisp" or "custom".</summary>
+    public string Preset { get; set; } = "pop";
+    /// <summary>The enemy highlight colour picked in VALORANT: "red", "yellow" or "purple".</summary>
+    public string Highlight { get; set; } = "red";
+    /// <summary>Custom look: vibrance 50–100 (50 normal), shadow lift 0–0.4, contrast 0.9–1.2.</summary>
+    public int Level { get; set; } = 70;
+    public double Shadows { get; set; } = 0.12;
+    public double Contrast { get; set; } = 1.05;
+    /// <summary>While the look is on: your own vibrance and screen curves, to put back (also after a crash).</summary>
+    public int OwnVibrance { get; set; } = -1;
+    public Dictionary<string, ushort[]> OwnRamps { get; set; }
+
+    public ColorLook Look => PulseColor.Look(Preset, Highlight, new ColorLook(Level, Shadows, Contrast, 1, 1, 1));
 }
 
 /// <summary>
